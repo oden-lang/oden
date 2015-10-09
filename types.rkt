@@ -30,8 +30,10 @@
   [((e-app fn param)) (format "(~a ~a)" (show-e fn) (show-e param))]
   [((e-lam arg body)) (format "(lambda (~a) ~a)" (show-e arg) (show-e body))])
 
+; predefined types
 (define bool (t-oper "bool" '()))
 (define number (t-oper "number" '()))
+(define (pair a b) (t-oper "*" (list a b)))
 
 ; unifies t with the type of the expression
 (define (unify-type t expr scope)
@@ -61,13 +63,18 @@
              body
              (hash-set scope arg-name arg-type)))]))
 
-(define predefined-types (hash "true" bool
-                               "false" bool))
+
 
 (define (get-type expr)
-  (let ([t (run 1 (q) (unify-type q expr predefined-types))])
+  (let ([t (run 1 (q)
+                (fresh
+                 (pair-a pair-b)
+                 (let  ([predefined-symbols (hash "true" bool
+                                                  "false" bool
+                                                  "pair" (t-fn pair-a (t-fn pair-b (pair pair-a pair-b))))])
+                   (unify-type q expr predefined-symbols))))])
     (cond
-     [(empty? t) (error "Type check failed!")]
+     [(empty? t) (error "Type check failed:" t)]
      [(t-failure? (first t)) (error (t-failure-message (first t)))]
      [else (first t)])))
 
