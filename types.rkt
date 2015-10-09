@@ -79,3 +79,17 @@
      [else (first t)])))
 
 (define identity (e-lam (e-var "x") (e-var "x")))
+
+(provide
+ e-var
+ e-lam
+ e-app
+ t-value
+ t-fn
+ t-oper
+ t-failure
+ get-type
+ bool
+ number
+ pair
+ identity)
