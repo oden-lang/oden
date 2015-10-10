@@ -70,14 +70,20 @@
   (fresh (a)
          (== t (t/fn a (predef/list a)))))
 
+(define (predef/unify-if t)
+  (fresh (a)
+         (== t (t/fn predef/bool (t/fn a (t/fn a a))))))
+
 (define (get-type expr)
   (let ([t (run 1 (q)
-                (fresh (singleton)
-                       (predef/unify-singleton singleton)
+                (fresh (singleton-t if-t)
+                       (predef/unify-singleton singleton-t)
+                       (predef/unify-if if-t)
                        (let ([predefined-symbols
                               (hash "true" predef/bool
                                     "false" predef/bool
-                                    "list/singleton" singleton)])
+                                    "list/singleton" singleton-t
+                                    "if" if-t)])
                    (unify-type q expr predefined-symbols))))])
     (cond
      [(empty? t) (error "Type check failed:" t)]
