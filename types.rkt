@@ -31,9 +31,9 @@
   [((e/lam arg body)) (format "(lambda (~a) ~a)" (show-e arg) (show-e body))])
 
 ; predefined types
-(define bool (t/oper "bool" '()))
-(define number (t/oper "number" '()))
-(define (pair a b) (t/oper "*" (list a b)))
+(define predef/bool (t/oper "bool" '()))
+(define predef/number (t/oper "number" '()))
+(define (predef/list t) (t/oper "list" (list t)))
 
 ; unifies t with the type of the expression
 (define (unify-type t expr scope)
@@ -44,7 +44,7 @@
                       (== t (hash-ref scope name))
                       (let ([n (string->number name)])
                         (if n
-                            (== t number)
+                            (== t predef/number)
                             (== t (t/failure (format "Undefined: ~a" name))))))]
 
     ;; application
@@ -61,24 +61,28 @@
             (unify-type
              body-type
              body
-             (hash-set scope arg-name arg-type)))]))
+             (hash-set scope arg-name arg-type)))]
+    [e
+     (== t (t/failure (format "Invalid expression: ~a" e)))]))
 
-
+;; TODO: introduce variadic functions and get rid of this
+(define (predef/unify-singleton t)
+  (fresh (a)
+         (== t (t/fn a (predef/list a)))))
 
 (define (get-type expr)
   (let ([t (run 1 (q)
-                (fresh
-                 (pair-a pair-b)
-                 (let  ([predefined-symbols (hash "true" bool
-                                                  "false" bool
-                                                  "pair" (t/fn pair-a (t/fn pair-b (pair pair-a pair-b))))])
+                (fresh (singleton)
+                       (predef/unify-singleton singleton)
+                       (let ([predefined-symbols
+                              (hash "true" predef/bool
+                                    "false" predef/bool
+                                    "list/singleton" singleton)])
                    (unify-type q expr predefined-symbols))))])
     (cond
      [(empty? t) (error "Type check failed:" t)]
      [(t/failure? (first t)) (error (t/failure-message (first t)))]
      [else (first t)])))
-
-(define identity (e/lam (e/var "x") (e/var "x")))
 
 (provide
  e/var
@@ -89,7 +93,6 @@
  t/oper
  t/failure
  get-type
- bool
- number
- pair
- identity)
+ predef/bool
+ predef/number
+ predef/list)
