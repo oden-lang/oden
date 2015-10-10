@@ -6,8 +6,6 @@
 (struct e/app (fn param) #:transparent)
 (struct e/lam (arg body) #:transparent)
 
-(define (t/value type)
-  (list ':value type))
 (define (t/fn domain range)
   (list ':fn domain range))
 (define (t/oper name args)
@@ -22,6 +20,12 @@
 (define/contract (t/failure-message t)
   (-> t/failure? string?)
   (first (rest t)))
+
+(define/match (show-t type)
+  [((list ':oper name '())) name]
+  [((list ':oper name args)) (format "(~a ~a)" name (map show-t args))]
+  [((list ':fn domain range)) (format "(-> ~a ~a)" (show-t domain) (show-t range))]
+  [((list ':failure msg)) (format "Failure: ~a" msg)])
 
 (define succeed (== #t #t))
 
@@ -90,15 +94,18 @@
      [(t/failure? (first t)) (error (t/failure-message (first t)))]
      [else (first t)])))
 
+(define (show-type expr)
+  (show-t (get-type expr)))
+
 (provide
  e/var
  e/lam
  e/app
- t/value
  t/fn
  t/oper
  t/failure
  get-type
+ show-type
  predef/bool
  predef/number
  predef/list)
