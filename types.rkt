@@ -8,8 +8,8 @@
 
 (define (t/fn domain range)
   (list ':fn domain range))
-(define (t/oper name args)
-  (list ':oper name args))
+(define (t/constructor name args)
+  (list ':constructor name args))
 (define (t/failure msg)
   (list ':failure msg))
 
@@ -22,8 +22,8 @@
   (first (rest t)))
 
 (define/match (show-t type)
-  [((list ':oper name '())) name]
-  [((list ':oper name args)) (format "(~a ~a)" name (map show-t args))]
+  [((list ':constructor name '())) name]
+  [((list ':constructor name args)) (format "(~a ~a)" name (map show-t args))]
   [((list ':fn domain range)) (format "(-> ~a ~a)" (show-t domain) (show-t range))]
   [((list ':failure msg)) (format "Failure: ~a" msg)])
 
@@ -35,9 +35,9 @@
   [((e/lam arg body)) (format "(lambda (~a) ~a)" (show-e arg) (show-e body))])
 
 ; predefined types
-(define predef/bool (t/oper "bool" '()))
-(define predef/number (t/oper "number" '()))
-(define (predef/list t) (t/oper "list" (list t)))
+(define predef/bool (t/constructor "bool" '()))
+(define predef/number (t/constructor "number" '()))
+(define (predef/list t) (t/constructor "list" (list t)))
 
 ; unifies t with the type of the expression
 (define (unify-type t expr scope)
@@ -102,7 +102,7 @@
  e/lam
  e/app
  t/fn
- t/oper
+ t/constructor
  t/failure
  get-type
  show-type
