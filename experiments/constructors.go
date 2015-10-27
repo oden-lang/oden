@@ -1,5 +1,9 @@
 package main
 
+// This experiment investigates if it's possible to implement a performant
+// ADT in Go or if it's better to just align with interfaces/structs and
+// dynamic dispatch as it works in Go.
+
 type TreeDynamic interface {
 	Size() int
 }
