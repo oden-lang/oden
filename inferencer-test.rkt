@@ -1,9 +1,7 @@
 #lang racket
 
-(require rackunit "types.rkt")
+(require rackunit "inferencer.rkt")
 (require rackunit/text-ui)
-
-(define identity (e/lam (e/var "x") (e/var "x")))
 
 (define types-test
   (test-suite
@@ -13,7 +11,9 @@
     "identity"
     (check-equal?
      ;; (identity true) : bool
-     (get-typed-expr (e/app identity (e/var "true")))
+     (:? '((lambda (x) x) true))
+     'bool
+     #;
      (typed-expr
       predef/bool
       (e/app
@@ -26,10 +26,11 @@
 
 
    (test-case
-    "list/singleton"
+    "cons"
     (check-equal?
-     ;; (list/singleton 1) : (list number)
-     (get-typed-expr (e/app (e/var "list/singleton") (e/var "1")))
+     (:? '(cons 1 ()))
+     '(list int)
+     #;
      (typed-expr
       (predef/list predef/number)
       (e/app
@@ -44,12 +45,9 @@
    (test-case
     "if"
     (check-equal?
-     ;; (if true 1 0) : bool            ;
-     (get-typed-expr (e/app
-                      (e/app
-                       (e/app (e/var "if") (e/var "true"))
-                       (e/var "1"))
-                      (e/var "0")))
+     (:? '(if true 1 0))
+     'int
+     #;
      (typed-expr
       predef/number
       (e/app
@@ -71,19 +69,14 @@
        (typed-expr
         predef/number
         (e/var "0"))))
-     predef/number))
+     ))
 
 
    (test-case
     "if branches have same type"
     (check-exn
      exn:fail?
-     ;; (if true 1 true)                ;
      (lambda ()
-       (get-typed-expr (e/app
-                        (e/app
-                         (e/app (e/var "if") (e/var "true"))
-                         (e/var "1"))
-                        (e/var "true"))))))))
+       (:? '(if true 1 true)))))))
 
 (run-tests types-test)
