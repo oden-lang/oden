@@ -1,20 +1,81 @@
-#lang typed/racket
+#lang racket
 
-(define-type go-type (U 'string 'int))
-(struct go-arg ([name : String] [type : go-type]))
-(struct go-func ([name : String] [args : (Listof go-arg)]))
+(require racket/match)
+(require racket/system)
+(require "inferencer.rkt")
 
-(struct compilation-error exn:fail:user ())
+(define (compile-type type)
+  (match type
+    [`(,r -> ,d) (format "func (~a) ~a"
+                         (compile-type r)
+                         (compile-type d))]
+    [(? list? l) (string-join (map ~a l) "_")]
+    [(? symbol? t) (~a t)]))
 
-(: kashmir-read-file (-> Path-String (U EOF (Syntaxof Any))))
-(define (kashmir-read-file src-file)
-  (call-with-input-file src-file read-syntax))
+(define (compile-expr typed-expr)
+  (match typed-expr
+    [(? number? x) (~a x)]
+    [`(,e : ,t) (compile-expr e)]
+    ['false "false"]
+    ['true "true"]
+    [(? symbol? s) (~a s)]
+    [`(lambda ((,x : ,xt)) (,e : ,et))
+     (format "(func (~a ~a) ~a {\nreturn ~a\n})"
+             (compile-expr x)
+             (compile-type xt)
+             (compile-type et)
+             (compile-expr e))]
+    [`(let ([,x : ,xt] (,e : ,et)) (,b : ,bt))
+     (format "func () ~a {\nvar ~a ~a = ~a\nreturn ~a\n}()"
+             (compile-type et)
+             (compile-expr x)
+             (compile-type xt)
+             (compile-expr e)
+             (compile-expr b))]
+    [`((,f : ,ft) (,a : ,at))
+     (format "~a(~a)"
+             (compile-expr f)
+             (compile-expr a))]
+    [`(if ,c (,a : ,t) (,b : ,t))
+     (format "(func() ~a {\nif ~a {\nreturn ~a\n} else {\nreturn ~a\n}\n})()\n"
+             (compile-type t)
+             (compile-expr c)
+             (compile-expr a)
+             (compile-expr b))]))
 
-(: kashmir-compile (-> Syntax go-func))
-(define (kashmir-compile c)
-  (with-handlers ([exn:misc:match? (lambda (e)
-                                     (raise (compilation-error
-                                             (format "Unsupported form: ~v" c)
-                                             (current-continuation-marks))))])
-    (match c
-      [(list 'define (? string? name)) (go-func name '())])))
+(define (go-fmt src)
+  (with-input-from-string src
+    (lambda () (with-output-to-string
+            (lambda () (system "gofmt"))))))
+
+(define (go-run src)
+  (let* ([tmp-path (make-temporary-file "~a.go")]
+         [tmp-file (open-output-file tmp-path #:exists 'truncate)]
+         [formatted (go-fmt src)])
+    (display formatted tmp-file)
+    (close-output-port tmp-file)
+    (display
+     (with-output-to-string
+       (lambda () (system* (find-executable-path "go") "run" (~a tmp-path)))))))
+
+(define (kashmir-compile-expr expr)
+  (compile-expr (:? expr)))
+
+(define (kashmir-compile-prg expr)
+  (format "
+package main
+
+import \"fmt\"
+
+func main() {
+_res := ~a
+fmt.Println(_res)
+}
+"
+          (kashmir-compile-expr expr)))
+
+(provide
+ go-fmt
+ go-run
+ kashmir-compile-expr
+ kashmir-compile-prg)

@@ -22,12 +22,12 @@
            (== `(,s : ,st) expr)
            (infero s env `(,s : ,st))
            (== expr t))]
-   [(fresh (x b bt r d)
+   [(fresh (x b bt b-ignore r d)
            (symbolo x)
            (conde
             [(== `(lambda (,x) ,b) expr)]
             [(== `(lambda ([,x : ,r]) ,b) expr)])
-           (== bt `(,b : ,d))
+           (== bt `(,b-ignore : ,d))
            (infero b `((,x : ,r) . ,env) bt)
            (== `((lambda ([,x : ,r]) ,bt) : (,r -> ,d)) t))]
    [(fresh (x xt e e-ignore et b bt lt)
@@ -40,12 +40,12 @@
            (infero b `((,x : ,xt) . ,env) bt)
            (== `(,b : ,lt) bt)
            (== `((let [(,x : ,xt) ,et] ,bt) : ,lt) t))]
-   [(fresh (f ft ignored a at x et)
+   [(fresh (f ft f-ignore a at a-ignore x et)
            (== `(,f ,a) expr)
            (infero f env ft)
            (infero a env at)
-           (== `(,ignored : (,x -> ,et)) ft)
-           (== `(,a : ,x) at)
+           (== `(,f-ignore : (,x -> ,et)) ft)
+           (== `(,a-ignore : ,x) at)
            (== `((,ft ,at) : ,et) t))]
    [(fresh (c ct c-ignore a at a-ignore b bt b-ignore it)
            (== `(if ,c ,a ,b) expr)
@@ -56,13 +56,15 @@
            (== `(,a-ignore : ,it) at)
            (== `(,b-ignore : ,it) bt)
            (== `((if ,ct ,at ,bt) : ,it) t))]
+   #;
    [(fresh (x h ht h-ignore r rt r-ignore)
            (== `(cons ,h ,r) expr)
            (infero h env ht)
            (infero r env rt)
            (== `(,h-ignore : ,x) ht)
            (== `(,r-ignore : (list ,x)) rt)
-           (== t `((cons ,ht ,rt) : (list ,x))))]
+   (== t `((cons ,ht ,rt) : (list ,x))))]
+   #;
    [(fresh (x)
            (== '() expr)
            (== t `(() : (list ,x))))]))
