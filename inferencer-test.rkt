@@ -10,66 +10,22 @@
    (test-case
     "identity"
     (check-equal?
-     ;; (identity true) : bool
      (:? '((lambda (x) x) true))
-     'bool
-     #;
-     (typed-expr
-      predef/bool
-      (e/app
-       (typed-expr
-        (t/fn predef/bool predef/bool)
-        (e/lam
-         (typed-expr predef/bool (e/var "x"))
-         (typed-expr predef/bool (e/var "x"))))
-       (typed-expr predef/bool (e/var "true"))))))
+     '((((lambda ([x : bool]) (x : bool)) : (bool -> bool)) (true : bool)) : bool)))
 
 
    (test-case
     "cons"
     (check-equal?
      (:? '(cons 1 ()))
-     '(list int)
-     #;
-     (typed-expr
-      (predef/list predef/number)
-      (e/app
-       (typed-expr
-        (t/fn predef/number (predef/list predef/number))
-        (e/var "list/singleton"))
-       (typed-expr
-        predef/number
-        (e/var "1"))))))
+     '((cons (1 : int) (() : (list int))) : (list int))))
 
 
    (test-case
     "if"
     (check-equal?
      (:? '(if true 1 0))
-     'int
-     #;
-     (typed-expr
-      predef/number
-      (e/app
-       (typed-expr
-        (t/fn predef/number predef/number)
-        (e/app
-         (typed-expr
-          (t/fn predef/number (t/fn predef/number predef/number))
-          (e/app
-           (typed-expr
-            (t/fn predef/bool (t/fn predef/number (t/fn predef/number predef/number)))
-            (e/var "if"))
-           (typed-expr
-            predef/bool
-            (e/var "true"))))
-         (typed-expr
-          predef/number
-          (e/var "1"))))
-       (typed-expr
-        predef/number
-        (e/var "0"))))
-     ))
+     '((if (true : bool) (1 : int) (0 : int)) : int)))
 
 
    (test-case
