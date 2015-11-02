@@ -30,7 +30,7 @@
            (== bt `(,b-ignore : ,d))
            (infero b `((,x : ,r) . ,env) bt)
            (== `((lambda ([,x : ,r]) ,bt) : (,r -> ,d)) t))]
-   [(fresh (x xt e e-ignore et b bt lt)
+   [(fresh (x xt e e-ignore et b bt b-ignore lt)
            (conde
             [(== `(let (,x ,e) ,b) expr)]
             [(== `(let ([,x : ,xt] ,e) ,b) expr)])
@@ -38,7 +38,7 @@
            (== et `(,e-ignore : ,xt))
            (infero e env et)
            (infero b `((,x : ,xt) . ,env) bt)
-           (== `(,b : ,lt) bt)
+           (== `(,b-ignore : ,lt) bt)
            (== `((let [(,x : ,xt) ,et] ,bt) : ,lt) t))]
    [(fresh (f ft f-ignore a at a-ignore x et)
            (== `(,f ,a) expr)
@@ -86,9 +86,25 @@
                   (symbolo y)
                   (lookupo x env^ t))))))
 
+(define (default-envo t)
+  (fresh (+t)
+         (conde
+          [(== +t 'int)]
+          [(== +t 'string)]
+          [(== +t 'long)])
+         (== t `[(+ : (,+t -> (,+t -> ,+t)))
+                 (- : (,+t -> (,+t -> ,+t)))
+                 (* : (,+t -> (,+t -> ,+t)))
+                 (/ : (,+t -> (,+t -> ,+t)))
+                 (== : (,+t -> (,+t -> ,+t)))
+                 (!= : (,+t -> (,+t -> ,+t)))])))
+
 (define/contract (:? expr)
   (-> (or/c symbol? list? number?) (or/c symbol? list?))
-  (let ([t (run 1 (q) (infero expr '() q))])
+  (let ([t (run 1 (q)
+                (fresh (env)
+                       (default-envo env)
+                       (infero expr env q)))])
     (cond
      [(empty? t) (error "Type check failed!")]
      [else (first t)])))

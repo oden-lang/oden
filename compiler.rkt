@@ -12,6 +12,9 @@
     [(? list? l) (string-join (map ~a l) "_")]
     [(? symbol? t) (~a t)]))
 
+(define (infix-operator? op)
+  (member op '(+ - * / == !=)))
+
 (define (compile-expr typed-expr)
   (match typed-expr
     [(? number? x) (~a x)]
@@ -19,6 +22,18 @@
     ['false "false"]
     ['true "true"]
     [(? symbol? s) (~a s)]
+    [(list
+      (list
+       (list
+        (list (? infix-operator? op) ': _)
+        (list a ': _))
+       ':
+       (list _ '-> _))
+      (list b ': _))
+     (format "(~a ~a ~a)"
+             (compile-expr a)
+             op
+             (compile-expr b))]
     [`(lambda ((,x : ,xt)) (,e : ,et))
      (format "(func (~a ~a) ~a {\nreturn ~a\n})"
              (compile-expr x)
@@ -54,9 +69,8 @@
          [formatted (go-fmt src)])
     (display formatted tmp-file)
     (close-output-port tmp-file)
-    (display
-     (with-output-to-string
-       (lambda () (system* (find-executable-path "go") "run" (~a tmp-path)))))))
+    (with-output-to-string
+      (lambda () (system* (find-executable-path "go") "run" (~a tmp-path))))))
 
 (define (kashmir-compile-expr expr)
   (compile-expr (:? expr)))

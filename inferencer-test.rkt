@@ -3,7 +3,7 @@
 (require rackunit "inferencer.rkt")
 (require rackunit/text-ui)
 
-(define types-test
+(define inferencer-test
   (test-suite
    "Type System"
 
@@ -35,4 +35,4 @@
      (lambda ()
        (:? '(if true 1 true)))))))
 
-(run-tests types-test)
+(run-tests inferencer-test)
