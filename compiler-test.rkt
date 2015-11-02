@@ -42,6 +42,12 @@
      (run '(let (x 1) ((+ x) 2)))
      3))
 
+   (test-case
+    "higher-order functions"
+    (check-equal?
+     (run '(((lambda (x) (lambda (y) (x y))) (lambda (x) x)) 1))
+     1))
+
    ))
 
 (run-tests compiler-tests)
