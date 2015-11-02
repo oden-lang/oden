@@ -13,14 +13,6 @@
      (:? '((lambda (x) x) true))
      '((((lambda ([x : bool]) (x : bool)) : (bool -> bool)) (true : bool)) : bool)))
 
-
-   (test-case
-    "cons"
-    (check-equal?
-     (:? '(cons 1 ()))
-     '((cons (1 : int) (() : (list int))) : (list int))))
-
-
    (test-case
     "if"
     (check-equal?
