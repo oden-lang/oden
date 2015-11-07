@@ -33,19 +33,25 @@
    (test-case
     "partial application"
     (check-equal?
-     (run '(((lambda (x) (lambda (y) x)) 1) 2))
+     (run '(((lambda (x y) x) 1) 2))
      1))
 
    (test-case
     "let"
     (check-equal?
-     (run '(let (x 1) ((+ x) 2)))
+     (run '(let ([x 1]) (+ x 2)))
      3))
 
    (test-case
+   "let type annotated"
+    (check-equal?
+     (run '(let ([[x : int] 1]) (+ x 2)))
+     3))
+      
+   (test-case
     "higher-order functions"
     (check-equal?
-     (run '(((lambda (x) (lambda (y) (x y))) (lambda (x) x)) 1))
+     (run '(((lambda (x y) (x y)) (lambda (x) x)) 1))
      1))
 
    ))

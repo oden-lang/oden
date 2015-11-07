@@ -32,14 +32,14 @@
            (== `((lambda ([,x : ,r]) ,bt) : (,r -> ,d)) t))]
    [(fresh (x xt e e-ignore et b bt b-ignore lt)
            (conde
-            [(== `(let (,x ,e) ,b) expr)]
-            [(== `(let ([,x : ,xt] ,e) ,b) expr)])
+            [(== `(let ([,x ,e]) ,b) expr)]
+            [(== `(let ([[,x : ,xt] ,e]) ,b) expr)])
            (symbolo x)
            (== et `(,e-ignore : ,xt))
            (infero e env et)
            (infero b `((,x : ,xt) . ,env) bt)
            (== `(,b-ignore : ,lt) bt)
-           (== `((let [(,x : ,xt) ,et] ,bt) : ,lt) t))]
+           (== `((let [[(,x : ,xt) ,et]] ,bt) : ,lt) t))]
    [(fresh (f ft f-ignore a at a-ignore x et)
            (== `(,f ,a) expr)
            (infero f env ft)
@@ -106,7 +106,7 @@
                        (default-envo env)
                        (infero expr env q)))])
     (cond
-     [(empty? t) (error "Type check failed!")]
+     [(empty? t) (raise-user-error "Type check failed!")]
      [else (first t)])))
 
 (provide

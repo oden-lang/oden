@@ -3,6 +3,7 @@
 (require racket/match)
 (require racket/system)
 (require "inferencer.rkt")
+(require "explode.rkt")
 
 (define (compile-type type)
   (match type
@@ -40,7 +41,7 @@
              (compile-type xt)
              (compile-type et)
              (compile-expr e))]
-    [`(let ([,x : ,xt] (,e : ,et)) (,b : ,bt))
+    [`(let (([,x : ,xt] (,e : ,et))) (,b : ,bt))
      (format "func () ~a {\nvar ~a ~a = ~a\nreturn ~a\n}()"
              (compile-type et)
              (compile-expr x)
@@ -73,7 +74,7 @@
       (lambda () (system* (find-executable-path "go") "run" (~a tmp-path))))))
 
 (define (kashmir-compile-expr expr)
-  (compile-expr (:? expr)))
+  (compile-expr (:? (explode expr))))
 
 (define (kashmir-compile-prg expr)
   (format "
