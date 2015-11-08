@@ -29,6 +29,20 @@
      (kashmir-compile-expr
       '(lambda ([q : int]) q))
      "(func (q int) int {\nreturn q\n})"))
+   
+   (test-case
+    "lambda with no arguments -> func()"
+    (check-equal?
+     (kashmir-compile-expr
+      '(lambda () 1))
+     "(func () int {\nreturn 1\n})"))
+
+   (test-case
+    "apply no-argument function"
+    (check-equal?
+     (kashmir-compile-expr
+      '((lambda () 1)))
+     "(func () int {\nreturn 1\n})()"))
 
    (test-case
     "partial application"

@@ -41,4 +41,5 @@
     (loop))
   (loop))
 
-(repl)
+(module+ main
+  (repl))

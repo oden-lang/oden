@@ -35,6 +35,10 @@
              (compile-expr a)
              op
              (compile-expr b))]
+    [`(lambda () (,e : ,et))
+     (format "(func () ~a {\nreturn ~a\n})"
+	     (compile-type et)
+	     (compile-expr e))]
     [`(lambda ((,x : ,xt)) (,e : ,et))
      (format "(func (~a ~a) ~a {\nreturn ~a\n})"
              (compile-expr x)
@@ -48,6 +52,9 @@
              (compile-type xt)
              (compile-expr e)
              (compile-expr b))]
+    [`((,f : ,_))
+     (format "~a()"
+	     (compile-expr f))]
     [`((,f : ,ft) (,a : ,at))
      (format "~a(~a)"
              (compile-expr f)

@@ -5,7 +5,7 @@
 (define (explode expr)
   (match expr
     [`(lambda () ,body)
-     `(lambda ,(list (gensym "_explode_")) ,body)]
+     `(lambda () ,(explode body))]
     [`(lambda (,arg) ,body)
      `(lambda (,arg) ,(explode body))]
     [`(lambda ,args ,body)
@@ -14,6 +14,9 @@
      `(let ((,s ,(explode v))) ,(explode b))]
     [`(let ,ps ,b)
      `(let ,(list (car ps)) ,(explode `(let ,(cdr ps) ,b)))]
+    [`(,e : ,t)
+     `(,(explode e) : ,t)]
+    [`(,f) `(,(explode f))]
     [`(,f ,a) `(,(explode f) ,(explode a))]
     ;; (f x y z) -> (((f x) y) z)
     [`(,f . ,args)

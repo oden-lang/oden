@@ -14,7 +14,7 @@
     (== '(false : bool) t)]
    [(== 'true expr)
     (== '(true : bool) t)]
-   [(fresh (s st)
+   [(fresh (s  st)
            (== `(,s : ,st) expr)
            (infero s env expr)
            (== expr t))]
@@ -30,6 +30,11 @@
            (== bt `(,b-ignore : ,d))
            (infero b `((,x : ,r) . ,env) bt)
            (== `((lambda ([,x : ,r]) ,bt) : (,r -> ,d)) t))]
+   [(fresh (b bt b-ignore d)
+	   (== `(lambda () ,b) expr)
+	   (infero b env bt)
+	   (== bt `(,b-ignore : ,d))
+	   (== `((lambda () ,bt) : (-> ,d)) t))]
    [(fresh (x xt e e-ignore et b bt b-ignore lt)
            (conde
             [(== `(let ([,x ,e]) ,b) expr)]
@@ -47,6 +52,11 @@
            (== `(,f-ignore : (,x -> ,et)) ft)
            (== `(,a-ignore : ,x) at)
            (== `((,ft ,at) : ,et) t))]
+   [(fresh (f ft f-ignore et)
+	   (== `(,f) expr)
+	   (infero f env ft)
+	   (== `(,f-ignore : (-> ,et)) ft)
+	   (== `((,ft) : ,et) t))]
    [(fresh (c ct c-ignore a at a-ignore b bt b-ignore it)
            (== `(if ,c ,a ,b) expr)
            (infero c env ct)
