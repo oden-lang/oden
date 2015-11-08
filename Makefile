@@ -35,9 +35,9 @@ watch-docs:
 release-docs:
 	git reset --hard HEAD
 	git checkout gh-pages
+	git rebase master
 	make clean docs
 	cp -r target/kashmir/docs/* ./
-	git rebase master
 	git add -A
 	git commit -m "Auto-generated docs" .
 	git push origin gh-pages
