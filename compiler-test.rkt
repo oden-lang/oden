@@ -51,6 +51,13 @@
       '(let ([x (lambda () 1)]) 2))
      "(func () int {\nvar x func () (int) = (func () int {\nreturn 1\n})\nreturn 2\n}())"))
 
+      (test-case
+    "let no-argument function"
+    (check-equal?
+     (kashmir-compile-expr
+      '(let ([name-with-dashes 1]) name-with-dashes))
+     "(func () int {\nvar nameWithDashes int = 1\nreturn nameWithDashes\n}())"))
+
    (test-case
     "partial application"
     (check-equal?
@@ -75,6 +82,12 @@
      (run '(((lambda (x y) (x y)) (lambda (x) x)) 1))
      1))
 
-   ))
+   (test-case
+    "call by name"
+    (check-equal?
+     (run '(let ([make-num (lambda () 3)]) (* (make-num) (make-num))))
+     9))
 
+   ))
+  
 (run-tests compiler-tests)

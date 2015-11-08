@@ -17,6 +17,11 @@
     [(? list? l) (string-join (map ~a l) "_")]
     [(? symbol? t) (~a t)]))
 
+(define (translate-identifier id)
+  (let* ([parts (string-split (symbol->string id) "-" #:trim? #t)]
+	 [titles (cons (car parts) (map string-titlecase (cdr parts)))])
+    (string-join titles "")))
+
 (define (infix-operator? op)
   (member op '(+ - * / == !=)))
 
@@ -26,7 +31,7 @@
     [`(,e : ,t) (compile-expr e)]
     ['false "false"]
     ['true "true"]
-    [(? symbol? s) (~a s)]
+    [(? symbol? s) (translate-identifier s)]
     [(list
       (list
        (list
