@@ -54,7 +54,7 @@ kashmir> (lambda () true)
 
 ### Currently Supported Forms
 
-```scheme
+```racket
 ;; literals
 123
 -588
