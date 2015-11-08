@@ -59,15 +59,24 @@ kashmir> (lambda () true)
 123
 -588
 true
+false
 
 ;; arithmetic
 (+ 1 2)
 (- 1 2)
-;; * / as well...
+(* 2 2)
+(/ 4 2)
+
+;; comparison
+(== 1 1)
+(!= 1 2)
 
 ;; lambda
 (lambda (x) x)
 (lambda ([x : int]) x)
+
+;; if
+(if (== (+ 10 20) 30) 1 0)
 
 ;; let
 (let ([x 1]) (+ x 2)
