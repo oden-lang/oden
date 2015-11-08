@@ -22,7 +22,7 @@ $(GITBOOK):
 
 target/kashmir/docs: docs/* $(GITBOOK)
 	$(GITBOOK) build docs target/kashmir/docs
-	rm target/kashmir/docs/*.md~
+	rm -f target/kashmir/docs/*.md~
 
 .PHONY: docs
 docs: target/kashmir/docs
