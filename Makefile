@@ -1,10 +1,14 @@
-VERSION ?= $(shell git rev-parse --short HEAD)
+GIT_REV_LONG=$(shell git rev-parse HEAD)
+GIT_REV_SHORT=$(shell git rev-parse --short HEAD)
+VERSION ?= $(GIT_REV_SHORT)
+
+GITBOOK=node_modules/.bin/gitbook
 
 OS=$(shell tools/get_os.sh)
 DIST_NAME=kashmir-$(VERSION)-$(OS)
 DIST_ZIP=target/$(DIST_NAME).zip
 
-all: dist
+all: docs dist
 
 clean:
 	rm -rf target
@@ -13,11 +17,25 @@ target/kmi:
 	mkdir -p target
 	raco exe -o target/kmi repl.rkt
 
+$(GITBOOK):
+	npm install gitbook-cli
+
+target/kashmir/docs: docs/* $(GITBOOK)
+	$(GITBOOK) build docs target/kashmir/docs
+	rm target/kashmir/docs/*.md~
+
+.PHONY: docs
+docs: target/kashmir/docs
+
+.PHONY: watch-docs
+watch-docs:
+	$(GITBOOK) serve docs docs/_book
+
 target/kashmir: target/kmi README.md
 	mkdir -p target/kashmir
 	raco distribute target/kashmir target/kmi
-	cp README.md target/kashmir/
-	echo "$(VERSION)" >> target/kashmir/VERSION
+	cp README.md target/kashmir/README.txt
+	echo "$(VERSION) (git revision: $(GIT_REV_LONG))" >> target/kashmir/VERSION.txt
 
 $(DIST_ZIP): target/kashmir
 	(cd target/kashmir && zip ../$(DIST_NAME).zip -r *)
@@ -34,14 +52,14 @@ release: $(DIST_ZIP)
 		--user owickstrom \
 		--repo kashmir \
 		--tag $(VERSION) \
-		--name $(VERSION)
+		--name $(VERSION) \
+		--pre-release
 	github-release upload \
 		--user owickstrom \
 		--repo kashmir \
 		--tag $(VERSION) \
 		--name "$(DIST_NAME).zip" \
-		--file $(DIST_ZIP) \
-		--pre-release
+		--file $(DIST_ZIP)
 
 
 

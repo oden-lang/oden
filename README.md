@@ -5,29 +5,10 @@ statically typed LISP that compiles to native code using
 [Go](https://golang.org/). By leveraging the Go runtime Kashmir gets
 asynchronous IO, lightweight threads (Go routines) and a good GC.
 
-## Goals
+## Documentation
 
-* A LISP **inspired by Scheme and Clojure** compiling to Go.
-* Kashmir should feature a safe but versatile type system - more flexible than
-the one in Go and at least as safe.
-* The type system should offer type inference (Hindley-Milner style) that only
-requires type annotations on top-level forms.
-* The prototype compiler should be easy to change.
-* Align with the built-in types of Go and provide simple interoperability.
-
-## Secondary Goals
-* The first versions might not include parametric polymorphism (generics) in
-functions and types but the underlying type checker should be able to support
-it without a big rewrite.
-* Macros, not needed for first version.
-
-## Non-goals (in first versions)
-
-* Fast compiler. Emphasis lies on a simple implementation with easy-to-change
-behaviour, not compiler speed.
-* A "Go backend" for Scheme or Clojure.
-* Easy workflow. After running the Kashmir compiler the user might have to step
-in to a directory of output Go files and run `go build` etc.
+The more extensive documentation, detailing how to program in Kashmir, is
+located in [docs](docs/SUMMARY.md).
 
 ## Experiments
 
@@ -46,48 +27,20 @@ $ rlwrap racket repl.rkt
 Welcome to Kashmir! Type CTRL-C to exit.
 kashmir> (+ 1 2)
 3 : int
-kashmir> ((lambda (x) (+ 1 x)) 100)
-101 : int
-kashmir> (lambda () true)
-0x2100 : (-> bool)
 ```
 
-### Currently Supported Forms
+## License
 
-```racket
-;; literals
-123
--588
-true
-false
+Copyright 2015 Oskar Wickström
 
-;; arithmetic
-(+ 1 2)
-(- 1 2)
-(* 2 2)
-(/ 4 2)
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
 
-;; comparison
-(== 1 1)
-(!= 1 2)
+    http://www.apache.org/licenses/LICENSE-2.0
 
-;; lambda
-(lambda (x) x)
-(lambda ([x : int]) x)
-
-;; if
-(if (== (+ 10 20) 30) 1 0)
-
-;; let
-(let ([x 1]) (+ x 2)
-(let ([x 1]
-      [y (+ 1 x)])
-     (/ y 2))
-
-;; function application
-(let ([square (lambda (x) (* x 2))])
-  (square 4))
-;; no-arg function application
-(let ([make-num (lambda () 3)])
-  (* (make-num) (make-num)))
-```
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.

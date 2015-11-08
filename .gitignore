@@ -1,2 +1,5 @@
 expirements/expirements
 compiled
+target
+docs/_book
+node_modules
