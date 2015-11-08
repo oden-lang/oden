@@ -7,9 +7,13 @@
 
 (define (compile-type type)
   (match type
-    [`(,r -> ,d) (format "func (~a) ~a"
-                         (compile-type r)
-                         (compile-type d))]
+    [`(,r -> ,d)
+     (format "func (~a) (~a)"
+	     (compile-type r)
+	     (compile-type d))]
+    [`(-> ,d)
+     (format "func () (~a)"
+	     (compile-type d))]
     [(? list? l) (string-join (map ~a l) "_")]
     [(? symbol? t) (~a t)]))
 
@@ -46,8 +50,8 @@
              (compile-type et)
              (compile-expr e))]
     [`(let (([,x : ,xt] (,e : ,et))) (,b : ,bt))
-     (format "func () ~a {\nvar ~a ~a = ~a\nreturn ~a\n}()"
-             (compile-type et)
+     (format "(func () ~a {\nvar ~a ~a = ~a\nreturn ~a\n}())"
+             (compile-type bt)
              (compile-expr x)
              (compile-type xt)
              (compile-expr e)
