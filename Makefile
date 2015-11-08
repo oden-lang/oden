@@ -15,7 +15,7 @@ clean:
 
 target/kmi:
 	mkdir -p target
-	raco exe -o target/kmi repl.rkt
+	raco exe -o target/kmi src/repl.rkt
 
 $(GITBOOK):
 	npm install gitbook-cli
