@@ -40,7 +40,7 @@ release-docs:
 	cp -r target/kashmir/docs/* ./
 	git add -A
 	git commit -m "Auto-generated docs" .
-	git push origin gh-pages
+	git push origin +gh-pages
 	git checkout master
 
 target/kashmir: target/kmi README.md
