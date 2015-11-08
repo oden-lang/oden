@@ -32,8 +32,30 @@
      '(((((f a) b) c) d) e)))
 
    (test-case
-    "function without arguments"
+    "function application without arguments"
     (explode '(f))
-    '(f))))
+    '(f))
+
+   (test-case
+    "lambda with single argument"
+    (explode '(lambda (x) x))
+    '(lambda (x) x))
+
+   (test-case
+    "lambda with multiple arguments"
+    (explode '(lambda (x y z) x))
+    '(lambda (x) (lambda (y) (lambda (z) x))))
+
+   (test-case
+    "lambda with single type-annotated argument"
+    (explode '(lambda ([x : int]) x))
+    '(lambda ([x : int]) x))
+
+   (test-case
+    "lambda with multiple type-annotated arguments"
+    (explode '(lambda (x [y : int] [z : bool]) x))
+    '(lambda (x) (lambda ([y : int]) (lambda ([z : bool]) x))))
+
+   ))
 
 (run-tests explode-test)
