@@ -7,14 +7,13 @@ asynchronous IO, lightweight threads (Go routines) and a good GC.
 
 ## Documentation
 
-The more extensive documentation, detailing how to program in Kashmir, is
-located at http://owickstrom.github.io/kashmir/.
+The more extensive documentation, including details about the project and
+how to program in Kashmir, is located at http://owickstrom.github.io/kashmir/.
 
 ## Experiments
 
 Some samples and experiments of Kashmir source files and the output files to be
-compiled with Go can be found in [`experiments/`](experiments). Note that
-Kashmir sources use `.scm` for now to get LISP syntax highlighting.
+compiled with Go can be found in [`experiments/`](experiments).
 
 ## Usage
 
