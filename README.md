@@ -8,7 +8,7 @@ asynchronous IO, lightweight threads (Go routines) and a good GC.
 ## Documentation
 
 The more extensive documentation, including details about the project and
-how to program in Kashmir, is located at http://owickstrom.github.io/kashmir/.
+how to program in Kashmir, is located at https://owickstrom.github.io/kashmir/.
 
 ## Experiments
 
