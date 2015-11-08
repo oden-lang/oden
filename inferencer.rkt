@@ -14,14 +14,9 @@
     (== '(false : bool) t)]
    [(== 'true expr)
     (== '(true : bool) t)]
-   [(fresh (s  st)
-           (== `(,s : ,st) expr)
-           (infero s env expr)
-           (== expr t))]
-   [(fresh (s st)
-           (== `(,s : ,st) expr)
-           (infero s env `(,s : ,st))
-           (== expr t))]
+   [(fresh (s _)
+           (== `(,s : ,_) expr)
+           (infero s env t))]
    [(fresh (x b bt b-ignore r d)
            (symbolo x)
            (conde
