@@ -31,6 +31,17 @@ docs: target/kashmir/docs
 watch-docs:
 	$(GITBOOK) serve docs docs/_book
 
+.PHONY: release-docs
+release-docs:
+	git reset --hard HEAD
+	git checkout gh-pages
+	make clean docs
+	cp -r target/kashmir/docs/* ./
+	git rebase master
+	git commit -a -m "Auto-generated docs" .
+	git push origin gh-pages
+	git checkout master
+
 target/kashmir: target/kmi README.md
 	mkdir -p target/kashmir
 	raco distribute target/kashmir target/kmi
