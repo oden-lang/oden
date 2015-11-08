@@ -1,8 +1,8 @@
 # REPL
 
-In Kashmir the REPL is called `kmi`. There are no state and everything is run
-through `go run` so it is not fast at all. However, it is quite useful for
-experimenting with Kashmir.
+In Kashmir the REPL is called `kmi`. There is no state and everything is run
+through `go run` so it's pretty slow. However, it is useful for
+experimentation.
 
 ```
 $ rlwrap kashmir/bin/kmi

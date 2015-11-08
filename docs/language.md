@@ -3,7 +3,7 @@
 ## Supported Forms
 
 Kashmir is very simple and supports only a small set of forms. This document
-describes those forms and how you can compose program with them.
+describes those forms and how you can compose programs with them.
 
 ## Number Literals
 
@@ -105,8 +105,8 @@ previous names.
 
 ### Function Application
 
-Function are applied, just as in other LISPs, where the first element
-of the list is the function and the rest of the elements are the
+Functions are applied using lists, just as in other LISPs, where the first
+element of the list is the function and the rest of the elements are the
 arguments.
 
 ```scheme
