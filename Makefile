@@ -38,7 +38,8 @@ release-docs:
 	make clean docs
 	cp -r target/kashmir/docs/* ./
 	git rebase master
-	git commit -a -m "Auto-generated docs" .
+	git add -a .
+	git commit -m "Auto-generated docs" .
 	git push origin gh-pages
 	git checkout master
 
