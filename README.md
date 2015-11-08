@@ -51,3 +51,34 @@ kashmir> ((lambda (x) (+ 1 x)) 100)
 kashmir> (lambda () true)
 0x2100 : (-> bool)
 ```
+
+### Currently Supported Forms
+
+```scheme
+;; literals
+123
+-588
+true
+
+;; arithmetic
+(+ 1 2)
+(- 1 2)
+;; * / as well...
+
+;; lambda
+(lambda (x) x)
+(lambda ([x : int]) x)
+
+;; let
+(let ([x 1]) (+ x 2)
+(let ([x 1]
+      [y (+ 1 x)])
+     (/ y 2))
+
+;; function application
+(let ([square (lambda (x) (* x 2))])
+  (square 4))
+;; no-arg function application
+(let ([make-num (lambda () 3)])
+  (* (make-num) (make-num)))
+```
