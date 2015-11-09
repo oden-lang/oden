@@ -35,6 +35,12 @@
        (:? '(if true 1 true)))))
 
    (test-case
+    "complex expressions in if"
+    (check-equal?
+     (only-type (:? '(if (== (+ 10 10) 20) (+ 1 1) (+ 2 2))))
+     'int))
+
+   (test-case
     "type-annotated complex expression"
     (check-equal?
      (only-type (:? '(((+ 1) 2) : int)))

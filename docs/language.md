@@ -85,7 +85,7 @@ The let expression binds identifiers for a set of expressions, used
 in the body expression.
 
 ```scheme
-(let ([x 1]) (+ x 2)
+(let ([x 1]) (+ x 2))
 ```
 
 Let supports sequential binding, which means that expressions can
@@ -109,9 +109,8 @@ Functions are applied using lists, just as in other LISPs, where the first
 element of the list is the function and the rest of the elements are the
 arguments.
 
-```scheme
-;; general form
-(f x ...)
+```
+(f x y z ...)
 ```
 
 Here we call our newly created `square` function with the argument `4`.
