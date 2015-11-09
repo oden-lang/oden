@@ -40,7 +40,7 @@ functions in Kashmir.
 *Currently it is not possible to use the arithmetic functions as
 values, passing them to functions or using them in a let.*
 
-### Comparison Functions
+### Equality Functions
 
 The equality and disequality operators from Go are also called as
 regular functions.
@@ -59,8 +59,14 @@ A function is created using a lambda expression. It supports zero
 or more arguments and a single expression as the body.
 
 ```scheme
-(lambda (x) x)
+(lambda (x) (+ x 1))
 ```
+
+*The current version of Kashmir does not support polymorphic
+functions, i.e. all types have to be inferred or annotated for it to
+compile to Go. Evaluating `(lambda (x) x)` in the REPL will give you
+an error. When `define` is implemented this will probably be fixed as
+well.*
 
 Lambda arguments can be annotated with types.
 
