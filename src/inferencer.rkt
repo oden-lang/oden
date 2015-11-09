@@ -101,8 +101,8 @@
                  (- : (,+t -> (,+t -> ,+t)))
                  (* : (,+t -> (,+t -> ,+t)))
                  (/ : (,+t -> (,+t -> ,+t)))
-                 (== : (,+t -> (,+t -> ,+t)))
-                 (!= : (,+t -> (,+t -> ,+t)))])))
+                 (== : (,+t -> (,+t -> bool)))
+                 (!= : (,+t -> (,+t -> bool)))])))
 
 (define/contract (:? expr)
   (-> (or/c symbol? list? number?) (or/c symbol? list?))

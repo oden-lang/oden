@@ -14,6 +14,8 @@
      `(let ((,s ,(explode v))) ,(explode b))]
     [`(let ,ps ,b)
      `(let ,(list (car ps)) ,(explode `(let ,(cdr ps) ,b)))]
+    [`(if ,c ,a ,b)
+     `(if ,(explode c) ,(explode a) ,(explode b))]
     [`(,e : ,t)
      `(,(explode e) : ,t)]
     [`(,f) `(,(explode f))]

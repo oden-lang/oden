@@ -37,7 +37,7 @@
    (test-case
     "complex expressions in if"
     (check-equal?
-     (only-type (:? '(if (== (+ 10 10) 20) (+ 1 1) (+ 2 2))))
+     (only-type (:? '(if ((== ((+ 10) 10)) 20) ((+ 1) 1) ((+ 2) 2))))
      'int))
 
    (test-case
