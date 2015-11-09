@@ -1,3 +1,3 @@
 # Kashmir
 
-Welcome!
+Welcome to the Kashmir Language documentation!
