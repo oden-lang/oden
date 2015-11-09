@@ -15,7 +15,14 @@
      (format "func () (~a)"
 	     (compile-type d))]
     [(? list? l) (string-join (map ~a l) "_")]
-    [(? symbol? t) (~a t)]))
+    [(? symbol? t)
+     (match (~a t)
+       [(regexp #rx"_\\.[0-9]+")
+	(error (string-trim "
+Cannot currently compile values with type variables (e.g. polymorphic 
+functions). You might have to annotate some parts of your code to resolve
+this. In future versions of Kashmir this should be possible."))]
+       [s s])]))
 
 (define (translate-identifier id)
   (let* ([parts (string-split (symbol->string id) "-" #:trim? #t)]

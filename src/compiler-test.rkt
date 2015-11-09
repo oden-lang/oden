@@ -29,7 +29,15 @@
      (kashmir-compile-expr
       '(lambda ([q : int]) q))
      "(func (q int) int {\nreturn q\n})"))
-   
+
+   (test-case
+    "lambda with unbound type variables"
+    (check-exn
+     exn:fail?
+     (lambda ()
+       (kashmir-compile-expr
+	'(lambda (q) q)))))
+      
    (test-case
     "lambda with no arguments -> func()"
     (check-equal?
@@ -86,8 +94,7 @@
     "call by name"
     (check-equal?
      (run '(let ([make-num (lambda () 3)]) (* (make-num) (make-num))))
-     9))
-
-   ))
+     9))))
   
 (run-tests compiler-tests)
+
