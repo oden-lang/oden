@@ -33,8 +33,8 @@ When you have the source you can create a distribution of Kashmir using Make.
 ```bash
 $ make dist
 ...
-$ target/kmi
-kashmir>
+$ file target/kmc
+target/kmc: Mach-O 64-bit executable x86_64
 ```
 
 ### Docs
