@@ -2,4 +2,4 @@
 
 (define shout
   (lambda ([who : string])
-    (+ who "!")))
+    (+ who "!\nBye.")))

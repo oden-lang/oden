@@ -23,10 +23,18 @@ true
 false
 ```
 
-### Arithmetic Functions
+### String Literals
 
-Some of the infix arithmetic operators of Go are called as regular
-functions in Kashmir.
+```scheme
+"hello"
+""
+"\nomg\nnewlines"
+```
+
+### Functions instead of Operators
+
+Some of the operators of Go are called as regular functions in
+Kashmir.
 
 ```scheme
 (+ 1 2)
@@ -35,23 +43,13 @@ functions in Kashmir.
 (/ 4 2)
 (/ (- 100 50) 2)
 (+ 100 (+ 50 25))
-```
-
-*Currently it is not possible to use the arithmetic functions as
-values, passing them to functions or using them in a let.*
-
-### Equality Functions
-
-The equality and disequality operators from Go are also called as
-regular functions.
-
-```scheme
 (== 1 2)
 (!= 1 2)
+(+ "Foo" "Bar")
 ```
 
-*Currently it is not possible to use the comparison functions as
-values, passing them to functions or using them in a let.*
+*Currently it is not possible to use these functions as values,
+passing them to functions or using them in a let.*
 
 ### Lambda
 
