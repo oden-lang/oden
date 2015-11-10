@@ -1,0 +1,5 @@
+(pkg lib)
+
+(define shout
+  (lambda ([who : string])
+    (+ who "!")))

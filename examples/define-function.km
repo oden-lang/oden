@@ -1,0 +1,10 @@
+(pkg main)
+
+(import fmt)
+
+(define identity-string
+  (lambda ([x : string]) x))
+
+(define result (+ (identity-string "Hello") ", world!"))
+
+(define main (lambda () (fmt.Println result)))

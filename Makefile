@@ -13,9 +13,9 @@ all: docs dist
 clean:
 	rm -rf target
 
-target/kmi:
+target/kmc:
 	mkdir -p target
-	raco exe -o target/kmi src/repl.rkt
+	raco exe -o target/kmc src/cmd/kmc.rkt
 
 $(GITBOOK):
 	npm install gitbook-cli
@@ -43,9 +43,9 @@ release-docs:
 	git push origin +gh-pages
 	git checkout master
 
-target/kashmir: target/kmi README.md
+target/kashmir: target/kmc README.md
 	mkdir -p target/kashmir
-	raco distribute target/kashmir target/kmi
+	raco distribute target/kashmir target/kmc
 	cp README.md target/kashmir/README.txt
 	echo "$(VERSION) (git revision: $(GIT_REV_LONG))" >> target/kashmir/VERSION.txt
 

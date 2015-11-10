@@ -2,6 +2,8 @@
 
 (require "miniKanren/mk.rkt")
 
+(define stringo (make-flat-tag 'str string?))
+
 (define (infero expr env t)
   (conde
    [(fresh (x)
@@ -10,6 +12,8 @@
            (== `(,expr : ,x) t))]
    [(numbero expr)
     (== `(,expr : int) t)]
+   [(stringo expr)
+    (== `(,expr : string) t)]
    [(== 'false expr)
     (== '(false : bool) t)]
    [(== 'true expr)
@@ -60,29 +64,12 @@
            (infero b env bt)
            (== `(,a-ignore : ,it) at)
            (== `(,b-ignore : ,it) bt)
-           (== `((if ,ct ,at ,bt) : ,it) t))]
-   #;
-   [(fresh (x h ht h-ignore r rt r-ignore)
-           (== `(cons ,h ,r) expr)
-           (infero h env ht)
-           (infero r env rt)
-           (== `(,h-ignore : ,x) ht)
-           (== `(,r-ignore : (list ,x)) rt)
-   (== t `((cons ,ht ,rt) : (list ,x))))]
-   #;
-   [(fresh (x)
-           (== '() expr)
-           (== t `(() : (list ,x))))]))
+           (== `((if ,ct ,at ,bt) : ,it) t))]))
 
 (define (lookupo x env t)
   (fresh ()
          (symbolo x)
          (conde
-          ;; todo: uncomment when I grok this :)
-          #;
-          ((fresh (e env^ _)
-                  (== `((,x poly ,e ,env^) . ,_) env)
-                  (infero e env^ t)))
           ((fresh (_)
                   (== `((,x : ,t) . ,_) env)))
           ((fresh (y _ env^)
@@ -96,19 +83,26 @@
          (conde
           [(== +t 'int)]
           [(== +t 'string)]
-          [(== +t 'long)])
+          [(== +t 'long)]
+	  [(== +t 'float)])
          (== t `[(+ : (,+t -> (,+t -> ,+t)))
                  (- : (,+t -> (,+t -> ,+t)))
                  (* : (,+t -> (,+t -> ,+t)))
                  (/ : (,+t -> (,+t -> ,+t)))
                  (== : (,+t -> (,+t -> bool)))
-                 (!= : (,+t -> (,+t -> bool)))])))
+                 (!= : (,+t -> (,+t -> bool)))
+		 (unit : unit)
 
-(define/contract (:? expr)
-  (-> (or/c symbol? list? number?) (or/c symbol? list?))
+		 ;; todo: remove when proper FFI is in place
+		 (strconv.Itoa : (int -> string))
+		 (fmt.Println : (string -> unit))
+		 ])))
+
+(define (:? expr [custom-env '()])
   (let ([t (run 1 (q)
-                (fresh (env)
-                       (default-envo env)
+                (fresh (env d)
+                       (default-envo d)
+		       (== env (append custom-env d))
                        (infero expr env q)))])
     (cond
      [(empty? t) (raise-user-error "Type check failed!")]

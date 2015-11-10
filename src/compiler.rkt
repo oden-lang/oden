@@ -7,6 +7,7 @@
 
 (define (compile-type type)
   (match type
+    ['unit ""]
     [`(,r -> ,d)
      (format "func (~a) (~a)"
 	     (compile-type r)
@@ -32,13 +33,25 @@ this. In future versions of Kashmir this should be possible."))]
 (define (infix-operator? op)
   (member op '(+ - * / == !=)))
 
+(define (compile-return typed-expr)
+  (match typed-expr
+    [`((,f) : unit)
+     (format "~a\nreturn\n" (compile-expr typed-expr))]
+    [`((,f ,a) : unit)
+     (format "~a\nreturn\n" (compile-expr typed-expr))]
+    [`(,e : unit) "return\n"]
+    [te (format "return ~a\n"
+		(compile-expr te))]))
+
 (define (compile-expr typed-expr)
   (match typed-expr
     [(? number? x) (~a x)]
     [`(,e : ,t) (compile-expr e)]
     ['false "false"]
     ['true "true"]
+    ['unit ""]
     [(? symbol? s) (translate-identifier s)]
+    [(? string? s) (~v s)]
     [(list
       (list
        (list
@@ -52,22 +65,22 @@ this. In future versions of Kashmir this should be possible."))]
              op
              (compile-expr b))]
     [`(lambda () (,e : ,et))
-     (format "(func () ~a {\nreturn ~a\n})"
+     (format "(func () ~a {\n~a})"
 	     (compile-type et)
-	     (compile-expr e))]
+	     (compile-return `(,e : ,et)))]
     [`(lambda ((,x : ,xt)) (,e : ,et))
-     (format "(func (~a ~a) ~a {\nreturn ~a\n})"
+     (format "(func (~a ~a) ~a {\n~a})"
              (compile-expr x)
              (compile-type xt)
              (compile-type et)
-             (compile-expr e))]
+             (compile-return `(,e : ,et)))]
     [`(let (([,x : ,xt] (,e : ,et))) (,b : ,bt))
-     (format "(func () ~a {\nvar ~a ~a = ~a\nreturn ~a\n}())"
+     (format "(func () ~a {\nvar ~a ~a = ~a\n~a}())"
              (compile-type bt)
              (compile-expr x)
              (compile-type xt)
              (compile-expr e)
-             (compile-expr b))]
+	     (compile-return `(,b : ,bt)))]
     [`((,f : ,_))
      (format "~a()"
 	     (compile-expr f))]
@@ -75,12 +88,56 @@ this. In future versions of Kashmir this should be possible."))]
      (format "~a(~a)"
              (compile-expr f)
              (compile-expr a))]
-    [`(if ,c (,a : ,t) (,b : ,t))
-     (format "(func() ~a {\nif ~a {\nreturn ~a\n} else {\nreturn ~a\n}\n})()\n"
+    [`(if ,c `(,a : ,t) `(,b : ,t))
+     (format "(func() ~a {\nif ~a {\n~a} else {\n~a}\n})()\n"
              (compile-type t)
              (compile-expr c)
-             (compile-expr a)
-             (compile-expr b))]))
+             (compile-return `(,a : ,t))
+             (compile-return `(,b : ,t)))]))
+
+(define (compile-top-level-form top-level-form)
+  (match top-level-form
+    [`(pkg ,name)
+     (format "package ~a\n\n" (~a name))]
+    [`(import ,path)
+     (format "import \"~a\"\n" path)]
+    [`(define ,name ((lambda ,arg (,e : ,et)) : ,_))
+     (let ([compiled-param (match arg
+			     [`() "()"]
+			     [`((,x : ,xt)) (format "(~a ~a)"
+						    (compile-expr x)
+						    (compile-type xt))]
+			     [_ (error ("Invalid argument list: ~a" arg))])])
+       (format "func ~a ~a ~a {\n~a}\n"
+	       (translate-identifier name)		 
+	       compiled-param
+	       (compile-type et)
+	       (compile-return `(,e : ,et))))]      
+    [`(define ,name (,e : ,t))
+     (format "var ~a ~a = ~a\n"
+	     (translate-identifier name)
+	     (compile-type t)
+	     (compile-expr e))]))
+
+(define (compile-top-level-forms exprs)  
+  (let ([forms (let loop ([exprs exprs]
+			  [pkg-env '()]
+			  [forms '()])
+		 (match exprs
+		   ['() forms]
+		   [`((pkg ,name) . ,fs)
+		    (loop fs pkg-env (cons (car exprs) forms))]
+		   [`((import ,path) . ,fs)
+		    (loop fs pkg-env (cons (car exprs) forms))]
+		   [`((define ,name ,expr) . ,es)
+		    (let* ([te (:? (explode expr) pkg-env)]
+			   [t (car (cddr te))])
+		      (loop es (cons `(,name : ,t) pkg-env) (cons `(define ,name ,te) forms)))]
+		   [f (error (format "Invalid top level form: ~a" f))]))])
+    (map compile-top-level-form (reverse forms))))
+
+(define (compile-top-level-forms-to-go exprs)
+  (go-fmt (string-join (compile-top-level-forms exprs))))
 
 (define (go-fmt src)
   (with-input-from-string src
@@ -96,24 +153,9 @@ this. In future versions of Kashmir this should be possible."))]
     (with-output-to-string
       (lambda () (system* (find-executable-path "go") "run" (~a tmp-path))))))
 
-(define (kashmir-compile-expr expr)
-  (compile-expr (:? (explode expr))))
-
-(define (kashmir-compile-prg expr)
-  (format "
-package main
-
-import \"fmt\"
-
-func main() {
-_res := ~a
-fmt.Println(_res)
-}
-"
-          (kashmir-compile-expr expr)))
-
 (provide
  go-fmt
  go-run
- kashmir-compile-expr
- kashmir-compile-prg)
+ compile-expr
+ compile-top-level-forms
+ compile-top-level-forms-to-go)

@@ -1,0 +1,11 @@
+(pkg main)
+
+(import fmt)
+
+(define result
+  (let ([make-str (lambda () "lazy")])
+    (+ (make-str) (make-str))))
+
+(define main
+  (lambda ()
+    (fmt.Println result)))
