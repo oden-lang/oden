@@ -1,5 +1,6 @@
 # Summary
 
+* [Home](README.md)
 * [Goals](goals.md)
 * [Installation](installation.md)
 * [Compiling](compiling.md)
