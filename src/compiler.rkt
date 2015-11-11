@@ -35,6 +35,15 @@
       [`(((define ,name ,expr) . ,fs) #t ,_)
        (loop fs #t #t)])))
 
+(define (validate-definition name te)
+  (match (list name te)
+    [`(main (,_ : (-> unit))) void]
+    [`(main (,_ : ,t))
+     (error
+      (format "Bad main function type ~a, must be (-> unit)."
+	      t))]
+    [_ void]))
+
 (define (transform-top-level-forms exprs)  
   (let* ([forms (let loop ([exprs exprs]
 			   [pkg-env '()]
@@ -45,10 +54,11 @@
 		     (loop fs pkg-env (cons (car exprs) forms))]
 		    [`((import ,(? symbol? path)) . ,fs)
 		     (loop fs pkg-env (cons (car exprs) forms))]
-		    ;; todo: add check that main function has type (-> unit)
+
 		    [`((define ,(? symbol? name) ,expr) . ,es)
 		     (let* ([te (:? (explode expr) pkg-env)]
 			    [t (car (cddr te))])
+		       (validate-definition name te)
 		       (loop es (cons `(,name : ,t) pkg-env) (cons `(define ,name ,te) forms)))]
 		    [f (error (format "Invalid top level form: ~a" f))]))]
 	 [r (reverse forms)])
