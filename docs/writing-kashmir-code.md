@@ -6,8 +6,8 @@ In Kashmir the following rules apply:
 * Source files must begin with the `pkg` declaration.
 * Source files may use zero or more `import` declarations after the `pkg`
   declaration.
-* Source files may, after `pkg` and `pkg` declarations, define zero or more
-  functions and values using `define`.
+* Source files may, after `pkg` and any `import` declarations, define
+  zero or more functions and values using `define`.
 
 ## Example
 
