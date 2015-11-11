@@ -8,12 +8,18 @@ OS=$(shell tools/get_os.sh)
 DIST_NAME=kashmir-$(VERSION)-$(OS)
 DIST_ZIP=target/$(DIST_NAME).zip
 
+.PHONY: all
 all: docs dist
 
+.PHONY:clean
 clean:
 	rm -rf target
 
-target/kmc:
+.PHONY: test
+test:
+	raco test src/*-test.rkt
+
+target/kmc: test
 	mkdir -p target
 	raco exe -o target/kmc src/cmd/kmc.rkt
 

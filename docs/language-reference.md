@@ -31,10 +31,11 @@ false
 "\nomg\nnewlines"
 ```
 
-### Functions instead of Operators
+### (> prefix infix)
 
-Some of the operators of Go are called as regular functions in
-Kashmir.
+The syntax of Kashmir favors prefix over infix notation, as LISPs
+usually do. For that reason, some of the infix operators of Go are
+called as regular functions in Kashmir.
 
 ```scheme
 (+ 1 2)
