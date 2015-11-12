@@ -19,14 +19,15 @@
 	  (lambda ()
 	    (fmt.Println "Hello, world!")))))
      ;; only type-annotations added in this case
-     '((pkg main)
-       (import fmt)
-       (define main
-	 ((lambda ()
-	    (((fmt.Println : (string -> unit))
-	      ("Hello, world!" : string)) : unit))
-	  :
-	  (-> unit))))))
+     '(((pkg main)
+	(import fmt)
+	(define main
+	  ((lambda ()
+	     (((fmt.Println : (string -> unit))
+	       ("Hello, world!" : string)) : unit))
+	   :
+	   (-> unit))))
+      ((main : (-> unit))))))
 
    (test-case
     "file must not be empty"
@@ -66,6 +67,6 @@
     "only pkg declaration is required"
     (check-equal?
      (transform-top-level-forms '((pkg main)))
-     '((pkg main))))))
+     '(((pkg main)) ())))))
   
 (run-tests compiler-tests)

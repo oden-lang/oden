@@ -1,0 +1,7 @@
+(pkg main)
+
+(import fmt)
+
+(define main
+  (lambda ()
+    (fmt.Println "Hello, world!")))

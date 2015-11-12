@@ -1,4 +1,4 @@
-(pkg lib)
+(pkg testing)
 
 (define shout
   (lambda ([who : string])

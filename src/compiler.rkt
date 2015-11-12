@@ -45,27 +45,27 @@
     [_ void]))
 
 (define (transform-top-level-forms exprs)  
-  (let* ([forms (let loop ([exprs exprs]
-			   [pkg-env '()]
-			   [forms '()])
-		  (match exprs
-		    ['() forms]
-		    [`((pkg ,(? symbol? name)) . ,fs)
-		     (loop fs pkg-env (cons (car exprs) forms))]
-		    [`((import ,(? symbol? path)) . ,fs)
-		     (loop fs pkg-env (cons (car exprs) forms))]
+  (let loop ([exprs exprs]
+	     [pkg-env '()]
+	     [forms '()])
+    (match exprs
+      ['() `(,(validate-top-level-forms (reverse forms)) ,pkg-env)]
+      [`((pkg ,(? symbol? name)) . ,fs)
+       (loop fs pkg-env (cons (car exprs) forms))]
+      [`((import ,(? symbol? path)) . ,fs)
+       (loop fs pkg-env (cons (car exprs) forms))]
 
-		    [`((define ,(? symbol? name) ,expr) . ,es)
-		     (let* ([te (:? (explode expr) pkg-env)]
-			    [t (car (cddr te))])
-		       (validate-definition name te)
-		       (loop es (cons `(,name : ,t) pkg-env) (cons `(define ,name ,te) forms)))]
-		    [f (error (format "Invalid top level form: ~a" f))]))]
-	 [r (reverse forms)])
-    (validate-top-level-forms r)))
+      [`((define ,(? symbol? name) ,expr) . ,es)
+       (let* ([te (:? (explode expr) pkg-env)]
+	      [t (car (cddr te))])
+	 (validate-definition name te)
+	 (loop es (cons `(,name : ,t) pkg-env) (cons `(define ,name ,te) forms)))]
+      [f (error (format "Invalid top level form: ~a" f))])))
 
 (define (compile-top-level-forms-to-string exprs)
-  (string-join (map compile-top-level-form (transform-top-level-forms exprs))))
+  (match (transform-top-level-forms exprs)
+    [`(,forms ,pkg-env)
+     `(,(string-join (map compile-top-level-form forms)) ,pkg-env)]))
 
 (provide
  transform-top-level-forms
