@@ -1,5 +1,7 @@
 #lang racket
 
+(require "pkg-source.rkt")
+
 (define/contract (relative-path-to-package-name path)
   (-> relative-path? symbol?)
   (string->symbol
@@ -34,15 +36,25 @@
     (append* (map scan roots))))
 
 (define/contract (read-file path)
-  (-> path? any/c)
-  (reverse
-   (with-input-from-file (path->string path)
-     (thunk
-      (let loop ([forms '()])
-	(let ([form (read)])
-	  (if (eof-object? form)
-	      forms
-	      (loop (cons form forms)))))))))
+  (-> path? pkg-source?)
+  (match (with-input-from-file (path->string path)
+	   (thunk
+	    (let loop ([s (pkg-source '() '() '())])
+	      (match (list s (read))
+		[`(,s ,(? eof-object?)) s]
+		[`(,(pkg-source '() '() '()) ,(? pkg-decl-expr? p))
+		 (loop (pkg-source p '() '()))]
+		[`(,(pkg-source '() _ _) ,(? pkg-decl-expr? p))
+		 (error "Package must begin with pkg declaratation.")]
+		[`(,(pkg-source p is '()) ,(? import-expr? i))
+		 (loop (pkg-source p (cons i is) '()))]
+		[`(,(pkg-source p is _) ,(? import-expr? i))
+		 (error "Imports are not allowed after first definition.")]
+		[`(,(pkg-source p is ds) ,(? definition-expr? d))
+		 (loop (pkg-source p is (cons d ds)))]
+		[e (error (format "Invalid form: ~a" e))]))))
+    [(pkg-source p is ds)
+     (pkg-source p (reverse is) (reverse ds))]))
 
 (provide
  read-file

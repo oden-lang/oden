@@ -1,39 +1,9 @@
 #lang racket
 
-(require racket/match)
-(require racket/system)
 (require "inferencer.rkt")
 (require "explode.rkt")
 (require "go-backend.rkt")
-
-(define (validate-top-level-forms all)
-  (let loop ([forms all] [seen-pkg #f] [seen-define #f])
-    (match (list forms seen-pkg seen-define)
-      [`(() #f ,_)
-       (error "Package declaration missing!")]
-      [`(() #t ,_) all]
-      [`(((pkg ,_) . ,fs) #f #f)
-       (loop fs #t #f)]
-      [`(((pkg ,_) . ,_) ,_ ,_)
-       (error
-	(format "Invalid pkg declaration: ~a'nPackage declaration must be the first top-level form."
-		(car forms)))]
-      [`(((import ,_) . ,_) #t #t)
-       (error
-	(format "Invalid import: ~a\nImports must be declared before all definitions."
-		(car forms)))]
-      [`(((import ,_) . ,fs) #t #f)
-       (loop fs #t #f)]
-      [`(((import ,_) . ,_) #f ,_)
-       (error
-	(format "Package declaration missing before import: ~a"
-		(car forms)))]
-      [`(((define ,name ,expr) . ,_) #f ,_)
-       (error
-	(format "Invalid definition: ~a\nDefinitions must appear after pkg declaration and imports."
-		(car forms)))]
-      [`(((define ,name ,expr) . ,fs) #t ,_)
-       (loop fs #t #t)])))
+(require "pkg-source.rkt")
 
 (define (validate-definition name te)
   (match (list name te)
@@ -44,17 +14,14 @@
 	      t))]
     [_ void]))
 
-(define (transform-top-level-forms exprs)  
-  (let loop ([exprs exprs]
+(define (compile-pkg source)  
+  (let loop ([definitions (pkg-source-definitions source)]
 	     [pkg-env '()]
-	     [forms '()])
-    (match exprs
-      ['() `(,(validate-top-level-forms (reverse forms)) ,pkg-env)]
-      [`((pkg ,(? symbol? name)) . ,fs)
-       (loop fs pkg-env (cons (car exprs) forms))]
-      [`((import ,(? symbol? path)) . ,fs)
-       (loop fs pkg-env (cons (car exprs) forms))]
-
+	     [forms (append 
+		     (pkg-source-imports source)
+		     (list (pkg-source-pkg-decl source)))])
+    (match definitions
+      ['() `(,(reverse forms) ,pkg-env)]
       [`((define ,(? symbol? name) ,expr) . ,es)
        (let* ([te (:? (explode expr) pkg-env)]
 	      [t (car (cddr te))])
@@ -62,11 +29,9 @@
 	 (loop es (cons `(,name : ,t) pkg-env) (cons `(define ,name ,te) forms)))]
       [f (error (format "Invalid top level form: ~a" f))])))
 
-(define (compile-top-level-forms-to-string exprs)
-  (match (transform-top-level-forms exprs)
-    [`(,forms ,pkg-env)
-     `(,(string-join (map compile-top-level-form forms)) ,pkg-env)]))
+(define (compile-pkg-forms-to-string forms)
+  (string-join (map compile-top-level-form forms)))
 
 (provide
- transform-top-level-forms
- compile-top-level-forms-to-string)
+ compile-pkg
+ compile-pkg-forms-to-string)
