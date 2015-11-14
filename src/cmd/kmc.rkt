@@ -17,19 +17,18 @@
 			   (lambda (out)
 			     (display out-prg out)))))
 
-(define (compile-to out-path pair)
-  (let* ([file-path (car pair)]
-	 [file-pkg (car (cdr pair))]
-	 [pkg-dir-out (pkg->path file-pkg out-path)]
+(define/contract (compile-to out-path sf)
+  (-> path? source-file? void?)
+  (let* ([pkg-dir-out (pkg->path (source-file-pkg sf) out-path)]
 	 [file-out (build-path pkg-dir-out "kashmir_out.go")])
-    (displayln (format  "Compiling ~a to ~a" file-pkg file-out))
+    (displayln (format  "Compiling ~a to ~a" (source-file-pkg sf) file-out))
     (make-directory* pkg-dir-out)
     (print-pkg
-     (compile-pkg (read-kashmir-pkg-file file-path))
+     (compile-pkg (read-kashmir-pkg-file (source-file-path sf)))
      file-out)))
 
 (module+ main
   (command-line #:program "kmc"
 		#:args (out-directory)
-		(for ([scanned (scan-kashmir-paths)])
-		  (compile-to out-directory scanned))))
+		(for ([sf (scan-kashmir-paths)])
+		  (compile-to (string->path out-directory) sf))))

@@ -2,6 +2,8 @@
 
 (require "source-pkg.rkt")
 
+(struct source-file (path pkg) #:transparent)
+
 (define/contract (relative-path-to-package-name path)
   (-> relative-path? symbol?)
   (string->symbol
@@ -12,16 +14,16 @@
       (path-replace-suffix path ""))))))
 
 (define/contract (scan root-path)
-  (-> absolute-path? (listof (list/c absolute-path? symbol?)))
+  (-> absolute-path? (listof source-file?))
   (for/list ([f (in-directory root-path)] #:when (regexp-match? "\\.km$" f))
     (let* ([p (simplify-path (path->complete-path f root-path))]
 	   [root-c (length (explode-path root-path))]
 	   [rel (apply build-path (drop (explode-path p) root-c))])
-      `(,p ,(relative-path-to-package-name rel)))))
+      (source-file p (relative-path-to-package-name rel)))))
 
-(define/contract (pair-has-pkg pair pkg)
-  (-> (list/c absolute-path? symbol?) symbol? boolean?)
-  (eq? (cdr pair) pkg))
+(define/contract (source-file-has-pkg sf pkg)
+  (-> source-file? symbol? boolean?)
+  (eq? (source-file-pkg sf) pkg))
 
 (define (to-absolute-path p)
   (if (relative-path? p)
@@ -60,7 +62,4 @@
   (-> path? source-pkg?)
   (with-input-from-file path read-kashmir-pkg))
 
-(provide
- read-kashmir-pkg
- read-kashmir-pkg-file
- scan-kashmir-paths)
+(provide (all-defined-out))
