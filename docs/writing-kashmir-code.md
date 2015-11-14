@@ -23,9 +23,8 @@ In Kashmir the following rules apply:
 ;; main function definition, must have type (-> unit)
 (define main (lambda () (fmt.Println result)))
 
-;; function definition
-(define identity-string
-  (lambda ([x : string]) x))
+;; function definition can also use the usual scheme shorthand
+(define (identity-string x) x)
 
 ;; value definition
 (define result (+ (identity-string "Hello") ", world!"))

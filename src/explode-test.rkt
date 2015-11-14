@@ -71,6 +71,15 @@
     "simple define is not transformed"
     (check-equal?
      (explode-definition '(define foo bar))
-     '(define foo bar)))))
+     '(define foo bar)))
+
+   (test-case
+    "define function shorthand explodes to define lambda"
+    (check-equal?
+     (explode-definition '(define (foo bar baz) (bar baz)))
+     '(define foo
+	(lambda (bar)
+	  (lambda (baz)
+	    (bar baz))))))))
 
 (run-tests explode-test)

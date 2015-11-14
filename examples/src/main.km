@@ -2,6 +2,5 @@
 
 (import fmt)
 
-(define main
-  (lambda ()
-    (fmt.Println "Hello, world!")))
+(define (main)
+  (fmt.Println "Hello, world!"))

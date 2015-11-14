@@ -1,5 +1,4 @@
 (pkg lib)
 
-(define say-goodbye
-  (lambda ([who : string])
-    (+ "Bye, " who)))
+(define (say-goodbye [who : string])
+  (+ "Bye, " who))

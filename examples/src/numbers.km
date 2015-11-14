@@ -1,7 +1,7 @@
 (pkg numbers)
 
-(define plus
-  (lambda (x y) (+ (x : int) (y : int))))
+(define (plus x y)
+  (+ (x : int) (y : int)))
 
 (define plus-1
   ((plus 1) : (-> int int)))

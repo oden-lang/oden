@@ -1,5 +1,4 @@
 (pkg testing)
 
-(define shout
-  (lambda ([who : string])
-    (+ who "!\nBye.")))
+(define (shout [who : string])
+  (+ who "!\nBye."))

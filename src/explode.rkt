@@ -25,8 +25,10 @@
 
 (define (explode-definition d)
   (match d
-    [`(define ,name ,expr)
-     `(define ,name ,(explode expr))]))
+    [`(define ,(? symbol? name) ,expr)
+     `(define ,name ,(explode expr))]
+    [`(define (,(? symbol? name) . ,args) ,body)
+     `(define ,name ,(explode `(lambda ,args ,body)))]))
 
 (provide
  explode
