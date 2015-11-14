@@ -2,8 +2,8 @@
 
 (require "inferencer.rkt")
 (require "explode.rkt")
-(require "go-backend.rkt")
-(require "pkg-source.rkt")
+(require "source-pkg.rkt")
+(require "compiled-pkg.rkt")
 
 (define (validate-definition name te)
   (match (list name te)
@@ -14,14 +14,16 @@
 	      t))]
     [_ void]))
 
-(define (compile-pkg source)  
-  (let loop ([definitions (pkg-source-definitions source)]
+(define/contract (compile-pkg pkg)
+  (-> source-pkg? compiled-pkg?)
+  (let loop ([definitions (source-pkg-definitions pkg)]
 	     [pkg-env '()]
-	     [forms (append 
-		     (pkg-source-imports source)
-		     (list (pkg-source-pkg-decl source)))])
+	     [forms '()])
     (match definitions
-      ['() `(,(reverse forms) ,pkg-env)]
+      ['() (compiled-pkg (car (cdr (source-pkg-decl pkg)))
+			 (source-pkg-imports pkg)
+			 (reverse forms)
+			 pkg-env)]
       [`((define ,(? symbol? name) ,expr) . ,es)
        (let* ([te (:? (explode expr) pkg-env)]
 	      [t (car (cddr te))])
@@ -29,9 +31,5 @@
 	 (loop es (cons `(,name : ,t) pkg-env) (cons `(define ,name ,te) forms)))]
       [f (error (format "Invalid top level form: ~a" f))])))
 
-(define (compile-pkg-forms-to-string forms)
-  (string-join (map compile-top-level-form forms)))
-
 (provide
- compile-pkg
- compile-pkg-forms-to-string)
+ compile-pkg)

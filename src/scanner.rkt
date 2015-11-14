@@ -1,6 +1,6 @@
 #lang racket
 
-(require "pkg-source.rkt")
+(require "source-pkg.rkt")
 
 (define/contract (relative-path-to-package-name path)
   (-> relative-path? symbol?)
@@ -35,27 +35,32 @@
 			     ":"))])
     (append* (map scan roots))))
 
-(define/contract (read-file path)
-  (-> path? pkg-source?)
-  (match (with-input-from-file (path->string path)
-	   (thunk
-	    (let loop ([s (pkg-source '() '() '())])
-	      (match (list s (read))
-		[`(,s ,(? eof-object?)) s]
-		[`(,(pkg-source '() '() '()) ,(? pkg-decl-expr? p))
-		 (loop (pkg-source p '() '()))]
-		[`(,(pkg-source '() _ _) ,(? pkg-decl-expr? p))
-		 (error "Package must begin with pkg declaratation.")]
-		[`(,(pkg-source p is '()) ,(? import-expr? i))
-		 (loop (pkg-source p (cons i is) '()))]
-		[`(,(pkg-source p is _) ,(? import-expr? i))
-		 (error "Imports are not allowed after first definition.")]
-		[`(,(pkg-source p is ds) ,(? definition-expr? d))
-		 (loop (pkg-source p is (cons d ds)))]
-		[e (error (format "Invalid form: ~a" e))]))))
-    [(pkg-source p is ds)
-     (pkg-source p (reverse is) (reverse ds))]))
+(define/contract (read-kashmir-pkg [in (current-input-port)])
+  (->* () (input-port?) source-pkg?)
+  (match (let loop ([s (source-pkg '() '() '())])
+	   (match (list s (read in))
+	     [`(,s ,(? eof-object?)) s]
+	     [`(,(source-pkg '() '() '()) ,(? pkg-decl-expr? p))
+	      (loop (source-pkg p '() '()))]
+	     [`(,(source-pkg '() is ds) ,(? import-expr? i))
+	      (error "Imports are not allowed before pkg declaration.")]
+	     [`(,(source-pkg p is '()) ,(? import-expr? i))
+	      (loop (source-pkg p (cons i is) '()))]
+	     [`(,(source-pkg p is ds) ,(? import-expr? i))
+	      (error "Imports are not allowed after first definition.")]
+	     [`(,(source-pkg '() is ds) ,(? definition-expr? d))
+	      (error "Definitions are not allowed before pkg declaration.")]
+	     [`(,(source-pkg p is ds) ,(? definition-expr? d))
+	      (loop (source-pkg p is (cons d ds)))]
+	     [`(,_ ,e) (error (format "Invalid form: ~a" e))]))
+    [(source-pkg p is ds)
+     (source-pkg p (reverse is) (reverse ds))]))
+
+(define/contract (read-kashmir-pkg-file path)
+  (-> path? source-pkg?)
+  (with-input-from-file path read-kashmir-pkg))
 
 (provide
- read-file
+ read-kashmir-pkg
+ read-kashmir-pkg-file
  scan-kashmir-paths)

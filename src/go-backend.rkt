@@ -1,26 +1,28 @@
 #lang racket
 
+(require "compiled-pkg.rkt")
+
 (define (translate-identifier id)
   (let* ([parts (string-split (symbol->string id) "-" #:trim? #t)]
 	 [titles (cons (car parts) (map string-titlecase (cdr parts)))])
     (string-join titles "")))
 
-(define (compile-type type)
+(define (codegen-type type)
   (match type
     ['unit ""]
     [`(,r -> ,d)
      (format "func (~a) (~a)"
-	     (compile-type r)
-	     (compile-type d))]
+	     (codegen-type r)
+	     (codegen-type d))]
     [`(-> ,d)
      (format "func () (~a)"
-	     (compile-type d))]
+	     (codegen-type d))]
     [(? list? l) (string-join (map ~a l) "_")]
     [(? symbol? t)
      (match (~a t)
        [(regexp #rx"_\\.[0-9]+")
 	(error (string-trim "
-Cannot currently compile values with type variables (e.g. polymorphic 
+Cannot currently codegen values with type variables (e.g. polymorphic 
 functions). You might have to annotate some parts of your code to resolve
 this. In future versions of Kashmir this should be possible."))]
        [s s])]))
@@ -28,20 +30,20 @@ this. In future versions of Kashmir this should be possible."))]
 (define (infix-operator? op)
   (member op '(+ - * / == !=)))
 
-(define (compile-return typed-expr)
+(define (codegen-return typed-expr)
   (match typed-expr
     [`((,f) : unit)
-     (format "~a\nreturn\n" (compile-expr typed-expr))]
+     (format "~a\nreturn\n" (codegen-expr typed-expr))]
     [`((,f ,a) : unit)
-     (format "~a\nreturn\n" (compile-expr typed-expr))]
+     (format "~a\nreturn\n" (codegen-expr typed-expr))]
     [`(,e : unit) "return\n"]
     [te (format "return ~a\n"
-		(compile-expr te))]))
+		(codegen-expr te))]))
 
-(define (compile-expr typed-expr)
+(define (codegen-expr typed-expr)
   (match typed-expr
     [(? number? x) (~a x)]
-    [`(,e : ,t) (compile-expr e)]
+    [`(,e : ,t) (codegen-expr e)]
     ['false "false"]
     ['true "true"]
     ['unit ""]
@@ -56,64 +58,77 @@ this. In future versions of Kashmir this should be possible."))]
        (list _ '-> _))
       (list b ': _))
      (format "(~a ~a ~a)"
-             (compile-expr a)
+             (codegen-expr a)
              op
-             (compile-expr b))]
+             (codegen-expr b))]
     [`(lambda () (,e : ,et))
      (format "(func () ~a {\n~a})"
-	     (compile-type et)
-	     (compile-return `(,e : ,et)))]
+	     (codegen-type et)
+	     (codegen-return `(,e : ,et)))]
     [`(lambda ((,x : ,xt)) (,e : ,et))
      (format "(func (~a ~a) ~a {\n~a})"
-             (compile-expr x)
-             (compile-type xt)
-             (compile-type et)
-             (compile-return `(,e : ,et)))]
+             (codegen-expr x)
+             (codegen-type xt)
+             (codegen-type et)
+             (codegen-return `(,e : ,et)))]
     [`(let (([,x : ,xt] (,e : ,et))) (,b : ,bt))
      (format "(func () ~a {\nvar ~a ~a = ~a\n~a}())"
-             (compile-type bt)
-             (compile-expr x)
-             (compile-type xt)
-             (compile-expr e)
-	     (compile-return `(,b : ,bt)))]
+             (codegen-type bt)
+             (codegen-expr x)
+             (codegen-type xt)
+             (codegen-expr e)
+	     (codegen-return `(,b : ,bt)))]
     [`((,f : ,_))
      (format "~a()"
-	     (compile-expr f))]
+	     (codegen-expr f))]
     [`((,f : ,ft) (,a : ,at))
      (format "~a(~a)"
-             (compile-expr f)
-             (compile-expr a))]
+             (codegen-expr f)
+             (codegen-expr a))]
     [`(if ,c `(,a : ,t) `(,b : ,t))
      (format "(func() ~a {\nif ~a {\n~a} else {\n~a}\n})()\n"
-             (compile-type t)
-             (compile-expr c)
-             (compile-return `(,a : ,t))
-             (compile-return `(,b : ,t)))]))
+             (codegen-type t)
+             (codegen-expr c)
+             (codegen-return `(,a : ,t))
+             (codegen-return `(,b : ,t)))]))
 
-(define (compile-top-level-form top-level-form)
-  (match top-level-form
-    [`(pkg ,name)
-     (format "package ~a\n\n" (~a name))]
-    [`(import ,path)
-     (format "import \"~a\"\n" path)]
-    [`(define ,name ((lambda ,arg (,e : ,et)) : ,_))
-     (let ([compiled-param (match arg
-			     [`() "()"]
-			     [`((,x : ,xt)) (format "(~a ~a)"
-						    (compile-expr x)
-						    (compile-type xt))]
-			     [_ (error ("Invalid argument list: ~a" arg))])])
-       (format "func ~a ~a ~a {\n~a}\n"
-	       (translate-identifier name)		 
-	       compiled-param
-	       (compile-type et)
-	       (compile-return `(,e : ,et))))]      
-    [`(define ,name (,e : ,t))
-     (format "var ~a ~a = ~a\n"
-	     (translate-identifier name)
-	     (compile-type t)
-	     (compile-expr e))]))
+(define/contract (codegen-imports pkg)
+  (-> compiled-pkg? string?)
+  (string-join
+   (for/list ([import (compiled-pkg-imports pkg)])
+     (format "import \"~a\"\n" (car (cdr import))))))
+
+(define/contract (codegen-definitions pkg)
+  (-> compiled-pkg? string?)
+  (string-join
+   (for/list ([definition (compiled-pkg-definitions pkg)])
+     (match definition       
+       [`(define ,name ((lambda ,arg (,e : ,et)) : ,_))
+	(let ([codegend-param (match arg
+				[`() "()"]
+				[`((,x : ,xt)) (format "(~a ~a)"
+						       (codegen-expr x)
+						       (codegen-type xt))]
+				[_ (error ("Invalid argument list: ~a" arg))])])
+	  (format "func ~a ~a ~a {\n~a}\n"
+		  (translate-identifier name)		 
+		  codegend-param
+		  (codegen-type et)
+		  (codegen-return `(,e : ,et))))]      
+       [`(define ,name (,e : ,t))
+	(format "var ~a ~a = ~a\n"
+		(translate-identifier name)
+		(codegen-type t)
+		(codegen-expr e))]))))
+
+(define (codegen-pkg pkg)
+  (format "package ~a\n\n// imports\n~a\n// definitions\n~a"
+	  (compiled-pkg-name pkg)
+	  (codegen-imports pkg)
+	  (codegen-definitions pkg)))
 
 (provide
- compile-expr
- compile-top-level-form)
+ codegen-expr
+ codegen-imports
+ codegen-definitions
+ codegen-pkg)
