@@ -28,4 +28,4 @@ curried function.
 ### No-argument Functions
 
 Functions that take no argument, often used to introduce lazyness, are written
-in a similary way but omits the *range*.
+in a similary way but omits the *domain*: `(-> int)`
