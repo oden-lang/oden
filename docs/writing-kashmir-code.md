@@ -7,7 +7,9 @@ In Kashmir the following rules apply:
 * Source files may use zero or more `import` declarations after the `pkg`
   declaration.
 * Source files may, after `pkg` and any `import` declarations, define
-  zero or more functions and values using `define`.
+  zero or more functions and values using `define`. The order of
+  definitions does not matter - a value `foo` can be the last defined
+  value even if it's referenced before.
 
 ## Example
 
@@ -18,6 +20,9 @@ In Kashmir the following rules apply:
 ;; import declaration
 (import fmt)
 
+;; main function definition, must have type (-> unit)
+(define main (lambda () (fmt.Println result)))
+
 ;; function definition
 (define identity-string
   (lambda ([x : string]) x))
@@ -25,6 +30,4 @@ In Kashmir the following rules apply:
 ;; value definition
 (define result (+ (identity-string "Hello") ", world!"))
 
-;; main function definition, must have type (-> unit)
-(define main (lambda () (fmt.Println result)))
 ```

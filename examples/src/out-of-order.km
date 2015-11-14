@@ -1,0 +1,7 @@
+(pkg out-of-order)
+
+(define main
+  (lambda () (fmt.Println hello-world)))
+
+(define hello-world (+ hello "world!"))
+(define hello "Hello")

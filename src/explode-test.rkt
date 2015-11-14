@@ -67,6 +67,10 @@
      (explode '(if c a b))
      '(if c a b)))
 
-   ))
+   (test-case
+    "simple define is not transformed"
+    (check-equal?
+     (explode-definition '(define foo bar))
+     '(define foo bar)))))
 
 (run-tests explode-test)

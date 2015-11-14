@@ -1,7 +1,5 @@
 #lang racket
 
-(provide explode)
-
 (define (explode expr)
   (match expr
     [`(lambda () ,body)
@@ -25,3 +23,11 @@
      (explode `((,f ,(car args)) . ,(cdr args)))]
     [e e]))
 
+(define (explode-definition d)
+  (match d
+    [`(define ,name ,expr)
+     `(define ,name ,(explode expr))]))
+
+(provide
+ explode
+ explode-definition)
