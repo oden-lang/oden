@@ -121,9 +121,14 @@ this. In future versions of Kashmir this should be possible."))]
 		(codegen-type t)
 		(codegen-expr e))]))))
 
+(define (codegen-pkg-name pkg)
+  (let* ([name (compiled-pkg-name pkg)]
+	 [split (string-split (symbol->string name) "/")])
+    (last split)))
+
 (define (codegen-pkg pkg)
   (format "package ~a\n\n// imports\n~a\n// definitions\n~a"
-	  (compiled-pkg-name pkg)
+	  (codegen-pkg-name pkg)
 	  (codegen-imports pkg)
 	  (codegen-definitions pkg)))
 
