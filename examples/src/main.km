@@ -1,6 +1,8 @@
 (pkg main)
 
 (import fmt)
+;; not used yet, only to try out compilation order based on imports
+(import submodule/utils)
 
 (define (main)
   (fmt.Println "Hello, world!"))

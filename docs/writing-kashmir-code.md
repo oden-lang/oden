@@ -3,7 +3,8 @@
 In Kashmir the following rules apply:
 
 * Every source file corresponds to a single package.
-* Source files must begin with the `pkg` declaration.
+* Source files must begin with the `pkg` declaration. The declaration should,
+  unlike in Go, specify the complete name, e.g. `(pkg a/b/c)`.
 * Source files may use zero or more `import` declarations after the `pkg`
   declaration.
 * Source files may, after `pkg` and any `import` declarations, define

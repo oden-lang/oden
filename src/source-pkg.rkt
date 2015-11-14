@@ -17,4 +17,7 @@
     [`(define ,_ ,_) #t]
     [_ #f]))
 
+(define (source-pkg-name pkg)
+  (cadr (source-pkg-decl pkg)))
+
 (provide (all-defined-out))

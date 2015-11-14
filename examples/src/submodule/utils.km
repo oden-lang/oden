@@ -1,4 +1,4 @@
-(pkg testing)
+(pkg submodule/utils)
 
 (define (shout [who : string])
   (+ who "!\nBye."))

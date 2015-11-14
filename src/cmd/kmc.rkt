@@ -3,8 +3,11 @@
 (require racket/cmdline)
 
 (require "../scanner.rkt")
+(require "../reader.rkt")
 (require "../compiler.rkt")
 (require "../go-backend.rkt")
+(require "../source-file.rkt")
+(require "../source-pkg.rkt")
 
 (define (pkg->path pkg root)
   (let ([pkg-part (apply build-path
@@ -17,18 +20,21 @@
 			   (lambda (out)
 			     (display out-prg out)))))
 
-(define/contract (compile-to out-path sf)
-  (-> path? source-file? void?)
-  (let* ([pkg-dir-out (pkg->path (source-file-pkg sf) out-path)]
+(define/contract (compile-to out-path pkg)
+  (-> path? source-pkg? void?)
+  (let* ([pkg-name (cadr (source-pkg-decl pkg))]
+	 [pkg-dir-out (pkg->path pkg-name out-path)]
 	 [file-out (build-path pkg-dir-out "kashmir_out.go")])
-    (displayln (format  "Compiling ~a to ~a" (source-file-pkg sf) file-out))
+    (displayln (format  "Compiling ~a to ~a" pkg-name file-out))
     (make-directory* pkg-dir-out)
     (print-pkg
-     (compile-pkg (read-kashmir-pkg-file (source-file-path sf)))
+     (compile-pkg pkg)
      file-out)))
 
 (module+ main
   (command-line #:program "kmc"
 		#:args (out-directory)
-		(for ([sf (scan-kashmir-paths)])
-		  (compile-to (string->path out-directory) sf))))
+		(for ([pkg (sort-pkgs
+			    (map read-kashmir-pkg-source-file
+				 (scan-kashmir-paths)))])
+		  (compile-to (string->path out-directory) pkg))))

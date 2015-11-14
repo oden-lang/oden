@@ -1,11 +1,11 @@
 #lang racket
 
-(require rackunit "scanner.rkt")
+(require rackunit "reader.rkt")
 (require rackunit/text-ui)
 
 (require "source-pkg.rkt")
 
-(define scanner-tests
+(define reader-tests
   (test-suite
    "scanner"
    (test-case
@@ -42,6 +42,17 @@
      (lambda ()
        (with-input-from-string
 	 "(pkg lib) (define test 123) (import fmt)"
-	 read-kashmir-pkg))))))
+	 read-kashmir-pkg))))
 
-(run-tests scanner-tests)
+   (let ([pkg-a (source-pkg '(pkg a) '() '())]
+	 [pkg-b (source-pkg '(pkg b) '((import a)) '())]
+	 [pkg-c (source-pkg '(pkg c) '((import a) (import b)) '())]
+	 [pkg-d (source-pkg '(pkg d) '() '())])
+
+     (test-case
+      "source pkgs are topologically sorted by imports"
+      (check-equal?
+       (sort-pkgs (list pkg-c pkg-b pkg-a pkg-d))
+       (list pkg-a pkg-b pkg-c pkg-d))))))
+
+(run-tests reader-tests)
