@@ -6,3 +6,4 @@
 * [Compiling](compiling.md)
 * [Writing Kashmir Code](writing-kashmir-code.md)
 * [Language Reference](language-reference.md)
+  * [Type System](type-system.md)

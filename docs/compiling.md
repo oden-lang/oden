@@ -2,7 +2,7 @@
 
 In Kashmir the compiler is called `kmc`. It compiles Kashmir source
 files to single file packages in Go. The following is a simple
-example of how compiling with works.
+example of how compiling with `kmc` works.
 
 ```bash
 $ cat << EOF >> hello-world.km
