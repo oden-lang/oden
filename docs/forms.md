@@ -80,6 +80,25 @@ Lambda arguments can be annotated with types.
 (lambda ([x : int] y) (+ x y))
 ```
 
+### Define Lambda
+
+When defining a lambda, a shorthand can be used.
+
+```scheme
+(define (identity x) x) ;; same as (define (lambda (x) x))
+```
+
+### Recursion
+
+Defined lambdas can call themselves recursively.
+
+```scheme
+(define (factorial n)
+  (if (< n 2)
+      1
+      (* n (factorial (- n 1)))))
+```
+
 ## Control Flow
 
 The `if` expression has the type `(bool -> (a -> (a -> a)))`.

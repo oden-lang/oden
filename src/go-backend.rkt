@@ -28,7 +28,7 @@ this. In future versions of Kashmir this should be possible."))]
        [s s])]))
 
 (define (infix-operator? op)
-  (member op '(+ - * / == !=)))
+  (member op '(+ - * / == != < > <= >=)))
 
 (define (codegen-return typed-expr)
   (match typed-expr
@@ -78,6 +78,12 @@ this. In future versions of Kashmir this should be possible."))]
              (codegen-type xt)
              (codegen-expr e)
 	     (codegen-return `(,b : ,bt)))]
+    [`(if ,c (,a : ,t) (,b : ,t))
+     (format "(func() ~a {\nif ~a {\n~a} else {\n~a}\n})()\n"
+             (codegen-type t)
+             (codegen-expr c)
+             (codegen-return `(,a : ,t))
+             (codegen-return `(,b : ,t)))]
     [`((,f : ,_))
      (format "~a()"
 	     (codegen-expr f))]
@@ -85,12 +91,8 @@ this. In future versions of Kashmir this should be possible."))]
      (format "~a(~a)"
              (codegen-expr f)
              (codegen-expr a))]
-    [`(if ,c `(,a : ,t) `(,b : ,t))
-     (format "(func() ~a {\nif ~a {\n~a} else {\n~a}\n})()\n"
-             (codegen-type t)
-             (codegen-expr c)
-             (codegen-return `(,a : ,t))
-             (codegen-return `(,b : ,t)))]))
+    [e (error
+        (format "Go codegen failed for: ~v" e))]))
 
 (define/contract (codegen-imports pkg)
   (-> compiled-pkg? string?)

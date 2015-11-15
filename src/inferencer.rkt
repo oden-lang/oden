@@ -18,9 +18,11 @@
     (== '(false : bool) t)]
    [(== 'true expr)
     (== '(true : bool) t)]
-   [(fresh (s _)
-           (== `(,s : ,_) expr)
-           (infero s env t))]
+   [(fresh (s st te-ignore te)
+           (== `(,s : ,st) expr)
+           (== `(,te-ignore : ,st) te)
+           (infero s env te)
+           (== te t))]
    [(fresh (x b bt b-ignore r d)
            (symbolo x)
            (conde
@@ -91,6 +93,10 @@
                  (/ : (,+t -> (,+t -> ,+t)))
                  (== : (,+t -> (,+t -> bool)))
                  (!= : (,+t -> (,+t -> bool)))
+                 (> : (,+t -> (,+t -> bool)))
+                 (< : (,+t -> (,+t -> bool)))
+                 (>= : (,+t -> (,+t -> bool)))
+                 (<= : (,+t -> (,+t -> bool)))
 		 (unit : unit)
 
 		 ;; todo: remove when proper FFI is in place
@@ -98,8 +104,8 @@
 		 (fmt.Println : (string -> unit))
 		 ])))
 
-(define (:? expr [custom-env '()])
-  (let ([t (run 1 (q)
+(define (infer expr [custom-env '()])
+    (let ([t (run 1 (q)
                 (fresh (env d)
                        (default-envo d)
 		       (== env (append custom-env d))
@@ -108,6 +114,26 @@
      [(empty? t) (raise-user-error "Type check failed!")]
      [else (first t)])))
 
+(define (infer-defo def env t)
+  (fresh (rec-env name expr expr-ignore expr-t expr-te)
+         (== `(define ,name ,expr) def)
+         (== rec-env (cons `(,name : ,expr-t) env))
+         (infero expr rec-env expr-te)
+         (== `(,expr-ignore : ,expr-t) expr-te)
+         (== `((define ,name ,expr-te) : ,expr-t) t)))
+
+(define (infer-def def [custom-env '()])
+    (let ([t (run 1 (q)
+                (fresh (env default-env)
+                       (default-envo default-env)
+		       (== env (append custom-env default-env))
+                       (infer-defo def env q)))])
+    (cond
+     [(empty? t) (raise-user-error "Type check failed!")]
+     [else (first t)])))
+
 (provide
  infero
- :?)
+ infer-defo
+ infer
+ infer-def)

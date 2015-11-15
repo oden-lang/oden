@@ -12,18 +12,18 @@
    (test-case
     "identity"
     (check-equal?
-     (:? '((lambda (x) x) true))
+     (infer '((lambda (x) x) true))
      '((((lambda ([x : bool]) (x : bool)) : (bool -> bool)) (true : bool)) : bool)))
 
    (test-case
     "lambda without arguments"
-    (:? '((lambda () true)))
+    (infer '((lambda () true)))
     '(((lambda () (true : bool)) : (-> bool)) : bool))
 
    (test-case
     "if"
     (check-equal?
-     (:? '(if true 1 0))
+     (infer '(if true 1 0))
      '((if (true : bool) (1 : int) (0 : int)) : int)))
 
 
@@ -32,18 +32,30 @@
     (check-exn
      exn:fail?
      (lambda ()
-       (:? '(if true 1 true)))))
+       (infer '(if true 1 true)))))
 
    (test-case
     "complex expressions in if"
     (check-equal?
-     (only-type (:? '(if ((== ((+ 10) 10)) 20) ((+ 1) 1) ((+ 2) 2))))
+     (only-type (infer '(if ((== ((+ 10) 10)) 20) ((+ 1) 1) ((+ 2) 2))))
      'int))
 
    (test-case
     "type-annotated complex expression"
     (check-equal?
-     (only-type (:? '(((+ 1) 2) : int)))
-     'int))))
+     (only-type (infer '(((+ 1) 2) : int)))
+     'int))
+
+   (test-case
+     "recursive function definition"
+     (check-equal?
+      (only-type (infer-def '(define inf (lambda  ([x : int]) ((+ 1) (inf x))))))
+      '(int -> int)))
+
+   (test-case
+     "recursive function definition with no type type constraints (will fail in codegen stage) "
+     (check-equal?
+      (only-type (infer-def '(define inf (lambda (x) (inf x)))))
+      '(_.0 -> _.1)))))
 
 (run-tests inferencer-test)

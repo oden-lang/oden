@@ -9,9 +9,10 @@
 (define/contract (get-non-local-references expr [local '()])
   (->* (any/c) ((listof symbol?)) (listof symbol?))
   (match expr
-    [(? symbol? s) (if (member s local)
-                       '()
-                       (list s))]
+    [(? symbol? s)
+     (if (member s local)
+         '()
+         (list s))]
     [(? number?) '()]
     [(? string?) '()]
     [`(,e : ,t)
@@ -28,6 +29,10 @@
     [`(,f ,a)
      (append (get-non-local-references f local)
              (get-non-local-references a local))]
+    [`(if ,c ,a ,b)
+     (append (get-non-local-references c local)
+             (get-non-local-references a local)
+             (get-non-local-references b local))]
     [e (error (format "Cannot get non-local references of expr: ~v" e))]))
 
 (define (get-sorted-names defs)
@@ -36,7 +41,7 @@
     (match defs
       ['() (graph-topological-sort (make-graph deps))]
       [`((define ,name ,expr) . ,ds)
-       (let* ([non-local (get-non-local-references expr)]
+       (let* ([non-local (get-non-local-references expr (list name))]
               [with-name (map (lambda (i) (list i name)) non-local)])
          (loop ds (append with-name deps)))])))
 
@@ -69,11 +74,11 @@
 			 (source-pkg-imports pkg)
 			 (reverse forms)
 			 pkg-env)]
-      [`((define ,(? symbol? name) ,expr) . ,es)
-       (let* ( [te (:? expr pkg-env)]
-	      [t (car (cddr te))])
-	 (validate-definition name te)
-	 (loop es (cons `(,name : ,t) pkg-env) (cons `(define ,name ,te) forms)))]
+      [`((define ,(? symbol? name) ,_) . ,ds)
+       (match (infer-def (car definitions) pkg-env)
+         [`((define ,name ,expr) : ,t)
+          (validate-definition name expr)
+          (loop ds (cons `(,name : ,t) pkg-env) (cons `(define ,name ,expr) forms))])]
       [f (error (format "Invalid top level form: ~a" f))])))
 
 (provide
