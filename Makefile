@@ -2,6 +2,8 @@ GIT_REV_LONG=$(shell git rev-parse HEAD)
 GIT_REV_SHORT=$(shell git rev-parse --short HEAD)
 VERSION ?= $(GIT_REV_SHORT)
 
+SOURCES=$(shell find src -name *.rkt)
+
 GITBOOK=node_modules/.bin/gitbook
 
 OS=$(shell tools/get_os.sh)
@@ -19,7 +21,7 @@ clean:
 test:
 	raco test src/*-test.rkt
 
-target/kmc: test
+target/kmc: $(SOURCES)
 	mkdir -p target
 	raco exe -o target/kmc src/cmd/kmc.rkt
 
@@ -49,7 +51,7 @@ release-docs:
 	git push origin +gh-pages
 	git checkout master
 
-target/kashmir: target/kmc README.md
+target/kashmir: test target/kmc compile-examples README.md
 	mkdir -p target/kashmir
 	raco distribute target/kashmir target/kmc
 	cp README.md target/kashmir/README.txt
@@ -57,6 +59,11 @@ target/kashmir: target/kmc README.md
 
 $(DIST_ZIP): target/kashmir
 	(cd target/kashmir && zip ../$(DIST_NAME).zip -r *)
+
+.PHONY: compile-examples
+compile-examples: target/kmc
+	KASHMIR_PATH=examples target/kmc $(PWD)/target/examples
+	GOPATH=$(PWD)/target/examples go build ...
 
 dist: $(DIST_ZIP)
 
