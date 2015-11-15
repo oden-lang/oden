@@ -9,8 +9,8 @@ $ cat << EOF >> hello-world.km
 (pkg main)
 (import fmt)
 
-(define main
-  (lambda () (fmt.Println "Hello, world!")))
+(define (main)
+  (fmt.Println "Hello, world!"))
 EOF
 $ kmc hello-world.km hello_world.go
 $ go build hello_world.go
