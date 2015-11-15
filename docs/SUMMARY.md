@@ -1,6 +1,6 @@
 # Summary
 
-* [Home](README.md)
+* [Kashmir](README.md)
 * [Goals](goals.md)
 * [Installation](installation.md)
 * [Compiling](compiling.md)

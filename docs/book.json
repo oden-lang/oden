@@ -2,5 +2,18 @@
     "title": "Kashmir",
     "structure": {
         "readme": "README.md"
+    },
+    "plugins": ["katex", "printlinks", "github"],
+    "pluginsConfig": {
+        "github": {
+            "url": "https://github.com/owickstrom/kashmir"
+        }
+    },
+    "links": {
+        "sharing": {
+            "google": false,
+            "facebook": false,
+            "twitter": false
+        }
     }
 }

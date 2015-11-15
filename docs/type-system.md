@@ -22,20 +22,24 @@ causes side effects and have no useful return value.
 
 Unit is also used for interopability with functions in Go that has no
 return value at all. For example, the Go expression `func (s string) {
-fmt.Println(s) }` would have the type `(-> string unit)` in Kashmir.
+fmt.Println(s) }` would have the type `(string -> unit)` in Kashmir.
 
 The literal `unit` has the type `unit`.
 
 ## Functions
 
-The type of a function *f : A &rarr; B* is written `(-> A B)`.
+The type of a function $$f\colon A \to B$$ is written `(A -> B)`.
 
 ### Currying
 
 Kashmir supports [*currying*](https://en.wikipedia.org/wiki/Currying)
-by default. The type of a function *f: X &rarr; (Y &rarr; Z)* is
-written `(-> X (-> Y Z))` which reflects that it is actually a
+by default. The type of a function $$f\colon X \to (Y \to Z)$$ is
+written `(X -> (Y -> Z))` which reflects that it is actually a
 curried function.
+
+Kashmir lets you write `(lambda (x y z) x)` but that gets translated
+to `(lambda (x) (lambda (y) (lambda (z) x)))` and the inferred type
+becomes `(a -> (b -> (c -> a)))`.
 
 ### No-argument Functions
 
@@ -70,3 +74,6 @@ using an annotation expression, written `(expr : type)`.
 (define plus-1
   ((plus 1) : (-> int int)))
 ```
+
+A function $$f\colon A \to B$$ can be written with a type annotation as
+`(f : (A -> B))`.
