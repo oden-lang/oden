@@ -51,7 +51,7 @@ release-docs:
 	git push origin +gh-pages
 	git checkout master
 
-target/kashmir: test target/kmc compile-examples README.md
+target/kashmir: test target/kmc compile-experiments README.md
 	mkdir -p target/kashmir
 	raco distribute target/kashmir target/kmc
 	cp README.md target/kashmir/README.txt
@@ -60,10 +60,10 @@ target/kashmir: test target/kmc compile-examples README.md
 $(DIST_ZIP): target/kashmir
 	(cd target/kashmir && zip ../$(DIST_NAME).zip -r *)
 
-.PHONY: compile-examples
-compile-examples: target/kmc
-	KASHMIR_PATH=examples target/kmc $(PWD)/target/examples
-	GOPATH=$(PWD)/target/examples go build ...
+.PHONY: compile-experiments
+compile-experiments: target/kmc
+	KASHMIR_PATH=experiments/working target/kmc $(PWD)/target/experiments
+	GOPATH=$(PWD)/target/experiments go build ...
 
 dist: $(DIST_ZIP)
 
