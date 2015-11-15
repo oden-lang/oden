@@ -25,9 +25,8 @@ In Kashmir the following rules apply:
 (define main (lambda () (fmt.Println result)))
 
 ;; function definition can also use the usual scheme shorthand
-(define (identity-string x) x)
+(define (identity-string [x : string]) x)
 
 ;; value definition
 (define result (+ (identity-string "Hello") ", world!"))
-
 ```
