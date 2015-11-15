@@ -53,8 +53,9 @@ called as regular functions in Kashmir.
 (+ "Foo" "Bar")
 ```
 
-*Currently it is not possible to use these functions as values,
-passing them to functions or using them in a let.*
+*Currently it is not possible to use these functions as first-class
+values, passing them to functions or using them in a let,
+e.g. `(map + numbers)`.*
 
 ## Functions
 
@@ -67,11 +68,10 @@ more arguments and a single expression as the body.
 
 *The current version of Kashmir does not support polymorphic
 functions, i.e. all types have to be inferred or annotated for it to
-compile to Go. Evaluating `(fn (x) x)` in the REPL will give you an
-error. When `define` is implemented this will probably be fixed as
-well.*
+compile to Go. When `define` is implemented this will probably be
+fixed as well.*
 
-fn arguments can be annotated with types.
+Function arguments can be annotated with types.
 
 ```scheme
 (fn ([x : int]) x)
@@ -80,9 +80,9 @@ fn arguments can be annotated with types.
 (fn ([x : int] y) (+ x y))
 ```
 
-### Define fn
+### Defining Functions
 
-When defining a fn, a shorthand can be used.
+When defining a function, a shorthand can be used.
 
 ```scheme
 (define (identity x) x) ;; same as (define (fn (x) x))
@@ -90,7 +90,7 @@ When defining a fn, a shorthand can be used.
 
 ### Recursion
 
-Defined fns can call themselves recursively.
+Defined functions can call themselves recursively.
 
 ```scheme
 (define (factorial n)

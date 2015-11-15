@@ -2,7 +2,7 @@
 
 Kashmir aims to be a flexible and powerful functional language. The
 type system should help ensure the correctness of your programs
-without getting in the way. Kashmir builds on an extended typed fn
+without getting in the way. Kashmir builds on an extended typed lambda
 calculus and performs type inference on your code.
 
 ## Built-in Types
