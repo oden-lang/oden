@@ -13,9 +13,8 @@ $ cat << EOF >> src/hello-world/main.km
 (define (main)
   (fmt.Println "Hello, world!"))
 EOF  
-$ kmc hello-world.km hello_world.go
 $ kmc ./out
-$ GOPATH $PWD/out go build -o hello-world hello-world/main
+$ GOPATH=$PWD/out go build -o hello-world hello-world/main
 $ ./hello_world
 Hello, world!
 ```
