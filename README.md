@@ -1,9 +1,12 @@
 # Kashmir Programming Language - Draft
 
-This is a draft for Kashmir programming language and a prototype compiler - a
-statically typed LISP that compiles to native code using
-[Go](https://golang.org/). By leveraging the Go runtime Kashmir gets
-asynchronous IO, lightweight threads (Go routines) and a good GC.
+This is a draft for Kashmir programming language and a prototype
+compiler - a statically typed LISPy language that compiles to native
+code using [Go](https://golang.org/). By leveraging the Go runtime
+Kashmir gets asynchronous IO, lightweight threads (Go routines) and a
+good GC.
+
+Kashmir is named after the powerful Led Zeppelin song.
 
 ## Documentation
 

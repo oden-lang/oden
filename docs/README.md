@@ -5,6 +5,9 @@
 
 **Welcome to the Kashmir Language Documentation!**
 
-Here you can learn about the language and how you can work with it. **Note that Kashmir is a very young project and should be considered highly experimental!**
+Here you can learn about the language. **Note that Kashmir is a very
+young project and should be considered highly experimental!** For
+those of you wondering about the name, it's from the powerful Led
+Zeppelin classic.
 
 [The source is available on GitHub.](https://github.com/owickstrom/kashmir)
