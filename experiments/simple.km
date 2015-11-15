@@ -2,5 +2,5 @@
  (+ x y))
 
 (define minus (-> int int int)
- (lambda ((x int) (y int)) int
+ (fn ((x int) (y int)) int
    (- x y)))

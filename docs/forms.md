@@ -56,41 +56,41 @@ called as regular functions in Kashmir.
 *Currently it is not possible to use these functions as values,
 passing them to functions or using them in a let.*
 
-## Lambda
+## Functions
 
-A function is created using a lambda expression. It supports zero
-or more arguments and a single expression as the body.
+A function is created using a `fn` expression. It supports zero or
+more arguments and a single expression as the body.
 
 ```scheme
-(lambda (x) (+ x 1))
+(fn (x) (+ x 1))
 ```
 
 *The current version of Kashmir does not support polymorphic
 functions, i.e. all types have to be inferred or annotated for it to
-compile to Go. Evaluating `(lambda (x) x)` in the REPL will give you
-an error. When `define` is implemented this will probably be fixed as
+compile to Go. Evaluating `(fn (x) x)` in the REPL will give you an
+error. When `define` is implemented this will probably be fixed as
 well.*
 
-Lambda arguments can be annotated with types.
+fn arguments can be annotated with types.
 
 ```scheme
-(lambda ([x : int]) x)
+(fn ([x : int]) x)
 
 ;; here the type of y is inferred
-(lambda ([x : int] y) (+ x y))
+(fn ([x : int] y) (+ x y))
 ```
 
-### Define Lambda
+### Define fn
 
-When defining a lambda, a shorthand can be used.
+When defining a fn, a shorthand can be used.
 
 ```scheme
-(define (identity x) x) ;; same as (define (lambda (x) x))
+(define (identity x) x) ;; same as (define (fn (x) x))
 ```
 
 ### Recursion
 
-Defined lambdas can call themselves recursively.
+Defined fns can call themselves recursively.
 
 ```scheme
 (define (factorial n)
@@ -144,13 +144,13 @@ arguments.
 Here we call our newly created `square` function with the argument `4`.
 
 ```scheme
-(let ([square (lambda (x) (* x 2))])
+(let ([square (fn (x) (* x 2))])
   (square 4))
 ```
 
 Kashmir also supports functions which take no arguments.
 
 ```scheme
-(let ([make-num (lambda () 3)])
+(let ([make-num (fn () 3)])
   (* (make-num) (make-num)))
 ```

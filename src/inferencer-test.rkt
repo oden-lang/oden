@@ -12,13 +12,13 @@
    (test-case
     "identity"
     (check-equal?
-     (infer '((lambda (x) x) true))
-     '((((lambda ([x : bool]) (x : bool)) : (bool -> bool)) (true : bool)) : bool)))
+     (infer '((fn (x) x) true))
+     '((((fn ([x : bool]) (x : bool)) : (bool -> bool)) (true : bool)) : bool)))
 
    (test-case
-    "lambda without arguments"
-    (infer '((lambda () true)))
-    '(((lambda () (true : bool)) : (-> bool)) : bool))
+    "fn without arguments"
+    (infer '((fn () true)))
+    '(((fn () (true : bool)) : (-> bool)) : bool))
 
    (test-case
     "if"
@@ -31,7 +31,7 @@
     "if branches have same type"
     (check-exn
      exn:fail?
-     (lambda ()
+     (thunk
        (infer '(if true 1 true)))))
 
    (test-case
@@ -49,13 +49,13 @@
    (test-case
      "recursive function definition"
      (check-equal?
-      (only-type (infer-def '(define inf (lambda  ([x : int]) ((+ 1) (inf x))))))
+      (only-type (infer-def '(define inf (fn  ([x : int]) ((+ 1) (inf x))))))
       '(int -> int)))
 
    (test-case
      "recursive function definition with no type type constraints (will fail in codegen stage) "
      (check-equal?
-      (only-type (infer-def '(define inf (lambda (x) (inf x)))))
+      (only-type (infer-def '(define inf (fn (x) (inf x)))))
       '(_.0 -> _.1)))))
 
 (run-tests inferencer-test)

@@ -61,11 +61,11 @@ this. In future versions of Kashmir this should be possible."))]
              (codegen-expr a)
              op
              (codegen-expr b))]
-    [`(lambda () (,e : ,et))
+    [`(fn () (,e : ,et))
      (format "(func () ~a {\n~a})"
 	     (codegen-type et)
 	     (codegen-return `(,e : ,et)))]
-    [`(lambda ((,x : ,xt)) (,e : ,et))
+    [`(fn ((,x : ,xt)) (,e : ,et))
      (format "(func (~a ~a) ~a {\n~a})"
              (codegen-expr x)
              (codegen-type xt)
@@ -105,7 +105,7 @@ this. In future versions of Kashmir this should be possible."))]
   (string-join
    (for/list ([definition (compiled-pkg-definitions pkg)])
      (match definition       
-       [`(define ,name ((lambda ,arg (,e : ,et)) : ,_))
+       [`(define ,name ((fn ,arg (,e : ,et)) : ,_))
 	(let ([codegend-param (match arg
 				[`() "()"]
 				[`((,x : ,xt)) (format "(~a ~a)"

@@ -22,7 +22,7 @@ In Kashmir the following rules apply:
 (import fmt)
 
 ;; main function definition, must have type (-> unit)
-(define main (lambda () (fmt.Println result)))
+(define main (fn () (fmt.Println result)))
 
 ;; function definition can also use the usual scheme shorthand
 (define (identity-string [x : string]) x)

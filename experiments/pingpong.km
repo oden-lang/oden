@@ -3,7 +3,7 @@
     (let ((a (chan))
           (b (chan))
           (res (chan))
-          (f (lambda (name in out)
+          (f (fn (name in out)
                (let loop ((n (!< in)))
                  (if (> n 0)
                      (do

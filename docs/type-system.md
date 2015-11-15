@@ -2,7 +2,7 @@
 
 Kashmir aims to be a flexible and powerful functional language. The
 type system should help ensure the correctness of your programs
-without getting in the way. Kashmir builds on an extended typed lambda
+without getting in the way. Kashmir builds on an extended typed fn
 calculus and performs type inference on your code.
 
 ## Built-in Types
@@ -37,8 +37,8 @@ by default. The type of a function $$f\colon X \to (Y \to Z)$$ is
 written `(X -> (Y -> Z))` which reflects that it is actually a
 curried function.
 
-Kashmir lets you write `(lambda (x y z) x)` but that gets translated
-to `(lambda (x) (lambda (y) (lambda (z) x)))` and the inferred type
+Kashmir lets you write `(fn (x y z) x)` but that gets translated
+to `(fn (x) (fn (y) (fn (z) x)))` and the inferred type
 becomes `(a -> (b -> (c -> a)))`.
 
 ### No-argument Functions
@@ -56,11 +56,11 @@ the exact same type but where the second functions is annotated.
 
 ```scheme
 (define plus-1
-  (lambda (a)
+  (fn (a)
     (+ a 1)))
   
 (define plus-1-annotated
-  (lambda ([a : int])
+  (fn ([a : int])
     (+ a 1)))	
 ```
 
@@ -69,7 +69,7 @@ using an annotation expression, written `(expr : type)`.
 
 ```scheme
 (define plus
-  (lambda (x y) (+ (x : int) (y : int))))
+  (fn (x y) (+ (x : int) (y : int))))
 
 (define plus-1
   ((plus 1) : (-> int int)))

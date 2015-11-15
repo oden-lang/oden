@@ -19,13 +19,13 @@
        '(pkg main)
        '((import fmt))
        '((define main
-	    (lambda ()
+	    (fn ()
 	      (fmt.Println "Hello, world!"))))))
      (compiled-pkg
       'main
       '((import fmt))
       '((define main
-	   ((lambda ()
+	   ((fn ()
 	      (((fmt.Println : (string -> unit))
 		("Hello, world!" : string)) : unit))
 	    :
@@ -36,7 +36,7 @@
     "get-non-local-references function"
     (check-equal?
      (get-non-local-references
-      (explode '(lambda (x y) (f x y))))
+      (explode '(fn (x y) (f x y))))
      '(f)))
 
    (test-case

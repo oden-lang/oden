@@ -12,7 +12,7 @@
     "file must not be empty"
     (check-exn
      exn:fail?
-     (lambda ()
+     (thunk
        (read-kashmir-pkg '()))))
    
    (test-case
@@ -30,7 +30,7 @@
     "pkg must be first top-level form"
     (check-exn
      exn:fail?
-     (lambda ()
+     (thunk
        (with-input-from-string
 	 "(import fmt) (pkg main)"
 	 read-kashmir-pkg))))
@@ -39,7 +39,7 @@
     "imports must appear before definitions"
     (check-exn
      exn:fail?
-     (lambda ()
+     (thunk
        (with-input-from-string
 	 "(pkg lib) (define test 123) (import fmt)"
 	 read-kashmir-pkg))))

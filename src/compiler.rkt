@@ -22,9 +22,9 @@
              (if (member name local)
                  (get-non-local-references body local)
                  (get-non-local-references body (cons name local))))]
-    [`(lambda (,a) ,b)
+    [`(fn (,a) ,b)
      (get-non-local-references b (cons a local))]
-    [`(lambda () ,b)
+    [`(fn () ,b)
      (get-non-local-references b local)]
     [`(,f ,a)
      (append (get-non-local-references f local)

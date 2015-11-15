@@ -26,16 +26,16 @@
    [(fresh (x b bt b-ignore r d)
            (symbolo x)
            (conde
-            [(== `(lambda (,x) ,b) expr)]
-            [(== `(lambda ([,x : ,r]) ,b) expr)])
+            [(== `(fn (,x) ,b) expr)]
+            [(== `(fn ([,x : ,r]) ,b) expr)])
            (== bt `(,b-ignore : ,d))
            (infero b `((,x : ,r) . ,env) bt)
-           (== `((lambda ([,x : ,r]) ,bt) : (,r -> ,d)) t))]
+           (== `((fn ([,x : ,r]) ,bt) : (,r -> ,d)) t))]
    [(fresh (b bt b-ignore d)
-	   (== `(lambda () ,b) expr)
+	   (== `(fn () ,b) expr)
 	   (infero b env bt)
 	   (== bt `(,b-ignore : ,d))
-	   (== `((lambda () ,bt) : (-> ,d)) t))]
+	   (== `((fn () ,bt) : (-> ,d)) t))]
    [(fresh (x xt e e-ignore et b bt b-ignore lt)
            (conde
             [(== `(let ([,x ,e]) ,b) expr)]

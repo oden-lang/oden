@@ -38,28 +38,28 @@
      '(f)))
 
    (test-case
-    "lambda with single argument"
+    "fn with single argument"
     (check-equal?
-     (explode '(lambda (x) x))
-     '(lambda (x) x)))
+     (explode '(fn (x) x))
+     '(fn (x) x)))
 
    (test-case
-    "lambda with multiple arguments"
+    "fn with multiple arguments"
     (check-equal?
-     (explode '(lambda (x y z) x))
-     '(lambda (x) (lambda (y) (lambda (z) x)))))
+     (explode '(fn (x y z) x))
+     '(fn (x) (fn (y) (fn (z) x)))))
 
    (test-case
-    "lambda with single type-annotated argument"
+    "fn with single type-annotated argument"
     (check-equal?
-     (explode '(lambda ([x : int]) x))
-     '(lambda ([x : int]) x)))
+     (explode '(fn ([x : int]) x))
+     '(fn ([x : int]) x)))
 
    (test-case
-    "lambda with multiple type-annotated arguments"
+    "fn with multiple type-annotated arguments"
     (check-equal?
-     (explode '(lambda (x [y : int] [z : bool]) x))
-     '(lambda (x) (lambda ([y : int]) (lambda ([z : bool]) x)))))
+     (explode '(fn (x [y : int] [z : bool]) x))
+     '(fn (x) (fn ([y : int]) (fn ([z : bool]) x)))))
 
    (test-case
     "if is not exploded like a function application"
@@ -74,12 +74,12 @@
      '(define foo bar)))
 
    (test-case
-    "define function shorthand explodes to define lambda"
+    "define function shorthand explodes to define fn"
     (check-equal?
      (explode-definition '(define (foo bar baz) (bar baz)))
      '(define foo
-	(lambda (bar)
-	  (lambda (baz)
+	(fn (bar)
+	  (fn (baz)
 	    (bar baz))))))))
 
 (run-tests explode-test)
