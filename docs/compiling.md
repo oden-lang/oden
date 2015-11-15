@@ -5,15 +5,17 @@ files to single file packages in Go. The following is a simple
 example of how compiling with `kmc` works.
 
 ```bash
-$ cat << EOF >> hello-world.km
-(pkg main)
+$ mkdir -p src/hello-world/
+$ cat << EOF >> src/hello-world/main.km
+(pkg hello-world/main)
 (import fmt)
 
 (define (main)
   (fmt.Println "Hello, world!"))
-EOF
+EOF  
 $ kmc hello-world.km hello_world.go
-$ go build hello_world.go
+$ kmc ./out
+$ GOPATH $PWD/out go build -o hello-world hello-world/main
 $ ./hello_world
 Hello, world!
 ```

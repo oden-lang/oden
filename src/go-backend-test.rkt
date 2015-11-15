@@ -8,7 +8,7 @@
 (require rackunit/text-ui)
 
 (define (codegen-single-expression expr)
-  (codegen-expr (:? (explode expr))))
+  (codegen-expr (infer (explode expr))))
 
 (define go-backend-tests
   (test-suite
