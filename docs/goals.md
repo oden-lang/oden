@@ -1,24 +1,40 @@
 # Goals
 
-* A LISP **inspired by Scheme and Clojure** compiling to Go.
-* Kashmir should feature a safe but versatile type system - more flexible than
-the one in Go and at least as safe.
-* The type system should offer type inference (Hindley-Milner style) that only
-requires type annotations on top-level forms.
+These are the primary goals and tradeoffs as well as non-goals for the
+first iterations of Kashmir. To be extra clear, *this is currently an
+experimental language and it might change drastically*.
+
+* A LISP-like language **inspired by Scheme and Clojure** compiling to
+  Go. Not perhaps a "real LISP", at least not until macros are
+  implemented.
+* Kashmir should feature a safe but versatile type system - more
+  flexible than the one in Go and at least as safe.
+* Generics.
+* The type system should offer heavy type inference. Possibly require
+  type annotations on top-level forms.
+* Align with the built-in types of Go and provide simple
+  interoperability.
 * The prototype compiler should be easy to change.
-* Align with the built-in types of Go and provide simple interoperability.
 
 ## Secondary Goals
 
-* The first versions might not include parametric polymorphism (generics) in
-functions and types but the underlying type checker should be able to support
-it without a big rewrite.
-* Macros, not needed for first version.
+* Macros, not needed for first version, but still a long-term goal.
 
-## Non-goals (in first versions)
+## Shortcuts/Tradeoffs
 
-* Fast compiler. Emphasis lies on a simple implementation with easy-to-change
-behaviour, not compiler speed.
-* A "Go backend" for Scheme or Clojure.
-* Easy workflow. After running the Kashmir compiler the user might have to step
-in to a directory of output Go files and run `go build` etc.
+The first versions of Kashmir should **not** focus on:
+
+* A fast compiler. Emphasis lies on a simple implementation with
+  correct semantics, not compilation speed.
+* Easy workflow. After running the Kashmir compiler the user might
+  have to step in to a directory of output Go files and run `go build`
+  etc.
+* Producing beautiful Go code.
+* Easy Kashmir &rarr Go interopability. It might turn out easy after
+  all, but that is not an explicit goal.
+
+## Non-goals
+
+* A "Go backend" for Scheme or Clojure. There's no compatibility with
+  any existing LISP, or any other language for that matter.
+* A Haskell-clone.
