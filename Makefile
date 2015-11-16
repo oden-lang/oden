@@ -74,13 +74,13 @@ release: $(DIST_ZIP)
 	git tag -a -m "Release $(VERSION)" $(VERSION)
 	git push origin +$(VERSION)
 	-github-release release \
-		--user owickstrom \
+		--user oden-lang \
 		--repo oden \
 		--tag $(VERSION) \
 		--name $(VERSION) \
 		--pre-release
 	github-release upload \
-		--user owickstrom \
+		--user oden-lang \
 		--repo oden \
 		--tag $(VERSION) \
 		--name "$(DIST_NAME).zip" \

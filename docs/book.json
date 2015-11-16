@@ -6,7 +6,7 @@
     "plugins": ["katex", "printlinks", "github"],
     "pluginsConfig": {
         "github": {
-            "url": "https://github.com/owickstrom/oden"
+            "url": "https://github.com/oden-lang/oden"
         }
     },
     "styles": {
