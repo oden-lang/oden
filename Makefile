@@ -12,7 +12,7 @@ ifeq ($(OS),windows)
 endif
 
 DIST_NAME=oden-$(VERSION)-$(OS)
-DIST_ZIP=target/$(DIST_NAME).zip
+DIST_ARCHIVE=target/$(DIST_NAME).tar.gz
 
 .PHONY: all
 all: dist
@@ -38,7 +38,7 @@ target/oden: test $(ODENC) compile-experiments README.md
 	cp README.md target/oden/README.txt
 	echo "$(VERSION) (git revision: $(GIT_REV_LONG))" >> target/oden/VERSION.txt
 
-$(DIST_ZIP): target/oden
+$(DIST_ARCHIVE): target/oden
 	(cd target/oden && tar -czf ../$(DIST_NAME).tar.gz .)
 
 .PHONY: compile-experiments
@@ -46,14 +46,12 @@ compile-experiments: $(ODENC)
 	ODEN_PATH=experiments/working $(ODENC) $(PWD)/target/experiments
 	GOPATH=$(PWD)/target/experiments go build ...
 
-dist: $(DIST_ZIP)
+dist: $(DIST_ARCHIVE)
 
-release: $(DIST_ZIP)
+release: $(DIST_ARCHIVE)
 	@echo "\n\nDon't forget to set env variable GITHUB_TOKEN first!\n\n"
 	go get github.com/aktau/github-release
-	-git tag -d $(VERSION)
-	git tag -a -m "Release $(VERSION)" $(VERSION)
-	git push origin +$(VERSION)
+	-git tag -a -m "Release $(VERSION)" $(VERSION) && git push origin +$(VERSION)
 	-github-release release \
 		--user oden-lang \
 		--repo oden \
@@ -64,5 +62,5 @@ release: $(DIST_ZIP)
 		--user oden-lang \
 		--repo oden \
 		--tag $(VERSION) \
-		--name "$(DIST_NAME).zip" \
-		--file $(DIST_ZIP)
+		--name "$(DIST_NAME).tar.gz" \
+		--file $(DIST_ARCHIVE)

@@ -6,9 +6,10 @@ and **should be considered highly experimental**.
 
 ## Documentation
 
-Most documentation, including details about the project, how to run
-the compiler and how to program in Oden, is located at
-https://oden-lang.github.io.
+Details about the project, how to install and run the compiler and how to
+program in Oden is located at https://oden-lang.github.io.
+
+For build instructions see [BUILD.md](BUILD.md).
 
 ## Experiments
 
