@@ -5,6 +5,12 @@ VERSION ?= $(GIT_REV_SHORT)
 SOURCES=$(shell find src -name *.rkt)
 
 OS=$(shell tools/get_os.sh)
+
+ODENC=target/odenc
+ifeq ($(OS),windows)
+	ODENC=target/odenc.exe
+endif
+
 DIST_NAME=oden-$(VERSION)-$(OS)
 DIST_ZIP=target/$(DIST_NAME).zip
 
@@ -19,25 +25,25 @@ clean:
 test:
 	raco test src/*-test.rkt
 
-target/odenc: $(SOURCES)
+$(ODENC): $(SOURCES)
 	mkdir -p target
-	raco exe -o target/odenc src/cmd/odenc.rkt
+	raco exe -o $(ODENC) src/cmd/odenc.rkt
 
 $(GITBOOK):
 	npm install gitbook-cli
 
-target/oden: test target/odenc compile-experiments README.md
+target/oden: test $(ODENC) compile-experiments README.md
 	mkdir -p target/oden
-	raco distribute target/oden target/odenc
+	raco distribute target/oden $(ODENC)
 	cp README.md target/oden/README.txt
 	echo "$(VERSION) (git revision: $(GIT_REV_LONG))" >> target/oden/VERSION.txt
 
 $(DIST_ZIP): target/oden
-	(cd target/oden && zip ../$(DIST_NAME).zip -r *)
+	(cd target/oden && tar -czf ../$(DIST_NAME).tar.gz .)
 
 .PHONY: compile-experiments
-compile-experiments: target/odenc
-	ODEN_PATH=experiments/working target/odenc $(PWD)/target/experiments
+compile-experiments: $(ODENC)
+	ODEN_PATH=experiments/working $(ODENC) $(PWD)/target/experiments
 	GOPATH=$(PWD)/target/experiments go build ...
 
 dist: $(DIST_ZIP)
@@ -60,11 +66,3 @@ release: $(DIST_ZIP)
 		--tag $(VERSION) \
 		--name "$(DIST_NAME).zip" \
 		--file $(DIST_ZIP)
-
-
-
-
-
-
-
-
