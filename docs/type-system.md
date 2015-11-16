@@ -1,8 +1,8 @@
 # Type System
 
-Kashmir aims to be a flexible and powerful functional language. The
+Oden aims to be a flexible and powerful functional language. The
 type system should help ensure the correctness of your programs
-without getting in the way. Kashmir builds on an extended typed lambda
+without getting in the way. Oden builds on an extended typed lambda
 calculus and performs type inference on your code.
 
 ## Built-in Types
@@ -22,7 +22,7 @@ causes side effects and have no useful return value.
 
 Unit is also used for interopability with functions in Go that has no
 return value at all. For example, the Go expression `func (s string) {
-fmt.Println(s) }` would have the type `(string -> unit)` in Kashmir.
+fmt.Println(s) }` would have the type `(string -> unit)` in Oden.
 
 The literal `unit` has the type `unit`.
 
@@ -32,12 +32,12 @@ The type of a function $$f\colon A \to B$$ is written `(A -> B)`.
 
 ### Currying
 
-Kashmir supports [*currying*](https://en.wikipedia.org/wiki/Currying)
+Oden supports [*currying*](https://en.wikipedia.org/wiki/Currying)
 by default. The type of a function $$f\colon X \to (Y \to Z)$$ is
 written `(X -> (Y -> Z))` which reflects that it is actually a
 curried function.
 
-Kashmir lets you write `(fn (x y z) x)` but that gets translated
+Oden lets you write `(fn (x y z) x)` but that gets translated
 to `(fn (x) (fn (y) (fn (z) x)))` and the inferred type
 becomes `(a -> (b -> (c -> a)))`.
 
@@ -49,7 +49,7 @@ written `(-> int)`.
 
 ## Type Annotations
 
-Kashmir accepts type annotations to guide the inferencer. This is
+Oden accepts type annotations to guide the inferencer. This is
 useful to constrain a function to a specific type or to make your
 intentions clear. The following example shows two functions that have
 the exact same type but where the second functions is annotated.

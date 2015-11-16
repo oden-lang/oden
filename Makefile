@@ -7,7 +7,7 @@ SOURCES=$(shell find src -name *.rkt)
 GITBOOK=node_modules/.bin/gitbook
 
 OS=$(shell tools/get_os.sh)
-DIST_NAME=kashmir-$(VERSION)-$(OS)
+DIST_NAME=oden-$(VERSION)-$(OS)
 DIST_ZIP=target/$(DIST_NAME).zip
 
 .PHONY: all
@@ -21,22 +21,22 @@ clean:
 test:
 	raco test src/*-test.rkt
 
-target/kmc: $(SOURCES)
+target/odenc: $(SOURCES)
 	mkdir -p target
-	raco exe -o target/kmc src/cmd/kmc.rkt
+	raco exe -o target/odenc src/cmd/odenc.rkt
 
 $(GITBOOK):
 	npm install gitbook-cli
 
-target/kashmir/docs: docs/* $(GITBOOK)
-	$(GITBOOK) build docs target/kashmir/docs
-	rm -f target/kashmir/docs/*.md~
+target/oden/docs: docs/* $(GITBOOK)
+	$(GITBOOK) build docs target/oden/docs
+	rm -f target/oden/docs/*.md~
 
 .PHONY: docs
-docs: target/kashmir/docs
+docs: target/oden/docs
 
 .PHONY: watch-docs
-watch-docs:
+watch-docs: $(GITBOOK)
 	$(GITBOOK) serve docs docs/_book
 
 .PHONY: release-docs
@@ -45,24 +45,24 @@ release-docs:
 	git checkout gh-pages
 	git rebase master
 	make clean docs
-	cp -r target/kashmir/docs/* ./
+	cp -r target/oden/docs/* ./
 	git add -A
 	git commit -m "Auto-generated docs" .
 	git push origin +gh-pages
 	git checkout master
 
-target/kashmir: test target/kmc compile-experiments README.md
-	mkdir -p target/kashmir
-	raco distribute target/kashmir target/kmc
-	cp README.md target/kashmir/README.txt
-	echo "$(VERSION) (git revision: $(GIT_REV_LONG))" >> target/kashmir/VERSION.txt
+target/oden: test target/odenc compile-experiments README.md
+	mkdir -p target/oden
+	raco distribute target/oden target/odenc
+	cp README.md target/oden/README.txt
+	echo "$(VERSION) (git revision: $(GIT_REV_LONG))" >> target/oden/VERSION.txt
 
-$(DIST_ZIP): target/kashmir
-	(cd target/kashmir && zip ../$(DIST_NAME).zip -r *)
+$(DIST_ZIP): target/oden
+	(cd target/oden && zip ../$(DIST_NAME).zip -r *)
 
 .PHONY: compile-experiments
-compile-experiments: target/kmc
-	KASHMIR_PATH=experiments/working target/kmc $(PWD)/target/experiments
+compile-experiments: target/odenc
+	ODEN_PATH=experiments/working target/odenc $(PWD)/target/experiments
 	GOPATH=$(PWD)/target/experiments go build ...
 
 dist: $(DIST_ZIP)
@@ -75,13 +75,13 @@ release: $(DIST_ZIP)
 	git push origin +$(VERSION)
 	-github-release release \
 		--user owickstrom \
-		--repo kashmir \
+		--repo oden \
 		--tag $(VERSION) \
 		--name $(VERSION) \
 		--pre-release
 	github-release upload \
 		--user owickstrom \
-		--repo kashmir \
+		--repo oden \
 		--tag $(VERSION) \
 		--name "$(DIST_NAME).zip" \
 		--file $(DIST_ZIP)

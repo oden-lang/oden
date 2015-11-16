@@ -5,7 +5,7 @@
 (require "source-pkg.rkt")
 (require "../lib/graph.rkt")
 
-(define/contract (read-kashmir-pkg [in (current-input-port)])
+(define/contract (read-oden-pkg [in (current-input-port)])
   (->* () (input-port?) source-pkg?)
   (match (let loop ([s (source-pkg '() '() '())])
 	   (match (list s (read in))
@@ -26,13 +26,13 @@
     [(source-pkg p is ds)
      (source-pkg p (reverse is) (reverse ds))]))
 
-(define/contract (read-kashmir-pkg-file path)
+(define/contract (read-oden-pkg-file path)
   (-> path? source-pkg?)
-  (with-input-from-file path read-kashmir-pkg))
+  (with-input-from-file path read-oden-pkg))
 
-(define/contract (read-kashmir-pkg-source-file sf)
+(define/contract (read-oden-pkg-source-file sf)
   (-> source-file? source-pkg?)
-  (let ([pkg (read-kashmir-pkg-file (source-file-path sf))])
+  (let ([pkg (read-oden-pkg-file (source-file-path sf))])
     (when (not (equal? (source-file-pkg sf) (source-pkg-name pkg)))
       (error (format "~a should have pkg declared as ~a, not ~a."
 		     (source-file-path sf)
@@ -62,8 +62,8 @@
 		   '())))))
 
 (provide
- read-kashmir-pkg
- read-kashmir-pkg-file
- read-kashmir-pkg-source-file
+ read-oden-pkg
+ read-oden-pkg-file
+ read-oden-pkg-source-file
  get-sorted-pkg-names
  sort-pkgs)

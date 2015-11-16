@@ -1,6 +1,6 @@
-<h1 style="text-indent: -9999px; height: 0;">Kashmir</h1>
+<h1 style="text-indent: -9999px; height: 0;">Oden</h1>
 <div class="logo" style="text-align: center;">
-	<img src="logo.png" alt="Kashmir Logo" style="margin: 0 auto; width: 100%; max-width: 300px; padding-bottom: 40px;"/>
+	<img src="logo.png" alt="Oden Logo" style="margin: 0 auto; width: 100%; max-width: 300px; padding-bottom: 40px;"/>
 </div>
 
 ```scheme
@@ -14,13 +14,10 @@
       (+ (fib (- n 1)) (fib (- n 2))))))
 ```
 
-**Welcome to the Kashmir Language Documentation!**
+**Welcome to the Oden Language Documentation!**
 
-Kashmir is a LISP-inspired language with static typing that compiles
+Oden is a LISP-inspired language with static typing that compiles
 to native code using Go. The current implementation is working draft
 and **should be considered highly experimental**.
 
-*For those of you wondering about the name, it's from the powerful Led
-Zeppelin classic*.
-
-[The source is available on GitHub.](https://github.com/owickstrom/kashmir)
+[The source is available on GitHub.](https://github.com/oden-lang/oden)

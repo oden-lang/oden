@@ -24,7 +24,7 @@
 	(error (string-trim "
 Cannot currently codegen values with type variables (e.g. polymorphic 
 functions). You might have to annotate some parts of your code to resolve
-this. In future versions of Kashmir this should be possible."))]
+this. In future versions of Oden this should be possible."))]
        [s s])]))
 
 (define (infix-operator? op)

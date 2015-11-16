@@ -1,12 +1,12 @@
 {
-    "title": "Kashmir",
+    "title": "Oden",
     "structure": {
         "readme": "README.md"
     },
     "plugins": ["katex", "printlinks", "github"],
     "pluginsConfig": {
         "github": {
-            "url": "https://github.com/owickstrom/kashmir"
+            "url": "https://github.com/owickstrom/oden"
         }
     },
     "styles": {

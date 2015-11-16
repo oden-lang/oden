@@ -1,6 +1,6 @@
 ## Motivation
 
-The motivation behind Kashmir is to leverage the nice features of Go
+The motivation behind Oden is to leverage the nice features of Go
 &mdash; static linking, cross-compilation, goroutines, channels, an
 increasing set of libraries &mdash; and on top of that introduce
 higher-level abstractions together with an s-expression syntax to
@@ -9,13 +9,13 @@ support macros.
 ## Goals
 
 These are the primary goals and tradeoffs as well as non-goals for the
-first iterations of Kashmir. To be extra clear, *this is currently an
+first iterations of Oden. To be extra clear, *this is currently an
 experimental language and it might change drastically*.
 
 * A LISP-like language **inspired by Scheme and Clojure** compiling to
   Go. Not perhaps a "real LISP", at least not until macros are
   implemented.
-* Kashmir should feature a safe but versatile type system - more
+* Oden should feature a safe but versatile type system - more
   flexible than the one in Go and at least as safe.
 * Generics.
 * The type system should offer heavy type inference. Possibly require
@@ -30,15 +30,15 @@ experimental language and it might change drastically*.
 
 ### Shortcuts/Tradeoffs
 
-The first versions of Kashmir should **not** focus on:
+The first versions of Oden should **not** focus on:
 
 * A fast compiler. Emphasis lies on a simple implementation with
   correct semantics, not compilation speed.
-* Easy workflow. After running the Kashmir compiler the user might
+* Easy workflow. After running the Oden compiler the user might
   have to step in to a directory of output Go files and run `go build`
   etc.
 * Producing beautiful Go code.
-* Easy Kashmir-to-Go interopability (calling Kashmir code from Go). It
+* Easy Oden-to-Go interopability (calling Oden code from Go). It
   might turn out easy after all, but that is not an explicit goal.
 
 ### Non-goals

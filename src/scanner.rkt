@@ -29,10 +29,10 @@
       (simplify-path (path->complete-path p (current-directory)))
       p))
 
-(define (scan-kashmir-paths)
+(define (scan-oden-paths)
   (define (add-src s) (to-absolute-path (string->path (format "~a/src" s))))
   (let ([roots (map add-src (string-split
-			     (or (getenv "KASHMIR_PATH") ".")
+			     (or (getenv "ODEN_PATH") ".")
 			     ":"))])
     (append* (map scan roots))))
 

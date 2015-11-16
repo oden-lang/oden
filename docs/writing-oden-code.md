@@ -1,6 +1,6 @@
-# Writing Kashmir Code
+# Writing Oden Code
 
-In Kashmir the following rules apply:
+In Oden the following rules apply:
 
 * Every source file corresponds to a single package.
 * Source files must begin with the `pkg` declaration. The declaration should,

@@ -13,14 +13,14 @@
     (check-exn
      exn:fail?
      (thunk
-       (read-kashmir-pkg '()))))
+       (read-oden-pkg '()))))
    
    (test-case
     "only pkg declaration is required"
     (check-equal?
      (with-input-from-string
 	 "(pkg foo)"
-       read-kashmir-pkg)
+       read-oden-pkg)
      (source-pkg
       '(pkg foo)
       '()
@@ -33,7 +33,7 @@
      (thunk
        (with-input-from-string
 	 "(import fmt) (pkg main)"
-	 read-kashmir-pkg))))
+	 read-oden-pkg))))
 
    (test-case
     "imports must appear before definitions"
@@ -42,7 +42,7 @@
      (thunk
        (with-input-from-string
 	 "(pkg lib) (define test 123) (import fmt)"
-	 read-kashmir-pkg))))
+	 read-oden-pkg))))
 
    (let ([pkg-a (source-pkg '(pkg a) '() '())]
 	 [pkg-b (source-pkg '(pkg b) '((import a)) '())]

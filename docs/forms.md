@@ -1,11 +1,11 @@
 # Forms
 
-Kashmir is very simple and supports only a small set of forms. This document
+Oden is very simple and supports only a small set of forms. This document
 describes those forms and how you can compose programs with them.
 
 ## Lists
 
-As a LISP, Kashmir is built on lists. Lists are used for special forms and
+As a LISP, Oden is built on lists. Lists are used for special forms and
 function application. A list can be written `(x y z ...)` or `[x y z ...]`,
 they are the same.
 
@@ -37,9 +37,9 @@ false
 
 ## (> prefix infix)
 
-The syntax of Kashmir favors prefix over infix notation, as LISPs
+The syntax of Oden favors prefix over infix notation, as LISPs
 usually do. For that reason, some of the infix operators of Go are
-called as regular functions in Kashmir.
+called as regular functions in Oden.
 
 ```scheme
 (+ 1 2)
@@ -66,7 +66,7 @@ more arguments and a single expression as the body.
 (fn (x) (+ x 1))
 ```
 
-*The current version of Kashmir does not support polymorphic
+*The current version of Oden does not support polymorphic
 functions, i.e. all types have to be inferred or annotated for it to
 compile to Go. When `define` is implemented this will probably be
 fixed as well.*
@@ -148,7 +148,7 @@ Here we call our newly created `square` function with the argument `4`.
   (square 4))
 ```
 
-Kashmir also supports functions which take no arguments.
+Oden also supports functions which take no arguments.
 
 ```scheme
 (let ([make-num (fn () 3)])

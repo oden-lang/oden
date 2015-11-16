@@ -24,7 +24,7 @@
   (-> path? source-pkg? void?)
   (let* ([pkg-name (cadr (source-pkg-decl pkg))]
 	 [pkg-dir-out (pkg->path pkg-name out-path)]
-	 [file-out (build-path pkg-dir-out "kashmir_out.go")])
+	 [file-out (build-path pkg-dir-out "oden_out.go")])
     (displayln (format  "Compiling ~a to ~a" pkg-name file-out))
     (make-directory* pkg-dir-out)
     (print-pkg
@@ -32,9 +32,9 @@
      file-out)))
 
 (module+ main
-  (command-line #:program "kmc"
+  (command-line #:program "odenc"
 		#:args (out-directory)
 		(for ([pkg (sort-pkgs
-			    (map read-kashmir-pkg-source-file
-				 (scan-kashmir-paths)))])
+			    (map read-oden-pkg-source-file
+				 (scan-oden-paths)))])
 		  (compile-to (string->path out-directory) pkg))))
