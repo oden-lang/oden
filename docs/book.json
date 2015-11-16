@@ -9,6 +9,9 @@
             "url": "https://github.com/owickstrom/kashmir"
         }
     },
+    "styles": {
+	"website": "styles/website.css"
+    },
     "links": {
         "sharing": {
             "google": false,
