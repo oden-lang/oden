@@ -6,7 +6,7 @@ example of how compiling with `odenc` works.
 
 ```bash
 $ mkdir -p src/hello-world/
-$ cat << EOF >> src/hello-world/main.odin
+$ cat << EOF >> src/hello-world/main.oden
 (pkg hello-world/main)
 (import fmt)
 
