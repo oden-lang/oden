@@ -4,14 +4,12 @@ VERSION ?= $(GIT_REV_SHORT)
 
 SOURCES=$(shell find src -name *.rkt)
 
-GITBOOK=node_modules/.bin/gitbook
-
 OS=$(shell tools/get_os.sh)
 DIST_NAME=oden-$(VERSION)-$(OS)
 DIST_ZIP=target/$(DIST_NAME).zip
 
 .PHONY: all
-all: docs dist
+all: dist
 
 .PHONY:clean
 clean:
@@ -27,29 +25,6 @@ target/odenc: $(SOURCES)
 
 $(GITBOOK):
 	npm install gitbook-cli
-
-target/oden/docs: docs/* $(GITBOOK)
-	$(GITBOOK) build docs target/oden/docs
-	rm -f target/oden/docs/*.md~
-
-.PHONY: docs
-docs: target/oden/docs
-
-.PHONY: watch-docs
-watch-docs: $(GITBOOK)
-	$(GITBOOK) serve docs docs/_book
-
-.PHONY: release-docs
-release-docs:
-	git reset --hard HEAD
-	git checkout gh-pages
-	git rebase master
-	make clean docs
-	cp -r target/oden/docs/* ./
-	git add -A
-	git commit -m "Auto-generated docs" .
-	git push origin +gh-pages
-	git checkout master
 
 target/oden: test target/odenc compile-experiments README.md
 	mkdir -p target/oden
