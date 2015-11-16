@@ -19,6 +19,15 @@ https://owickstrom.github.io/kashmir/.
 Some samples and experiments of Kashmir source files and the output files to be
 compiled with Go can be found in [`experiments/`](experiments).
 
+## Contributing
+
+If you find this project interesting and want to help work on it, you
+can submit bug reports, suggestions and change requests at
+[the GitHub issues page](https://github.com/owickstrom/kashmir/issues).
+
+Please start by posting an issue even if you have a pull request ready,
+so we can begin with a discussion.
+
 ## License
 
 Copyright 2015 Oskar Wickström

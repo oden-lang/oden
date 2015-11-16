@@ -2,6 +2,7 @@
 
 * [Kashmir](README.md)
 * [Goals](goals.md)
+* [Contributing](contributing.md)
 * [Installation](installation.md)
 * [Compiling](compiling.md)
 * [Language Reference](language-reference.md)
