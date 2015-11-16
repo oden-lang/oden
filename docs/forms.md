@@ -5,9 +5,9 @@ describes those forms and how you can compose programs with them.
 
 ## Lists
 
-As a LISP, Oden is built on lists. Lists are used for special forms and
-function application. A list can be written `(x y z ...)` or `[x y z ...]`,
-they are the same.
+Drawing inspiration from LISPs, Oden is built on lists. Lists are used for
+special forms and function application. A list can be written `(x y z ...)` or
+`[x y z ...]`, they are the same.
 
 ## Number Literals
 
@@ -37,9 +37,8 @@ false
 
 ## (> prefix infix)
 
-The syntax of Oden favors prefix over infix notation, as LISPs
-usually do. For that reason, some of the infix operators of Go are
-called as regular functions in Oden.
+The syntax of Oden favors prefix over infix notation. For that reason, some of
+the infix operators of Go are called as regular functions in Oden.
 
 ```scheme
 (+ 1 2)
@@ -133,9 +132,8 @@ previous names.
 
 ## Function Application
 
-Functions are applied using lists, just as in other LISPs, where the first
-element of the list is the function and the rest of the elements are the
-arguments.
+Functions are applied using lists; the first element of the list is the
+function and the rest of the elements are the arguments.
 
 ```
 (f x y z ...)
