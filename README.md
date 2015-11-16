@@ -8,7 +8,7 @@ and **should be considered highly experimental**.
 
 Most documentation, including details about the project, how to run
 the compiler and how to program in Oden, is located at
-https://oden-lang.github.io/oden/.
+https://oden-lang.github.io.
 
 ## Experiments
 
