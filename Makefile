@@ -36,6 +36,7 @@ target/oden: test $(ODENC) compile-experiments README.md
 	mkdir -p target/oden
 	raco distribute target/oden $(ODENC)
 	cp README.md target/oden/README.txt
+	cp BUILD.md target/oden/BUILD.txt
 	echo "$(VERSION) (git revision: $(GIT_REV_LONG))" >> target/oden/VERSION.txt
 
 $(DIST_ARCHIVE): target/oden
