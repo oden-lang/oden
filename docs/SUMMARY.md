@@ -1,7 +1,7 @@
 # Summary
 
 * [Kashmir](README.md)
-* [Goals](goals.md)
+* [Motivation & Goals](motivation-and-goals.md)
 * [Contributing](contributing.md)
 * [Installation](installation.md)
 * [Compiling](compiling.md)

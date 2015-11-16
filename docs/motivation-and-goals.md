@@ -1,4 +1,12 @@
-# Goals
+## Motivation
+
+The motivation behind Kashmir is to leverage the nice features of Go
+&mdash; static linking, cross-compilation, goroutines, channels, an
+increasing set of libraries &mdash; and on top of that introduce
+higher-level abstractions together with an s-expression syntax to
+support macros.
+
+## Goals
 
 These are the primary goals and tradeoffs as well as non-goals for the
 first iterations of Kashmir. To be extra clear, *this is currently an
@@ -16,11 +24,11 @@ experimental language and it might change drastically*.
   interoperability.
 * The prototype compiler should be easy to change.
 
-## Secondary Goals
+### Secondary Goals
 
 * Macros, not needed for first version, but still a long-term goal.
 
-## Shortcuts/Tradeoffs
+### Shortcuts/Tradeoffs
 
 The first versions of Kashmir should **not** focus on:
 
@@ -30,10 +38,10 @@ The first versions of Kashmir should **not** focus on:
   have to step in to a directory of output Go files and run `go build`
   etc.
 * Producing beautiful Go code.
-* Easy Kashmir &rarr Go interopability. It might turn out easy after
-  all, but that is not an explicit goal.
+* Easy Kashmir-to-Go interopability (calling Kashmir code from Go). It
+  might turn out easy after all, but that is not an explicit goal.
 
-## Non-goals
+### Non-goals
 
 * A "Go backend" for Scheme or Clojure. There's no compatibility with
   any existing LISP, or any other language for that matter.
