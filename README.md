@@ -1,8 +1,12 @@
-# Oden Programming Language (EXPERIMENTAL!)
+# Oden Programming Language 
+
+**EXPERIMENTAL!**
 
 Oden is a LISP-inspired language with static typing that compiles
 to native code using Go. The current implementation is working draft
-and **should be considered highly experimental**.
+and **should be considered highly experimental**. See [Motivations
+& Goals](https://oden-lang.github.io/motivation-and-goals.html) for
+details.
 
 ## Documentation
 
