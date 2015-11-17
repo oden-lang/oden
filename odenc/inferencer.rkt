@@ -2,7 +2,21 @@
 
 (require Racket-miniKanren/miniKanren/mk)
 
-(define stringo (make-flat-tag 'str string?))
+(define (appendo l s out)
+  (conde
+   ((== '() l) (== s out))
+   ((fresh (a d res)
+           (== `(,a . ,d) l)
+           (== `(,a . ,res) out)
+           (appendo d s res)))))
+
+(define (membero x y)
+  (fresh [a b]
+         (appendo a `(,x . ,b) y)))     
+
+(define stringo (make-flat-tag 'string string?))
+(define floato (make-flat-tag 'float flonum?))
+(define fixedo (make-flat-tag 'fixed fixnum?))
 
 (define (infero expr env t)
   (conde
@@ -10,7 +24,9 @@
            (symbolo expr)
            (lookupo expr env x)
            (== `(,expr : ,x) t))]
-   [(numbero expr)
+   [(floato expr)
+    (== `(,expr : float) t)]
+   [(fixedo expr)
     (== `(,expr : int) t)]
    [(stringo expr)
     (== `(,expr : string) t)]
@@ -68,6 +84,23 @@
            (== `(,b-ignore : ,it) bt)
            (== `((if ,ct ,at ,bt) : ,it) t))]))
 
+;; need some better way to do polymorphic operators
+(define (arith-operatoro o t)
+  (fresh (ot)
+         (conde
+          [(== '+ o)
+           (membero ot '(int float string))
+           (== `(,ot -> (,ot -> ,ot)) t)]
+          [(membero o '(- * /))
+           (membero ot '(int float))
+           (== `(,ot -> (,ot -> ,ot)) t)]
+          [(membero o '(== !=))
+           (membero ot '(int float string))
+           (== `(,ot -> (,ot -> bool)) t)]
+          [(membero o '(> < >= <=))
+           (membero ot '(int float))
+           (== `(,ot -> (,ot -> bool)) t)])))
+
 (define (lookupo x env t)
   (fresh ()
          (symbolo x)
@@ -78,31 +111,17 @@
                   (== `((,y . ,_) . ,env^) env)
                   (=/= x y)
                   (symbolo y)
-                  (lookupo x env^ t))))))
+                  (conde
+                   [(arith-operatoro x t)]
+                   [(lookupo x env^ t)]))))))
 
 (define (default-envo t)
-  (fresh (+t)
-         (conde
-          [(== +t 'int)]
-          [(== +t 'string)]
-          [(== +t 'long)]
-	  [(== +t 'float)])
-         (== t `[(+ : (,+t -> (,+t -> ,+t)))
-                 (- : (,+t -> (,+t -> ,+t)))
-                 (* : (,+t -> (,+t -> ,+t)))
-                 (/ : (,+t -> (,+t -> ,+t)))
-                 (== : (,+t -> (,+t -> bool)))
-                 (!= : (,+t -> (,+t -> bool)))
-                 (> : (,+t -> (,+t -> bool)))
-                 (< : (,+t -> (,+t -> bool)))
-                 (>= : (,+t -> (,+t -> bool)))
-                 (<= : (,+t -> (,+t -> bool)))
-		 (unit : unit)
-
-		 ;; todo: remove when proper FFI is in place
-		 (strconv.Itoa : (int -> string))
-		 (fmt.Println : (string -> unit))
-		 ])))
+  (== t
+      `[(unit : unit)
+        ;; todo: remove when proper FFI is in place
+        (strconv.Itoa : (int -> string))
+        (fmt.Println : (string -> unit))
+        ]))
 
 (define (infer expr [custom-env '()])
     (let ([t (run 1 (q)
