@@ -3,7 +3,7 @@
 (require racket/set)
 (require "source-file.rkt")
 (require "source-pkg.rkt")
-(require "../lib/graph.rkt")
+(require graph)
 
 (define/contract (read-oden-pkg [in (current-input-port)])
   (->* () (input-port?) source-pkg?)

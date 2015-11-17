@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../lib/graph.rkt")
+(require graph)
 (require "inferencer.rkt")
 (require "explode.rkt")
 (require "source-pkg.rkt")

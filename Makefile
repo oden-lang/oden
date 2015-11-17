@@ -2,7 +2,7 @@ GIT_REV_LONG=$(shell git rev-parse HEAD)
 GIT_REV_SHORT=$(shell git rev-parse --short HEAD)
 VERSION ?= $(GIT_REV_SHORT)
 
-SOURCES=$(shell find src -name *.rkt)
+ODENC_SOURCES=$(shell find odenc -name *.rkt)
 
 OS=$(shell tools/get_os.sh)
 
@@ -23,14 +23,11 @@ clean:
 
 .PHONY: test
 test:
-	raco test src/*-test.rkt
+	raco test odenc/*-test.rkt
 
-$(ODENC): $(SOURCES)
+$(ODENC): $(ODENC_SOURCES)
 	mkdir -p target
-	raco exe -o $(ODENC) src/cmd/odenc.rkt
-
-$(GITBOOK):
-	npm install gitbook-cli
+	raco exe -o $(ODENC) odenc/main.rkt
 
 target/oden: test $(ODENC) compile-experiments README.md
 	mkdir -p target/oden

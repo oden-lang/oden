@@ -1,6 +1,6 @@
 #lang racket
 
-(require "../lib/miniKanren/mk.rkt")
+(require Racket-miniKanren/miniKanren/mk)
 
 (define stringo (make-flat-tag 'str string?))
 

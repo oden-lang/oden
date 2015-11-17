@@ -2,12 +2,12 @@
 
 (require racket/cmdline)
 
-(require "../scanner.rkt")
-(require "../reader.rkt")
-(require "../compiler.rkt")
-(require "../go-backend.rkt")
-(require "../source-file.rkt")
-(require "../source-pkg.rkt")
+(require "scanner.rkt")
+(require "reader.rkt")
+(require "compiler.rkt")
+(require "go-backend.rkt")
+(require "source-file.rkt")
+(require "source-pkg.rkt")
 
 (define (pkg->path pkg root)
   (let ([pkg-part (apply build-path
