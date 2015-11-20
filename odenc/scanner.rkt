@@ -14,7 +14,7 @@
 
 (define/contract (scan root-path)
   (-> absolute-path? (listof source-file?))
-  (for/list ([f (in-directory root-path)] #:when (regexp-match? "\\.km$" f))
+  (for/list ([f (in-directory root-path)] #:when (regexp-match? "\\.oden$" f))
     (let* ([p (simplify-path (path->complete-path f root-path))]
 	   [root-c (length (explode-path root-path))]
 	   [rel (apply build-path (drop (explode-path p) root-c))])
