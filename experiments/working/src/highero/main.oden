@@ -1,0 +1,8 @@
+(pkg highero/main)
+
+(define apply-1-to
+ (fn (x) (x 1)))
+
+(define (main)
+ (fmt.Println (strconv.Itoa (apply-1-to (fn (x) (* x 2))))))
+

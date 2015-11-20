@@ -1,120 +1,13 @@
 #lang racket
 
+(provide
+ infer
+ infer-def)
+
 (require Racket-miniKanren/miniKanren/mk)
-
-(define (appendo l s out)
-  (conde
-   ((== '() l) (== s out))
-   ((fresh (a d res)
-           (== `(,a . ,d) l)
-           (== `(,a . ,res) out)
-           (appendo d s res)))))
-
-(define (membero x y)
-  (fresh [a b]
-         (appendo a `(,x . ,b) y)))     
-
-(define stringo (make-flat-tag 'string string?))
-(define floato (make-flat-tag 'float flonum?))
-(define fixedo (make-flat-tag 'fixed fixnum?))
-
-(define (infero expr env t)
-  (conde
-   [(fresh (x)
-           (symbolo expr)
-           (lookupo expr env x)
-           (== `(,expr : ,x) t))]
-   [(floato expr)
-    (== `(,expr : float) t)]
-   [(fixedo expr)
-    (== `(,expr : int) t)]
-   [(stringo expr)
-    (== `(,expr : string) t)]
-   [(== 'false expr)
-    (== '(false : bool) t)]
-   [(== 'true expr)
-    (== '(true : bool) t)]
-   [(fresh (s st te-ignore te)
-           (== `(,s : ,st) expr)
-           (== `(,te-ignore : ,st) te)
-           (infero s env te)
-           (== te t))]
-   [(fresh (x b bt b-ignore r d)
-           (symbolo x)
-           (conde
-            [(== `(fn (,x) ,b) expr)]
-            [(== `(fn ([,x : ,r]) ,b) expr)])
-           (== bt `(,b-ignore : ,d))
-           (infero b `((,x : ,r) . ,env) bt)
-           (== `((fn ([,x : ,r]) ,bt) : (,r -> ,d)) t))]
-   [(fresh (b bt b-ignore d)
-	   (== `(fn () ,b) expr)
-	   (infero b env bt)
-	   (== bt `(,b-ignore : ,d))
-	   (== `((fn () ,bt) : (-> ,d)) t))]
-   [(fresh (x xt e e-ignore et b bt b-ignore lt)
-           (conde
-            [(== `(let ([,x ,e]) ,b) expr)]
-            [(== `(let ([[,x : ,xt] ,e]) ,b) expr)])
-           (symbolo x)
-           (== et `(,e-ignore : ,xt))
-           (infero e env et)
-           (infero b `((,x : ,xt) . ,env) bt)
-           (== `(,b-ignore : ,lt) bt)
-           (== `((let [[(,x : ,xt) ,et]] ,bt) : ,lt) t))]
-   [(fresh (f ft f-ignore a at a-ignore x et)
-           (== `(,f ,a) expr)
-           (infero f env ft)
-           (infero a env at)
-           (== `(,f-ignore : (,x -> ,et)) ft)
-           (== `(,a-ignore : ,x) at)
-           (== `((,ft ,at) : ,et) t))]
-   [(fresh (f ft f-ignore et)
-	   (== `(,f) expr)
-	   (infero f env ft)
-	   (== `(,f-ignore : (-> ,et)) ft)
-	   (== `((,ft) : ,et) t))]
-   [(fresh (c ct c-ignore a at a-ignore b bt b-ignore it)
-           (== `(if ,c ,a ,b) expr)
-           (infero c env ct)
-           (== `(,c-ignore : bool) ct)
-           (infero a env at)
-           (infero b env bt)
-           (== `(,a-ignore : ,it) at)
-           (== `(,b-ignore : ,it) bt)
-           (== `((if ,ct ,at ,bt) : ,it) t))]))
-
-;; need some better way to do polymorphic operators
-(define (arith-operatoro o t)
-  (fresh (ot)
-         (conde
-          [(== '+ o)
-           (membero ot '(int float string))
-           (== `(,ot -> (,ot -> ,ot)) t)]
-          [(membero o '(- * /))
-           (membero ot '(int float))
-           (== `(,ot -> (,ot -> ,ot)) t)]
-          [(membero o '(== !=))
-           (membero ot '(int float string))
-           (== `(,ot -> (,ot -> bool)) t)]
-          [(membero o '(> < >= <=))
-           (membero ot '(int float))
-           (== `(,ot -> (,ot -> bool)) t)])))
-
-(define (lookupo x env t)
-  (fresh ()
-         (symbolo x)
-         (conde
-          ((fresh (_)
-                  (== `((,x : ,t) . ,_) env)))
-          ((fresh (y _ env^)
-                  (== `((,y . ,_) . ,env^) env)
-                  (=/= x y)
-                  (symbolo y)
-                  (conde
-                   [(arith-operatoro x t)]
-                   [(lookupo x env^ t)]))))))
-
+(require "inferencer/infero.rkt") 
+(require "inferencer/infer-defo.rkt")
+ 
 (define (default-envo t)
   (== t
       `[(unit : unit)
@@ -131,15 +24,7 @@
                        (infero expr env q)))])
     (cond
      [(empty? t) (raise-user-error "Type check failed!")]
-     [else (first t)])))
-
-(define (infer-defo def env t)
-  (fresh (rec-env name expr expr-ignore expr-t expr-te)
-         (== `(define ,name ,expr) def)
-         (== rec-env (cons `(,name : ,expr-t) env))
-         (infero expr rec-env expr-te)
-         (== `(,expr-ignore : ,expr-t) expr-te)
-         (== `((define ,name ,expr-te) : ,expr-t) t)))
+     [else (car t)])))
 
 (define (infer-def def [custom-env '()])
     (let ([t (run 1 (q)
@@ -151,8 +36,77 @@
      [(empty? t) (raise-user-error "Type check failed!")]
      [else (first t)])))
 
-(provide
- infero
- infer-defo
- infer
- infer-def)
+(module+ test
+  (require rackunit)
+  
+  (define (only-type te) (car (cddr te)))
+  
+  (test-case
+    "identity"
+    (check-equal?
+     (infer '((fn (x) x) true))
+     '((((fn ([x : bool]) (x : bool)) : (bool -> bool)) (true : bool)) : bool)))
+
+   (test-case
+    "fn without arguments"
+    (infer '((fn () true)))
+    '(((fn () (true : bool)) : (-> bool)) : bool))
+
+   (test-case
+    "if"
+    (check-equal?
+     (infer '(if true 1 0))
+     '((if (true : bool) (1 : int) (0 : int)) : int)))
+
+
+   (test-case
+    "if branches have same type"
+    (check-exn
+     exn:fail?
+     (thunk
+       (infer '(if true 1 true)))))
+
+   (test-case
+    "complex expressions in if"
+    (check-equal?
+     (only-type (infer '(if ((== ((+ 10) 10)) 20) ((+ 1) 1) ((+ 2) 2))))
+     'int))
+
+   (test-case
+    "type-annotated complex expression"
+    (check-equal?
+     (only-type (infer '(((+ 1) 2) : int)))
+     'int))
+
+   #;
+   (test-case
+    "type-polymorphic fn"
+    (check-equal?
+     (only-type (infer '(fn (x) x)))
+     '(_.0 -> _.1)))
+
+   (test-case "polymorphic let"
+     (check-equal?
+      (caddar
+       (run* (q) (infero '(let ([f g]) ((f f) 1))
+                         '((g : ((var foo) -> (var foo)))) q)))
+      'int))
+
+   (test-case "polymorphic let with fn"
+     (check-equal?
+      (caddar
+       (run* (q) (infero '(let ([f (fn (x) x)]) ((f f) 1)) '() q)))
+      'int))
+
+   
+   #;
+   (test-case "recursive function definition"
+     (check-equal?
+      (only-type (infer-def '(define inf (fn  ([x : int]) ((+ 1) (inf x))))))
+      '(int -> int)))
+
+  #;
+  (test-case "recursive function definition with no type type constraints (will fail in codegen stage) "
+    (check-equal?
+     (only-type (infer-def '(define inf (fn (x) (inf x)))))
+     '(_.0 -> _.1))))
