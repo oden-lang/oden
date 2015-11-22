@@ -1,44 +1,15 @@
 #lang racket
 
-(provide
- get-non-local-references
- explode-and-sort-definitions
- compile-pkg)
+(provide compile-pkg)
 
 (require graph)
-(require "inferencer.rkt")
-(require "explode.rkt")
-(require "source-pkg.rkt")
-(require "compiled-pkg.rkt")
 
-(define/contract (get-non-local-references expr [local '()])
-  (->* (any/c) ((listof symbol?)) (listof symbol?))
-  (match expr
-    [(? symbol? s)
-     (if (member s local)
-         '()
-         (list s))]
-    [(? number?) '()]
-    [(? string?) '()]
-    [`(,e : ,t)
-     (get-non-local-references e local)]
-    [`(let ([,name ,expr]) ,body)
-     (append (get-non-local-references expr local)
-             (if (member name local)
-                 (get-non-local-references body local)
-                 (get-non-local-references body (cons name local))))]
-    [`(fn (,a) ,b)
-     (get-non-local-references b (cons a local))]
-    [`(fn () ,b)
-     (get-non-local-references b local)]
-    [`(,f ,a)
-     (append (get-non-local-references f local)
-             (get-non-local-references a local))]
-    [`(if ,c ,a ,b)
-     (append (get-non-local-references c local)
-             (get-non-local-references a local)
-             (get-non-local-references b local))]
-    [e (error (format "Cannot get non-local references of expr: ~v" e))]))
+(require "inferencer.rkt")
+(require "source-pkg.rkt")
+(require "compiler/compiled-pkg.rkt")
+(require "compiler/explode.rkt")
+(require "compiler/get-non-local-references.rkt")
+(require "compiler/monomorph.rkt")
 
 (define (get-sorted-names defs)
   (let loop ([defs defs]
@@ -50,15 +21,19 @@
               [with-name (map (lambda (i) (list i name)) non-local)])
          (loop ds (append with-name deps)))])))
 
-(define (explode-and-sort-definitions pkg)
-  (let* ([defs (map explode-definition (source-pkg-definitions pkg))]
-         [h (make-hash (for/list ([def defs])
+(define (explode-defs pkg)
+  (map explode-definition (source-pkg-defs pkg)))
+
+(define (defs-to-hash exploded-defs)
+  (make-hash (for/list ([def exploded-defs])
                          (match def
-                           [`(define ,name ,_) (list name def)])))])
-    (apply
+                           [`(define ,name ,_) (list name def)]))))
+
+(define (sort-defs exploded-defs def-h)
+  (apply
      append
-     (for/list ([k (get-sorted-names defs)])
-       (hash-ref h k '())))))
+     (for/list ([k (get-sorted-names exploded-defs)])
+       (hash-ref def-h k '()))))
 
 (define (validate-definition name te)
   (match (list name te)
@@ -69,28 +44,62 @@
 	      t))]
     [_ void]))
 
+(define (polymorphic? t)
+  (match t
+    [`(var ,n) #t]
+    ['() #f]
+    [`(,x . ,xs) (or (polymorphic? x) (polymorphic? xs))]
+    [(? symbol?) #f]
+    [`(,t1 -> ,t2) (or (polymorphic? t1) (polymorphic? t2))]
+    [`(-> ,t) (polymorphic? t)]))
+
+(define (collect-monomorphed-defs monomorphed)
+  (map monomorphed-def-def (hash-values monomorphed)))
+
 (define/contract (compile-pkg pkg)
   (-> source-pkg? compiled-pkg?)
-  (let loop ([definitions (explode-and-sort-definitions pkg)]
-	     [pkg-env '()]
-	     [forms '()])
-    (match definitions
-      ['() (compiled-pkg (car (cdr (source-pkg-decl pkg)))
-			 (source-pkg-imports pkg)
-			 (reverse forms)
-			 pkg-env)]
-      [`((define ,(? symbol? name) ,_) . ,ds)
-       (match (infer-def (car definitions) pkg-env)
-         [`((define ,name ,expr) : ,t)
-          (validate-definition name expr)
-          (loop ds (cons `(,name : ,t) pkg-env) (cons `(define ,name ,expr) forms))])]
-      [f (error (format "Invalid top level form: ~a" f))])))
+  (let* ([defs (explode-defs pkg)]
+         [h (defs-to-hash defs)])
+    (let loop ([defs (sort-defs defs h)]
+               [pkg-env '()]
+               [p-defs (hash)] ;; polymorphic function defs
+               [monomorphed (hash)]
+               [forms '()])
+      (match defs
+        ['() (compiled-pkg (car (cdr (source-pkg-decl pkg)))
+                           (source-pkg-imports pkg)
+                           (reverse forms)
+                           (collect-monomorphed-defs monomorphed)
+                           pkg-env)]
+
+        [`((define ,(? symbol? name) ,_) . ,ds)
+         (let* ([def (car defs)]
+                [inferred (infer-def def pkg-env)])
+           (match inferred
+             [`((define ,name ,expr) : ,t)
+              (validate-definition name expr)
+              (if (polymorphic? t)
+                  ;; polymorphic definition
+                  (loop ds
+                        (cons `(,name : ,t) pkg-env)
+                        (hash-set p-defs name inferred)
+                        monomorphed
+                        forms)
+                  ;; monomorphic definition
+                  (match (monomorph p-defs inferred monomorphed)
+                    [`(,def ,m)
+                     (loop ds
+                           (cons `(,name : ,t) pkg-env)
+                           p-defs
+                           m
+                           (cons def forms))]))]))]
+        
+        [f (error (format "Invalid top level form: ~a" f))]))))
 
 (module+ test
   (require rackunit)
   
-  (test-case
-      "transforms hello world"
+  (test-case "transforms hello world"
     (check-equal?
      (compile-pkg
       (source-pkg
@@ -102,35 +111,58 @@
      (compiled-pkg
       'main
       '((import fmt))
-      '((define main
-          ((fn ()
-             (((fmt.Println : (string -> unit))
-               ("Hello, world!" : string)) : unit))
-           :
-           (-> unit))))
+      '(((define main
+            ((fn ()
+               (((fmt.Println : (string -> unit))
+                 ("Hello, world!" : string)) : unit)) : (-> unit)))
+         : (-> unit)))
+      `()
       '((main : (-> unit))))))
 
-  (test-case
-      "get-non-local-references function"
+  (test-case "monomorphs"
     (check-equal?
-     (get-non-local-references
-      (explode '(fn (x y) (f x y))))
-     '(f)))
+     (compiled-pkg-defs (compile-pkg
+                                (source-pkg
+                                 '(pkg monomorphization)
+                                 '()
+                                 '((define identity (fn (x) x))
+                                   (define foo (identity 1))))))
+     '(((define foo
+           (((identity_inst_int_to_int : (int -> int)) (1 : int)) : int))
+        : int))))
 
-  (test-case
-      "get-non-local-references function"
+  (test-case "monomorphs nested"
     (check-equal?
-     (get-non-local-references
-      (explode '(let ([x y]) x)))
-     '(y)))
+     (compiled-pkg-defs (compile-pkg
+                                (source-pkg
+                                 '(pkg monomorphization)
+                                 '()
+                                 '((define identity (fn (x) x))
+                                   (define identity-twice (fn (x) (identity (identity x))))
+                                   (define foo (identity-twice 1))))))
+     '(((define foo
+          (((identity-twice_inst_int_to_int : (int -> int)) (1 : int)) : int))
+        : int))))
 
-  (test-case
-      "sort-definitions"
+  (test-case "sort-defs"
     (check-equal?
-     (explode-and-sort-definitions
-      (source-pkg
-       '(pkg main)
-       '((import something))
-       '((define foo undefined) (define bar (+ foo 1)))))
+     (let* ([pkg (source-pkg
+                  '(pkg main)
+                  '((import something))
+                  '((define foo undefined) (define bar (+ foo 1))))]
+            [defs (explode-defs pkg)]
+            [h (defs-to-hash defs)])
+       (sort-defs defs h))
      '((define foo undefined)
-       (define bar ((+ foo) 1))))))
+       (define bar ((+ foo) 1)))))
+
+  #|
+  (test-case "inline polymorphic"
+    (check-equal?
+     (compile-pkg (source-pkg
+                   '(pkg main)
+                   '()
+                   '((define (identity x) x)
+                     (define bar (identity 1)))))
+     '((define bar ((fn (x) x) 1)))))
+  |#)

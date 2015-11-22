@@ -6,7 +6,7 @@
  codegen-definitions
  codegen-pkg)
 
-(require "compiled-pkg.rkt")
+(require "compiler/compiled-pkg.rkt")
 
 (define (translate-identifier id)
   (let* ([parts (string-split (symbol->string id) "-" #:trim? #t)]
@@ -106,12 +106,12 @@ this. In future versions of Oden this should be possible."))]
    (for/list ([import (compiled-pkg-imports pkg)])
      (format "import \"~a\"\n" (car (cdr import))))))
 
-(define/contract (codegen-definitions pkg)
-  (-> compiled-pkg? string?)
+(define/contract (codegen-definitions defs)
+  (-> (listof any/c) string?)
   (string-join
-   (for/list ([definition (compiled-pkg-definitions pkg)])
+   (for/list ([definition defs])
      (match definition       
-       [`(define ,name ((fn ,arg (,e : ,et)) : ,_))
+       [`((define ,name ((fn ,arg (,e : ,et)) : ,_)) : ,_)
 	(let ([codegend-param (match arg
 				[`() "()"]
 				[`((,x : ,xt)) (format "(~a ~a)"
@@ -123,7 +123,7 @@ this. In future versions of Oden this should be possible."))]
 		  codegend-param
 		  (codegen-type et)
 		  (codegen-return `(,e : ,et))))]      
-       [`(define ,name (,e : ,t))
+       [`((define ,name (,e : ,t)) : ,_)
 	(format "var ~a ~a = ~a\n"
 		(translate-identifier name)
 		(codegen-type t)
@@ -135,25 +135,25 @@ this. In future versions of Oden this should be possible."))]
     (last split)))
 
 (define (codegen-pkg pkg)
-  (format "package ~a\n\n// imports\n~a\n// definitions\n~a"
+  (format "package ~a\n\n// imports\n~a\n// monomorphed\n~a\n// definitions\n~a"
 	  (codegen-pkg-name pkg)
 	  (codegen-imports pkg)
-	  (codegen-definitions pkg)))
+          (codegen-definitions (compiled-pkg-monomorphed-defs pkg))
+	  (codegen-definitions (compiled-pkg-defs pkg))))
 
 (module+ test
   (require rackunit)
 
-  (require "explode.rkt")
   (require "inferencer.rkt")
-  (require "compiled-pkg.rkt")
+  (require "compiler/explode.rkt")
 
   (define (codegen-single-expression expr)
     (codegen-expr (infer (explode expr))))
 
    (test-case "empty pkg"
     (check-equal?
-     (codegen-pkg (compiled-pkg 'foo '() '() '()))
-     "package foo\n\n// imports\n\n// definitions\n"))
+     (codegen-pkg (compiled-pkg 'foo '() '() '() '()))
+     "package foo\n\n// imports\n\n// monomorphed\n\n// definitions\n"))
 
    (test-case "int literal"
     (check-equal?

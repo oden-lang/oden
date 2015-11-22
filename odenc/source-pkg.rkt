@@ -1,6 +1,6 @@
 #lang racket
 
-(struct source-pkg (decl imports definitions) #:transparent)
+(struct source-pkg (decl imports defs) #:transparent)
 
 (define (pkg-decl-expr? expr)
   (match expr

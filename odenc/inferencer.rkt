@@ -2,11 +2,13 @@
 
 (provide
  infer
- infer-def)
+ infer-def
+ instantiate-type)
 
 (require Racket-miniKanren/miniKanren/mk)
 (require "inferencer/infero.rkt") 
 (require "inferencer/infer-defo.rkt")
+(require "inferencer/instantiateo.rkt")
  
 (define (default-envo t)
   (== t
@@ -35,6 +37,11 @@
     (cond
      [(empty? t) (raise-user-error "Type check failed!")]
      [else (first t)])))
+
+(define (instantiate-type t)
+  (match (run 1 (q) (instantiateo t '() q))    
+    [`() (raise-user-error (format "Failed to instantiate type: ~a" t))]
+    [`(,i . ,is) i]))
 
 (module+ test
   (require rackunit)
