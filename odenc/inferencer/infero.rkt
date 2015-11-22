@@ -32,20 +32,19 @@
            (== `(,te-ignore : ,st) te)
            (infero s env te)
            (== te t))]
-   [(fresh (x b bt b-ignore r wr d ft)
+   [(fresh (x b bt b-ignore r d wd ft)
            (symbolo x)
            (conde
             ;; if no type is specified wrap with 'unbound'
             [(== `(fn (,x) ,b) expr)
-             (== `(unbound ,r) wr)]
+             (== `(unbound ,d) wd)]
             ;; if type is specified just use that
-            [(== `(fn ([,x : ,r]) ,b) expr)
-             (== r wr)])
+            [(== `(fn ([,x : ,d]) ,b) expr)
+             (== d wd)])
            
-           (infero b `((,x : ,wr) . ,env) bt)
-           (== `(,b-ignore : ,d) bt)
-           (== ft `(,d -> ,r))
-           (== `((fn ([,x : ,r]) ,bt) : ,ft) t))
+           (infero b `((,x : ,wd) . ,env) bt)
+           (== `(,b-ignore : ,r) bt)
+           (== `((fn ([,x : ,r]) ,bt) : (,d -> ,r)) t))
     ]
    [(fresh (b bt b-ignore d)
 	   (== `(fn () ,b) expr)
@@ -95,6 +94,13 @@
                   (infero '(fn (x) x) '() `(,_ : ,q))))
      '((_.0 -> _.0))))
 
+  (test-case "identity fn with type-annotated arg"
+    (check-equal?
+     (run* (q)
+           (fresh (_)
+                  (infero '(fn ([x : int]) x) '() `(,_ : ,q))))
+     '((int -> int))))
+
   (test-case "let identity fn"
     (check-equal?
      (run* (q)
@@ -122,4 +128,39 @@
      (run* (q)
            (fresh (_)
                   (infero '(f f) '([f : ((var foo) -> (var foo))]) `(,_ : ,q))))
-     '((_.0 -> _.0)))))
+     '((_.0 -> _.0))))
+  
+  (test-case "nested fn expressions"
+    (check-equal?
+     (run* (q)
+           (fresh (_)
+                  (infero '(fn (x) (fn (y) x)) '() `(,_ : ,q))))
+     '((_.0 -> (_.1 -> _.0)))))
+
+  (test-case "predefined fn in fn expression"
+    (check-equal?
+     (run* (q)
+           (fresh (_)
+                  (infero '(fn (x) y)
+                          '([y : (int -> int)]) `(,_ : ,q))))
+     '((_.0 -> (int -> int)))))
+  
+  (test-case "fn application"
+    (check-match
+     (run* (q)
+           (infero '((fn (x) x) 1) '() q))
+     `((,e : int))))
+
+  (test-case "partial application with predefined fn"
+    (check-match
+     (run* (q)
+           (infero '(f 1)
+                   '([f : ((var a) -> ((var b) -> (var a)))]) q))
+     `((,e : (,t -> int)))))
+
+    (test-case "partial application with fn expressions"
+    (check-match
+     (run* (q)
+           (infero '((fn (x) (fn (y) x)) 1)
+                   '() q))
+     `((,e : (,t -> int))))))

@@ -41,68 +41,67 @@
   
   (define (only-type te) (car (cddr te)))
   
-  (test-case
-    "identity"
+  (test-case "identity"
     (check-equal?
      (infer '((fn (x) x) true))
      '((((fn ([x : bool]) (x : bool)) : (bool -> bool)) (true : bool)) : bool)))
 
-   (test-case "fn without arguments"
-     (check-equal?
-      (infer '((fn () true)))
-      '((((fn () (true : bool)) : (-> bool))) : bool)))
+  (test-case "fn without arguments"
+    (check-equal?
+     (infer '((fn () true)))
+     '((((fn () (true : bool)) : (-> bool))) : bool)))
 
-   (test-case
-    "if"
+  (test-case "if"
     (check-equal?
      (infer '(if true 1 0))
      '((if (true : bool) (1 : int) (0 : int)) : int)))
 
 
-   (test-case
-    "if branches have same type"
+  (test-case "if branches have same type"
     (check-exn
      exn:fail?
      (thunk
-       (infer '(if true 1 true)))))
+      (infer '(if true 1 true)))))
 
-   (test-case
-    "complex expressions in if"
+  (test-case "complex expressions in if"
     (check-equal?
      (only-type (infer '(if ((== ((+ 10) 10)) 20) ((+ 1) 1) ((+ 2) 2))))
      'int))
 
-   (test-case
-    "type-annotated complex expression"
+  (test-case "type-annotated complex expression"
     (check-equal?
      (only-type (infer '(((+ 1) 2) : int)))
      'int))
 
-   (test-case
-    "polymorphic fn"
+  (test-case "polymorphic fn"
     (check-equal?
      (only-type (infer '(fn (x) x)))
      '(_.0 -> _.0)))
 
-   (test-case "polymorphic let"
-     (check-equal?
-      (caddar
-       (run* (q) (infero '(let ([f g]) ((f f) 1))
-                         '((g : ((var foo) -> (var foo)))) q)))
-      'int))
+  (test-case "partial application of polymorphic fn"
+    (check-equal?
+     (only-type (infer '((fn (x) (fn (y) x)) 1)))
+     '(_.0 -> int)))
 
-   (test-case "polymorphic let with fn"
-     (check-equal?
-      (caddar
-       (run* (q) (infero '(let ([f (fn (x) x)]) ((f f) 1)) '() q)))
-      'int))
+  (test-case "polymorphic let"
+    (check-equal?
+     (caddar
+      (run* (q) (infero '(let ([f g]) ((f f) 1))
+                        '((g : ((var foo) -> (var foo)))) q)))
+     'int))
 
-   (test-case "recursive function definition"
-     (check-equal?
-      (only-type (infer-def '(define inf (fn  ([x : int]) ((+ 1) (inf x))))))
-      '(int -> int)))
+  (test-case "polymorphic let with fn"
+    (check-equal?
+     (caddar
+      (run* (q) (infero '(let ([f (fn (x) x)]) ((f f) 1)) '() q)))
+     'int))
+
+  (test-case "recursive function definition"
+    (check-equal?
+     (only-type (infer-def '(define inf (fn  ([x : int]) ((+ 1) (inf x))))))
+     '(int -> int)))
   
   (test-case "recursive function definition with no type type constraints (will fail in codegen stage) "
     (check-match
      (only-type (infer-def '(define inf (fn (x) (inf x)))))
-     `((var ,v) -> (var ,v)))))
+     `((var ,v1) -> (var ,v2)))))
