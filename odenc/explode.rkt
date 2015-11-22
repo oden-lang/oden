@@ -82,6 +82,11 @@
      (explode '(fn (x [y : int] [z : bool]) x))
      '(fn (x) (fn ([y : int]) (fn ([z : bool]) x)))))
 
+     (test-case "fn with multiple arguments applied at once"
+    (check-equal?
+     (explode '((fn (x y z) x) 1 2 3))
+     '((((fn (x) (fn (y) (fn (z) x))) 1) 2) 3)))
+
    (test-case "if is not exploded like a function application"
     (check-equal?
      (explode '(if c a b))

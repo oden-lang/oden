@@ -44,7 +44,7 @@
            
            (infero b `((,x : ,wd) . ,env) bt)
            (== `(,b-ignore : ,r) bt)
-           (== `((fn ([,x : ,r]) ,bt) : (,d -> ,r)) t))
+           (== `((fn ([,x : ,d]) ,bt) : (,d -> ,r)) t))
     ]
    [(fresh (b bt b-ignore d)
 	   (== `(fn () ,b) expr)
@@ -158,7 +158,7 @@
                    '([f : ((var a) -> ((var b) -> (var a)))]) q))
      `((,e : (,t -> int)))))
 
-    (test-case "partial application with fn expressions"
+  (test-case "partial application with fn expressions"
     (check-match
      (run* (q)
            (infero '((fn (x) (fn (y) x)) 1)
