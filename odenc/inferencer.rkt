@@ -47,10 +47,10 @@
      (infer '((fn (x) x) true))
      '((((fn ([x : bool]) (x : bool)) : (bool -> bool)) (true : bool)) : bool)))
 
-   (test-case
-    "fn without arguments"
-    (infer '((fn () true)))
-    '(((fn () (true : bool)) : (-> bool)) : bool))
+   (test-case "fn without arguments"
+     (check-equal?
+      (infer '((fn () true)))
+      '((((fn () (true : bool)) : (-> bool))) : bool)))
 
    (test-case
     "if"
@@ -78,12 +78,11 @@
      (only-type (infer '(((+ 1) 2) : int)))
      'int))
 
-   #;
    (test-case
-    "type-polymorphic fn"
+    "polymorphic fn"
     (check-equal?
      (only-type (infer '(fn (x) x)))
-     '(_.0 -> _.1)))
+     '(_.0 -> _.0)))
 
    (test-case "polymorphic let"
      (check-equal?
@@ -98,15 +97,12 @@
        (run* (q) (infero '(let ([f (fn (x) x)]) ((f f) 1)) '() q)))
       'int))
 
-   
-   #;
    (test-case "recursive function definition"
      (check-equal?
       (only-type (infer-def '(define inf (fn  ([x : int]) ((+ 1) (inf x))))))
       '(int -> int)))
-
-  #;
+  
   (test-case "recursive function definition with no type type constraints (will fail in codegen stage) "
-    (check-equal?
+    (check-match
      (only-type (infer-def '(define inf (fn (x) (inf x)))))
-     '(_.0 -> _.1))))
+     `((var ,v) -> (var ,v)))))
