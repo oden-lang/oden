@@ -2,7 +2,7 @@ GIT_REV_LONG=$(shell git rev-parse HEAD)
 GIT_REV_SHORT=$(shell git rev-parse --short HEAD)
 VERSION ?= $(GIT_REV_SHORT)
 
-ODENC_SOURCES=$(shell find odenc -name *.rkt)
+ODENC_SOURCES=$(shell find odenc -name '*.rkt')
 
 OS=$(shell tools/get_os.sh)
 
@@ -23,7 +23,7 @@ clean:
 
 .PHONY: test
 test:
-	raco test odenc/*-test.rkt
+	raco test $(ODENC_SOURCES)
 
 $(ODENC): $(ODENC_SOURCES)
 	mkdir -p target

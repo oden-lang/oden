@@ -1,5 +1,10 @@
 #lang racket
 
+(provide
+ get-non-local-references
+ explode-and-sort-definitions
+ compile-pkg)
+
 (require graph)
 (require "inferencer.rkt")
 (require "explode.rkt")
@@ -81,7 +86,51 @@
           (loop ds (cons `(,name : ,t) pkg-env) (cons `(define ,name ,expr) forms))])]
       [f (error (format "Invalid top level form: ~a" f))])))
 
-(provide
- get-non-local-references
- explode-and-sort-definitions
- compile-pkg)
+(module+ test
+  (require rackunit)
+  
+  (test-case
+      "transforms hello world"
+    (check-equal?
+     (compile-pkg
+      (source-pkg
+       '(pkg main)
+       '((import fmt))
+       '((define main
+           (fn ()
+             (fmt.Println "Hello, world!"))))))
+     (compiled-pkg
+      'main
+      '((import fmt))
+      '((define main
+          ((fn ()
+             (((fmt.Println : (string -> unit))
+               ("Hello, world!" : string)) : unit))
+           :
+           (-> unit))))
+      '((main : (-> unit))))))
+
+  (test-case
+      "get-non-local-references function"
+    (check-equal?
+     (get-non-local-references
+      (explode '(fn (x y) (f x y))))
+     '(f)))
+
+  (test-case
+      "get-non-local-references function"
+    (check-equal?
+     (get-non-local-references
+      (explode '(let ([x y]) x)))
+     '(y)))
+
+  (test-case
+      "sort-definitions"
+    (check-equal?
+     (explode-and-sort-definitions
+      (source-pkg
+       '(pkg main)
+       '((import something))
+       '((define foo undefined) (define bar (+ foo 1)))))
+     '((define foo undefined)
+       (define bar ((+ foo) 1))))))
