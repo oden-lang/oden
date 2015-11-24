@@ -31,9 +31,7 @@
    [(== '() s) (== '() t)]
    
    [(not-varo s) (== s t)]
-   [(lookup-varo s env t)]      
-;   [succeed]
-   ))
+   [(lookup-varo s env t)]))
 
 (module+ test
   (require rackunit)
