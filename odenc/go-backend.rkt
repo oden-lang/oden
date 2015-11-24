@@ -24,14 +24,7 @@
      (format "func () (~a)"
 	     (codegen-type d))]
     [(? list? l) (string-join (map ~a l) "_")]
-    [(? symbol? t)
-     (match (~a t)
-       [(regexp #rx"_\\.[0-9]+")
-	(error (string-trim "
-Cannot currently codegen values with type variables (e.g. polymorphic 
-functions). You might have to annotate some parts of your code to resolve
-this. In future versions of Oden this should be possible."))]
-       [s s])]))
+    [(? symbol? t) t]))
 
 (define (infix-operator? op)
   (member op '(+ - * / == != < > <= >=)))
