@@ -34,21 +34,26 @@
 (define-syntax (get-version stx)
   #`#,(or (getenv "VERSION") "undefined version"))
 
-(define output-directory (make-parameter null))
+(define oden-path (make-parameter "."))
+(define output-directory (make-parameter "."))
 
 (module+ main
   (command-line #:program "odenc"
-                #:once-any
+                #:once-each
+                [("-p" "--oden-path")
+                 value
+                 "Sets the colon-separated paths to scan for Oden sources in. Overrides $ODEN_PATH."
+                 (oden-path value)]
                 [("-o" "--output-directory")
-                 id
+                 value
                  "Output directory for compiled Oden packages."
-                 (output-directory id)]
+                 (output-directory value)]
 		#:args args
                 (match args
                   ['("compile")
                    (for ([pkg (sort-pkgs
                                (map read-oden-pkg-source-file
-                                    (scan-oden-paths)))])
+                                    (scan-oden-paths (oden-path))))])
                      (compile-to (string->path (output-directory)) pkg))]
                   ['("version")
                    (displayln (get-version))]
