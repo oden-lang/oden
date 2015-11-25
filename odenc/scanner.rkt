@@ -29,11 +29,9 @@
       (simplify-path (path->complete-path p (current-directory)))
       p))
 
-(define (scan-oden-paths)
+(define (scan-oden-paths [oden-path (or (getenv "ODEN_PATH") ".")])
   (define (add-src s) (to-absolute-path (string->path (format "~a/src" s))))
-  (let ([roots (map add-src (string-split
-			     (or (getenv "ODEN_PATH") ".")
-			     ":"))])
+  (let ([roots (map add-src (string-split oden-path ":"))])
     (append* (map scan roots))))
 
 (provide (all-defined-out))

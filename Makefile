@@ -42,7 +42,7 @@ $(DIST_ARCHIVE): target/oden
 
 .PHONY: compile-experiments
 compile-experiments: $(ODENC)
-	ODEN_PATH=experiments/working $(ODENC) $(PWD)/target/experiments
+	 $(ODENC) -o $(PWD)/target/experiments -p experiments/working compile
 	GOPATH=$(PWD)/target/experiments go build ...
 
 dist: $(DIST_ARCHIVE)
