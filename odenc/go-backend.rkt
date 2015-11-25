@@ -164,13 +164,6 @@
       '(fn ([q : int]) q))
      "(func (q int) int {\nreturn q\n})"))
 
-   (test-case "fn with unbound type variables"
-    (check-exn
-     exn:fail?
-     (thunk
-       (codegen-single-expression
-	'(fn (q) q)))))
-      
    (test-case "fn with no arguments -> func()"
     (check-equal?
      (codegen-single-expression
