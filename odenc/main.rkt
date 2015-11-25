@@ -31,10 +31,25 @@
      (compile-pkg pkg)
      file-out)))
 
+(define-syntax (get-version stx)
+  #`#,(or (getenv "VERSION") "undefined version"))
+
+(define output-directory (make-parameter null))
+
 (module+ main
   (command-line #:program "odenc"
-		#:args (out-directory)
-		(for ([pkg (sort-pkgs
-			    (map read-oden-pkg-source-file
-				 (scan-oden-paths)))])
-		  (compile-to (string->path out-directory) pkg))))
+                #:once-any
+                [("-o" "--output-directory")
+                 id
+                 "Output directory for compiled Oden packages."
+                 (output-directory id)]
+		#:args args
+                (match args
+                  ['("compile")
+                   (for ([pkg (sort-pkgs
+                               (map read-oden-pkg-source-file
+                                    (scan-oden-paths)))])
+                     (compile-to (string->path (output-directory)) pkg))]
+                  ['("version")
+                   (displayln (get-version))]
+                  [_ "Invalid command! Run 'odenc help' to learn more."])))

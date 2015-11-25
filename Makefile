@@ -1,6 +1,7 @@
 GIT_REV_LONG=$(shell git rev-parse HEAD)
 GIT_REV_SHORT=$(shell git rev-parse --short HEAD)
 VERSION ?= $(GIT_REV_SHORT)
+VERSION_LONG="$(VERSION) (git revision: $(GIT_REV_LONG))"
 
 ODENC_SOURCES=$(shell find odenc -name '*.rkt')
 
@@ -27,7 +28,7 @@ test:
 
 $(ODENC): $(ODENC_SOURCES)
 	mkdir -p target
-	raco exe -o $(ODENC) odenc/main.rkt
+	VERSION=$(VERSION_LONG) raco exe -o $(ODENC) odenc/main.rkt
 
 target/oden: $(ODENC) README.md
 	mkdir -p target/oden
