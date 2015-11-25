@@ -29,7 +29,7 @@ $(ODENC): $(ODENC_SOURCES)
 	mkdir -p target
 	raco exe -o $(ODENC) odenc/main.rkt
 
-target/oden: test $(ODENC) compile-experiments README.md
+target/oden: $(ODENC) README.md
 	mkdir -p target/oden
 	raco distribute target/oden $(ODENC)
 	cp README.md target/oden/README.txt
@@ -46,6 +46,18 @@ compile-experiments: $(ODENC)
 
 dist: $(DIST_ARCHIVE)
 
+docker-dist:
+	@(docker kill oden-builder &> /dev/null ; true)
+	@(docker rm oden-builder &> /dev/null ; true)
+	docker build \
+		-t oden-build:$(VERSION) \
+		.
+	docker run \
+		--env VERSION=$(VERSION) \
+		--name oden-builder \
+		oden-build:$(VERSION)
+	docker cp oden-builder:/src/oden/target/oden-$(VERSION)-linux.tar.gz target
+
 release: $(DIST_ARCHIVE)
 	@echo "\n\nDon't forget to set env variable GITHUB_TOKEN first!\n\n"
 	go get github.com/aktau/github-release
@@ -56,9 +68,10 @@ release: $(DIST_ARCHIVE)
 		--tag $(VERSION) \
 		--name $(VERSION) \
 		--pre-release
-	github-release upload \
-		--user oden-lang \
-		--repo oden \
-		--tag $(VERSION) \
-		--name "$(DIST_NAME).tar.gz" \
-		--file $(DIST_ARCHIVE)
+	find target -name 'oden-$(VERSION)-*.tar.gz' -execdir \
+		github-release upload \
+			--user oden-lang \
+			--repo oden \
+			--tag $(VERSION) \
+			--name {} \
+			--file {} \;

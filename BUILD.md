@@ -22,7 +22,7 @@ target/odenc: Mach-O 64-bit executable x86_64
 You will also get the distribution archive in
 `target/oden-<version>-<os>.tar.gz`.
 
-## Windows 
+## Windows
 
 **You will need:**
 
@@ -40,4 +40,18 @@ target/odenc.exe: PE32+ executable (console) x86-64, for MS Windows
 
 You will also get the distribution archive in
 `target/oden-<version>-windows.tar.gz`.
+
+## Linux using Docker
+
+**You will need:**
+
+* Docker
+* Make
+
+```bash
+$ make docker-dist
+```
+
+You will get the distribution archive in
+`target/oden-<version>-linux.tar.gz`.
 
