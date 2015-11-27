@@ -36,6 +36,23 @@
 
 (define output-directory (make-parameter null))
 
+(define help-text (string-join
+  '("usage: odenc compile [<dest>]                            "
+    "       odenc version                                     "
+    "                                                         "
+    "   where <dest> is the destination directory specified by"
+    "       -o <dir> | --output-director=<dir>                "
+    "                                                         "
+    "   odenc will compile all .oden files in the \"src\"     "
+    "   subfolder of the oden home folder(s) specified with   "
+    "   the ODEN_HOME environment variable. E.g.              "
+    "                                                         "
+    "      ODEN_HOME=~/oden:~/src/oden                        "
+    "                                                         "
+    "   If ODEN_HOME isn't defined, odenc will look for source"
+    "   files in ./src.                                       "
+  ) "\n"))
+
 (module+ main
   (command-line #:program "odenc"
                 #:once-any
@@ -52,4 +69,6 @@
                      (compile-to (string->path (output-directory)) pkg))]
                   ['("version")
                    (displayln (get-version))]
+                  ['("help")
+                   (displayln help-text)]
                   [_ "Invalid command! Run 'odenc help' to learn more."])))
