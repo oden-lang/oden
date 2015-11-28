@@ -8,10 +8,17 @@ Oden is built using Make.
 
 **You will need:**
 
-* Racket
+* Racket 6.2 (OSX: Install from the [Racket homepage](http://download.racket-lang.org/all-versions.html), `brew install racket` will not work)
 * Go
 * Make
 
+Before building the first time you need to install two packages:
+```bash
+$ raco pkg install git://github.com:miniKanren/Racket-miniKanren.git
+$ raco pkg install git://github.com:oden-lang/graph.git
+```
+
+Then you can build odenc with:
 ```bash
 $ make dist
 ...
