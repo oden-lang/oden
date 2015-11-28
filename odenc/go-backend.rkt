@@ -35,6 +35,8 @@
      (format "~a\nreturn\n" (codegen-expr typed-expr))]
     [`((,f ,a) : unit)
      (format "~a\nreturn\n" (codegen-expr typed-expr))]
+    [`((let . ,_) : unit)
+     (format "~a\nreturn\n" (codegen-expr typed-expr))]
     [`(,e : unit) "return\n"]
     [te (format "return ~a\n"
 		(codegen-expr te))]))
@@ -110,7 +112,7 @@
 				[`((,x : ,xt)) (format "(~a ~a)"
 						       (codegen-expr x)
 						       (codegen-type xt))]
-				[_ (error ("Invalid argument list: ~a" arg))])])
+				[_ (error (format "Invalid argument list: ~a" arg))])])
 	  (format "func ~a ~a ~a {\n~a}\n"
 		  (translate-identifier name)		 
 		  codegend-param
@@ -120,7 +122,8 @@
 	(format "var ~a ~a = ~a\n"
 		(translate-identifier name)
 		(codegen-type t)
-		(codegen-expr e))]))))
+		(codegen-expr e))]
+       [_ (error (format "Invalid definition: ~v" definition))]))))
 
 (define (codegen-pkg-name pkg)
   (let* ([name (compiled-pkg-name pkg)]
@@ -201,7 +204,17 @@
     (check-equal?
      (codegen-single-expression '(let ([[x : int] 1]) (+ x 2)))
      "(func () int {\nvar x int = 1\nreturn (x + 2)\n}())"))
-      
+
+  (test-case "let unit"
+    (check-equal?
+     (codegen-single-expression '(let ([x "foo"]) (fmt.Println x)))
+     "(func ()  {\nvar x string = \"foo\"\nfmt.Println(x)\nreturn\n}())"))
+  
+  (test-case "let unit in fn"
+    (check-equal?
+     (codegen-single-expression '(fn ([x : string]) (let ([y x]) (fmt.Println y))))
+     "(func (x string)  {\n(func ()  {\nvar y string = x\nfmt.Println(y)\nreturn\n}())\nreturn\n})"))
+  
    (test-case "higher-order functions"
     (check-equal?
      (codegen-single-expression '(((fn (x y) (x y)) (fn (x) x)) 1))

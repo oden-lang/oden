@@ -98,6 +98,13 @@
                              'identity_inst_int_to_int
                              `((define identity_inst_int_to_int ,expr) : (int -> int))))))))
 
+    (test-case "let without polymorphic function"
+      (check-match
+       (monomorph pdefs
+                  (infer '(let ([name "foo"]) name) env))
+       `((,e : string)
+         ,(hash-table))))
+
     (test-case "two different instances of one fn"
       (check-match
        (monomorph pdefs

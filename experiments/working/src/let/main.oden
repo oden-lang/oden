@@ -1,0 +1,7 @@
+(pkg let/main)
+
+(import fmt)
+
+(define (main)
+  (let ([name "Foo"])
+    (fmt.Println name)))
