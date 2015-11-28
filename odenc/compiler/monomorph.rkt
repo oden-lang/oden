@@ -67,6 +67,9 @@
             [a-sub (monomorph pdefs a monomorphed local)]
             [all-monomorphed (hash-union (cadr f-sub) (cadr a-sub) #:combine hash-replace)])
        `((,(car f-sub) ,(car a-sub)) ,all-monomorphed))]
+    [`(,f)
+     (let* ([f-sub (monomorph pdefs f monomorphed local)])
+       `((,(car f-sub)) ,(cadr f-sub)))]
     [`(if ,c ,a ,b)
      (let* ([c-sub (monomorph pdefs c monomorphed local)]
             [a-sub (monomorph pdefs a monomorphed local)]
@@ -103,6 +106,13 @@
        (monomorph pdefs
                   (infer '(let ([name "foo"]) name) env))
        `((,e : string)
+         ,(hash-table))))
+
+    (test-case "no-arg fn application"
+      (check-match
+       (monomorph pdefs
+                  (infer '((fn () 123)) env))
+       `((,e : int)
          ,(hash-table))))
 
     (test-case "two different instances of one fn"

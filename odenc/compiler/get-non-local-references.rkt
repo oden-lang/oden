@@ -25,6 +25,8 @@
     [`(,f ,a)
      (append (get-non-local-references f local)
              (get-non-local-references a local))]
+    [`(,f)
+     (get-non-local-references f local)]
     [`(if ,c ,a ,b)
      (append (get-non-local-references c local)
              (get-non-local-references a local)
@@ -39,6 +41,18 @@
     (check-equal?
      (get-non-local-references
       (explode '(fn (x y) (f x y))))
+     '(f)))
+
+  (test-case "fn application"
+    (check-equal?
+     (get-non-local-references
+      (explode '((fn (x y) (f x y)) 1 2)))
+     '(f)))
+
+    (test-case "no-arg fn application"
+    (check-equal?
+     (get-non-local-references
+      (explode '((fn () (f)))))
      '(f)))
 
   (test-case "let"
