@@ -34,6 +34,7 @@
 (define-syntax (get-version stx)
   #`#,(or (getenv "VERSION") "undefined version"))
 
+(define print-version (make-parameter false))
 (define oden-path (make-parameter "."))
 (define output-directory (make-parameter "."))
 
@@ -42,7 +43,7 @@
                 #:usage-help "\nCompiles all the Oden source files in the Oden Path to Go source files.\n"
                 #:help-labels ""
                 #:once-any
-                [("-v" "--version") "Print the odenc version." (displayln (get-version))]
+                [("-v" "--version") "Print the odenc version." (print-version true)]
                 #:once-each
                 [("-p" "--oden-path")
                  value
@@ -53,7 +54,9 @@
                  "Specifies in what directory output Go files will be written. The directory layout follows the GOPATH. Defaults to the current directory."
                  (output-directory value)]
 		#:args ()
-                (for ([pkg (sort-pkgs
-                               (map read-oden-pkg-source-file
-                                    (scan-oden-paths (oden-path))))])
-                     (compile-to (string->path (output-directory)) pkg))))
+                (cond
+                  [(print-version) (displayln (get-version))]
+                  [else (for ([pkg (sort-pkgs
+                                    (map read-oden-pkg-source-file
+                                         (scan-oden-paths (oden-path))))])
+                          (compile-to (string->path (output-directory)) pkg))])))
