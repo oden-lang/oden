@@ -1,0 +1,23 @@
+(pkg main)
+
+(import fmt)
+(import strconv)
+
+;; construct stream with one value
+(define (just v)
+  (fn (on-next)
+      (on-next v)))
+
+;; map f over stream of values
+(define (map f o)
+  (fn (on-next)
+      (o (fn (n) (on-next (f n))))))
+
+;; base stream
+(define v (just 1))
+;; map to stream of strings
+(define vs (map strconv.Itoa v))
+
+;; print all in stream
+(define (main)
+  (vs fmt.Println))
