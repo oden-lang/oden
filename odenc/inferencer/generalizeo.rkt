@@ -51,6 +51,17 @@
                  (generalizeo q)
                  (== q `(,t -> ,t))))
      '()))
+
+  (test-case ""
+    (check-match
+     (run 1 (q)
+          (fresh (a b c)
+                 (== `(,a -> (,b -> ((,a -> (,b -> ,c)) -> ,c))) q)
+                 (generalizeo q)))
+     `(((var ,a)
+        -> ((var ,b)
+            -> (((var ,a) -> ((var ,b) -> (var ,c)))
+                -> (var ,c)))))))
   )
 
 

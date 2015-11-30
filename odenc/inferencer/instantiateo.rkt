@@ -11,8 +11,8 @@
    [(== `(unbound ,t) s)]
    [(fresh (d dt r rt vt)
            (== `(,d -> ,r) s)
-           
-           (instantiateo d env dt)
+
+           (instantiateo d `((,r ,rt) . ,env) dt)           
            (instantiateo r `((,d ,dt) . ,env) rt)
            
            (== `(,dt -> ,rt) t))]
@@ -112,4 +112,12 @@
                   (instantiateo q '() r)))
      '((error instantiate-unbound-variable))))
 
+  (test-case "pair fn"
+    (check-equal?
+     (run* (q)
+           (instantiateo `((var a) -> ((var b) -> (((var a) -> ((var b) -> (var c)))
+                                                   -> (var c))))
+                         '()
+                         q))
+     '((_.0 -> (_.1 -> ((_.0 -> (_.1 -> _.2)) -> _.2))))))
   )
