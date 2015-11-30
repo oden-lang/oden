@@ -1,4 +1,4 @@
-(pkg main)
+(pkg streams)
 
 (import fmt)
 (import strconv)
