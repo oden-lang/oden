@@ -1,0 +1,15 @@
+(pkg pairlet)
+
+(import "fmt")
+
+(define (pair x y)
+  (fn (f) (f x y)))
+
+(define (first p)
+  (p (fn (x y) x)))
+
+(define p (pair "a" "b"))
+
+(define (main)
+  (let ([p (pair "a" "b")])
+    (fmt.Println (first p))))

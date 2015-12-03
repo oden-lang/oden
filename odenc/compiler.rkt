@@ -6,6 +6,7 @@
 
 (require "inferencer.rkt")
 (require "source-pkg.rkt")
+(require "polymorphic.rkt")
 (require "compiler/compiled-pkg.rkt")
 (require "compiler/explode.rkt")
 (require "compiler/get-non-local-references.rkt")
@@ -44,15 +45,6 @@
 	      t))]
     [_ void]))
 
-(define (polymorphic? t)
-  (match t
-    [`(var ,n) #t]
-    ['() #f]
-    [`(,x . ,xs) (or (polymorphic? x) (polymorphic? xs))]
-    [(? symbol?) #f]
-    [`(,t1 -> ,t2) (or (polymorphic? t1) (polymorphic? t2))]
-    [`(-> ,t) (polymorphic? t)]))
-
 (define (collect-monomorphed-defs monomorphed)
   (map monomorphed-def-def (hash-values monomorphed)))
 
@@ -86,12 +78,12 @@
                         monomorphed
                         forms)
                   ;; monomorphic definition
-                  (match (monomorph p-defs inferred monomorphed)
-                    [`(,def ,m)
+                  (match (monomorph p-defs (hash) inferred monomorphed (hash))
+                    [`(,def ,m-defs ,m-bindings)
                      (loop ds
                            (cons `(,name : ,t) pkg-env)
                            p-defs
-                           m
+                           m-defs
                            (cons def forms))]))]))]
         
         [f (error (format "Invalid top level form: ~a" f))]))))

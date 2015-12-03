@@ -1,6 +1,8 @@
 #lang racket
 
-(provide instantiate-p-def)
+(provide
+ instantiate-p-def
+ instantiate-typed-expr)
 
 (require "get-substitutions.rkt")
 
@@ -50,6 +52,11 @@
     [`((define ,name ,e) : ,t)
      `((define ,instance-name ,e) : ,t)]))
 
+(define (instantiate-typed-expr typed-expr type)
+  (substitute-typed-expr
+   typed-expr
+   (get-substitutions (caddr typed-expr) type)))
+
 (module+ test
   (require rackunit)
   (require "../inferencer.rkt")
@@ -69,5 +76,12 @@
       '((int -> int) -> (int -> int))
       'some-name)
      `((define some-name ,e) : ((int -> int) -> (int -> int)))))
+
+  (test-case "instantiates identity expr for (int -> int)"
+    (check-match
+     (instantiate-typed-expr
+      '((fn ([x : int]) (x : int)) : ((var a) -> (var a)))
+      '(int -> int))
+     `((fn ([x : int]) (x : int)) : (int -> int))))
   )
 

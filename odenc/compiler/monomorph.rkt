@@ -4,16 +4,14 @@
 
 (require unstable/hash)
 (require "make-monomorph-name.rkt")
-(require "instantiate-p-def.rkt")
+(require "instantiate.rkt")
+(require "expand-monomorphed-let.rkt")
+(require "monomorphed-binding.rkt")
+(require "../polymorphic.rkt")
 
 (struct
   monomorphed-def
   (name instance-name def)
-  #:transparent)
-
-(struct
-  monomorphed-binding
-  (name instance-name)
   #:transparent)
 
 (define (hash-replace v1 v2) v2)
@@ -33,52 +31,97 @@
                (hash/c (list/c symbol? any/c) monomorphed-binding?)))
   (match expr
     [`(,(? symbol? s) : ,t)
-     (if (and (not (member s local))
-              (hash-has-key? p-defs s))
-         
-         ;; this was a reference to a p-def
-         (let* ([key (list s t)]
-                [mname (make-monomorph-name s t)])
-           (if (hash-has-key? m-defs key)
-               ;; already monomorphed
-               `((,mname : ,t) ,m-defs ,m-bindings)
-               
-               ;; monomorph the p-def recursively
-               (let* ([p-def (hash-ref p-defs s)]
-                      [instance (instantiate-p-def p-def t mname)])
-                 ;; TODO: if the p-def is calling itself recursively this should never exit?
-                 (match (monomorph p-defs p-bindings instance m-defs m-bindings '())
-                   [`(,def ,m-defs ,m-bindings)
-                    `((,mname : ,t)
-                      ,(hash-set m-defs key (monomorphed-def s mname def))
-                      ,m-bindings)]))))
+     (cond
+       
+       ;; this is a reference to a p-binding
+       [(and (hash-has-key? p-bindings s)
+             (not (member s local)))
+        (let* ([key `(,s ,t)]
+               [mname (make-monomorph-name s t)])
+          (if (hash-has-key? m-bindings key)
+              ;; already monomorphed
+              `((,mname : ,t) ,m-defs ,m-bindings)
+              
+              ;; monomorph the p-binding
+              (let* ([p-binding (hash-ref p-bindings s)]
+                     [instance (instantiate-typed-expr p-binding t)])
+                ;; TODO: if the p-binding is calling itself recursively this should never exit?
+                (match (monomorph p-defs p-bindings instance m-defs m-bindings '())
+                  [`(,expr ,m-defs ,m-bindings)
+                   `((,mname : ,t)
+                     ,m-defs
+                     ,(hash-set m-bindings key (monomorphed-binding s mname expr)))]))))]
+       
+       ;; this is a reference to a p-def
+       [(and (not (member s local))
+             (hash-has-key? p-defs s))
+        (let* ([key `(,s ,t)]
+               [mname (make-monomorph-name s t)])
+          (if (hash-has-key? m-defs key)
+              ;; already monomorphed
+              `((,mname : ,t) ,m-defs ,m-bindings)
+              
+              ;; monomorph the p-def recursively
+              (let* ([p-def (hash-ref p-defs s)]
+                     [instance (instantiate-p-def p-def t mname)])
+                ;; TODO: if the p-def is calling itself recursively this should never exit?
+                (match (monomorph p-defs p-bindings instance m-defs m-bindings '())
+                  [`(,def ,m-defs ,m-bindings)
+                   `((,mname : ,t)
+                     ,(hash-set m-defs key (monomorphed-def s mname def))
+                     ,m-bindings)]))))]
 
-         ;; not a p-def reference
-         `(,expr ,m-defs ,m-bindings))]
+       ;; not a p-def reference
+       [else `(,expr ,m-defs ,m-bindings)])]
+    
     [`(define ,name ,e)
      (match (monomorph p-defs p-bindings e m-defs m-bindings local)
        [`(,m-expr ,m-defs ,m-bindings) `((define ,name ,m-expr) ,m-defs ,m-bindings)])]
+    
     [(? number?) `(,expr ,m-defs ,m-bindings)]
     [(? string?) `(,expr ,m-defs ,m-bindings)]
+    
     [`(,e : ,t)
      (let ([sub (monomorph p-defs p-bindings e m-defs m-bindings local)])
        `((,(car sub) : ,t) ,(cadr sub) ,(caddr sub)))]
-    [`(let ([,name ,value]) ,body)
-     (let* ([value-sub (monomorph p-defs p-bindings value m-defs m-bindings local)]
-            [body-sub
+    
+    [`(let ([(,name : ,value-t) ,value]) ,body)     
+     (if (polymorphic? value-t)
+         
+         ;; the let binds a polymorphic value
+         (let* ([body-sub
              (monomorph p-defs
-                        ;; TODO: Add polymorphic let binding
-                        p-bindings
+                        (hash-set p-bindings name value)
                         body
-                        (hash-union (cadr value-sub) m-defs #:combine hash-replace)
-                        (hash-union (caddr value-sub) m-bindings #:combine hash-replace)
-                        (cons name local))])
-       ;; TODO: Instantiate all let monomorphizations
-       `((let ([,name ,(car value-sub)])
-           ,(car body-sub))
-         ,(cadr body-sub)
-         ,(caddr body-sub)))]
-    [`(fn ((,a : ,_)) ,b)
+                        m-defs
+                        m-bindings
+                        local)]
+                [m-let (expand-monomorphed-let (caddr body-sub) name (car body-sub))])
+           `(,m-let
+             ,(cadr body-sub)
+             ,(caddr body-sub)))
+         
+         ;; the let binds an already monomorphic value
+         (let* ([value-sub
+                 (monomorph p-defs
+                            p-bindings
+                            value
+                            m-defs
+                            m-bindings
+                            local)]
+                [body-sub
+                 (monomorph p-defs
+                            p-bindings
+                            body
+                            (hash-union (cadr value-sub) m-defs #:combine hash-replace)
+                            (hash-union (caddr value-sub) m-bindings #:combine hash-replace)
+                            (cons name local))])
+           `(((let ([(,name : ,value-t) ,(car value-sub)] ,(car body-sub))) : ,(caddr body))
+             ,(cadr body-sub)
+             ,(caddr body-sub)))
+         )]
+    
+    [`(fn (,a) ,b)
      (let ([b-sub (monomorph p-defs p-bindings b m-defs m-bindings (cons a local))])
        `((fn (,a) ,(car b-sub))
          ,(cadr b-sub)
@@ -201,12 +244,15 @@
                            _)))
        ,_)))
   
-  (test-case "calls to let-aliased polymorphic function"
+  (test-case "let polymorphic and monomorphic references"
     (check-match
      (monomorph p-defs
                 (hash)
-                (infer '(let ([my-id identity]) (my-id 1)) env))
-     `((,e : (int -> int))
+                (infer '(let ([foo 123])
+                          (let ([my-id identity])
+                            (my-id foo)))
+                       env))
+     `((,e : int)
        ,(hash-table
          ('(identity (int -> int))
           (monomorphed-def 'identity
