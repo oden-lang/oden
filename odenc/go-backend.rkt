@@ -132,6 +132,8 @@
     (last split)))
 
 (define (codegen-pkg pkg)
+  (displayln pkg)
+  (newline)
   (format "package ~a\n\n// imports\n~a\n// monomorphed\n~a\n// definitions\n~a"
 	  (codegen-pkg-name pkg)
 	  (codegen-imports pkg)

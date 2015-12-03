@@ -3,5 +3,6 @@
 (import fmt)
 
 (define (main)
-  (let ([name "Foo"])
-    (fmt.Println name)))
+  (fmt.Println
+   (let ([name "Foo"])
+     (+ name "!"))))

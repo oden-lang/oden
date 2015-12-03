@@ -11,5 +11,6 @@
 (define p (pair "a" "b"))
 
 (define (main)
-  (let ([p (pair "a" "b")])
-    (fmt.Println (first p))))
+  (fmt.Println 
+   (let ([p (pair "a" "b")])
+     (first p))))

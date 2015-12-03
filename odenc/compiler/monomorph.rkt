@@ -65,11 +65,11 @@
               (let* ([p-def (hash-ref p-defs s)]
                      [instance (instantiate-p-def p-def t mname)])
                 ;; TODO: if the p-def is calling itself recursively this should never exit?
-                (match (monomorph p-defs p-bindings instance m-defs m-bindings '())
-                  [`(,def ,m-defs ,m-bindings)
+                (match (monomorph p-defs (hash) instance m-defs (hash) '())
+                  [`(,def ,m-defs ,_)
                    `((,mname : ,t)
                      ,(hash-set m-defs key (monomorphed-def s mname def))
-                     ,m-bindings)]))))]
+                     ,(hash))]))))]
 
        ;; not a p-def reference
        [else `(,expr ,m-defs ,m-bindings)])]
@@ -116,7 +116,7 @@
                             (hash-union (cadr value-sub) m-defs #:combine hash-replace)
                             (hash-union (caddr value-sub) m-bindings #:combine hash-replace)
                             (cons name local))])
-           `(((let ([(,name : ,value-t) ,(car value-sub)] ,(car body-sub))) : ,(caddr body))
+           `(((let ([(,name : ,value-t) ,(car value-sub)]) ,(car body-sub)) : ,(caddr body))
              ,(cadr body-sub)
              ,(caddr body-sub)))
          )]
@@ -126,29 +126,44 @@
        `((fn (,a) ,(car b-sub))
          ,(cadr b-sub)
          ,(caddr b-sub)))]
+    
     [`(fn () ,b)
      (let ([b-sub (monomorph p-defs p-bindings b m-defs m-bindings local)])
        `((fn () ,(car b-sub))
          ,(cadr b-sub)
          ,(caddr b-sub)))]
+    
     [`(,f ,a)
      (let* ([f-sub (monomorph p-defs p-bindings f m-defs m-bindings local)]
             [a-sub (monomorph p-defs p-bindings a m-defs m-bindings local)]
             [all-m-defs (hash-union (cadr f-sub) (cadr a-sub) #:combine hash-replace)]
             [all-m-bindings (hash-union (caddr f-sub) (caddr a-sub) #:combine hash-replace)])
        `((,(car f-sub) ,(car a-sub)) ,all-m-defs ,all-m-bindings))]
+    
     [`(,f)
      (let* ([f-sub (monomorph p-defs p-bindings f m-defs m-bindings local)])
        `((,(car f-sub)) ,(cadr f-sub) ,(caddr f-sub)))]
+    
     [`(if ,c ,a ,b)
      (let* ([c-sub (monomorph p-defs p-bindings c m-defs m-bindings local)]
             [a-sub (monomorph p-defs p-bindings a m-defs m-bindings local)]
             [b-sub (monomorph p-defs p-bindings b m-defs m-bindings local)]
-            [all-m-defs (hash-union (cadr c-sub) (cadr a-sub) (cadr b-sub) #:combine hash-replace)]
-            [all-m-bindings (hash-union (caddr c-sub) (caddr a-sub) (caddr b-sub) #:combine hash-replace)])
+            [all-m-defs
+             (hash-union
+              (cadr c-sub)
+              (cadr a-sub)
+              (cadr b-sub)
+              #:combine hash-replace)]
+            [all-m-bindings
+             (hash-union
+              (caddr c-sub)
+              (caddr a-sub)
+              (caddr b-sub)
+              #:combine hash-replace)])
        `((if ,(car c-sub) ,(car a-sub) ,(car b-sub))
          ,all-m-defs
          ,all-m-bindings))]
+    
     [e (error (format "Cannot monomorph expr: ~v" e))]))
 
 (module+ test
@@ -259,5 +274,14 @@
                            'identity_inst_int_to_int
                            `((define identity_inst_int_to_int ,expr) : (int -> int)))))
        ,_)))
-  
-  )
+
+  (test-case "let name and polymorphic def parameter name should not clash"
+    (check-match
+     (monomorph p-defs
+                (hash)
+                (infer '(let ([x (fn (v) v)])
+                          ((identity x) 1))
+                       env))
+     `((,e : int)
+       ,_
+       ,_))))
