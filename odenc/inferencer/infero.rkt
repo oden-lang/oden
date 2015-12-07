@@ -6,6 +6,7 @@
 (require "lookupo.rkt")
 (require "arith-operatoro.rkt")
 (require "generalizeo.rkt")
+(require "erroro.rkt")
 
 (define stringo (make-flat-tag 'string string?))
 (define floato (make-flat-tag 'float flonum?))
@@ -16,7 +17,13 @@
    [(fresh (x)
            (symbolo expr)
            (lookupo expr env x)
-           (== `(,expr : ,x) t))]
+           (conde
+            [(fresh (_)
+                    (erroro x)
+                    (== t x))]
+            [(fresh (_)
+                    (not-erroro x)
+                    (== `(,expr : ,x) t))]))]
    [(floato expr)
     (== `(,expr : float) t)]
    [(fixedo expr)
@@ -27,11 +34,20 @@
     (== '(false : bool) t)]
    [(== 'true expr)
     (== '(true : bool) t)]
-   [(fresh (s st te-ignore te)
+
+   ;; (e : t)
+   [(fresh (s st te)
            (== `(,s : ,st) expr)
-           (== `(,te-ignore : ,st) te)
            (infero s env te)
-           (== te t))]
+           (conde
+            [(fresh (ie)
+                    ;; the inferred type should match the annotated type
+                    (== `(,ie : ,st) te)
+                    (== te t))]
+            [(fresh (ie it)
+                    (== `(,ie : ,it) te)
+                    (== t `(error type-mismatch ,expr ,it ,st)))]))]
+
    [(fresh (x b bt b-ignore r d wd ft)
            (symbolo x)
            (conde
@@ -41,16 +57,16 @@
             ;; if type is specified just use that
             [(== `(fn ([,x : ,d]) ,b) expr)
              (== d wd)])
-           
+
            (infero b `((,x : ,wd) . ,env) bt)
            (== `(,b-ignore : ,r) bt)
-           (== `((fn ([,x : ,d]) ,bt) : (,d -> ,r)) t))
-    ]
+           (== `((fn ([,x : ,d]) ,bt) : (,d -> ,r)) t))]
+
    [(fresh (b bt b-ignore d)
-	   (== `(fn () ,b) expr)
-	   (infero b env bt)
-	   (== bt `(,b-ignore : ,d))
-	   (== `((fn () ,bt) : (-> ,d)) t))]
+           (== `(fn () ,b) expr)
+           (infero b env bt)
+           (== bt `(,b-ignore : ,d))
+           (== `((fn () ,bt) : (-> ,d)) t))]
    [(fresh (x xt e e-ignore et b bt b-ignore lt)
            (conde
             [(== `(let ([,x ,e]) ,b) expr)]
@@ -70,10 +86,10 @@
            (== `(,a-ignore : ,x) at)
            (== `((,ft ,at) : ,et) t))]
    [(fresh (f ft f-ignore et)
-	   (== `(,f) expr)
-	   (infero f env ft)
-	   (== `(,f-ignore : (-> ,et)) ft)
-	   (== `((,ft) : ,et) t))]
+           (== `(,f) expr)
+           (infero f env ft)
+           (== `(,f-ignore : (-> ,et)) ft)
+           (== `((,ft) : ,et) t))]
    [(fresh (c ct c-ignore a at a-ignore b bt b-ignore it)
            (== `(if ,c ,a ,b) expr)
            (infero c env ct)
@@ -91,8 +107,9 @@
     (check-equal?
      (run* (q)
            (fresh (_)
-                  (infero '(fn (x) x) '() `(,_ : ,q))))
-     '((_.0 -> _.0))))
+                  (infero '(fn (x) x) '() `(,_ : ,q))
+                  (== q `(a -> a))))
+     '((a -> a))))
 
   (test-case "identity fn with type-annotated arg"
     (check-equal?
@@ -115,7 +132,7 @@
                   (infero '(let ([g f]) g)
                           '([f : ((var foo) -> (var foo))]) `(,_ : ,q))))
      '((_.0 -> _.0))))
-  
+
   (test-case "instantiation of generalized fn"
     (check-equal?
      (run* (q)
@@ -129,13 +146,14 @@
            (fresh (_)
                   (infero '(f f) '([f : ((var foo) -> (var foo))]) `(,_ : ,q))))
      '((_.0 -> _.0))))
-  
+
   (test-case "nested fn expressions"
     (check-equal?
      (run* (q)
            (fresh (_)
-                  (infero '(fn (x) (fn (y) x)) '() `(,_ : ,q))))
-     '((_.0 -> (_.1 -> _.0)))))
+                  (infero '(fn (x) (fn (y) x)) '() `(,_ : ,q))
+                  (== q `(a -> (b -> a)))))
+     '((a -> (b -> a)))))
 
   (test-case "predefined fn in fn expression"
     (check-equal?
@@ -144,7 +162,7 @@
                   (infero '(fn (x) y)
                           '([y : (int -> int)]) `(,_ : ,q))))
      '((_.0 -> (int -> int)))))
-  
+
   (test-case "fn application"
     (check-match
      (run* (q)
@@ -163,4 +181,18 @@
      (run* (q)
            (infero '((fn (x) (fn (y) x)) 1)
                    '() q))
-     `((,e : (,t -> int))))))
+     `((,e : (,t -> int)))))
+
+  (test-case "undefined identifier error"
+    (check-equal?
+     (run* (q)
+           (infero 'x '() q))
+     '((error undefined-identifier x))))
+
+  (test-case "type annotation mismatch"
+    (check-equal?
+     (run* (q)
+           (infero '(1 : string) '() q))
+     '((error type-mismatch (1 : string) int string))))
+
+  )

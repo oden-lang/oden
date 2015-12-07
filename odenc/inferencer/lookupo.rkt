@@ -8,17 +8,23 @@
 
 (define (lookupo x env t)
   (symbolo x)
-  (conde
-   [(arith-operatoro x t)]
-   ((fresh (s _)
-           (== `((,x : ,s) . ,_) env)
-           (instantiateo s '() t)
-           ))
-   ((fresh (y _ env^)
-           (== `((,y . ,_) . ,env^) env)
-           (=/= x y)
-           (symbolo y)
-           (lookupo x env^ t)))))
+  (conda
+
+   ;; try to find x in env (or as an arithmetic operator)
+   [(conde
+     [(arith-operatoro x t)]
+     [(fresh (s _)
+             (== `((,x : ,s) . ,_) env)
+             (instantiateo s '() t)
+             )]
+     [(fresh (y _ env^)
+             (== `((,y . ,_) . ,env^) env)
+             (=/= x y)
+             (symbolo y)
+             (lookupo x env^ t))])]
+   
+   ;; not found in env
+   [(== `(error undefined-identifier ,x) t)]))
 
 (module+ test
   (require rackunit)
@@ -58,4 +64,16 @@
      (run* (q)
            (lookupo 'x `((x : (unbound ,q))) q))
      '(_.0)))
+
+  (test-case "unifies with undefined-identifier error when not found in env"
+    (check-equal?
+     (run* (q)
+           (lookupo 'x '((y : foo)) q))
+     '((error undefined-identifier x))))
+
+  (test-case "unifies with undefined-identifier error when env is empty"
+    (check-equal?
+     (run* (q)
+           (lookupo 'x '() q))
+     '((error undefined-identifier x))))
   )
