@@ -34,6 +34,8 @@
 (define-syntax (get-version stx)
   #`#,(or (getenv "VERSION") "undefined version"))
 
+(define version (get-version))
+
 (define print-version (make-parameter false))
 (define oden-path (make-parameter "."))
 (define output-directory (make-parameter "."))
@@ -55,7 +57,7 @@
                  (output-directory value)]
 		#:args ()
                 (cond
-                  [(print-version) (displayln (get-version))]
+                  [(print-version) (displayln version)]
                   [else (for ([pkg (sort-pkgs
                                     (map read-oden-pkg-source-file
                                          (scan-oden-paths (oden-path))))])
