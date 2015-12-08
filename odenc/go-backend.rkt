@@ -27,7 +27,7 @@
     [(? symbol? t) t]))
 
 (define (infix-operator? op)
-  (member op '(+ - * / % == != < > <= >= and or)))
+  (member op '(++ + - * / % == != < > <= >= and or)))
 
 (define (codegen-return typed-expr)
   (match typed-expr
@@ -43,6 +43,7 @@
 
 (define (translate-infix-operator op)
   (match op
+    ['++ "+"]
     ['and "&&"]
     ['or "||"]
     [_ (symbol->string op)]))
@@ -132,8 +133,6 @@
     (last split)))
 
 (define (codegen-pkg pkg)
-  (displayln pkg)
-  (newline)
   (format "package ~a\n\n// imports\n~a\n// monomorphed\n~a\n// definitions\n~a"
 	  (codegen-pkg-name pkg)
 	  (codegen-imports pkg)

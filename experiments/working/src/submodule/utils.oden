@@ -1,4 +1,4 @@
 (pkg submodule/utils)
 
 (define (shout [who : string])
-  (+ who "!\nBye."))
+  (++ who "!\nBye."))

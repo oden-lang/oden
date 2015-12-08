@@ -10,13 +10,17 @@
   (symbolo x)
   (conda
 
-   ;; try to find x in env (or as an arithmetic operator)
+   ;; try to find x in env, as a bool literal or as an arithmetic operator
    [(conde
+     [(== 'false x)
+      (== '(false : bool) t)]
+     [(== 'true x)
+      (== '(true : bool) t)]
      [(arith-operatoro x t)]
-     [(fresh (s _)
+     [(fresh (s _ i)
              (== `((,x : ,s) . ,_) env)
-             (instantiateo s '() t)
-             )]
+             (instantiateo s '() i)
+             (== `(,x : ,i) t))]
      [(fresh (y _ env^)
              (== `((,y . ,_) . ,env^) env)
              (=/= x y)
@@ -33,37 +37,38 @@
     (check-equal?
      (run* (q)
            (lookupo 'x '((x : (var foo))) q))
-     '(_.0)))
+     '((x : _.0))))
 
   (test-case "instantiates type vars in fn"
     (check-equal?
      (run* (q)
            (lookupo 'x '((x : ((var foo) -> (var bar)))) q))
-     '((_.0 -> _.1))))
+     '((x : (_.0 -> _.1)))))
 
   (test-case "instantiates matching type vars to same logic variable"
     (check-equal?
      (run* (q)
            (lookupo 'x '((x : ((var foo) -> (var foo)))) q))
-     '((_.0 -> _.0))))
+     '((x : (_.0 -> _.0)))))
   
   (test-case "instantiates type vars in nested fns"
     (check-equal?
      (run* (q)
            (lookupo 'x '((x : (int -> ((var foo) -> (var bar))))) q))
-     '((int -> (_.0 -> _.1)))))
+     '((x : (int -> (_.0 -> _.1))))))
 
   (test-case "retains non-type vars"
     (check-equal?
      (run* (q)
            (lookupo 'x '((x : int)) q))
-     '(int)))
+     '((x : int))))
   
   (test-case "extracts wrapped unbound logic variables"
     (check-equal?
      (run* (q)
-           (lookupo 'x `((x : (unbound ,q))) q))
-     '(_.0)))
+           (fresh (t)
+                  (lookupo 'x `((x : (unbound ,t))) q)))
+     '((x : _.0))))
 
   (test-case "unifies with undefined-identifier error when not found in env"
     (check-equal?

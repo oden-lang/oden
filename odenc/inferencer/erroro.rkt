@@ -2,7 +2,8 @@
 
 (provide
  erroro
- not-erroro)
+ not-erroro
+ error?)
 
 (require Racket-miniKanren/miniKanren/mk)
 
@@ -12,17 +13,15 @@
     [_ #f]))
 
 (define erroro (make-flat-tag 'error error?))
-(define not-erroro (make-flat-tag 'error (compose not error?)))
+(define not-erroro (make-flat-tag 'not-error (compose not error?)))
 
 (module+ test
   (require rackunit)
 
   (test-case "not-erroro unbound"
-    (check-match
+    (check-equal?
      (run* (q)
-           (fresh (x y)
-                  (not-erroro x)
-                  (erroro y)
-                  (== q `(,x ,y))))
-     `((_.0 . ,_) . ,_))))
+           (== q `(error foo))
+           (erroro q))
+     `((error foo)))))
 

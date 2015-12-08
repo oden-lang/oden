@@ -18,63 +18,58 @@
 
 ;; TODO: need some better way to do polymorphic operators
 (define (arith-operatoro o t)
-  (fresh (ot)
+  (fresh (t^)
+         (== `(,o : ,t^) t)
          (conde
+          [(== '++ o)
+           (== `(string -> (string -> string)) t^)]
           [(== '+ o)
-           (membero ot '(int float string))
-           (== `(,ot -> (,ot -> ,ot)) t)]
+           (== `(int -> (int -> int)) t^)]
           [(membero o '(- * /))
-           (membero ot '(int float))
-           (== `(,ot -> (,ot -> ,ot)) t)]
+           (== `(int -> (int -> int)) t^)]
           [(== '% o )
-           (== ot 'int)
-           (== `(,ot -> (,ot -> ,ot)) t)]
-          [(membero o '(== !=))
-           (membero ot '(int float string bool))
-           (== `(,ot -> (,ot -> bool)) t)]
+           (== `(int -> (int -> int)) t^)]
+          [(fresh (ot)
+                  (membero o '(== !=))
+                  (== `(,ot -> (,ot -> bool)) t^))]
           [(== 'not o)
-           (== '(bool -> bool) t)]
+           (== '(bool -> bool) t^)]
           [(membero o '(and or))
-           (== ot 'bool)
-           (== '(bool -> (bool -> bool)) t)]
+           (== '(bool -> (bool -> bool)) t^)]
           [(membero o '(> < >= <=))
-           (membero ot '(int float))
-           (== `(,ot -> (,ot -> bool)) t)])))
+           (== `(int -> (int -> bool)) t^)])))
 
 (module+ test
   (require rackunit)
 
+  (test-case "++"
+    (check-equal? (run* (q) (arith-operatoro '++ q))
+                  '((++ : (string -> (string -> string))))))
+
   (test-case "+"
-    (check-equal? (list->set (run* (q) (arith-operatoro '+ q)))
-                  (list->set '((int -> (int -> int))
-                                (float -> (float -> float))
-                                (string -> (string -> string))))))
+    (check-equal? (run* (q) (arith-operatoro '+ q))
+                  '((+ : (int -> (int -> int))))))
 
   (test-case "-"
-    (check-equal? (list->set (run* (q) (arith-operatoro '- q)))
-                  (list->set '((int -> (int -> int))
-                                (float -> (float -> float))))))
+    (check-equal? (run* (q) (arith-operatoro '- q))
+                  '((- : (int -> (int -> int))))))
 
   (test-case "%"
     (check-equal? (run* (q) (arith-operatoro '% q))
-                  '((int -> (int -> int)))))
+                  '((% : (int -> (int -> int))))))
 
   (test-case "=="
-    (check-equal? (list->set (run* (q) (arith-operatoro '== q)))
-                  (list->set '((int -> (int -> bool))
-                                (float -> (float -> bool))
-                                (string -> (string -> bool))
-                                (bool -> (bool -> bool))))))
+    (check-equal? (run* (q) (arith-operatoro '== q))
+                  '((== : (_.0 -> (_.0 -> bool))))))
 
   (test-case "<"
-    (check-equal? (list->set (run* (q) (arith-operatoro '< q)))
-                  (list->set '((int -> (int -> bool))
-                               (float -> (float -> bool))))))
+    (check-equal? (run* (q) (arith-operatoro '< q))
+                  '((< : (int -> (int -> bool))))))
 
   (test-case "and"
     (check-equal? (run* (q) (arith-operatoro 'and q))
-                  '((bool -> (bool -> bool)))))
+                  '((and : (bool -> (bool -> bool))))))
 
   (test-case "not"
     (check-equal? (run* (q) (arith-operatoro 'not q))
-                  '((bool -> bool)))))
+                  '((not : (bool -> bool))))))

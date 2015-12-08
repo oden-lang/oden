@@ -40,7 +40,7 @@
   (match (list name te)
     [`(main (,_ : (-> unit))) void]
     [`(main (,_ : ,t))
-     (error
+     (raise-user-error
       (format "Bad main function type ~a, must be (-> unit)."
 	      t))]
     [_ void]))
@@ -86,7 +86,7 @@
                            m-defs
                            (cons def forms))]))]))]
         
-        [f (error (format "Invalid top level form: ~a" f))]))))
+        [f (raise-user-error (format "Invalid top level form: ~a" f))]))))
 
 (module+ test
   (require rackunit)

@@ -20,16 +20,16 @@
 	     [`(,(source-pkg '() '() '()) ,(? pkg-decl-expr? p))
 	      (loop (source-pkg p '() '()))]
 	     [`(,(source-pkg '() is ds) ,(? import-expr? i))
-	      (error "Imports are not allowed before pkg declaration.")]
+	      (raise-user-error "Imports are not allowed before pkg declaration.")]
 	     [`(,(source-pkg p is '()) ,(? import-expr? i))
 	      (loop (source-pkg p (cons i is) '()))]
 	     [`(,(source-pkg p is ds) ,(? import-expr? i))
-	      (error "Imports are not allowed after first definition.")]
+	      (raise-user-error "Imports are not allowed after first definition.")]
 	     [`(,(source-pkg '() is ds) ,(? definition-expr? d))
-	      (error "Definitions are not allowed before pkg declaration.")]
+	      (raise-user-error "Definitions are not allowed before pkg declaration.")]
 	     [`(,(source-pkg p is ds) ,(? definition-expr? d))
 	      (loop (source-pkg p is (cons d ds)))]
-	     [`(,_ ,e) (error (format "Invalid form: ~a" e))]))
+	     [`(,_ ,e) (raise-user-error (format "Invalid form: ~a" e))]))
     [(source-pkg p is ds)
      (source-pkg p (reverse is) (reverse ds))]))
 
@@ -41,10 +41,10 @@
   (-> source-file? source-pkg?)
   (let ([pkg (read-oden-pkg-file (source-file-path sf))])
     (when (not (equal? (source-file-pkg sf) (source-pkg-name pkg)))
-      (error (format "~a should have pkg declared as ~a, not ~a."
-		     (source-file-path sf)
-		     (source-file-pkg sf)
-		     (source-pkg-name pkg))))
+      (raise-user-error (format "~a should have pkg declared as ~a, not ~a."
+                                (source-file-path sf)
+                                (source-file-pkg sf)
+                                (source-pkg-name pkg))))
     pkg))
 
 (define (get-sorted-pkg-names pkgs)

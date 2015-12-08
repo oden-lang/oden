@@ -5,4 +5,4 @@
 (define (main)
   (fmt.Println
    (let ([name "Foo"])
-     (+ name "!"))))
+     (++ name "!"))))

@@ -5,15 +5,19 @@
 (require Racket-miniKanren/miniKanren/mk)
 (require "infero.rkt")
 (require "generalizeo.rkt")
+(require "erroro.rkt")
 
 (define (infer-defo def env t)
   (fresh (rec-env name expr expr-ignore expr-t expr-te)
          (== `(define ,name ,expr) def)
          (== rec-env (cons `(,name : (unbound ,expr-t)) env))
          (infero expr rec-env expr-te)
-         (== `(,expr-ignore : ,expr-t) expr-te)
-         (generalizeo expr-t)
-         (== `((define ,name ,expr-te) : ,expr-t) t)))
+         (conde
+          [(== `(,expr-ignore : ,expr-t) expr-te)
+           (generalizeo expr-t)
+           (== `((define ,name ,expr-te) : ,expr-t) t)]
+          [(erroro expr-te)
+           (== t expr-te)])))
 
 (module+ test
   (require rackunit)
@@ -61,4 +65,14 @@
                    '()
                    `(,_ : ,q))))
      `(((var ,v1) -> (var ,v2)))))
+
+  (test-case "define with error"
+    (check-equal?
+     (run* (q)
+           (fresh (_)
+                  (infer-defo
+                   '(define inf (fn (x) y))
+                   '()
+                   q)))
+     '((error undefined-identifier y))))
   )

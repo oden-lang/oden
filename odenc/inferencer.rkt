@@ -9,6 +9,7 @@
 (require "inferencer/infero.rkt") 
 (require "inferencer/infer-defo.rkt")
 (require "inferencer/instantiateo.rkt")
+(require "inferencer/erroro.rkt") 
  
 (define (default-envo t)
   (== t
@@ -18,25 +19,46 @@
         (fmt.Println : (string -> unit))
         ]))
 
+(define (format-error e)
+  (match e
+    [`(error undefined-identifier ,id)
+     (format "Undefined identifier: ~a" id)]
+    [`(error type-mismatch ,expr ,actual ,expected)
+     (format "Type mismatch:\n  Actual: ~a\n  Expected: ~a\n  Expression: ~a\n"
+             actual
+             expected
+             expr)]
+    [`(error if-branch-type-mismatch ,expr ,a ,b)
+     (format "If branch type mismatch:\n  Then-branch: ~a\n  Else-branch: ~a\n  Expression: ~a\n"
+             a
+             b
+             expr)]
+    [`(error ,name . ,args)
+     (format "~a error: ~a" name args)]))
+
+(define (extract-typed-expr mk-results)
+  (match mk-results
+    [`()
+     (raise-user-error "Unexpected type inference error!")]
+    [`(,(? error? e))
+     (raise-user-error (format-error e))]
+    [`(,te) te]))
+
 (define (infer expr [custom-env '()])
-    (let ([t (run 1 (q)
-                (fresh (env d)
-                       (default-envo d)
-		       (== env (append custom-env d))
-                       (infero expr env q)))])
-    (cond
-     [(empty? t) (raise-user-error "Type check failed!")]
-     [else (car t)])))
+  (extract-typed-expr
+   (run 1 (q)
+        (fresh (env d)
+               (default-envo d)
+               (== env (append custom-env d))
+               (infero expr env q)))))
 
 (define (infer-def def [custom-env '()])
-    (let ([t (run 1 (q)
-                (fresh (env default-env)
-                       (default-envo default-env)
-		       (== env (append custom-env default-env))
-                       (infer-defo def env q)))])
-    (cond
-     [(empty? t) (raise-user-error "Type check failed!")]
-     [else (first t)])))
+  (extract-typed-expr
+   (run 1 (q)
+        (fresh (env default-env)
+               (default-envo default-env)
+               (== env (append custom-env default-env))
+               (infer-defo def env q)))))
 
 (define (instantiate-type t)
   (match (run 1 (q) (instantiateo t '() q))    
@@ -66,7 +88,7 @@
 
   (test-case "if branches have same type"
     (check-exn
-     exn:fail?
+     exn:fail:user?
      (thunk
       (infer '(if true 1 true)))))
 

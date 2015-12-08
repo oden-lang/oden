@@ -11,4 +11,4 @@
 (define (identity-string [x : string]) x)
 
 ;; value definition
-(define result (+ (identity-string "Hello") ", world!"))
+(define result (++ (identity-string "Hello") ", world!"))
