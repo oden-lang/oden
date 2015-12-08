@@ -4,6 +4,8 @@ VERSION ?= $(GIT_REV_SHORT)
 VERSION_LONG="$(VERSION) (git revision: $(GIT_REV_LONG))"
 
 ODENC_SOURCES=$(shell find odenc -name '*.rkt')
+WORKING_EXPERIMENTS=$(shell find experiments/working/src -name '*.oden')
+WORKING_EXPERIMENT_PACKAGES=$(WORKING_EXPERIMENTS:experiments/working/src/%.oden=%)
 
 OS=$(shell tools/get_os.sh)
 
@@ -41,9 +43,9 @@ $(DIST_ARCHIVE): target/oden
 	(cd target/oden && tar -czf ../$(DIST_NAME).tar.gz .)
 
 .PHONY: compile-experiments
-compile-experiments: $(ODENC)
-	 $(ODENC) -o $(PWD)/target/experiments -p experiments/working
-	GOPATH=$(PWD)/target/experiments go build ...
+compile-experiments: $(ODENC) $(WORKING_EXPERIMENTS)
+	$(ODENC) -o $(PWD)/target/experiments -p experiments/working
+	GOPATH=$(PWD)/target/experiments go build $(WORKING_EXPERIMENT_PACKAGES)
 
 dist: $(DIST_ARCHIVE)
 
