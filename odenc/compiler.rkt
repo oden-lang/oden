@@ -7,6 +7,7 @@
 (require "inferencer.rkt")
 (require "source-pkg.rkt")
 (require "polymorphic.rkt")
+(require "core/validate-form.rkt")
 (require "compiler/compiled-pkg.rkt")
 (require "compiler/explode.rkt")
 (require "compiler/get-non-local-references.rkt")
@@ -36,7 +37,7 @@
      (for/list ([k (get-sorted-names exploded-defs)])
        (hash-ref def-h k '()))))
 
-(define (validate-definition name te)
+(define (validate-definition-signature name te)
   (match (list name te)
     [`(main (,_ : (-> unit))) void]
     [`(main (,_ : ,t))
@@ -50,43 +51,44 @@
 
 (define/contract (compile-pkg pkg)
   (-> source-pkg? compiled-pkg?)
-  (let* ([defs (explode-defs pkg)]
-         [h (defs-to-hash defs)])
-    (let loop ([defs (sort-defs defs h)]
-               [pkg-env '()]
-               [p-defs (hash)] ;; polymorphic function defs
-               [monomorphed (hash)]
-               [forms '()])
-      (match defs
-        ['() (compiled-pkg (car (cdr (source-pkg-decl pkg)))
-                           (source-pkg-imports pkg)
-                           (reverse forms)
-                           (collect-monomorphed-defs monomorphed)
-                           pkg-env)]
+  (let ([defs (explode-defs pkg)])
+    (map validate-form defs)
+    (let ([h (defs-to-hash defs)])
+      (let loop ([defs (sort-defs defs h)]
+                 [pkg-env '()]
+                 [p-defs (hash)] ;; polymorphic function defs
+                 [monomorphed (hash)]
+                 [forms '()])
+        (match defs
+          ['() (compiled-pkg (car (cdr (source-pkg-decl pkg)))
+                             (source-pkg-imports pkg)
+                             (reverse forms)
+                             (collect-monomorphed-defs monomorphed)
+                             pkg-env)]
 
-        [`((define ,(? symbol? name) ,_) . ,ds)
-         (let* ([def (car defs)]
-                [inferred (infer-def def pkg-env)])
-           (match inferred
-             [`((define ,name ,expr) : ,t)
-              (validate-definition name expr)
-              (if (polymorphic? t)
-                  ;; polymorphic definition
-                  (loop ds
-                        (cons `(,name : ,t) pkg-env)
-                        (hash-set p-defs name inferred)
-                        monomorphed
-                        forms)
-                  ;; monomorphic definition
-                  (match (monomorph p-defs (hash) inferred monomorphed (hash))
-                    [`(,def ,m-defs ,m-bindings)
-                     (loop ds
-                           (cons `(,name : ,t) pkg-env)
-                           p-defs
-                           m-defs
-                           (cons def forms))]))]))]
-        
-        [f (raise-user-error (format "Invalid top level form: ~a" f))]))))
+          [`((define ,(? symbol? name) ,_) . ,ds)
+           (let* ([def (car defs)]
+                  [inferred (infer-def def pkg-env)])
+             (match inferred
+               [`((define ,name ,expr) : ,t)
+                (validate-definition-signature name expr)
+                (if (polymorphic? t)
+                    ;; polymorphic definition
+                    (loop ds
+                          (cons `(,name : ,t) pkg-env)
+                          (hash-set p-defs name inferred)
+                          monomorphed
+                          forms)
+                    ;; monomorphic definition
+                    (match (monomorph p-defs (hash) inferred monomorphed (hash))
+                      [`(,def ,m-defs ,m-bindings)
+                       (loop ds
+                             (cons `(,name : ,t) pkg-env)
+                             p-defs
+                             m-defs
+                             (cons def forms))]))]))]
+          
+          [f (raise-user-error (format "Invalid top level form: ~a" f))])))))
 
 (module+ test
   (require rackunit)
