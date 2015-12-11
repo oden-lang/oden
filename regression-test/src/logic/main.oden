@@ -1,3 +1,4 @@
+;; -*- mode: lisp;-*-
 (pkg logic/main)
 
 (import fmt)

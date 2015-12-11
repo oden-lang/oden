@@ -1,3 +1,4 @@
+;; -*- mode: lisp;-*-
 (pkg let/main)
 
 (import fmt)

@@ -1,3 +1,5 @@
+;; -*- mode: lisp;-*-
+
 ;; package declaration
 (pkg main)
 

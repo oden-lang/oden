@@ -1,3 +1,4 @@
+;; -*- mode: lisp;-*-
 (pkg pairlet/main)
 
 (import "fmt")
@@ -11,6 +12,6 @@
 (define p (pair "a" "b"))
 
 (define (main)
-  (fmt.Println 
+  (fmt.Println
    (let ([p (pair "a" "b")])
      (first p))))
