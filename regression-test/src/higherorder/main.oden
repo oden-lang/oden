@@ -1,0 +1,14 @@
+(pkg higherorder/main)
+
+(import fmt)
+(import strconv)
+
+(define (identity x) x)
+
+(define (apply-to-1 x)
+  (x 1))
+
+(define (main)
+  (fmt.Println 
+   (strconv.Itoa
+    ((identity apply-to-1) (fn (x) (* x 2))))))

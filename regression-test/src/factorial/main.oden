@@ -1,0 +1,12 @@
+(pkg factorial/main)
+
+(import fmt)
+(import strconv)
+
+(define (factorial n)
+  (if (< n 2)
+      1
+    (* n (factorial (- n 1)))))
+
+(define (main)
+  (fmt.Println (strconv.Itoa (factorial 5))))

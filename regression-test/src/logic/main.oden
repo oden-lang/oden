@@ -1,0 +1,9 @@
+(pkg logic/main)
+
+(import fmt)
+
+(define (main)
+  (fmt.Println
+    (if (or (not (and true false)) false)
+      "yey"
+      "ney")))
