@@ -1,4 +1,0 @@
-(pkg typevars)
-
-(defn ('x -> 'x) (identity x)
-  x)
