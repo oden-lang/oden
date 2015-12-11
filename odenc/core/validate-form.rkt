@@ -23,6 +23,9 @@
      (void)]
     [`(fn () ,body)
      (validate-form body)]
+    [`(fn ([,arg : ,_]) ,body)
+     (validate-identifier arg)
+     (validate-form body)]
     [`(fn (,arg) ,body)
      (validate-identifier arg)
      (validate-form body)]
