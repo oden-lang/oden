@@ -1,0 +1,13 @@
+;; -*- mode: lisp;-*-
+(pkg higherorder/main)
+
+(import fmt)
+
+(def (identity x) x)
+
+(def (apply-to-1 x)
+  (x 1))
+
+(def (main)
+  (fmt.Println 
+    ((identity apply-to-1) (fn (x) (* x 2)))))

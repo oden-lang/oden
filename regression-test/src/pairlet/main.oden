@@ -1,0 +1,17 @@
+;; -*- mode: lisp;-*-
+(pkg pairlet/main)
+
+(import fmt)
+
+(def (pair x y)
+  (fn (f) (f x y)))
+
+(def (first p)
+  (p (fn (x y) x)))
+
+(def p (pair "a" "b"))
+
+(def (main)
+  (fmt.Println
+   (let ((p (pair "a" "b")))
+     (first p))))

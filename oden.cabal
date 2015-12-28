@@ -1,0 +1,90 @@
+name:                oden
+version:             0.2.0
+license:             MIT
+license-file:        LICENSE.md
+author:              Oskar Wickström
+maintainer:          oskar.wickstrom@gmail.com
+build-type:          Simple
+extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  build-depends:
+    base          == 4.*,
+    pretty        >= 1.1   && <1.2,
+    parsec        >= 3.1   && <3.2,
+    text          >= 1.2   && <1.3,
+    containers    >= 0.5   && <0.6,
+    mtl           >= 2.2   && <2.3,
+    transformers  >= 0.4.2 && <0.5,
+    directory,
+    unix,
+    filepath
+  exposed-modules:
+    Oden.Backend,
+    Oden.Backend.Go,
+    Oden.Compiler,
+    Oden.Compiler.Scope,
+    Oden.Compiler.Instantiate,
+    Oden.Compiler.TypeEncoder
+    Oden.Core,
+    Oden.Core.Untyped,
+    Oden.Env,
+    Oden.Eval,
+    Oden.Identifier,
+    Oden.Infer,
+    Oden.Lexer,
+    Oden.Parser,
+    Oden.Predefined,
+    Oden.Pretty,
+    Oden.Syntax,
+    Oden.Scanner,
+    Oden.Type.Monomorphic,
+    Oden.Type.Polymorphic
+  default-language:    Haskell2010
+  hs-source-dirs:      src
+
+executable odenc
+  build-depends:
+      base          == 4.*,
+      text          >= 1.2   && <1.3,
+      mtl           >= 2.2   && <2.3,
+      transformers  >= 0.4.2 && <0.5,
+      containers    >= 0.5   && <0.6,
+      filepath,
+      directory,
+      oden
+  default-language:    Haskell2010
+  main-is:             Main.hs
+  hs-source-dirs:      odenc
+
+executable odeni
+  build-depends:
+      base          == 4.*,
+      text          >= 1.2   && <1.3,
+      mtl           >= 2.2   && <2.3,
+      transformers  >= 0.4.2 && <0.5,
+      containers    >= 0.5   && <0.6,
+      repline       >= 0.1.4.0,
+      oden
+  default-language:    Haskell2010
+  main-is:             Main.hs
+  hs-source-dirs:      odeni
+
+test-suite spec
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  default-language: Haskell2010
+  hs-source-dirs: test
+  build-depends:
+    base          == 4.*,
+    HUnit,
+    hspec         == 2.*,
+    QuickCheck,
+    parsec        >= 3.1   && <3.2,
+    text          >= 1.2   && <1.3,
+    mtl           >= 2.2   && <2.3,
+    transformers  >= 0.4.2 && <0.5,
+    containers    >= 0.5   && <0.6,
+    oden
+  ghc-options: -Wall -fno-warn-orphans
