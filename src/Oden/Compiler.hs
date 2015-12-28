@@ -1,7 +1,7 @@
 module Oden.Compiler where
 
 import           Control.Monad.Except
-import           Control.Monad.State
+import           Control.Monad.RWS
 import           Data.Map                  as Map hiding (map)
 import           Data.Maybe
 import           Data.Set                  as Set hiding (map)
@@ -35,13 +35,14 @@ data CompilationError = NotInScope Identifier
                       | MonomorphInstantiateError InstantiateError
                       deriving (Show, Eq, Ord)
 
+data MonomorphLocals = MonomorphLocals (Set Name)
+
 data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type) InstantiatedDefinition
                                      , monomorphed :: Map Identifier MonomorphedDefinition
                                      , scope       :: Scope
-                                     , locals      :: Set Name
                                      }
 
-type Monomorph a = StateT MonomorphState (Except CompilationError) a
+type Monomorph a = RWST MonomorphLocals () MonomorphState (Except CompilationError) a
 
 getInScope :: Identifier -> Monomorph Definition
 getInScope i = do
@@ -55,6 +56,9 @@ addToScope :: Core.Definition -> Monomorph ()
 addToScope (Core.Definition name (sc, expr))= do
   scope' <- gets scope
   modify (\s -> s { scope = Scope.insert Scope.Definitions (Unqualified name) (Scope.OdenDefinition (Unqualified name) sc expr) scope' })
+
+withBinding :: Name -> Monomorph a -> Monomorph a
+withBinding n = local (\(MonomorphLocals locals) -> MonomorphLocals (Set.insert n locals))
 
 addInstance :: (Identifier, Mono.Type) -> InstantiatedDefinition -> Monomorph ()
 addInstance key inst =
@@ -88,26 +92,10 @@ polyToMono :: Poly.Type -> Monomorph Mono.Type
 polyToMono t = either (const $ throwError (UnexpectedPolyType t)) return (Poly.toMonomorphic t)
 
 isLocal :: Identifier -> Monomorph Bool
-isLocal (Unqualified n) = elem n <$> gets locals
+isLocal (Unqualified n) = do
+  MonomorphLocals bindings <- ask
+  return (n `elem` bindings)
 isLocal _ = return False
-
-setLocal :: Set Name -> Monomorph ()
-setLocal ls = modify (\s -> s { locals = ls })
-
-withLocals :: Set Name -> Monomorph a -> Monomorph a
-withLocals new m = do
-  old <- gets locals
-  setLocal new
-  v <- m
-  setLocal old
-  return v
-
-addingLocal :: Name -> Monomorph a -> Monomorph a
-addingLocal i m = do
-  old <- gets locals
-  v <- withLocals (Set.insert i old) m
-  setLocal old
-  return v
 
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
 monomorph (Core.Symbol ident t) = do
@@ -129,7 +117,7 @@ monomorph (Core.NoArgApplication f t) = do
   return (Core.NoArgApplication mf mt)
 monomorph (Core.Fn a b t) = do
   mt <- polyToMono t
-  mb <- addingLocal a (monomorph b)
+  mb <- withBinding a (monomorph b)
   return (Core.Fn a mb mt)
 monomorph (Core.NoArgFn b t) = do
   mt <- polyToMono t
@@ -147,7 +135,7 @@ monomorph (Core.If cond then' else' t) = do
 monomorph (Core.Let name expr body t) = do
   mt <- polyToMono t
   mExpr <- monomorph expr
-  mBody <- addingLocal name (monomorph body)
+  mBody <- withBinding name (monomorph body)
   return (Core.Let name mExpr mBody mt)
 
 monomorphDefinition :: Core.Definition -> Monomorph ()
@@ -161,10 +149,10 @@ monomorphPackage :: Env.Env -> Core.Package -> Either CompilationError CompiledP
 monomorphPackage predefined (Core.Package name imports definitions) = do
   let st = MonomorphState { instances = Map.empty
                           , monomorphed = Map.empty
-                          , locals = Set.empty
                           , scope = predefinedEnvToScope predefined
                           }
-  (_, s) <- runExcept $ runStateT (mapM_ monomorphDefinition definitions) st
+      locals = MonomorphLocals Set.empty
+  (_, s, _) <- runExcept $ runRWST (mapM_ monomorphDefinition definitions) locals st
   let is = Set.fromList (Map.elems (instances s))
       ms = Set.fromList (Map.elems (monomorphed s))
   return (CompiledPackage name imports is ms)

@@ -65,12 +65,33 @@ usingIdentityMonomorphed =
                       (Core.Literal (Core.Int 1) Mono.typeInt)
                       Mono.typeInt)
 
+letBoundIdentity :: Core.Definition
+letBoundIdentity =
+  Core.Definition
+    "let-bound-identity"
+    (Poly.Forall [] Poly.typeInt,
+     Core.Let "identity" (Core.Fn "x" (Core.Symbol (Unqualified "x") a) (Poly.TArr a a))
+                         (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TArr a a))
+                                           (Core.Literal (Core.Int 1) Poly.typeInt)
+                                           Poly.typeInt)
+                      Poly.typeInt)
+
 usingIdentity2Monomorphed :: MonomorphedDefinition
 usingIdentity2Monomorphed =
   MonomorphedDefinition
     "using-identity2"
     (Core.Application (Core.Symbol (Unqualified "identity2_inst_int_to_int") (Mono.TArr Mono.typeInt Mono.typeInt))
                       (Core.Literal (Core.Int 1) Mono.typeInt)
+                      Mono.typeInt)
+
+letBoundIdentityMonomorphed :: MonomorphedDefinition
+letBoundIdentityMonomorphed =
+  MonomorphedDefinition
+    "let-bound-identity"
+    (Core.Let "identity_inst_int_to_int" (Core.Fn "x" (Core.Symbol (Unqualified "x") Mono.typeInt) (Mono.TArr Mono.typeInt Mono.typeInt))
+                                         (Core.Application (Core.Symbol (Unqualified "identity") (Mono.TArr Mono.typeInt Mono.typeInt))
+                                                           (Core.Literal (Core.Int 1) Mono.typeInt)
+                                                           Mono.typeInt)
                       Mono.typeInt)
 
 identityInstIntToInt :: InstantiatedDefinition
@@ -125,3 +146,11 @@ spec = do
         []
         (Set.fromList [identityInstIntToInt, identity2InstIntToInt])
         (Set.singleton usingIdentity2Monomorphed)
+    it "monomorphs let bound polymorphic function" $
+      compile Env.empty (Core.Package myPkg [] [letBoundIdentity])
+      `shouldSucceedWith`
+      CompiledPackage
+        myPkg
+        []
+        Set.empty
+        (Set.singleton letBoundIdentityMonomorphed)
