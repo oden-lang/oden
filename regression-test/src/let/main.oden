@@ -1,9 +1,0 @@
-;; -*- mode: lisp;-*-
-(pkg let/main)
-
-(import fmt)
-
-(define (main)
-  (fmt.Println
-   (let ([name "Foo"])
-     (++ name "!"))))
