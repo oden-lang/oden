@@ -1,0 +1,14 @@
+;; -*- mode: lisp;-*-
+(pkg fibonacci/main)
+
+(import fmt)
+
+(def (fib n)
+  (if (== n 1)
+    0
+    (if (== n 2)
+      1
+      (+ (fib (- n 1)) (fib (- n 2))))))
+
+(def (main)
+  (fmt.Println (fib 10)))

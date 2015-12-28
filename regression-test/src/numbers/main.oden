@@ -1,0 +1,13 @@
+;; -*- mode: lisp;-*-
+(pkg numbers/main)
+
+(import fmt)
+
+(def (plus x y)
+  (+ x y))
+
+(def plus-1 (plus 1))
+
+(def (main)
+  (fmt.Println (plus-1 (plus-1 10))))
+

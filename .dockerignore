@@ -1,0 +1,5 @@
+dist
+node_modules
+.cabal-sandbox
+cabal.sandbox.config
+target

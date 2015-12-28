@@ -1,0 +1,12 @@
+;; -*- mode: lisp;-*-
+(pkg factorial/main)
+
+(import fmt)
+
+(def (factorial n)
+  (if (< n 2)
+      1
+    (* n (factorial (- n 1)))))
+
+(def (main)
+  (fmt.Println (factorial 5)))

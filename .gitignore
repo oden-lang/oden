@@ -1,0 +1,6 @@
+dist
+.history
+.cabal-sandbox
+cabal.sandbox.config
+/node_modules
+target
