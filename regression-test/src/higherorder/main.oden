@@ -2,6 +2,7 @@
 (pkg higherorder/main)
 
 (import fmt)
+(import strconv)
 
 (def (identity x) x)
 
@@ -9,5 +10,6 @@
   (x 1))
 
 (def (main)
-  (fmt.Println 
-    ((identity apply-to-1) (fn (x) (* x 2)))))
+  (fmt.Println
+    (strconv.Itoa
+      ((identity apply-to-1) (fn (x) (* x 2))))))

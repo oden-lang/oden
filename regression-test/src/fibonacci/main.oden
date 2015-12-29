@@ -2,6 +2,7 @@
 (pkg fibonacci/main)
 
 (import fmt)
+(import strconv)
 
 (def (fib n)
   (if (== n 1)
@@ -11,4 +12,4 @@
       (+ (fib (- n 1)) (fib (- n 2))))))
 
 (def (main)
-  (fmt.Println (fib 10)))
+  (fmt.Println (strconv.Itoa (fib 10))))

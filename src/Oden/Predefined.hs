@@ -27,5 +27,6 @@ predefined = Env.fromList [
 
 
     -- TODO: Remove when import actually does something
-    (Qualified "fmt" "Println", Forall [TV "a"] (TArr (TVar (TV "a")) typeUnit))
+    (Qualified "fmt" "Println", Forall [] (TArr typeString typeUnit)),
+    (Qualified "strconv" "Itoa", Forall [] (TArr typeInt typeString))
   ]

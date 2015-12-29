@@ -13,7 +13,11 @@ import qualified Oden.Type.Polymorphic as Poly
 
 data InstantiateError = TypeMismatch Poly.Type Mono.Type
                       | SubstitutionFailed Poly.TVar
-                      deriving (Show, Eq, Ord)
+                      deriving (Eq, Ord)
+
+instance Show InstantiateError where
+  show (TypeMismatch pt mt) = "Type mismatch: " ++ show pt ++ " does not match " ++ show mt
+  show (SubstitutionFailed tvar) = "Substitution failed for type variable " ++ show tvar
 
 type Substitutions = Map Poly.TVar Poly.Type
 type Instantiate a = StateT Substitutions (Except InstantiateError) a

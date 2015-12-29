@@ -212,9 +212,8 @@ infer expr = case expr of
   Untyped.Let n e b -> do
     env <- ask
     te <- infer e
-    let (sc, te') = generalize env te
-    tb <- inEnv (Unqualified n, sc) (infer b)
-    return (Core.Let n te' tb (Core.typeOf tb))
+    tb <- inEnv (Unqualified n, Forall [] (Core.typeOf te)) (infer b)
+    return (Core.Let n te tb (Core.typeOf tb))
 
   Untyped.Fix ex -> do
     te <- infer ex
