@@ -18,10 +18,6 @@ import qualified Oden.Type.Polymorphic     as Poly
 data MonomorphedDefinition = MonomorphedDefinition Name (Core.Expr Mono.Type)
                            deriving (Show, Eq, Ord)
 
-data PolymorphicDefinition =
-  PolymorphicDefinition Name (Core.Expr Poly.Type)
-  deriving (Show, Eq, Ord)
-
 data InstantiatedDefinition =
   InstantiatedDefinition Name (Core.Expr Mono.Type)
   deriving (Show, Eq, Ord)
@@ -31,18 +27,33 @@ data CompiledPackage = CompiledPackage Core.PackageName [Core.Import] (Set Insta
 
 data CompilationError = NotInScope Identifier
                       | AmbigiousReference Identifier [(Scope.Source, Scope.Definition)]
-                      | UnexpectedPolyType Poly.Type
+                      | UnexpectedPolyType (Core.Expr Poly.Type)
                       | MonomorphInstantiateError InstantiateError
-                      deriving (Show, Eq, Ord)
+                      deriving (Eq, Ord)
 
-data MonomorphLocals = MonomorphLocals (Set Name)
+instance Show CompilationError where
+  show (NotInScope i) = "Identifier not in scope: " ++ show i
+  show (UnexpectedPolyType e) = "Unexpected polymorphic type in expression: " ++ show e
+  show (MonomorphInstantiateError e) = show e
+
+data LocalBinding = LetBinding Name (Core.Expr Poly.Type)
+                  | FunctionArgument Name
+
+type LocalBindings = Map Name LocalBinding
+
+data LetInstance = LetInstance (Name, Mono.Type) Name (Core.Expr Mono.Type)
+                 deriving (Show, Eq, Ord)
 
 data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type) InstantiatedDefinition
                                      , monomorphed :: Map Identifier MonomorphedDefinition
                                      , scope       :: Scope
                                      }
 
-type Monomorph a = RWST MonomorphLocals () MonomorphState (Except CompilationError) a
+type Monomorph a = RWST LocalBindings
+                        (Set LetInstance)
+                        MonomorphState
+                        (Except CompilationError)
+                        a
 
 getInScope :: Identifier -> Monomorph Definition
 getInScope i = do
@@ -57,8 +68,9 @@ addToScope (Core.Definition name (sc, expr))= do
   scope' <- gets scope
   modify (\s -> s { scope = Scope.insert Scope.Definitions (Unqualified name) (Scope.OdenDefinition (Unqualified name) sc expr) scope' })
 
-withBinding :: Name -> Monomorph a -> Monomorph a
-withBinding n = local (\(MonomorphLocals locals) -> MonomorphLocals (Set.insert n locals))
+withBinding :: LocalBinding -> Monomorph a -> Monomorph a
+withBinding b@(LetBinding name ce) = local $ Map.insert name b
+withBinding b@(FunctionArgument name) = local $ Map.insert name b
 
 addInstance :: (Identifier, Mono.Type) -> InstantiatedDefinition -> Monomorph ()
 addInstance key inst =
@@ -68,8 +80,21 @@ addMonomorphed :: Name -> MonomorphedDefinition -> Monomorph ()
 addMonomorphed name def =
   modify (\s -> s { monomorphed = Map.insert (Unqualified name) def (monomorphed s) })
 
-getInstantiated :: Identifier -> Mono.Type -> Monomorph Identifier
-getInstantiated ident t = do
+instantiateDefinition :: (Identifier, Mono.Type)
+                      -> Poly.Scheme
+                      -> Core.Expr Poly.Type
+                      -> Monomorph Identifier
+instantiateDefinition key@(pn, t) sc pe = do
+  let name = encodeTypeInstance pn t
+  case instantiate pe t of
+    Left err -> throwError (MonomorphInstantiateError err)
+    Right expr -> do
+      me <- monomorph expr
+      addInstance key (InstantiatedDefinition name me)
+      return (Unqualified name)
+
+getMonomorphicDefinition :: Identifier -> Mono.Type -> Monomorph Identifier
+getMonomorphicDefinition ident t = do
   def <- getInScope ident
   case def of
     ForeignDefinition gn _ -> return gn
@@ -78,65 +103,92 @@ getInstantiated ident t = do
       is <- gets instances
       case Map.lookup key is of
         Just (InstantiatedDefinition name _) -> return (Unqualified name)
-        Nothing -> do
-          let name = encodeTypeInstance pn t
-          case instantiate pe t of
-            Left err -> throwError (MonomorphInstantiateError err)
-            Right expr -> do
-              me <- monomorph expr
-              addInstance key (InstantiatedDefinition name me)
-              return (Unqualified name)
+        Nothing -> instantiateDefinition key sc pe
     OdenDefinition pn _ _ -> return pn
 
-polyToMono :: Poly.Type -> Monomorph Mono.Type
-polyToMono t = either (const $ throwError (UnexpectedPolyType t)) return (Poly.toMonomorphic t)
+-- NOTE: This function always performs the work of instantiating the let bound
+-- value, even if it has been done before. Maybe move LetInstances to state and
+-- keep them in a Map instead to avoid this.
+getMonomorphicLetBinding :: (Name, Mono.Type)
+                         -> Core.Expr Poly.Type
+                         -> Monomorph Identifier
+getMonomorphicLetBinding key@(n, t) e | not(Poly.isPolymorphicType (Core.typeOf e)) = do
+  me <- monomorph e
+  tell (Set.singleton (LetInstance key n me))
+  return (Unqualified n)
+getMonomorphicLetBinding key@(n, t) e = do
+  let name = encodeTypeInstance (Unqualified n) t
+  case instantiate e t of
+    Left err -> throwError (MonomorphInstantiateError err)
+    Right expr -> do
+      me <- monomorph expr
+      tell (Set.singleton (LetInstance key name me))
+      return (Unqualified name)
 
-isLocal :: Identifier -> Monomorph Bool
-isLocal (Unqualified n) = do
-  MonomorphLocals bindings <- ask
-  return (n `elem` bindings)
-isLocal _ = return False
+getMonomorphic :: Identifier -> Mono.Type -> Monomorph Identifier
+getMonomorphic i@(Qualified _ _) t =
+  local (const Map.empty) (getMonomorphicDefinition i t)
+getMonomorphic i@(Unqualified n) t = do
+  binding <- Map.lookup n <$> ask
+  case binding of
+    Just (FunctionArgument a) ->
+      return (Unqualified a)
+    Just (LetBinding n' e) ->
+      getMonomorphicLetBinding (n', t) e
+    Nothing ->
+      local (const Map.empty) (getMonomorphicDefinition i t)
+
+getMonoType :: Core.Expr Poly.Type -> Monomorph Mono.Type
+getMonoType e =
+  either (const $ throwError (UnexpectedPolyType e))
+         return
+         (Poly.toMonomorphic (Core.typeOf e))
+
+unwrapLetInstances :: [LetInstance] -> Core.Expr Mono.Type -> Core.Expr Mono.Type
+unwrapLetInstances [] body = body
+unwrapLetInstances (LetInstance _ mn me:is) body = Core.Let mn me (unwrapLetInstances is body) (Core.typeOf body)
 
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
-monomorph (Core.Symbol ident t) = do
-  mt <- polyToMono t
-  isLocal' <- isLocal ident
-  if isLocal'
-  then return (Core.Symbol ident mt)
-  else do
-    m <- getInstantiated ident mt
-    return (Core.Symbol m mt)
-monomorph (Core.Application f p t) = do
-  mt <- polyToMono t
+monomorph e@(Core.Symbol ident t) = do
+  mt <- getMonoType e
+  m <- getMonomorphic ident mt
+  return (Core.Symbol m mt)
+monomorph e@(Core.Application f p t) = do
+  mt <- getMonoType e
   mf <- monomorph f
   mp <- monomorph p
   return (Core.Application mf mp mt)
-monomorph (Core.NoArgApplication f t) = do
-  mt <- polyToMono t
+monomorph e@(Core.NoArgApplication f t) = do
+  mt <- getMonoType e
   mf <- monomorph f
   return (Core.NoArgApplication mf mt)
-monomorph (Core.Fn a b t) = do
-  mt <- polyToMono t
-  mb <- withBinding a (monomorph b)
+monomorph e@(Core.Fn a b t) = do
+  mt <- getMonoType e
+  mb <- withBinding (FunctionArgument a) (monomorph b)
   return (Core.Fn a mb mt)
-monomorph (Core.NoArgFn b t) = do
-  mt <- polyToMono t
+monomorph e@(Core.NoArgFn b t) = do
+  mt <- getMonoType e
   mb <- monomorph b
   return (Core.NoArgFn mb mt)
-monomorph (Core.Literal l t) = do
-  mt <- polyToMono t
+monomorph e@(Core.Literal l t) = do
+  mt <- getMonoType e
   return (Core.Literal l mt)
-monomorph (Core.If cond then' else' t) = do
-  mt <- polyToMono t
+monomorph e@(Core.If cond then' else' t) = do
+  mt <- getMonoType e
   mCond <- monomorph cond
   mThen <- monomorph then'
   mElse <- monomorph else'
   return (Core.If mCond mThen mElse mt)
-monomorph (Core.Let name expr body t) = do
-  mt <- polyToMono t
-  mExpr <- monomorph expr
-  mBody <- withBinding name (monomorph body)
-  return (Core.Let name mExpr mBody mt)
+monomorph e@(Core.Let name expr body t) = do
+  mt <- getMonoType e
+  (mBody, allInstances) <- listen (withBinding (LetBinding name expr) (monomorph body))
+  let (letInstances, other) = Set.partition (isLetInstanceFrom name) allInstances
+  tell other
+  let lExpr = unwrapLetInstances (Set.toList letInstances) mBody
+  return lExpr
+  where
+  isLetInstanceFrom :: Name -> LetInstance -> Bool
+  isLetInstanceFrom n (LetInstance (ln, _) _ _) = n == ln
 
 monomorphDefinition :: Core.Definition -> Monomorph ()
 monomorphDefinition d@(Core.Definition name (s, expr)) = do
@@ -151,8 +203,7 @@ monomorphPackage predefined (Core.Package name imports definitions) = do
                           , monomorphed = Map.empty
                           , scope = predefinedEnvToScope predefined
                           }
-      locals = MonomorphLocals Set.empty
-  (_, s, _) <- runExcept $ runRWST (mapM_ monomorphDefinition definitions) locals st
+  (_, s, _) <- runExcept $ runRWST (mapM_ monomorphDefinition definitions) Map.empty st
   let is = Set.fromList (Map.elems (instances s))
       ms = Set.fromList (Map.elems (monomorphed s))
   return (CompiledPackage name imports is ms)

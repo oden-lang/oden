@@ -2,6 +2,7 @@
 (pkg factorial/main)
 
 (import fmt)
+(import strconv)
 
 (def (factorial n)
   (if (< n 2)
@@ -9,4 +10,4 @@
     (* n (factorial (- n 1)))))
 
 (def (main)
-  (fmt.Println (factorial 5)))
+  (fmt.Println (strconv.Itoa (factorial 5))))

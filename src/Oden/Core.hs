@@ -13,7 +13,17 @@ data Expr t = Symbol Identifier t
             | Literal Literal t
             | If (Expr t) (Expr t) (Expr t) t
             | Fix (Expr t) t
-            deriving (Show, Eq, Ord)
+            deriving (Eq, Ord)
+
+instance Show t => Show (Expr t) where
+  show (Symbol i t) = "(" ++ show i ++ " : " ++ show t ++ ")"
+  show (Application a b t) = "((" ++ show a  ++ " " ++ show b ++ ") : " ++ show t ++ ")"
+  show (NoArgApplication a t) = "((" ++ show a ++ ") : " ++ show t ++ ")"
+  show (Fn n b t) = "((fn (" ++ n ++ ") " ++ show b ++ ") : " ++ show t ++ ")"
+  show (NoArgFn b t) = "((fn () " ++ show b ++ ") : " ++ show t ++ ")"
+  show (Let n e b t) = "((let ((" ++ n ++ " " ++ show e ++ ")) " ++ show b ++ ") : " ++ show t ++ ")"
+  show (Literal l _) = show l
+  show (If ce te ee t) = "(if " ++ show ce ++ " " ++ show te ++ "" ++ show ee ++ ")"
 
 typeOf :: Expr t -> t
 typeOf (Symbol _ t) = t
@@ -29,12 +39,21 @@ typeOf (Fix _ t) = t
 data Literal = Int Integer
              | Bool Bool
              | String String
-             deriving (Show, Eq, Ord)
+             deriving (Eq, Ord)
+
+instance Show Literal where
+  show (Int n) = show n
+  show (Bool True) = "true"
+  show (Bool False) = "false"
+  show (String s) = show s
 
 type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
 
 data Definition = Definition Name CanonicalExpr
-                deriving (Show, Eq, Ord)
+                deriving (Eq, Ord)
+
+instance Show Definition where
+  show (Definition name (sc, te)) = "(def " ++ name ++ " " ++ show sc ++ " " ++ show te ++ ")"
 
 type PackageName = [Name]
 

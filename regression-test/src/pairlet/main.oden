@@ -9,9 +9,7 @@
 (def (first p)
   (p (fn (x y) x)))
 
-(def p (pair "a" "b"))
-
 (def (main)
   (fmt.Println
-   (let ((p (pair "a" "b")))
+   (let ((p (pair "a" 1)))
      (first p))))

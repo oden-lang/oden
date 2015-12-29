@@ -2,6 +2,7 @@
 (pkg numbers/main)
 
 (import fmt)
+(import strconv)
 
 (def (plus x y)
   (+ x y))
@@ -9,5 +10,5 @@
 (def plus-1 (plus 1))
 
 (def (main)
-  (fmt.Println (plus-1 (plus-1 10))))
+  (fmt.Println (strconv.Itoa (plus-1 (plus-1 10)))))
 

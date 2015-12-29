@@ -106,7 +106,7 @@ codegenExpr (Fn a body (Mono.TArr d r)) =
 codegenExpr (NoArgFn body (Mono.TArrSingle r)) =
   func empty empty (returnType r) (return' body)
 codegenExpr (Let n expr body t) =
-  parens (func empty empty (returnType (typeOf expr)) (text "var" <+> safeName n <+> codegenType t <+> equals <+> codegenExpr expr $+$ return' body))
+  parens (func empty empty (returnType t) (text "var" <+> safeName n <+> codegenType (typeOf expr)<+> equals <+> codegenExpr expr $+$ return' body))
   <> parens empty
 codegenExpr (Literal (Int n) _) = integer n
 codegenExpr (Literal (Bool True) _) = text "true"

@@ -71,7 +71,7 @@ letBoundIdentity =
     "let-bound-identity"
     (Poly.Forall [] Poly.typeInt,
      Core.Let "identity" (Core.Fn "x" (Core.Symbol (Unqualified "x") a) (Poly.TArr a a))
-                         (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TArr a a))
+                         (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TArr Poly.typeInt Poly.typeInt))
                                            (Core.Literal (Core.Int 1) Poly.typeInt)
                                            Poly.typeInt)
                       Poly.typeInt)
@@ -89,7 +89,7 @@ letBoundIdentityMonomorphed =
   MonomorphedDefinition
     "let-bound-identity"
     (Core.Let "identity_inst_int_to_int" (Core.Fn "x" (Core.Symbol (Unqualified "x") Mono.typeInt) (Mono.TArr Mono.typeInt Mono.typeInt))
-                                         (Core.Application (Core.Symbol (Unqualified "identity") (Mono.TArr Mono.typeInt Mono.typeInt))
+                                         (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TArr Mono.typeInt Mono.typeInt))
                                                            (Core.Literal (Core.Int 1) Mono.typeInt)
                                                            Mono.typeInt)
                       Mono.typeInt)
