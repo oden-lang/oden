@@ -13,11 +13,11 @@ instance OdenOutput CompilationError where
   name (UnexpectedPolyType _)           = "Compiler.UnexpectedPolyType"
   name (MonomorphInstantiateError err)  = name err
 
-  header (NotInScope i) = code i <+> text "is not in scope"
-  header (AmbigiousReference i _) = text "Ambigious reference" <+> code i
-  header (UnexpectedPolyType e) = text "Unexpected polymorphic type" <+> code e
-  header (MonomorphInstantiateError err) = header err
+  header (NotInScope i) s                   = code s i <+> text "is not in scope"
+  header (AmbigiousReference i _) s         = text "Ambigious reference" <+> code s i
+  header (UnexpectedPolyType e) s           = text "Unexpected polymorphic type" <+> code s e
+  header (MonomorphInstantiateError err) s  = header err s
 
-  details (NotInScope i) = empty
-  details _ = empty
+  details (NotInScope i) _  = empty
+  details _ _               = empty
 

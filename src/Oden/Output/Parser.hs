@@ -16,6 +16,6 @@ formatErrorMessage (Message s) = text s
 instance OdenOutput ParseError where
   outputType _ = Output.Error
   name _ = "Parser.ParseError"
-  header e = text "Parsing failed"
-  details e = vcat (map formatErrorMessage (errorMessages e))
+  header e _ = text "Parsing failed"
+  details e _ = vcat (map formatErrorMessage (errorMessages e))
 

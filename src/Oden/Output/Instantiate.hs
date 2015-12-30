@@ -10,9 +10,9 @@ instance OdenOutput InstantiateError where
   name (TypeMismatch _ _)       = "Instantiate.TypeMismatch"
   name (SubstitutionFailed _ _) = "Instantiate.SubstitutionFailed"
 
-  header (TypeMismatch pt mt) = text "Type mismatch in instantiation"
-  header (SubstitutionFailed tvar _) = text "Substitution failed for type variable " <+> code tvar
+  header (TypeMismatch pt mt) _         = text "Type mismatch in instantiation"
+  header (SubstitutionFailed tvar _) s  = text "Substitution failed for type variable " <+> code s tvar
 
-  details (TypeMismatch pt mt) = text "Polymorphic type" <+> code pt <+> text "cannot be instantiated to" <+> code mt
-  details (SubstitutionFailed _ vars) = text "Type variables in context:" <+> hcat (map code vars)
+  details (TypeMismatch pt mt) s        = text "Polymorphic type" <+> code s pt <+> text "cannot be instantiated to" <+> code s mt
+  details (SubstitutionFailed _ vars) s = text "Type variables in context:" <+> hcat (map (code s) vars)
 
