@@ -12,12 +12,8 @@ import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
 data InstantiateError = TypeMismatch Poly.Type Mono.Type
-                      | SubstitutionFailed Poly.TVar
-                      deriving (Eq, Ord)
-
-instance Show InstantiateError where
-  show (TypeMismatch pt mt) = "Type mismatch: " ++ show pt ++ " does not match " ++ show mt
-  show (SubstitutionFailed tvar) = "Substitution failed for type variable " ++ show tvar
+                      | SubstitutionFailed Poly.TVar [Poly.TVar]
+                      deriving (Show, Eq, Ord)
 
 type Substitutions = Map Poly.TVar Poly.Type
 type Instantiate a = StateT Substitutions (Except InstantiateError) a
@@ -46,7 +42,7 @@ replace (Poly.TVar v) = do
   s <- get
   case Map.lookup v s of
     Just mono -> return mono
-    Nothing -> throwError (SubstitutionFailed v)
+    Nothing -> throwError (SubstitutionFailed v (Map.keys s))
 replace (Poly.TCon n) = return (Poly.TCon n)
 replace (Poly.TArrSingle t) = Poly.TArrSingle <$> replace t
 replace (Poly.TArr ft pt) = Poly.TArr <$> replace ft <*> replace pt

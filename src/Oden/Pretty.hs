@@ -88,7 +88,7 @@ pperror (InfiniteType (TV a) b) =
   concat ["Cannot construct the infinite type: ", a, " = ", pptype b]
 pperror (Ambigious cs) =
   concat ["Cannot not match expected type: '" ++ pptype a ++ "' with actual type: '" ++ pptype b ++ "'\n" | (a,b) <- cs]
-pperror (UnboundIdentifier a) = "Not in scope: " ++ ppidentifier a
+pperror (NotInScope a) = "Not in scope: " ++ ppidentifier a
 
 ppscheme :: Scheme -> String
 ppscheme = render . ppr 0
