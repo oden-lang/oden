@@ -52,7 +52,11 @@ writeCompiledFile (CompiledFile name contents) =
     writeFile name contents
 
 liftEither :: OdenOutput e => Either e b -> Odenc b
-liftEither = either (throwError . Output.print) return
+liftEither e = do
+  options <- ask
+  let settings = Output.OutputSettings{ monochrome = printMonochrome options,
+                                        markdown = True }
+  either (throwError . Output.print settings) return e
 
 readPackage :: FilePath -> Odenc Syntax.Package
 readPackage fname = do
@@ -93,16 +97,18 @@ logCompiledFiles files = putStrLn $ "Compiled " ++ show (length files) ++ " Go s
 
 -- OPTIONS --
 
-data Options = Options { showHelp    :: Bool
-                       , showVersion :: Bool
-                       , odenPath    :: FilePath
-                       , outPath     :: FilePath
+data Options = Options { showHelp         :: Bool
+                       , showVersion      :: Bool
+                       , odenPath         :: FilePath
+                       , outPath          :: FilePath
+                       , printMonochrome  :: Bool
                        } deriving (Show, Eq, Ord)
 
 defaultOptions = Options { showHelp = False
                          , showVersion = False
                          , odenPath = "."
-                         , outPath = "target/go" }
+                         , outPath = "target/go"
+                         , printMonochrome = False }
 
 orMaybe :: Maybe a -> Maybe a -> Maybe a
 (Just v) `orMaybe` m = Just v
@@ -130,6 +136,9 @@ options =
   , Option ['o'] ["out-path"]
     (OptArg setOutPath "DIR")
     "GOPATH output directory"
+  , Option ['M'] ["monochrome"]
+    (NoArg (\opts -> return $ opts { printMonochrome = True }))
+    "Print without colors"
   ]
 
 usage :: String
