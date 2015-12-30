@@ -29,12 +29,7 @@ data CompilationError = NotInScope Identifier
                       | AmbigiousReference Identifier [(Scope.Source, Scope.Definition)]
                       | UnexpectedPolyType (Core.Expr Poly.Type)
                       | MonomorphInstantiateError InstantiateError
-                      deriving (Eq, Ord)
-
-instance Show CompilationError where
-  show (NotInScope i) = "Identifier not in scope: " ++ show i
-  show (UnexpectedPolyType e) = "Unexpected polymorphic type in expression: " ++ show e
-  show (MonomorphInstantiateError e) = show e
+                      deriving (Show, Eq, Ord)
 
 data LocalBinding = LetBinding Name (Core.Expr Poly.Type)
                   | FunctionArgument Name

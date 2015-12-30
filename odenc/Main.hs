@@ -6,22 +6,28 @@
 import           Oden.Backend
 import           Oden.Backend.Go
 import           Oden.Compiler
-import qualified Oden.Core             as Core
-import qualified Oden.Env              as Env
+import qualified Oden.Core               as Core
+import qualified Oden.Env                as Env
 import           Oden.Eval
 import           Oden.Infer
+import           Oden.Output             as Output
+import           Oden.Output.Compiler
+import           Oden.Output.Infer
+import           Oden.Output.Instantiate
+import           Oden.Output.Parser
+import           Oden.Output.Backend
 import           Oden.Parser
 import           Oden.Predefined
 import           Oden.Pretty
 import           Oden.Scanner
-import qualified Oden.Syntax           as Syntax
+import qualified Oden.Syntax             as Syntax
 
 import           Data.List
-import qualified Data.Map              as Map
+import qualified Data.Map                as Map
 import           Data.Maybe
 import           Data.Monoid
-import qualified Data.Text.Lazy        as L
-import qualified Data.Text.Lazy.IO     as L
+import qualified Data.Text.Lazy          as L
+import qualified Data.Text.Lazy.IO       as L
 
 import           Control.Monad.Except
 import           Control.Monad.Reader
@@ -34,7 +40,7 @@ import           System.FilePath
 import           System.IO
 
 -- versioning stuff
-import qualified Data.Version          as Version
+import qualified Data.Version            as Version
 import           Paths_oden
 
 type Odenc = ReaderT Options (ExceptT String IO)
@@ -45,8 +51,8 @@ writeCompiledFile (CompiledFile name contents) =
     createDirectoryIfMissing True (takeDirectory name)
     writeFile name contents
 
-liftEither :: Show a => Either a b -> Odenc b
-liftEither = either (throwError . show) return
+liftEither :: OdenOutput e => Either e b -> Odenc b
+liftEither = either (throwError . Output.print) return
 
 readPackage :: FilePath -> Odenc Syntax.Package
 readPackage fname = do

@@ -1,6 +1,6 @@
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeSynonymInstances       #-}
 
 module Oden.Infer (
   Constraint,
@@ -11,20 +11,21 @@ module Oden.Infer (
   constraintsExpr
 ) where
 
-import Control.Monad.Except
-import Control.Monad.State
-import Control.Monad.RWS
-import Control.Monad.Identity
+import           Control.Monad.Except
+import           Control.Monad.Identity
+import           Control.Monad.RWS hiding ((<>))
+import           Control.Monad.State
 
-import Data.List (nub)
-import qualified Data.Map as Map
-import qualified Data.Set as Set
+import           Data.List              (nub)
+import qualified Data.Map               as Map
+import qualified Data.Set               as Set
+import           Text.PrettyPrint       as Pretty
 
-import Oden.Identifier
-import Oden.Env as Env
-import Oden.Type.Polymorphic
-import qualified Oden.Core.Untyped as Untyped
-import qualified Oden.Core as Core
+import qualified Oden.Core              as Core
+import qualified Oden.Core.Untyped      as Untyped
+import           Oden.Env               as Env
+import           Oden.Identifier
+import           Oden.Type.Polymorphic
 
 -------------------------------------------------------------------------------
 -- Classes
@@ -105,10 +106,10 @@ instance Substitutable (Core.Expr Type) where
 data TypeError
   = UnificationFail Type Type
   | InfiniteType TVar Type
-  | UnboundIdentifier Identifier
+  | NotInScope Identifier
   | Ambigious [Constraint]
   | UnificationMismatch [Type] [Type]
-  deriving (Eq, Show)
+  deriving (Show, Eq)
 
 -------------------------------------------------------------------------------
 -- Inference
@@ -152,7 +153,7 @@ lookupEnv :: Identifier -> Infer Type
 lookupEnv x = do
   (TypeEnv env) <- ask
   case Map.lookup x env of
-      Nothing   ->  throwError $ UnboundIdentifier x
+      Nothing   ->  throwError $ NotInScope x
       Just s    ->  instantiate s
 
 letters :: [String]
