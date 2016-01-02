@@ -104,7 +104,7 @@ pkgDecl = parens $ do
 import' :: Parser Import
 import' = parens $ do
   reserved "import"
-  Import <$> packageName
+  Import <$> importName
 
 pkg :: Parser Package
 pkg = Package <$> pkgDecl <*> many (try import') <*> many definition

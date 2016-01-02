@@ -4,29 +4,31 @@ module Oden.Predefined (
 
 import Oden.Identifier
 import Oden.Type.Polymorphic
-import qualified Oden.Env as Env
+import Oden.Scope
 
-predefined :: Env.Env
-predefined = Env.fromList [
-    (Unqualified "+", Forall [] (TArr typeInt (TArr typeInt typeInt))),
-    (Unqualified "-", Forall [] (TArr typeInt (TArr typeInt typeInt))),
-    (Unqualified "*", Forall [] (TArr typeInt (TArr typeInt typeInt))),
-    (Unqualified "/", Forall [] (TArr typeInt (TArr typeInt typeInt))),
-    (Unqualified "<", Forall [] (TArr typeInt (TArr typeInt typeBool))),
-    (Unqualified ">", Forall [] (TArr typeInt (TArr typeInt typeBool))),
-    (Unqualified "<=", Forall [] (TArr typeInt (TArr typeInt typeBool))),
-    (Unqualified ">=", Forall [] (TArr typeInt (TArr typeInt typeBool))),
+pairs :: [(Identifier, Scheme)]
+pairs = [
+  (Unqualified "unit", Forall [] typeUnit),
 
-    (Unqualified "and", Forall [] (TArr typeBool (TArr typeBool typeBool))),
-    (Unqualified "or", Forall [] (TArr typeBool (TArr typeBool typeBool))),
-    (Unqualified "not", Forall [] (TArr typeBool typeBool)),
+  (Unqualified "+", Forall [] (TArr typeInt (TArr typeInt typeInt))),
+  (Unqualified "-", Forall [] (TArr typeInt (TArr typeInt typeInt))),
+  (Unqualified "*", Forall [] (TArr typeInt (TArr typeInt typeInt))),
+  (Unqualified "/", Forall [] (TArr typeInt (TArr typeInt typeInt))),
+  (Unqualified "<", Forall [] (TArr typeInt (TArr typeInt typeBool))),
+  (Unqualified ">", Forall [] (TArr typeInt (TArr typeInt typeBool))),
+  (Unqualified "<=", Forall [] (TArr typeInt (TArr typeInt typeBool))),
+  (Unqualified ">=", Forall [] (TArr typeInt (TArr typeInt typeBool))),
 
-    (Unqualified "==", Forall [TV "a"] (TArr (TVar (TV "a")) (TArr (TVar (TV "a")) typeBool))),
+  (Unqualified "and", Forall [] (TArr typeBool (TArr typeBool typeBool))),
+  (Unqualified "or", Forall [] (TArr typeBool (TArr typeBool typeBool))),
+  (Unqualified "not", Forall [] (TArr typeBool typeBool)),
 
-    (Unqualified "++", Forall [] (TArr typeString (TArr typeString typeString))),
+  (Unqualified "==", Forall [TV "a"] (TArr (TVar (TV "a")) (TArr (TVar (TV "a")) typeBool))),
 
-
-    -- TODO: Remove when import actually does something
-    (Qualified "fmt" "Println", Forall [] (TArr typeString typeUnit)),
-    (Qualified "strconv" "Itoa", Forall [] (TArr typeInt typeString))
+  (Unqualified "++", Forall [] (TArr typeString (TArr typeString typeString)))
   ]
+
+predefined :: Scope
+predefined = fromList (map toScopeAssoc pairs)
+  where
+  toScopeAssoc (i, s) = (Predefined, i, ForeignDefinition i s)

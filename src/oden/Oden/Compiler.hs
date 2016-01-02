@@ -7,11 +7,10 @@ import           Data.Maybe
 import           Data.Set                  as Set hiding (map)
 
 import           Oden.Compiler.Instantiate
-import           Oden.Compiler.Scope       as Scope
 import           Oden.Compiler.TypeEncoder
 import qualified Oden.Core                 as Core
-import qualified Oden.Env                  as Env
 import           Oden.Identifier
+import           Oden.Scope                as Scope
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
@@ -192,16 +191,16 @@ monomorphDefinition d@(Core.Definition name (s, expr)) = do
     mExpr <- monomorph expr
     addMonomorphed name (MonomorphedDefinition name mExpr)
 
-monomorphPackage :: Env.Env -> Core.Package -> Either CompilationError CompiledPackage
-monomorphPackage predefined (Core.Package name imports definitions) = do
+monomorphPackage :: Scope -> Core.Package -> Either CompilationError CompiledPackage
+monomorphPackage scope (Core.Package name imports definitions) = do
   let st = MonomorphState { instances = Map.empty
                           , monomorphed = Map.empty
-                          , scope = predefinedEnvToScope predefined
+                          , scope = scope
                           }
   (_, s, _) <- runExcept $ runRWST (mapM_ monomorphDefinition definitions) Map.empty st
   let is = Set.fromList (Map.elems (instances s))
       ms = Set.fromList (Map.elems (monomorphed s))
   return (CompiledPackage name imports is ms)
 
-compile :: Env.Env -> Core.Package -> Either CompilationError CompiledPackage
+compile :: Scope -> Core.Package -> Either CompilationError CompiledPackage
 compile = monomorphPackage

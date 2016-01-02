@@ -7,19 +7,23 @@ import           Oden.Backend
 import           Oden.Backend.Go
 import           Oden.Compiler
 import qualified Oden.Core               as Core
+import qualified Oden.Core.Untyped       as Untyped
 import qualified Oden.Env                as Env
 import           Oden.Eval
+import qualified Oden.Go                 as Go
 import           Oden.Infer
-import           Oden.Output             as Output
+import qualified Oden.Output             as Output
+import           Oden.Output.Backend
 import           Oden.Output.Compiler
+import           Oden.Output.Go
 import           Oden.Output.Infer
 import           Oden.Output.Instantiate
 import           Oden.Output.Parser
-import           Oden.Output.Backend
 import           Oden.Parser
 import           Oden.Predefined
 import           Oden.Pretty
 import           Oden.Scanner
+import qualified Oden.Scope              as Scope
 import qualified Oden.Syntax             as Syntax
 
 import           Data.List
@@ -51,12 +55,15 @@ writeCompiledFile (CompiledFile name contents) =
     createDirectoryIfMissing True (takeDirectory name)
     writeFile name contents
 
-liftEither :: OdenOutput e => Either e b -> Odenc b
-liftEither e = do
+printOutput :: Output.OdenOutput o => o -> Odenc String
+printOutput o = do
   options <- ask
-  let settings = Output.OutputSettings{ monochrome = printMonochrome options,
-                                        markdown = True }
-  either (throwError . Output.print settings) return e
+  let settings = Output.OutputSettings{ Output.monochrome = printMonochrome options,
+                                        Output.markdown = True }
+  return (Output.print settings o)
+
+liftEither :: Output.OdenOutput e => Either e b -> Odenc b
+liftEither = either (printOutput >=> throwError) return
 
 readPackage :: FilePath -> Odenc Syntax.Package
 readPackage fname = do
@@ -67,14 +74,32 @@ logCompiling :: Core.Package -> Odenc ()
 logCompiling (Core.Package name _ _) =
   liftIO (putStrLn $ "Compiling " ++ intercalate "/" name ++ "...")
 
+logWarning :: Output.OdenOutput o => o -> Odenc ()
+logWarning o = do
+  s <- printOutput o
+  liftIO (hPutStrLn stderr s)
+
+scanImports :: Untyped.Package -> Odenc Scope.Scope
+scanImports (Untyped.Package _ imports _) = foldM scanImport Scope.empty imports
+  where scanImport scope (Untyped.Import pn) = do
+          (pkgScope, warning) <- liftIO (Go.getPackageScope pn) >>= liftEither
+          case warning of
+            Just w -> logWarning w
+            _ -> return ()
+          return (Scope.merge scope pkgScope)
+
 compileFile :: SourceFile -> Odenc [CompiledFile]
 compileFile (OdenSourceFile fname _) = do
   options <- ask
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
-  (inferredPkg, _) <- liftEither (inferPackage predefined (Syntax.explodePackage syntaxPkg))
+  let corePkg = Syntax.explodePackage syntaxPkg
+  importsScope <- scanImports corePkg
+  let scope = Scope.merge predefined importsScope
+      typeEnv = Env.fromScope scope
+  (inferredPkg, _) <- liftEither (inferPackage typeEnv corePkg)
   logCompiling inferredPkg
-  compiledPkg <- liftEither (compile predefined inferredPkg)
+  compiledPkg <- liftEither (compile scope inferredPkg)
   files <- liftEither (codegen (GoBackend $ outPath options) compiledPkg)
   mapM_ writeCompiledFile files
   return files
@@ -97,11 +122,11 @@ logCompiledFiles files = putStrLn $ "Compiled " ++ show (length files) ++ " Go s
 
 -- OPTIONS --
 
-data Options = Options { showHelp         :: Bool
-                       , showVersion      :: Bool
-                       , odenPath         :: FilePath
-                       , outPath          :: FilePath
-                       , printMonochrome  :: Bool
+data Options = Options { showHelp        :: Bool
+                       , showVersion     :: Bool
+                       , odenPath        :: FilePath
+                       , outPath         :: FilePath
+                       , printMonochrome :: Bool
                        } deriving (Show, Eq, Ord)
 
 defaultOptions = Options { showHelp = False

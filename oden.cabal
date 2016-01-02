@@ -5,7 +5,9 @@ license-file:        LICENSE.md
 author:              Oskar Wickström
 maintainer:          oskar.wickstrom@gmail.com
 build-type:          Simple
-extra-source-files:  README.md
+extra-source-files:
+  README.md,
+  src/go/scope/scope.go
 cabal-version:       >=1.10
 
 library
@@ -17,6 +19,10 @@ library
     containers    >= 0.5   && <0.6,
     mtl           >= 2.2   && <2.3,
     transformers  >= 0.4.2 && <0.5,
+    aeson         >= 0.10,
+    bytestring,
+    unordered-containers,
+    vector,
     directory,
     unix,
     filepath
@@ -24,7 +30,6 @@ library
     Oden.Backend,
     Oden.Backend.Go,
     Oden.Compiler,
-    Oden.Compiler.Scope,
     Oden.Compiler.Instantiate,
     Oden.Compiler.TypeEncoder
     Oden.Core,
@@ -33,22 +38,27 @@ library
     Oden.Eval,
     Oden.Identifier,
     Oden.Infer,
+    Oden.Go,
+    Oden.Go.Types,
     Oden.Lexer,
     Oden.Output,
     Oden.Output.Backend,
     Oden.Output.Compiler,
+    Oden.Output.Go,
     Oden.Output.Infer,
     Oden.Output.Instantiate,
     Oden.Output.Parser,
     Oden.Parser,
     Oden.Predefined,
     Oden.Pretty,
+    Oden.Scope,
     Oden.Syntax,
     Oden.Scanner,
     Oden.Type.Monomorphic,
     Oden.Type.Polymorphic
   default-language:    Haskell2010
   hs-source-dirs:      src/oden
+  ghc-options:         -optc-O dist/go/scope/scope.a
 
 executable odenc
   build-depends:
@@ -63,6 +73,7 @@ executable odenc
   default-language:    Haskell2010
   main-is:             Main.hs
   hs-source-dirs:      src/odenc
+  ghc-options:         -optc-O dist/go/scope/scope.a
 
 executable odeni
   build-depends:
