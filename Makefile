@@ -4,11 +4,21 @@ OS=$(shell tools/get_os.sh)
 DIST_NAME=oden-$(VERSION)-$(OS)
 DIST_ARCHIVE=dist/$(DIST_NAME).tar.gz
 
+IMPORTER_SRC=$(shell find go/src/oden/importer -name '*.go')
+
 NODEMON=node_modules/.bin/nodemon
 
 .PHONY: build
-build:
-	@cabal build
+build: dist/go-lib/importer.a
+	cabal build
+
+dist/go-lib/importer.a: $(IMPORTER_SRC)
+	mkdir -p dist/go-lib
+	(cd dist/go-lib \
+		&& GOPATH=$(PWD)/go go build -buildmode=c-archive oden/importer)
+
+.PHONY: libs
+libs: dist/go-lib/importer.a
 
 .PHONY: clean
 clean:
@@ -19,7 +29,7 @@ $(TMP):
 
 .PHONY: test
 test:
-	cabal exec runhaskell -- -isrc -itest test/Spec.hs
+	cabal exec runhaskell -- -isrc/oden -itest test/Spec.hs
 
 .PHONY: watch-test
 watch-test: $(NODEMON)

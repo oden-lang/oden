@@ -11,17 +11,19 @@ module Oden.Env (
   keys,
   fromList,
   toList,
+  fromScope,
 ) where
 
-import Prelude hiding (lookup)
+import           Prelude               hiding (lookup)
 
-import Oden.Identifier
-import Oden.Syntax
-import Oden.Type.Polymorphic
+import           Oden.Identifier
+import qualified Oden.Scope as Scope
+import           Oden.Syntax
+import           Oden.Type.Polymorphic
 
-import Data.Monoid
-import Data.Foldable hiding (toList)
-import qualified Data.Map as Map
+import           Data.Foldable         hiding (toList)
+import qualified Data.Map              as Map
+import           Data.Monoid
 
 -------------------------------------------------------------------------------
 -- Typing Environment
@@ -66,3 +68,9 @@ toList (TypeEnv env) = Map.toList env
 instance Monoid Env where
   mempty = empty
   mappend = merge
+
+fromScope :: Scope.Scope -> Env
+fromScope scope = fromList as
+  where toEnvAssoc (_, i, Scope.ForeignDefinition _ s) = (i, s)
+        toEnvAssoc (_, i, Scope.OdenDefinition _ s _) = (i, s)
+        as = map toEnvAssoc (Scope.assocs scope)

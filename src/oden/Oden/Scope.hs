@@ -1,19 +1,18 @@
-module Oden.Compiler.Scope where
+module Oden.Scope where
 
+import           Data.List
 import qualified Data.Map              as Map
 import           Data.Maybe
 import           Prelude               hiding (lookup)
 
 import qualified Oden.Core             as Core
-import qualified Oden.Env              as Env
 import           Oden.Identifier
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
-data Definition = ForeignDefinition Identifier Poly.Type
+data Definition = ForeignDefinition Identifier Poly.Scheme
                 | OdenDefinition Identifier Poly.Scheme (Core.Expr Poly.Type)
                 deriving (Show, Eq, Ord)
-
 
 data Source = Predefined
             | Import Core.PackageName
@@ -22,7 +21,16 @@ data Source = Predefined
 
 type Layer = Map.Map Identifier Definition
 
-newtype Scope = Scope (Map.Map Source Layer)
+newtype Scope = Scope (Map.Map Source Layer) deriving (Show, Eq)
+
+empty :: Scope
+empty = Scope Map.empty
+
+assocs :: Scope -> [(Source, Identifier, Definition)]
+assocs (Scope layers) = do
+  (source, layer) <- Map.assocs layers
+  (i, def) <- Map.assocs layer
+  return (source, i, def)
 
 lookup :: Identifier -> Scope -> [(Source, Definition)]
 lookup i (Scope layers) = do
@@ -35,10 +43,13 @@ insert source i def (Scope layers) =
   let layer = Map.findWithDefault Map.empty source layers
   in Scope (Map.insert source (Map.insert i def layer) layers)
 
-envToLayer :: Env.Env -> Layer
-envToLayer env = Map.mapWithKey toScope (Env.types env)
-  where
-  toScope name (Poly.Forall _ t) = ForeignDefinition name t
+merge :: Scope -> Scope -> Scope
+merge s1 s2 = fromList (assocs s1 ++ assocs s2)
 
-predefinedEnvToScope :: Env.Env -> Scope
-predefinedEnvToScope env = Scope (Map.singleton Predefined $ envToLayer env)
+fromList :: [(Source, Identifier, Definition)] -> Scope
+fromList as = Scope $ foldl iter Map.empty as
+  where
+  iter layers (source, id, def) =
+    let layer = Map.findWithDefault Map.empty source layers
+        layer' = Map.insert id def (Map.findWithDefault Map.empty source layers)
+    in Map.insert source layer' layers

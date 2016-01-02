@@ -12,4 +12,4 @@
 (def (main)
   (fmt.Println
    (let ((p (pair "a" 1)))
-     (first p 1232))))
+     (first p))))

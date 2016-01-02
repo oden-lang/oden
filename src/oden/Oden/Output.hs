@@ -25,10 +25,13 @@ escape :: OutputSettings -> [Int] -> Doc
 escape OutputSettings{monochrome = True} _ = empty
 escape OutputSettings{monochrome = False} ns = text ("\ESC[" ++ intercalate ";" (map show ns)) <> text "m"
 
+strCode :: OutputSettings -> String -> Doc
+strCode settings a =
+  escape settings [1, 34] <> contents <> escape settings [0]
+  where contents = backtick <> text a <> backtick
+
 code :: Show a => OutputSettings -> a -> Doc
-code s a =
-  escape s [1, 34] <> contents <> escape s [0]
-  where contents = backtick <> text (show a) <> backtick
+code s = strCode s . show
 
 formatOutputType :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 formatOutputType e = do

@@ -130,9 +130,14 @@ spec = do
       Package ["foo", "bar"] [] []
 
     it "parses imports" $
-      parsePackage "bar.oden" "(pkg foo/bar) (import bar/baz)\n(import foo)"
+      parsePackage "bar.oden" "(pkg foo/bar) (import bar/baz)\n(import foo)\n(import github.com/foo/bar)"
       `shouldSucceedWith`
-      Package ["foo", "bar"] [Import ["bar", "baz"], Import ["foo"]] []
+      Package ["foo", "bar"] [Import ["bar", "baz"], Import ["foo"], Import ["github.com", "foo", "bar"]] []
+
+    it "parses github.com import" $
+      parsePackage "bar.oden" "(pkg foo/bar) (import github.com/foo/bar)"
+      `shouldSucceedWith`
+      Package ["foo", "bar"] [Import ["github.com", "foo", "bar"]] []
 
     it "parses definitions" $
       parsePackage "bar.oden" "(pkg foo/bar) (import bar/baz)"

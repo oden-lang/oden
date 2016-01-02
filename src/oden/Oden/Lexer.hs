@@ -23,6 +23,9 @@ reservedOps = []
 identifierLetter :: Parser Char
 identifierLetter = alphaNum <|> oneOf "_-'!$&*+<=>?^|~"
 
+importLetter :: Parser Char
+importLetter = identifierLetter <|> oneOf "."
+
 lexer :: Tok.GenTokenParser L.Text () Identity
 lexer = Tok.makeTokenParser Tok.LanguageDef
   { Tok.commentStart    = "#;"
@@ -56,11 +59,18 @@ whitespace = Tok.whiteSpace lexer
 parens :: Parser a -> Parser a
 parens = Tok.parens lexer
 
-packageNamePart :: Parser String
-packageNamePart = many1 identifierLetter
-
 packageName :: Parser [String]
-packageName = packageNamePart `sepBy` char '/'
+packageName = part `sepBy` char '/'
+  where
+  part = many1 identifierLetter
+
+importName :: Parser [String]
+importName = part `sepBy` char '/'
+  where
+  part = do
+    c <- identifierLetter
+    cs <- many1 importLetter
+    return (c:cs)
 
 contents :: Parser a -> Parser a
 contents p = do

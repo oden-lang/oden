@@ -30,7 +30,7 @@ data REPLState = REPLState { tyctx      :: Env.Env  -- Type environment
                            }
 
 initState :: REPLState
-initState = REPLState predefined emptyTmenv 0
+initState = REPLState (Env.fromScope predefined) emptyTmenv 0
 
 type REPL a = HaskelineT (StateT REPLState IO) a
 
