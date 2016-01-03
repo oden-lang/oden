@@ -59,6 +59,12 @@ whitespace = Tok.whiteSpace lexer
 parens :: Parser a -> Parser a
 parens = Tok.parens lexer
 
+braces :: Parser a -> Parser a
+braces p = char '{' *> p <* char '}'
+
+brackets :: Parser a -> Parser a
+brackets p = char '[' *> p <* char ']'
+
 packageName :: Parser [String]
 packageName = part `sepBy` char '/'
   where

@@ -15,7 +15,7 @@ instance OdenOutput PackageImportError where
 
 instance OdenOutput UnsupportedTypesWarning where
   outputType _  = Warning
-  name u        = "Go.PackageImportError"
+  name u        = "Go.UnsupportedTypesWarning"
   header u s    = text "Some definitions could not imported from package" <+> strCode s (intercalate "/" (pkg u)) <> colon
   details u s   = vcat (map formatMessage (messages u))
     where formatMessage (n, msg) = strCode s n

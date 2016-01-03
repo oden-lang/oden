@@ -11,6 +11,9 @@ import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
 
+intSlice :: Type
+intSlice = TSlice typeInt
+
 spec :: Spec
 spec = do
   describe "inferExpr" $ do
@@ -19,6 +22,17 @@ spec = do
       `shouldSucceedWith`
       (Forall [] typeInt,
        Core.Literal (Core.Int 1) typeInt)
+
+    it "infers int slice" $
+      inferExpr empty (Untyped.Slice [Untyped.Literal (Untyped.Int 1)])
+      `shouldSucceedWith`
+      (Forall [] intSlice,
+       Core.Slice [Core.Literal (Core.Int 1) typeInt] intSlice)
+
+    it "fails on mixed type slice" $
+      shouldFail $
+        inferExpr empty (Untyped.Slice [Untyped.Literal (Untyped.Int 1),
+                                        Untyped.Literal (Untyped.String "foo")])
 
     it "infers identity fn" $
       inferExpr empty (Untyped.Fn "x" (Untyped.Symbol (Unqualified "x")))

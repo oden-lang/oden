@@ -11,6 +11,7 @@ data Expr = Symbol Identifier
           | Literal Literal
           | If Expr Expr Expr
           | Fix Expr
+          | Slice [Expr]
           deriving (Show, Eq, Ord)
 
 data Literal = Int Integer

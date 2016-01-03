@@ -15,7 +15,7 @@ build: dist/go-lib/importer.a
 dist/go-lib/importer.a: $(IMPORTER_SRC)
 	mkdir -p dist/go-lib
 	(cd dist/go-lib \
-		&& GOPATH=$(PWD)/go go build -buildmode=c-archive oden/importer)
+		&& GOPATH=$(PWD)/go go build -buildmode=c-archive oden/cmd/importer)
 
 .PHONY: libs
 libs: dist/go-lib/importer.a
@@ -42,7 +42,6 @@ init-dev:
 	cabal sandbox init
 	cabal install --enable-tests --only-dependencies
 	cabal configure --enable-tests
-	cabal build
 
 dist/build/odenc/odenc:
 	cabal build odenc

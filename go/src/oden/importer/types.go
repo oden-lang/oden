@@ -1,4 +1,4 @@
-package main
+package importer
 
 type Type interface {
 }
@@ -43,12 +43,13 @@ func NewSignature(recv *Type, arguments, returns []Type) Signature {
 }
 
 type Basic struct {
-	Kind string `json:"kind"`
-	Name string `json:"name"`
+	Kind    string `json:"kind"`
+	Name    string `json:"name"`
+	Untyped bool   `json:"untyped"`
 }
 
-func NewBasic(name string) Basic {
-	return Basic{"basic", name}
+func NewBasic(name string, untyped bool) Basic {
+	return Basic{"basic", name, untyped}
 }
 
 type Named struct {
@@ -73,14 +74,11 @@ func NewUnsupported(name string) Unsupported {
 }
 
 type Object struct {
-	Name string `json:"name"`
-	Type Type   `json:"type"`
+	Name       string `json:"name"`
+	ObjectType string `json:"objectType"`
+	Type       Type   `json:"type"`
 }
 
 type Scope struct {
 	Objects []Object `json:"objects"`
-}
-
-type ErrorResponse struct {
-	Error string `json:"error"`
 }

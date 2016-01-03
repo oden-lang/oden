@@ -12,6 +12,7 @@ data Expr = Symbol Identifier
           | Literal Literal
           | If Expr Expr Expr
           | Fix Expr
+          | Slice [Expr]
           deriving (Show, Eq, Ord)
 
 data Literal = Int Integer
@@ -65,6 +66,8 @@ explodeExpr (Let [(n, e)] b) =
   Untyped.Let n (explodeExpr e) (explodeExpr b)
 explodeExpr (Let ((n, e):bs) b) =
   Untyped.Let n (explodeExpr e) (explodeExpr (Let bs b))
+explodeExpr (Slice es) =
+  Untyped.Slice (map explodeExpr es)
 
 explodeImport :: Import -> Untyped.Import
 explodeImport (Import name) = Untyped.Import name

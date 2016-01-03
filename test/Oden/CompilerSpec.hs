@@ -5,7 +5,7 @@ import           Test.Hspec
 
 import           Oden.Compiler
 import qualified Oden.Core             as Core
-import qualified Oden.Env              as Env
+import qualified Oden.Scope              as Scope
 import           Oden.Identifier
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
@@ -115,7 +115,7 @@ spec :: Spec
 spec = do
   describe "compile" $ do
     it "compiles empty package" $
-      compile Env.empty (Core.Package myPkg [] [])
+      compile Scope.empty (Core.Package myPkg [] [])
       `shouldSucceedWith`
       CompiledPackage
         myPkg
@@ -123,7 +123,7 @@ spec = do
         Set.empty
         Set.empty
     it "excludes unused polymorphic definitions" $
-      compile Env.empty (Core.Package myPkg [] [identityDef])
+      compile Scope.empty (Core.Package myPkg [] [identityDef])
       `shouldSucceedWith`
       CompiledPackage
         myPkg
@@ -131,7 +131,7 @@ spec = do
         Set.empty
         Set.empty
     it "monomorphs polymorphic function usage" $
-      compile Env.empty (Core.Package myPkg [] [identityDef, usingIdentityDef])
+      compile Scope.empty (Core.Package myPkg [] [identityDef, usingIdentityDef])
       `shouldSucceedWith`
       CompiledPackage
         myPkg
@@ -139,7 +139,7 @@ spec = do
         (Set.singleton identityInstIntToInt)
         (Set.singleton usingIdentityMonomorphed)
     it "monomorphs polymorphic function usage recursively" $
-      compile Env.empty (Core.Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
+      compile Scope.empty (Core.Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
       `shouldSucceedWith`
       CompiledPackage
         myPkg
@@ -147,7 +147,7 @@ spec = do
         (Set.fromList [identityInstIntToInt, identity2InstIntToInt])
         (Set.singleton usingIdentity2Monomorphed)
     it "monomorphs let bound polymorphic function" $
-      compile Env.empty (Core.Package myPkg [] [letBoundIdentity])
+      compile Scope.empty (Core.Package myPkg [] [letBoundIdentity])
       `shouldSucceedWith`
       CompiledPackage
         myPkg

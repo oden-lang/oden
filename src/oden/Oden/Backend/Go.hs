@@ -78,6 +78,8 @@ codegenType (Mono.TArrSingle f) =
   func empty empty (returnType f) empty
 codegenType (Mono.TArr d r) =
   func empty (returnType d) (codegenType r) empty
+codegenType (Mono.TSlice t) =
+  text "[]" <> codegenType t
 
 isInfix :: Expr Mono.Type -> Bool
 isInfix (Symbol (Unqualified s) _) = s `elem` ["+", "-", "*", "/", "==", ">", "<", "<=", ">=", "++", "and", "or"]
@@ -117,6 +119,8 @@ codegenExpr (If condExpr thenExpr elseExpr t) =
   (func empty empty (codegenType t) (text "if" <+> codegenExpr condExpr <+> block (return' thenExpr) <+> text "else" <+> block (return' elseExpr)))
   <> parens empty
 codegenExpr (Fix expr _) = undefined
+codegenExpr (Slice exprs t) = codegenType t
+                            <> braces (hcat (punctuate (comma <+> space) (map codegenExpr exprs)))
 
 codegenTopLevel :: Name -> Expr Mono.Type -> Doc
 codegenTopLevel name (NoArgFn body (Mono.TArrSingle r)) =

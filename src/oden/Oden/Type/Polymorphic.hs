@@ -24,6 +24,7 @@ data Type
   | TCon String
   | TArrSingle Type
   | TArr Type Type
+  | TSlice Type
   deriving (Eq, Ord)
 
 instance Show Type where
@@ -31,6 +32,7 @@ instance Show Type where
   show (TArrSingle a) = "(-> " ++ show a ++ ")"
   show (TVar a) = show a
   show (TCon a) = a
+  show (TSlice t) = "[]" ++ show t
 
 data Scheme = Forall [TVar] Type
   deriving (Eq, Ord)
@@ -45,6 +47,7 @@ toMonomorphic (TVar _) = Left "Cannot convert TVar to a monomorphic type"
 toMonomorphic (TCon s) = Right (Mono.TCon s)
 toMonomorphic (TArrSingle t) = Mono.TArrSingle <$> toMonomorphic t
 toMonomorphic (TArr tx ty) = Mono.TArr <$> toMonomorphic tx <*> toMonomorphic ty
+toMonomorphic (TSlice t) = Mono.TSlice <$> toMonomorphic t
 
 isPolymorphic :: Scheme -> Bool
 isPolymorphic (Forall tvars _) = not (null tvars)
@@ -54,6 +57,7 @@ isPolymorphicType (TVar _) = True
 isPolymorphicType (TCon _) = False
 isPolymorphicType (TArrSingle a) = isPolymorphicType a
 isPolymorphicType (TArr a b) = isPolymorphicType a || isPolymorphicType b
+isPolymorphicType (TSlice a) = isPolymorphicType a
 
 typeInt, typeBool, typeUnit, typeString :: Type
 typeInt  = TCon "int"
