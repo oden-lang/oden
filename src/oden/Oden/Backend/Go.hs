@@ -1,14 +1,13 @@
 module Oden.Backend.Go where
 
-import           Data.Maybe
 import qualified Data.Set              as Set
 import           System.FilePath
 import           Text.PrettyPrint
 
-import           Oden.Identifier
 import           Oden.Backend
 import           Oden.Compiler
 import           Oden.Core
+import           Oden.Identifier
 import qualified Oden.Type.Monomorphic as Mono
 
 newtype GoBackend = GoBackend FilePath
@@ -42,7 +41,7 @@ return' e@(Application _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
 return' e@(Let _ _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
-return' e@(Symbol (Unqualified "unit") _) =
+return' (Symbol (Unqualified "unit") _) =
   text "return"
 return' e@(Symbol _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
@@ -81,6 +80,8 @@ codegenType (Mono.TArr d r) =
   func empty (codegenType d) (codegenType r) empty
 codegenType (Mono.TSlice t) =
   text "[]" <> codegenType t
+codegenType (Mono.TGoFunc as r) =
+  func empty (hcat (punctuate (text ", ") (map codegenType as))) (codegenType r) empty
 
 isInfix :: Expr Mono.Type -> Bool
 isInfix (Symbol (Unqualified s) _) = s `elem` ["+", "-", "*", "/", "==", ">", "<", "<=", ">=", "++", "and", "or"]
@@ -102,6 +103,8 @@ codegenExpr (Application (Application o p1 _) p2 _) | isInfix o =
   parens (codegenOperator p1 <+> codegenOperator o <+> codegenOperator p2)
 codegenExpr (Application f p _) =
   codegenExpr f <> parens (codegenExpr p)
+codegenExpr (GoFuncApplication f p _) =
+  codegenExpr f <> parens (codegenExpr p)
 codegenExpr (NoArgApplication f _) =
   codegenExpr f <> parens empty
 codegenExpr (Fn a body (Mono.TArr d r)) =
@@ -119,7 +122,6 @@ codegenExpr (If condExpr thenExpr elseExpr t) =
   parens
   (func empty empty (codegenType t) (text "if" <+> codegenExpr condExpr <+> block (return' thenExpr) <+> text "else" <+> block (return' elseExpr)))
   <> parens empty
-codegenExpr (Fix expr _) = undefined
 codegenExpr (Slice exprs t) = codegenType t
                             <> braces (hcat (punctuate (comma <+> space) (map codegenExpr exprs)))
 

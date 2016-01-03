@@ -77,11 +77,6 @@ spec = do
       `shouldSucceedWith`
       Let [("x", Symbol (Unqualified "y"))] (Symbol (Unqualified "z"))
 
-    it "parses fix expression" $
-      parseExpr "(fix z)"
-      `shouldSucceedWith`
-      Fix (Symbol (Unqualified "z"))
-
     it "parses single-arg fn application" $
       parseExpr "(x y)"
       `shouldSucceedWith`

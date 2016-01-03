@@ -11,7 +11,7 @@ import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
 import qualified Text.Parsec.Token     as Tok
-import qualified Text.PrettyPrint as Pretty
+import qualified Text.PrettyPrint      as Pretty
 
 import           Oden.Identifier
 import           Oden.Lexer            as Lexer
@@ -51,12 +51,6 @@ if' = do
   f <- expr
   return (If cond t f)
 
-fix :: Parser Expr
-fix = do
-  reserved "fix"
-  x <- expr
-  return (Fix x)
-
 fn :: Parser Expr
 fn = do
   reserved "fn"
@@ -85,8 +79,6 @@ expr =
   <|> try number
   <|> parens (fn
               <|> if'
-              <|> fix
-              -- <|> try letrec
               <|> let'
               <|> application)
   <|> stringLiteral

@@ -4,6 +4,7 @@ data Type
   = TCon String
   | TArrSingle Type
   | TArr Type Type
+  | TGoFunc [Type] Type
   | TSlice Type
   deriving (Eq, Ord)
 
@@ -18,7 +19,8 @@ instance Show Type where
       isArrow _ = False
   show (TArrSingle a) = "(-> " ++ show a ++ ")"
   show (TCon a) = a
-  show (TSlice t) = "[]" ++ show t
+  show (TGoFunc as rs) = "(go-func (" ++ unwords (map show as) ++ ") " ++ show rs ++ ")"
+  show (TSlice t) = "!(" ++ show t ++ ")"
 
 typeInt, typeBool, typeUnit, typeString :: Type
 typeInt  = TCon "int"

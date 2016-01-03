@@ -5,7 +5,7 @@ module Oden.Compiler.Instantiate (
 
 import           Control.Monad.Except
 import           Control.Monad.State
-import           Data.Map              as Map
+import           Data.Map              as Map hiding (foldl, map)
 
 import qualified Oden.Core             as Core
 import qualified Oden.Type.Monomorphic as Mono
@@ -22,6 +22,8 @@ monoToPoly :: Mono.Type -> Poly.Type
 monoToPoly (Mono.TCon n) = Poly.TCon n
 monoToPoly (Mono.TArrSingle f) = Poly.TArrSingle (monoToPoly f)
 monoToPoly (Mono.TArr f p) = Poly.TArr (monoToPoly f) (monoToPoly p)
+monoToPoly (Mono.TGoFunc as r) = Poly.TGoFunc (map monoToPoly as) (monoToPoly r)
+monoToPoly (Mono.TSlice t) = Poly.TSlice (monoToPoly t)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
 getSubstitutions p@(Poly.TCon pn) m@(Mono.TCon mn) =
@@ -35,6 +37,12 @@ getSubstitutions (Poly.TArr pf pp) (Mono.TArr mf mp) = do
   ps <- getSubstitutions pp mp
   return (fs `mappend` ps)
 getSubstitutions (Poly.TVar v) mono = Right (Map.singleton v (monoToPoly mono))
+getSubstitutions (Poly.TGoFunc pas pr) (Mono.TGoFunc mas mr) = do
+  as <- zipWithM getSubstitutions pas mas
+  r <- getSubstitutions pr mr
+  return (foldl mappend r as)
+getSubstitutions (Poly.TSlice p) (Mono.TSlice m) =
+  getSubstitutions p m
 getSubstitutions poly mono = Left (TypeMismatch poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
@@ -46,6 +54,8 @@ replace (Poly.TVar v) = do
 replace (Poly.TCon n) = return (Poly.TCon n)
 replace (Poly.TArrSingle t) = Poly.TArrSingle <$> replace t
 replace (Poly.TArr ft pt) = Poly.TArr <$> replace ft <*> replace pt
+replace (Poly.TGoFunc ft pt) = Poly.TGoFunc <$> mapM replace ft <*> replace pt
+replace (Poly.TSlice t) = Poly.TSlice <$> replace t
 
 instantiateExpr :: Core.Expr Poly.Type
                 -> Instantiate (Core.Expr Poly.Type)
@@ -54,6 +64,8 @@ instantiateExpr (Core.Application f p t) =
   Core.Application <$> instantiateExpr f <*> instantiateExpr p <*> replace t
 instantiateExpr (Core.NoArgApplication f t) =
   Core.NoArgApplication <$> instantiateExpr f <*> replace t
+instantiateExpr (Core.GoFuncApplication f p t) =
+  Core.GoFuncApplication <$> instantiateExpr f <*> instantiateExpr p <*> replace t
 instantiateExpr (Core.Fn a b t) =
   Core.Fn a <$> instantiateExpr b <*> replace t
 instantiateExpr (Core.NoArgFn b t) =
@@ -64,8 +76,8 @@ instantiateExpr (Core.Literal l t) =
   Core.Literal l <$> replace t
 instantiateExpr (Core.If c tb eb t) =
   Core.If <$> instantiateExpr c <*> instantiateExpr tb <*> instantiateExpr eb <*> replace t
-instantiateExpr (Core.Fix e t) =
-  Core.Fix <$> instantiateExpr e <*> replace t
+instantiateExpr (Core.Slice es t) =
+  Core.Slice <$> mapM instantiateExpr es <*> replace t
 
 instantiate :: Core.Expr Poly.Type
             -> Mono.Type

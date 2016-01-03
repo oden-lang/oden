@@ -21,9 +21,6 @@ import           Data.ByteString.Lazy.Char8 (pack)
 import qualified Data.HashMap.Strict        as HM
 import           Data.List                  (intercalate)
 import qualified Data.Text                  as T
-import qualified Data.Vector                as V
-
-import Debug.Trace (trace)
 
 import           Foreign.C.String
 foreign import ccall "GetPackageObjects" c_GetPackageObjects :: CString -> IO CString
@@ -106,25 +103,25 @@ convertType (Basic "complex" True) = return (Poly.TCon "complex64")
 convertType (Basic "string" True) = return (Poly.TCon "string")
 convertType (Basic "nil" True) = Left "nil constant"
 convertType (Basic n True) = Left ("Untyped " ++ n)
-convertType (Pointer n) = Left "Pointers"
-convertType (G.Array l t) = Left "Arrays"
+convertType (Pointer _) = Left "Pointers"
+convertType (G.Array _ _) = Left "Arrays"
 convertType (Slice t) = Poly.TSlice <$> convertType t
 convertType (Signature (Just _) _ _) = Left "Methods (functions with receivers)"
 convertType (Signature Nothing [] []) =
   return (Poly.TArrSingle Poly.typeUnit)
-convertType (Signature Nothing [] [return]) =
-  Poly.TArrSingle <$> convertType return
+convertType (Signature Nothing [] [ret]) =
+  Poly.TArrSingle <$> convertType ret
 convertType (Signature Nothing [arg] []) = do
   a <- convertType arg
   Right (Poly.TArr a Poly.typeUnit)
-convertType (Signature Nothing [arg] [return]) = do
+convertType (Signature Nothing [arg] [ret]) = do
   a <- convertType arg
-  r <- convertType return
+  r <- convertType ret
   Right (Poly.TArr a r)
 convertType (Signature Nothing a _) | length a > 1 = Left "Functions with multiple arguments"
 convertType (Signature Nothing _ r) | length r > 1 = Left "Functions with multiple return values"
 -- TODO: Add "Named" concept in Oden type system
-convertType (Named pkg n t) = convertType t
+convertType (Named _ _ t) = convertType t
 convertType (Unsupported n) = Left n
 
 objectsToScope :: Core.PackageName -> [PackageObject] -> (Scope, Maybe UnsupportedTypesWarning)

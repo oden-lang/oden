@@ -1,6 +1,6 @@
 module Oden.Core.Untyped where
 
-import Oden.Identifier
+import           Oden.Identifier
 
 data Expr = Symbol Identifier
           | Application Expr Expr
@@ -10,7 +10,6 @@ data Expr = Symbol Identifier
           | Let Name Expr Expr
           | Literal Literal
           | If Expr Expr Expr
-          | Fix Expr
           | Slice [Expr]
           deriving (Show, Eq, Ord)
 

@@ -25,7 +25,9 @@ pairs = [
 
   (Unqualified "==", Forall [TV "a"] (TArr (TVar (TV "a")) (TArr (TVar (TV "a")) typeBool))),
 
-  (Unqualified "++", Forall [] (TArr typeString (TArr typeString typeString)))
+  (Unqualified "++", Forall [] (TArr typeString (TArr typeString typeString))),
+
+  (Unqualified "len", Forall [TV "a"] (TGoFunc [TSlice (TVar (TV "a"))] typeInt))
   ]
 
 predefined :: Scope
