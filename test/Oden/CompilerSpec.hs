@@ -119,7 +119,7 @@ sliceLenDef =
     (Poly.Forall [] Poly.typeInt,
      Core.GoFuncApplication
       (Core.Symbol (Unqualified "len") (Poly.TGoFunc [Poly.TSlice Poly.typeBool] Poly.typeInt))
-      (Core.Slice [Core.Literal (Core.Bool True) Poly.typeBool] (Poly.TSlice Poly.typeBool))
+      [Core.Slice [Core.Literal (Core.Bool True) Poly.typeBool] (Poly.TSlice Poly.typeBool)]
       Poly.typeInt)
 
 sliceLenMonomorphed :: MonomorphedDefinition
@@ -128,7 +128,7 @@ sliceLenMonomorphed =
     "slice-len"
     (Core.GoFuncApplication
       (Core.Symbol (Unqualified "len") (Mono.TGoFunc [Mono.TSlice Mono.typeBool] Mono.typeInt))
-      (Core.Slice [Core.Literal (Core.Bool True) Mono.typeBool] (Mono.TSlice Mono.typeBool))
+      [Core.Slice [Core.Literal (Core.Bool True) Mono.typeBool] (Mono.TSlice Mono.typeBool)]
       Mono.typeInt)
 
 spec :: Spec

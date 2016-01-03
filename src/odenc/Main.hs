@@ -9,28 +9,23 @@ import           Oden.Compiler
 import qualified Oden.Core               as Core
 import qualified Oden.Core.Untyped       as Untyped
 import qualified Oden.Env                as Env
-import           Oden.Eval
 import qualified Oden.Go                 as Go
 import           Oden.Infer
 import qualified Oden.Output             as Output
-import           Oden.Output.Backend
-import           Oden.Output.Compiler
-import           Oden.Output.Go
-import           Oden.Output.Infer
-import           Oden.Output.Instantiate
-import           Oden.Output.Parser
+import           Oden.Output.Backend     ()
+import           Oden.Output.Compiler    ()
+import           Oden.Output.Go          ()
+import           Oden.Output.Infer       ()
+import           Oden.Output.Instantiate ()
+import           Oden.Output.Parser      ()
 import           Oden.Parser
 import           Oden.Predefined
-import           Oden.Pretty
 import           Oden.Scanner
 import qualified Oden.Scope              as Scope
 import qualified Oden.Syntax             as Syntax
 
 import           Data.List
-import qualified Data.Map                as Map
 import           Data.Maybe
-import           Data.Monoid
-import qualified Data.Text.Lazy          as L
 import qualified Data.Text.Lazy.IO       as L
 
 import           Control.Monad.Except
@@ -57,8 +52,8 @@ writeCompiledFile (CompiledFile name contents) =
 
 printOutput :: Output.OdenOutput o => o -> Odenc String
 printOutput o = do
-  options <- ask
-  let settings = Output.OutputSettings{ Output.monochrome = printMonochrome options,
+  opts <- ask
+  let settings = Output.OutputSettings{ Output.monochrome = printMonochrome opts,
                                         Output.markdown = True }
   return (Output.print settings o)
 
@@ -81,33 +76,33 @@ logWarning o = do
 
 scanImports :: Untyped.Package -> Odenc Scope.Scope
 scanImports (Untyped.Package _ imports _) = foldM scanImport Scope.empty imports
-  where scanImport scope (Untyped.Import pn) = do
+  where scanImport scope' (Untyped.Import pn) = do
           (pkgScope, warning) <- liftIO (Go.getPackageScope pn) >>= liftEither
           case warning of
             Just w -> logWarning w
             _ -> return ()
-          return (Scope.merge scope pkgScope)
+          return (Scope.merge scope' pkgScope)
 
 compileFile :: SourceFile -> Odenc [CompiledFile]
 compileFile (OdenSourceFile fname _) = do
-  options <- ask
+  opts <- ask
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
   let corePkg = Syntax.explodePackage syntaxPkg
   importsScope <- scanImports corePkg
-  let scope = Scope.merge predefined importsScope
-      typeEnv = Env.fromScope scope
+  let scope' = Scope.merge predefined importsScope
+      typeEnv = Env.fromScope scope'
   (inferredPkg, _) <- liftEither (inferPackage typeEnv corePkg)
   logCompiling inferredPkg
-  compiledPkg <- liftEither (compile scope inferredPkg)
-  files <- liftEither (codegen (GoBackend $ outPath options) compiledPkg)
+  compiledPkg <- liftEither (compile scope' inferredPkg)
+  files <- liftEither (codegen (GoBackend $ outPath opts) compiledPkg)
   mapM_ writeCompiledFile files
   return files
 
 odenc :: Odenc [CompiledFile]
 odenc = do
-  options <- ask
-  sourceFiles <- liftIO $ scan (odenPath options </> "src")
+  opts <- ask
+  sourceFiles <- liftIO $ scan (odenPath opts </> "src")
   compiledFiles <- mapM compileFile sourceFiles
   return (concat compiledFiles)
 
@@ -129,6 +124,7 @@ data Options = Options { showHelp        :: Bool
                        , printMonochrome :: Bool
                        } deriving (Show, Eq, Ord)
 
+defaultOptions :: Options
 defaultOptions = Options { showHelp = False
                          , showVersion = False
                          , odenPath = "."
@@ -136,7 +132,7 @@ defaultOptions = Options { showHelp = False
                          , printMonochrome = False }
 
 orMaybe :: Maybe a -> Maybe a -> Maybe a
-(Just v) `orMaybe` m = Just v
+(Just v) `orMaybe` _ = Just v
 Nothing `orMaybe` m = m
 
 setOdenPath :: Maybe FilePath -> Options -> IO Options
@@ -181,8 +177,8 @@ getOptions = do
 
 main :: IO ()
 main = do
-  opts <- getOptions
-  case opts of
+  o <- getOptions
+  case o of
     Left err -> exitWithMessage err
     Right opts | showHelp opts -> putStrLn help
     Right opts | showVersion opts -> putStrLn (Version.showVersion version)

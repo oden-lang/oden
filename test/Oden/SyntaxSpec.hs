@@ -28,12 +28,12 @@ spec = do
     it "converts fn application with no params" $
       explodeExpr (Application (Fn [] (Symbol (Unqualified "x"))) [])
       `shouldBe`
-      U.NoArgApplication (U.NoArgFn (U.Symbol (Unqualified "x")))
+      U.Application (U.NoArgFn (U.Symbol (Unqualified "x"))) []
 
     it "converts fn application with multiple params" $
       explodeExpr (Application (Fn ["x", "y"] (Symbol (Unqualified "x"))) [Symbol (Unqualified "x"), Symbol (Unqualified "y")])
       `shouldBe`
-      U.Application (U.Application (U.Fn "x" (U.Fn "y" (U.Symbol (Unqualified "x")))) (U.Symbol (Unqualified "x"))) (U.Symbol (Unqualified "y"))
+      U.Application (U.Fn "x" (U.Fn "y" (U.Symbol (Unqualified "x")))) [U.Symbol (Unqualified "x"), U.Symbol (Unqualified "y")]
 
   describe "explodeDefinition" $ do
     it "converts fn definition with no argument" $

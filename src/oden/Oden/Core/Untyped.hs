@@ -3,8 +3,7 @@ module Oden.Core.Untyped where
 import           Oden.Identifier
 
 data Expr = Symbol Identifier
-          | Application Expr Expr
-          | NoArgApplication Expr
+          | Application Expr [Expr]
           | Fn Name Expr
           | NoArgFn Expr
           | Let Name Expr Expr
