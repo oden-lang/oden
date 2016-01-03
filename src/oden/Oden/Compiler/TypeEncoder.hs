@@ -4,10 +4,8 @@ module Oden.Compiler.TypeEncoder (
 
 import Control.Monad.State
 import Control.Monad.Writer
-import Data.List (intercalate)
 
 import Oden.Identifier
-import qualified Oden.Core as Core
 import qualified Oden.Type.Monomorphic as Mono
 
 type Level = Int
@@ -24,6 +22,9 @@ withIncreasedLevel e = do
   e
   modify pred
 
+paddedTo :: TypeEncoder ()
+paddedTo = pad >> tell "to" >> pad
+
 writeType :: Mono.Type -> TypeEncoder ()
 writeType (Mono.TCon s) = tell s
 writeType (Mono.TArrSingle t') = do
@@ -32,10 +33,17 @@ writeType (Mono.TArrSingle t') = do
   withIncreasedLevel (writeType t')
 writeType (Mono.TArr tl tr) = do
   withIncreasedLevel (writeType tl)
-  pad
-  tell "to"
-  pad
+  paddedTo
   withIncreasedLevel (writeType tr)
+writeType (Mono.TGoFunc as r) = do
+  foldl writeArg (return ()) as
+  withIncreasedLevel (writeType r)
+  where
+  writeArg a t = a >> withIncreasedLevel (writeType t) >> paddedTo
+writeType (Mono.TSlice t) = do
+  tell "sliceof"
+  pad
+  withIncreasedLevel (writeType t)
 
 writeTypeInstance :: Identifier -> Mono.Type -> TypeEncoder ()
 writeTypeInstance i t = do

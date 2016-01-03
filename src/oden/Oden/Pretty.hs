@@ -57,7 +57,6 @@ instance Pretty Expr where
   ppr p (Fn a b) = text "\\" <> ppr p a <+> text  "->" <+> ppr p b
   ppr p (Let a b c) = text "let" <> ppr p a <+> text  "=" <+> ppr p b <+> text "in" <+> ppr p c
   ppr p (Literal a) = ppr p a
-  ppr p (Fix a) = parensIf (p>0) $ text "fix" <> ppr p a
   ppr p (If a b c) =
     text "if" <> ppr p a <+>
     text "then" <+> ppr p b <+>

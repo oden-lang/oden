@@ -5,8 +5,9 @@ import           Test.Hspec
 
 import           Oden.Compiler
 import qualified Oden.Core             as Core
-import qualified Oden.Scope              as Scope
 import           Oden.Identifier
+import           Oden.Predefined
+import qualified Oden.Scope            as Scope
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
@@ -111,6 +112,25 @@ identity2InstIntToInt =
                     Mono.typeInt)
                  (Mono.TArr Mono.typeInt Mono.typeInt))
 
+sliceLenDef :: Core.Definition
+sliceLenDef =
+  Core.Definition
+    "slice-len"
+    (Poly.Forall [] Poly.typeInt,
+     Core.GoFuncApplication
+      (Core.Symbol (Unqualified "len") (Poly.TGoFunc [Poly.TSlice Poly.typeBool] Poly.typeInt))
+      (Core.Slice [Core.Literal (Core.Bool True) Poly.typeBool] (Poly.TSlice Poly.typeBool))
+      Poly.typeInt)
+
+sliceLenMonomorphed :: MonomorphedDefinition
+sliceLenMonomorphed =
+  MonomorphedDefinition
+    "slice-len"
+    (Core.GoFuncApplication
+      (Core.Symbol (Unqualified "len") (Mono.TGoFunc [Mono.TSlice Mono.typeBool] Mono.typeInt))
+      (Core.Slice [Core.Literal (Core.Bool True) Mono.typeBool] (Mono.TSlice Mono.typeBool))
+      Mono.typeInt)
+
 spec :: Spec
 spec = do
   describe "compile" $ do
@@ -154,3 +174,11 @@ spec = do
         []
         Set.empty
         (Set.singleton letBoundIdentityMonomorphed)
+    it "uses polymorphic predefined Go funcs" $
+      compile predefined (Core.Package myPkg [] [sliceLenDef])
+      `shouldSucceedWith`
+      CompiledPackage
+        myPkg
+        []
+        Set.empty
+        (Set.singleton sliceLenMonomorphed)

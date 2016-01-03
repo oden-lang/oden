@@ -20,10 +20,18 @@ instance Show TVar where
   show (TV s) = '#':s
 
 data Type
+  -- | A type variable.
   = TVar TVar
+  -- | A type constructor with a name.
   | TCon String
+  -- | Like a 'TArr' but with no argument, only a return type.
   | TArrSingle Type
+  -- | A TArr (arrow) represents a Oden function (with currying).
   | TArr Type Type
+  -- | A TFunc represents a Go func and can have multiple arguments (without
+  -- currying).
+  | TGoFunc [Type] Type -- TODO: Support multiple return values somehow.
+  -- | A Go slice type.
   | TSlice Type
   deriving (Eq, Ord)
 
@@ -32,7 +40,8 @@ instance Show Type where
   show (TArrSingle a) = "(-> " ++ show a ++ ")"
   show (TVar a) = show a
   show (TCon a) = a
-  show (TSlice t) = "[]" ++ show t
+  show (TGoFunc as rs) = "(go-func (" ++ unwords (map show as) ++ ") " ++ show rs ++ ")"
+  show (TSlice t) = "!(" ++ show t ++ ")"
 
 data Scheme = Forall [TVar] Type
   deriving (Eq, Ord)
@@ -47,6 +56,7 @@ toMonomorphic (TVar _) = Left "Cannot convert TVar to a monomorphic type"
 toMonomorphic (TCon s) = Right (Mono.TCon s)
 toMonomorphic (TArrSingle t) = Mono.TArrSingle <$> toMonomorphic t
 toMonomorphic (TArr tx ty) = Mono.TArr <$> toMonomorphic tx <*> toMonomorphic ty
+toMonomorphic (TGoFunc a r) = Mono.TGoFunc <$> mapM toMonomorphic a <*> toMonomorphic r
 toMonomorphic (TSlice t) = Mono.TSlice <$> toMonomorphic t
 
 isPolymorphic :: Scheme -> Bool
@@ -57,6 +67,7 @@ isPolymorphicType (TVar _) = True
 isPolymorphicType (TCon _) = False
 isPolymorphicType (TArrSingle a) = isPolymorphicType a
 isPolymorphicType (TArr a b) = isPolymorphicType a || isPolymorphicType b
+isPolymorphicType (TGoFunc a r) = any isPolymorphicType (r:a)
 isPolymorphicType (TSlice a) = isPolymorphicType a
 
 typeInt, typeBool, typeUnit, typeString :: Type

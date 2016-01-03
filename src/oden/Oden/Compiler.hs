@@ -3,7 +3,6 @@ module Oden.Compiler where
 import           Control.Monad.Except
 import           Control.Monad.RWS
 import           Data.Map                  as Map hiding (map)
-import           Data.Maybe
 import           Data.Set                  as Set hiding (map)
 
 import           Oden.Compiler.Instantiate
@@ -63,7 +62,7 @@ addToScope (Core.Definition name (sc, expr))= do
   modify (\s -> s { scope = Scope.insert Scope.Definitions (Unqualified name) (Scope.OdenDefinition (Unqualified name) sc expr) scope' })
 
 withBinding :: LocalBinding -> Monomorph a -> Monomorph a
-withBinding b@(LetBinding name ce) = local $ Map.insert name b
+withBinding b@(LetBinding name _) = local $ Map.insert name b
 withBinding b@(FunctionArgument name) = local $ Map.insert name b
 
 addInstance :: (Identifier, Mono.Type) -> InstantiatedDefinition -> Monomorph ()
@@ -78,7 +77,7 @@ instantiateDefinition :: (Identifier, Mono.Type)
                       -> Poly.Scheme
                       -> Core.Expr Poly.Type
                       -> Monomorph Identifier
-instantiateDefinition key@(pn, t) sc pe = do
+instantiateDefinition key@(pn, t) _ pe = do
   let name = encodeTypeInstance pn t
   case instantiate pe t of
     Left err -> throwError (MonomorphInstantiateError err)
@@ -92,7 +91,7 @@ getMonomorphicDefinition ident t = do
   def <- getInScope ident
   case def of
     ForeignDefinition gn _ -> return gn
-    OdenDefinition pn sc pe | Poly.isPolymorphic sc -> do
+    OdenDefinition _ sc pe | Poly.isPolymorphic sc -> do
       let key = (ident, t)
       is <- gets instances
       case Map.lookup key is of
@@ -106,7 +105,7 @@ getMonomorphicDefinition ident t = do
 getMonomorphicLetBinding :: (Name, Mono.Type)
                          -> Core.Expr Poly.Type
                          -> Monomorph Identifier
-getMonomorphicLetBinding key@(n, t) e | not(Poly.isPolymorphicType (Core.typeOf e)) = do
+getMonomorphicLetBinding key@(n, _) e | not(Poly.isPolymorphicType (Core.typeOf e)) = do
   me <- monomorph e
   tell (Set.singleton (LetInstance key n me))
   return (Unqualified n)
@@ -143,42 +142,46 @@ unwrapLetInstances [] body = body
 unwrapLetInstances (LetInstance _ mn me:is) body = Core.Let mn me (unwrapLetInstances is body) (Core.typeOf body)
 
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
-monomorph e@(Core.Symbol ident t) = do
+monomorph e@(Core.Symbol ident _) = do
   mt <- getMonoType e
   m <- getMonomorphic ident mt
   return (Core.Symbol m mt)
-monomorph e@(Core.Application f p t) = do
+monomorph e@(Core.Application f p _) = do
   mt <- getMonoType e
   mf <- monomorph f
   mp <- monomorph p
   return (Core.Application mf mp mt)
-monomorph e@(Core.NoArgApplication f t) = do
+monomorph e@(Core.NoArgApplication f _) = do
   mt <- getMonoType e
   mf <- monomorph f
   return (Core.NoArgApplication mf mt)
-monomorph e@(Core.Fn a b t) = do
+monomorph e@(Core.GoFuncApplication f p _) = do
+  mt <- getMonoType e
+  mf <- monomorph f
+  mp <- monomorph p
+  return (Core.GoFuncApplication mf mp mt)
+monomorph e@(Core.Fn a b _) = do
   mt <- getMonoType e
   mb <- withBinding (FunctionArgument a) (monomorph b)
   return (Core.Fn a mb mt)
-monomorph e@(Core.NoArgFn b t) = do
+monomorph e@(Core.NoArgFn b _) = do
   mt <- getMonoType e
   mb <- monomorph b
   return (Core.NoArgFn mb mt)
-monomorph e@(Core.Slice es t) = do
+monomorph e@(Core.Slice es _) = do
   mt <- getMonoType e
   mes <- mapM monomorph es
   return (Core.Slice mes mt)
-monomorph e@(Core.Literal l t) = do
+monomorph e@(Core.Literal l _) = do
   mt <- getMonoType e
   return (Core.Literal l mt)
-monomorph e@(Core.If cond then' else' t) = do
+monomorph e@(Core.If cond then' else' _) = do
   mt <- getMonoType e
   mCond <- monomorph cond
   mThen <- monomorph then'
   mElse <- monomorph else'
   return (Core.If mCond mThen mElse mt)
-monomorph e@(Core.Let name expr body t) = do
-  mt <- getMonoType e
+monomorph (Core.Let name expr body _) = do
   (mBody, allInstances) <- listen (withBinding (LetBinding name expr) (monomorph body))
   let (letInstances, other) = Set.partition (isLetInstanceFrom name) allInstances
   tell other
@@ -196,10 +199,10 @@ monomorphDefinition d@(Core.Definition name (s, expr)) = do
     addMonomorphed name (MonomorphedDefinition name mExpr)
 
 monomorphPackage :: Scope -> Core.Package -> Either CompilationError CompiledPackage
-monomorphPackage scope (Core.Package name imports definitions) = do
+monomorphPackage scope' (Core.Package name imports definitions) = do
   let st = MonomorphState { instances = Map.empty
                           , monomorphed = Map.empty
-                          , scope = scope
+                          , scope = scope'
                           }
   (_, s, _) <- runExcept $ runRWST (mapM_ monomorphDefinition definitions) Map.empty st
   let is = Set.fromList (Map.elems (instances s))

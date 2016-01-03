@@ -1,7 +1,7 @@
 module Oden.Syntax where
 
 import qualified Oden.Core.Untyped as Untyped
-import Oden.Identifier
+import           Oden.Identifier
 
 type Binding = (Name, Expr)
 
@@ -11,7 +11,6 @@ data Expr = Symbol Identifier
           | Let [Binding] Expr
           | Literal Literal
           | If Expr Expr Expr
-          | Fix Expr
           | Slice [Expr]
           deriving (Show, Eq, Ord)
 
@@ -43,8 +42,6 @@ explodeExpr (Literal (String s)) =
   Untyped.Literal (Untyped.String s)
 explodeExpr (If c t f) =
   Untyped.If (explodeExpr c) (explodeExpr t) (explodeExpr f)
-explodeExpr (Fix x) =
-  Untyped.Fix (explodeExpr x)
 -- (f)
 explodeExpr (Application f []) =
   Untyped.NoArgApplication (explodeExpr f)

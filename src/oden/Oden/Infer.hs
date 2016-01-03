@@ -13,13 +13,11 @@ module Oden.Infer (
 
 import           Control.Monad.Except
 import           Control.Monad.Identity
-import           Control.Monad.RWS hiding ((<>))
-import           Control.Monad.State
+import           Control.Monad.RWS      hiding ((<>))
 
 import           Data.List              (nub)
 import qualified Data.Map               as Map
 import qualified Data.Set               as Set
-import           Text.PrettyPrint       as Pretty
 
 import qualified Oden.Core              as Core
 import qualified Oden.Core.Untyped      as Untyped
@@ -66,12 +64,14 @@ instance Substitutable Type where
   apply (Subst s) t@(TVar a)  = Map.findWithDefault t a s
   apply s (TArrSingle t)      = TArrSingle (apply s t)
   apply s (t1 `TArr` t2)      = apply s t1 `TArr` apply s t2
+  apply s (TGoFunc as r)      = TGoFunc (map (apply s) as) (apply s r)
   apply s (TSlice t)          = TSlice (apply s t)
 
   ftv TCon{}         = Set.empty
   ftv (TVar a)       = Set.singleton a
   ftv (t1 `TArr` t2) = ftv t1 `Set.union` ftv t2
   ftv (TArrSingle t) = ftv t
+  ftv (TGoFunc as r) = foldl Set.union (ftv r) (map ftv as)
   ftv (TSlice t)     = ftv t
 
 instance Substitutable Scheme where
@@ -93,16 +93,16 @@ instance Substitutable Env where
   ftv (TypeEnv env) = ftv $ Map.elems env
 
 instance Substitutable (Core.Expr Type) where
-  apply s (Core.Symbol x t)           = Core.Symbol x (apply s t)
-  apply s (Core.Application f p t)    = Core.Application (apply s f) (apply s p) (apply s t)
-  apply s (Core.NoArgApplication f t) = Core.NoArgApplication (apply s f) (apply s t)
-  apply s (Core.Fn x b t)             = Core.Fn x (apply s b) (apply s t)
-  apply s (Core.NoArgFn b t)          = Core.NoArgFn (apply s b) (apply s t)
-  apply s (Core.Let x e b t)          = Core.Let x (apply s e) (apply s b) (apply s t)
-  apply s (Core.Literal l t)          = Core.Literal l (apply s t)
-  apply s (Core.If c tb fb t)         = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
-  apply s (Core.Fix e t)              = Core.Fix (apply s e) (apply s t)
-  apply s (Core.Slice es t)           = Core.Slice es (apply s t)
+  apply s (Core.Symbol x t)               = Core.Symbol x (apply s t)
+  apply s (Core.Application f p t)        = Core.Application (apply s f) (apply s p) (apply s t)
+  apply s (Core.NoArgApplication f t)     = Core.NoArgApplication (apply s f) (apply s t)
+  apply s (Core.GoFuncApplication f p t)  = Core.GoFuncApplication (apply s f) (apply s p) (apply s t)
+  apply s (Core.Fn x b t)                 = Core.Fn x (apply s b) (apply s t)
+  apply s (Core.NoArgFn b t)              = Core.NoArgFn (apply s b) (apply s t)
+  apply s (Core.Let x e b t)              = Core.Let x (apply s e) (apply s b) (apply s t)
+  apply s (Core.Literal l t)              = Core.Literal l (apply s t)
+  apply s (Core.If c tb fb t)             = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
+  apply s (Core.Slice es t)               = Core.Slice es (apply s t)
 
   ftv = ftv . Core.typeOf
 
@@ -204,8 +204,13 @@ infer expr = case expr of
     tf <- infer f
     tp <- infer p
     tv <- fresh
-    uni (Core.typeOf tf) (Core.typeOf tp `TArr` tv)
-    return (Core.Application tf tp tv)
+    case Core.typeOf tf of
+      t@(TGoFunc _ _) -> do
+        uni t (TGoFunc [Core.typeOf tp] tv)
+        return (Core.GoFuncApplication tf tp tv)
+      t -> do
+        uni t (Core.typeOf tp `TArr` tv)
+        return (Core.Application tf tp tv)
 
   Untyped.NoArgApplication f -> do
     tf <- infer f
@@ -214,16 +219,9 @@ infer expr = case expr of
     return (Core.NoArgApplication tf tv)
 
   Untyped.Let n e b -> do
-    env <- ask
     te <- infer e
     tb <- inEnv (Unqualified n, Forall [] (Core.typeOf te)) (infer b)
     return (Core.Let n te tb (Core.typeOf tb))
-
-  Untyped.Fix ex -> do
-    te <- infer ex
-    tv <- fresh
-    uni (tv `TArr` tv) (Core.typeOf te)
-    return (Core.Fix te tv)
 
   Untyped.If cond tr fl -> do
     tcond <- infer cond
@@ -248,7 +246,7 @@ inferDef (Untyped.Definition name expr) = do
 
 inferDefinition :: Env -> Untyped.Definition -> Either TypeError Core.Definition
 inferDefinition env def = do
-  (Core.Definition name (sc, te), cs) <- runInfer env (inferDef def)
+  (Core.Definition name (_, te), cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
   return $ Core.Definition name (closeOver (apply subst te))
 
@@ -257,10 +255,10 @@ inferPackage env (Untyped.Package name imports defs) = do
   (env', inferred) <- foldM iter (env, []) defs
   return (Core.Package name (map convertImport imports) inferred, env')
   where
-  iter (env, inferred) d@(Untyped.Definition name _) = do
-      td@(Core.Definition name (sc, te)) <- inferDefinition env d
-      return (extend env (Unqualified name, sc), inferred ++ [td])
-  convertImport (Untyped.Import name) = Core.Import name
+  iter (e, inferred) d@(Untyped.Definition _ _) = do
+      td@(Core.Definition n (sc, _)) <- inferDefinition e d
+      return (extend env (Unqualified n, sc), inferred ++ [td])
+  convertImport (Untyped.Import n) = Core.Import n
 
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)
 normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
@@ -270,11 +268,13 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
     fv (TVar a)       = [a]
     fv (TArrSingle a) = fv a
     fv (TArr a b)     = fv a ++ fv b
+    fv (TGoFunc as r) = concatMap fv as ++ fv r
     fv (TCon _)       = []
     fv (TSlice t)     = fv t
 
     normtype (TArrSingle a) = TArrSingle (normtype a)
     normtype (TArr a b)     = TArr (normtype a) (normtype b)
+    normtype (TGoFunc as r) = TGoFunc (map normtype as) (normtype r)
     normtype (TCon a)       = TCon a
     normtype (TSlice a)     = TSlice (normtype a)
     normtype (TVar a)       =
@@ -313,6 +313,11 @@ unifies (TVar v) t = v `bind` t
 unifies t (TVar v) = v `bind` t
 unifies (TArr t1 t2) (TArr t3 t4) = unifyMany [t1, t2] [t3, t4]
 unifies (TArrSingle t1) (TArrSingle t2) = unifies t1 t2
+unifies (TGoFunc as1 r1) (TGoFunc as2 r2) = do
+  a <- unifyMany as1 as2
+  r <- unifies r1 r2
+  return (a `compose` r)
+unifies (TSlice t1) (TSlice t2) = unifies t1 t2
 unifies t1 t2 = throwError $ UnificationFail t1 t2
 
 -- Unification solver

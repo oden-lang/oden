@@ -5,6 +5,7 @@ import           Test.Hspec
 import qualified Oden.Core             as Core
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Env
+import           Oden.Predefined
 import           Oden.Identifier
 import           Oden.Infer
 import           Oden.Type.Polymorphic
@@ -13,6 +14,9 @@ import           Oden.Assertions
 
 intSlice :: Type
 intSlice = TSlice typeInt
+
+predef :: Env
+predef = fromScope predefined
 
 spec :: Spec
 spec = do
@@ -66,3 +70,11 @@ spec = do
                             (Core.Symbol (Unqualified "x") (TVar (TV "a")))
                             (Core.Symbol (Unqualified "x") (TVar (TV "a")))
                             (TVar (TV "a"))) (TArr (TVar (TV "a")) (TVar (TV "a"))))
+
+    it "infers no-arg fn application" $
+      inferExpr predef (Untyped.Application (Untyped.Symbol (Unqualified "len")) (Untyped.Slice [Untyped.Literal (Untyped.Bool True)]))
+      `shouldSucceedWith`
+      (Forall [] typeInt,
+       (Core.GoFuncApplication (Core.Symbol (Unqualified "len") (TGoFunc [TSlice typeBool] typeInt))
+                               (Core.Slice [Core.Literal (Core.Bool True) typeBool] (TSlice typeBool)))
+       typeInt)

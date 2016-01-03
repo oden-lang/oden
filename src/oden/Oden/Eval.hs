@@ -1,10 +1,10 @@
 module Oden.Eval where
 
-import Oden.Identifier
-import Oden.Core.Untyped
+import           Oden.Core.Untyped
+import           Oden.Identifier
 
-import Control.Monad.Identity
-import qualified Data.Map as Map
+import           Control.Monad.Identity
+import qualified Data.Map               as Map
 
 data Value
   = VInt Integer
@@ -58,9 +58,6 @@ eval env expr = case expr of
     if br
     then eval env tr
     else eval env fl
-
-  Fix e ->
-    eval env (Application e (Fix e))
 
 runEval :: TermEnv -> String -> Expr -> (Value, TermEnv)
 runEval env nm ex =
