@@ -42,6 +42,10 @@ return' e@(Application _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
 return' e@(Let _ _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
+return' e@(Symbol (Unqualified "unit") _) =
+  text "return"
+return' e@(Symbol _ t) | t == Mono.typeUnit =
+  codegenExpr e $+$ text "return"
 return' expr = text "return" <+> codegenExpr expr
 
 returnType :: Mono.Type -> Doc
