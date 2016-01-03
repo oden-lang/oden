@@ -66,11 +66,13 @@ instance Substitutable Type where
   apply (Subst s) t@(TVar a)  = Map.findWithDefault t a s
   apply s (TArrSingle t)      = TArrSingle (apply s t)
   apply s (t1 `TArr` t2)      = apply s t1 `TArr` apply s t2
+  apply s (TSlice t)          = TSlice (apply s t)
 
   ftv TCon{}         = Set.empty
   ftv (TVar a)       = Set.singleton a
   ftv (t1 `TArr` t2) = ftv t1 `Set.union` ftv t2
   ftv (TArrSingle t) = ftv t
+  ftv (TSlice t)     = ftv t
 
 instance Substitutable Scheme where
   apply (Subst s) (Forall as t)   = Forall as $ apply s' t
@@ -100,6 +102,7 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.Literal l t)          = Core.Literal l (apply s t)
   apply s (Core.If c tb fb t)         = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
   apply s (Core.Fix e t)              = Core.Fix (apply s e) (apply s t)
+  apply s (Core.Slice es t)           = Core.Slice es (apply s t)
 
   ftv = ftv . Core.typeOf
 
@@ -230,6 +233,12 @@ infer expr = case expr of
     uni (Core.typeOf ttr) (Core.typeOf tfl)
     return (Core.If tcond ttr tfl (Core.typeOf ttr))
 
+  Untyped.Slice es -> do
+    tv <- fresh
+    tes <- mapM infer es
+    mapM_ (uni tv . Core.typeOf) tes
+    return (Core.Slice tes (TSlice tv))
+
 inferDef :: Untyped.Definition -> Infer Core.Definition
 inferDef (Untyped.Definition name expr) = do
   tv <- fresh
@@ -262,10 +271,12 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
     fv (TArrSingle a) = fv a
     fv (TArr a b)     = fv a ++ fv b
     fv (TCon _)       = []
+    fv (TSlice t)     = fv t
 
     normtype (TArrSingle a) = TArrSingle (normtype a)
     normtype (TArr a b)     = TArr (normtype a) (normtype b)
     normtype (TCon a)       = TCon a
+    normtype (TSlice a)     = TSlice (normtype a)
     normtype (TVar a)       =
       case Prelude.lookup a ord of
         Just x -> TVar x

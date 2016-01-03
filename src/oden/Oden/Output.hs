@@ -7,7 +7,7 @@ import           Text.PrettyPrint
 
 data OutputSettings = OutputSettings { markdown   :: Bool
                                      , monochrome :: Bool }
-data OutputType = Warning | Error
+data OutputType = Warning | Error deriving (Show, Eq)
 
 data Output a = Reader OutputSettings a
 
@@ -44,7 +44,9 @@ wikiLink :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 wikiLink e = do
  s <- ask
  return $ text "For more information see:"
-          <+> text "https://github.com/oden-lang/oden/wiki/Error:-" <> text (name e)
+          <+> text "https://github.com/oden-lang/oden/wiki/"
+          <> text (show (outputType e))
+          <> text ":-" <> text (name e)
 
 format :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 format e = do

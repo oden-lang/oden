@@ -11,6 +11,7 @@ data Expr t = Symbol Identifier t
             | NoArgFn (Expr t) t
             | Let Name (Expr t) (Expr t) t
             | Literal Literal t
+            | Slice [Expr t] t
             | If (Expr t) (Expr t) (Expr t) t
             | Fix (Expr t) t
             deriving (Eq, Ord)
@@ -24,6 +25,7 @@ instance Show t => Show (Expr t) where
   show (Let n e b t) = "((let ((" ++ n ++ " " ++ show e ++ ")) " ++ show b ++ ") : " ++ show t ++ ")"
   show (Literal l _) = show l
   show (If ce te ee t) = "(if " ++ show ce ++ " " ++ show te ++ "" ++ show ee ++ ")"
+  show (Slice exprs _) = "![" ++ concatMap show exprs ++ "]"
 
 typeOf :: Expr t -> t
 typeOf (Symbol _ t) = t
@@ -35,6 +37,7 @@ typeOf (Let _ _ _ t) = t
 typeOf (Literal _ t) = t
 typeOf (If _ _ _ t) = t
 typeOf (Fix _ t) = t
+typeOf (Slice _ t) = t
 
 data Literal = Int Integer
              | Bool Bool

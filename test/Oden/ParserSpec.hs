@@ -97,6 +97,11 @@ spec = do
       `shouldSucceedWith`
       Symbol (Unqualified "x")
 
+    it "parses slice literal" $
+      parseExpr "![x y z]"
+      `shouldSucceedWith`
+      Slice [Symbol (Unqualified "x"), Symbol (Unqualified "y"), Symbol (Unqualified "z")]
+
   describe "parseDefinition" $ do
     it "parses value definition" $
       parseDefinition "(def x y)"

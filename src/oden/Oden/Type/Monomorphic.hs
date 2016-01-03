@@ -4,6 +4,7 @@ data Type
   = TCon String
   | TArrSingle Type
   | TArr Type Type
+  | TSlice Type
   deriving (Eq, Ord)
 
 parensIf :: Bool -> String -> String
@@ -15,7 +16,9 @@ instance Show Type where
     where
       isArrow TArr{} = True
       isArrow _ = False
+  show (TArrSingle a) = "(-> " ++ show a ++ ")"
   show (TCon a) = a
+  show (TSlice t) = "[]" ++ show t
 
 typeInt, typeBool, typeUnit, typeString :: Type
 typeInt  = TCon "int"

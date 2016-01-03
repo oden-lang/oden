@@ -9,12 +9,12 @@ module Oden.Go (
 
 
 import qualified Oden.Core                  as Core
-import           Oden.Identifier
 import           Oden.Go.Types              as G
+import           Oden.Identifier
 import           Oden.Scope                 as Scope
 import qualified Oden.Type.Polymorphic      as Poly
 
-import           Control.Applicative
+import           Control.Applicative        hiding (Const)
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.ByteString.Lazy.Char8 (pack)
@@ -22,6 +22,8 @@ import qualified Data.HashMap.Strict        as HM
 import           Data.List                  (intercalate)
 import qualified Data.Text                  as T
 import qualified Data.Vector                as V
+
+import Debug.Trace (trace)
 
 import           Foreign.C.String
 foreign import ccall "GetPackageObjects" c_GetPackageObjects :: CString -> IO CString
@@ -34,9 +36,9 @@ o `optOrNull` k = case HM.lookup k o of
 
 instance FromJSON Type where
   parseJSON (Object o) = do
-    (kind :: String) <- o .: "kind"
+    kind :: String <- o .: "kind"
     case kind of
-      "basic"         -> Basic <$> o .: "name"
+      "basic"         -> Basic <$> o .: "name" <*> o .: "untyped"
       "pointer"       -> Pointer <$> o .: "inner"
       "array"         -> G.Array <$> o .: "length"
                                  <*> o .: "inner"
@@ -44,17 +46,33 @@ instance FromJSON Type where
       "signature"     -> Signature <$> o `optOrNull` "recv"
                                    <*> o .: "arguments"
                                    <*> o .: "returns"
-      "named"         -> Basic <$> o .: "name"
+      "named"         -> Named <$> o .: "pkg" <*> o .: "name" <*> o .: "underlying"
       "unsupported"   -> Unsupported <$> o .: "name"
       k -> fail ("Unknown kind: " ++ k)
   parseJSON v = fail ("Unexpected: " ++ show v)
 
-data PackageObject = PackageObject String Type
+data PackageObject = Func Name Type
+                   | Var Name Type
+                   | Const Name Type
                    deriving (Show, Eq)
 
+nameOf :: PackageObject -> Name
+nameOf (Func n _) = n
+nameOf (Var n _) = n
+nameOf (Const n _) = n
+
+typeOf :: PackageObject -> Type
+typeOf (Func _ t) = t
+typeOf (Var _ t) = t
+typeOf (Const _ t) = t
+
 instance FromJSON PackageObject where
-  parseJSON (Object o) = PackageObject <$> o .: "name"
-                                       <*> o .: "type"
+  parseJSON (Object o) = do
+    t :: String <- o .: "objectType"
+    case t of
+      "func"  -> Func <$> o .: "name" <*> o .: "type"
+      "var"   -> Var <$> o .: "name" <*> o .: "type"
+      "const" -> Const <$> o .: "name" <*> o .: "type"
 
 data PackageImportError = PackageImportError Core.PackageName String deriving (Show, Eq)
 
@@ -72,18 +90,33 @@ decodeResponse pkgName s = either (Left . PackageImportError pkgName) Right $ do
     ErrorResponse err -> Left err
     ObjectsResponse objs -> Right objs
 
-data UnsupportedTypesWarning = UnsupportedTypesWarning { pkg :: Core.PackageName
+data UnsupportedTypesWarning = UnsupportedTypesWarning { pkg      :: Core.PackageName
                                                        , messages :: [(Name, String)]
                                                        } deriving (Show, Eq)
 
 convertType :: G.Type -> Either String Poly.Type
-convertType (Basic n) = return (Poly.TCon n)
+convertType (Basic n False) = return (Poly.TCon n)
+-- TODO: Add "Untyped constant" concept in Oden type system
+-- and/or consider how macros would relate to this.
+convertType (Basic "bool" True) = return Poly.typeBool
+convertType (Basic "int" True) = return Poly.typeInt
+convertType (Basic "rune" True) = return Poly.typeInt
+convertType (Basic "float" True) = return (Poly.TCon "float32")
+convertType (Basic "complex" True) = return (Poly.TCon "complex64")
+convertType (Basic "string" True) = return (Poly.TCon "string")
+convertType (Basic "nil" True) = Left "nil constant"
+convertType (Basic n True) = Left ("Untyped " ++ n)
 convertType (Pointer n) = Left "Pointers"
 convertType (G.Array l t) = Left "Arrays"
-convertType (Slice t) = Left "Slices"
+convertType (Slice t) = Poly.TSlice <$> convertType t
 convertType (Signature (Just _) _ _) = Left "Methods (functions with receivers)"
+convertType (Signature Nothing [] []) =
+  return (Poly.TArrSingle Poly.typeUnit)
 convertType (Signature Nothing [] [return]) =
   Poly.TArrSingle <$> convertType return
+convertType (Signature Nothing [arg] []) = do
+  a <- convertType arg
+  Right (Poly.TArr a Poly.typeUnit)
 convertType (Signature Nothing [arg] [return]) = do
   a <- convertType arg
   r <- convertType return
@@ -100,14 +133,16 @@ objectsToScope pkgName objs =
     (s, []) -> (s, Nothing)
     (s, msgs) -> (s, Just (UnsupportedTypesWarning pkgName msgs))
   where
-  addObject (scope, us) (PackageObject n t) =
-    case convertType t of
-      Left u -> (scope, (n, u) : us)
-      Right ct ->
-        let i = Qualified (last pkgName) n
-            sc = Poly.Forall [] ct
-        in (Scope.insert (Scope.Import pkgName) i (ForeignDefinition i sc) scope,
-            us)
+  addObject (scope, us) o =
+    let n = nameOf o
+        t = typeOf o
+    in case convertType t of
+         Left u -> (scope, (n, u) : us)
+         Right ct ->
+           let i = Qualified (last pkgName) n
+               sc = Poly.Forall [] ct
+           in (Scope.insert (Scope.Import pkgName) i (ForeignDefinition i sc) scope,
+               us)
 
 getPackageScope :: Core.PackageName -> IO (Either PackageImportError (Scope, Maybe UnsupportedTypesWarning))
 getPackageScope pkgName = do

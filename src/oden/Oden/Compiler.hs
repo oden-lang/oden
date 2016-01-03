@@ -164,6 +164,10 @@ monomorph e@(Core.NoArgFn b t) = do
   mt <- getMonoType e
   mb <- monomorph b
   return (Core.NoArgFn mb mt)
+monomorph e@(Core.Slice es t) = do
+  mt <- getMonoType e
+  mes <- mapM monomorph es
+  return (Core.Slice mes mt)
 monomorph e@(Core.Literal l t) = do
   mt <- getMonoType e
   return (Core.Literal l mt)

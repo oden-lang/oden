@@ -8,13 +8,13 @@ module Oden.Parser (
 
 import           Data.List
 import qualified Data.Text.Lazy        as L
-import           Text.Parsec           hiding (string)
+import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
 import qualified Text.Parsec.Token     as Tok
 import qualified Text.PrettyPrint as Pretty
 
 import           Oden.Identifier
-import           Oden.Lexer
+import           Oden.Lexer            as Lexer
 import           Oden.Output           as Output
 import           Oden.Syntax           as Syntax
 
@@ -36,7 +36,7 @@ number = do
 
 stringLiteral :: Parser Expr
 stringLiteral = do
-  s <- string
+  s <- Lexer.string
   return (Literal (Syntax.String s))
 
 bool :: Parser Expr
@@ -76,6 +76,9 @@ application = do
   args <- many expr
   return $ Application f args
 
+slice :: Parser Expr
+slice = Slice <$> (char '!' *> brackets (expr `sepBy` whitespace))
+
 expr :: Parser Expr
 expr =
   bool
@@ -87,6 +90,7 @@ expr =
               <|> let'
               <|> application)
   <|> stringLiteral
+  <|> slice
   <|> symbol
 
 definition :: Parser Definition
