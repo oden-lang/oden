@@ -48,10 +48,6 @@ return' e@(Symbol _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
 return' expr = text "return" <+> codegenExpr expr
 
-returnType :: Mono.Type -> Doc
-returnType t | t == Mono.typeUnit = empty
-returnType t = codegenType t
-
 replaceIdentifierPart :: Char -> String
 replaceIdentifierPart '-' = "_DASH_"
 replaceIdentifierPart '\'' = "_PRIM_"
@@ -77,11 +73,12 @@ codegenIdentifier (Unqualified n) = safeName n
 codegenIdentifier (Qualified pn n) = safeName pn <> text "." <> safeName n
 
 codegenType :: Mono.Type -> Doc
+codegenType t | t == Mono.typeUnit = empty
 codegenType (Mono.TCon n) = safeName n
 codegenType (Mono.TArrSingle f) =
-  func empty empty (returnType f) empty
+  func empty empty (codegenType f) empty
 codegenType (Mono.TArr d r) =
-  func empty (returnType d) (codegenType r) empty
+  func empty (codegenType d) (codegenType r) empty
 codegenType (Mono.TSlice t) =
   text "[]" <> codegenType t
 
@@ -110,9 +107,9 @@ codegenExpr (NoArgApplication f _) =
 codegenExpr (Fn a body (Mono.TArr d r)) =
   func empty (funcArg a d) (codegenType r) (return' body)
 codegenExpr (NoArgFn body (Mono.TArrSingle r)) =
-  func empty empty (returnType r) (return' body)
+  func empty empty (codegenType r) (return' body)
 codegenExpr (Let n expr body t) =
-  parens (func empty empty (returnType t) (text "var" <+> safeName n <+> codegenType (typeOf expr)<+> equals <+> codegenExpr expr $+$ return' body))
+  parens (func empty empty (codegenType t) (text "var" <+> safeName n <+> codegenType (typeOf expr)<+> equals <+> codegenExpr expr $+$ return' body))
   <> parens empty
 codegenExpr (Literal (Int n) _) = integer n
 codegenExpr (Literal (Bool True) _) = text "true"
@@ -128,9 +125,9 @@ codegenExpr (Slice exprs t) = codegenType t
 
 codegenTopLevel :: Name -> Expr Mono.Type -> Doc
 codegenTopLevel name (NoArgFn body (Mono.TArrSingle r)) =
-  func (safeName name) empty (returnType r) (return' body)
+  func (safeName name) empty (codegenType r) (return' body)
 codegenTopLevel name (Fn a body (Mono.TArr d r)) =
-  func (safeName name) (funcArg a d) (returnType r) (return' body)
+  func (safeName name) (funcArg a d) (codegenType r) (return' body)
 codegenTopLevel name expr =
   var name expr
 
