@@ -39,6 +39,8 @@ return' e@(NoArgApplication _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
 return' e@(Application _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
+return' e@(GoFuncApplication _ _ t) | t == Mono.typeUnit =
+  codegenExpr e $+$ text "return"
 return' e@(Let _ _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
 return' (Symbol (Unqualified "unit") _) =
