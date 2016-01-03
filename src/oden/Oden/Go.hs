@@ -101,25 +101,20 @@ convertType (Basic "rune" True) = return Poly.typeInt
 convertType (Basic "float" True) = return (Poly.TCon "float32")
 convertType (Basic "complex" True) = return (Poly.TCon "complex64")
 convertType (Basic "string" True) = return (Poly.TCon "string")
-convertType (Basic "nil" True) = Left "nil constant"
-convertType (Basic n True) = Left ("Untyped " ++ n)
+convertType (Basic "nil" True) = Left "nil constants"
+convertType (Basic n True) = Left ("Untyped " ++ n ++ "s")
 convertType (Pointer _) = Left "Pointers"
 convertType (G.Array _ _) = Left "Arrays"
 convertType (Slice t) = Poly.TSlice <$> convertType t
 convertType (Signature (Just _) _ _) = Left "Methods (functions with receivers)"
-convertType (Signature Nothing [] []) =
-  return (Poly.TArrSingle Poly.typeUnit)
-convertType (Signature Nothing [] [ret]) =
-  Poly.TArrSingle <$> convertType ret
-convertType (Signature Nothing [arg] []) = do
-  a <- convertType arg
-  Right (Poly.TArr a Poly.typeUnit)
-convertType (Signature Nothing [arg] [ret]) = do
-  a <- convertType arg
+convertType (Signature Nothing args []) = do
+  as <- mapM convertType args
+  Right (Poly.TGoFunc as Poly.typeUnit)
+convertType (Signature Nothing args [ret]) = do
+  as <- mapM convertType args
   r <- convertType ret
-  Right (Poly.TArr a r)
-convertType (Signature Nothing a _) | length a > 1 = Left "Functions with multiple arguments"
-convertType (Signature Nothing _ r) | length r > 1 = Left "Functions with multiple return values"
+  Right (Poly.TGoFunc as r)
+convertType (Signature Nothing _ _) = Left "Functions with multiple return values"
 -- TODO: Add "Named" concept in Oden type system
 convertType (Named _ _ t) = convertType t
 convertType (Unsupported n) = Left n
