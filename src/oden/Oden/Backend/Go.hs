@@ -105,8 +105,8 @@ codegenExpr (Application (Application o p1 _) p2 _) | isInfix o =
   parens (codegenOperator p1 <+> codegenOperator o <+> codegenOperator p2)
 codegenExpr (Application f p _) =
   codegenExpr f <> parens (codegenExpr p)
-codegenExpr (GoFuncApplication f p _) =
-  codegenExpr f <> parens (codegenExpr p)
+codegenExpr (GoFuncApplication f ps _) =
+  codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr ps)))
 codegenExpr (NoArgApplication f _) =
   codegenExpr f <> parens empty
 codegenExpr (Fn a body (Mono.TArr d r)) =
@@ -148,11 +148,11 @@ codegenImport (Import name) =
   text "import" <+> doubleQuotes (hcat (punctuate (text "/") (map text name)))
 
 codegenPackage :: CompiledPackage -> Doc
-codegenPackage (CompiledPackage name imports instances monomorphed) =
+codegenPackage (CompiledPackage name imports is ms) =
   text "package" <+> text (last name)
   $+$ vcat (map codegenImport imports)
-  $+$ vcat (map codegenInstance (Set.toList instances))
-  $+$ vcat (map codegenMonomorphed (Set.toList monomorphed))
+  $+$ vcat (map codegenInstance (Set.toList is))
+  $+$ vcat (map codegenMonomorphed (Set.toList ms))
 
 toFilePath :: GoBackend -> PackageName -> Either CodegenError FilePath
 toFilePath _ [] = Left (UnexpectedError "Package name cannot be empty")

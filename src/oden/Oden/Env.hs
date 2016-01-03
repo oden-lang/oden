@@ -18,12 +18,10 @@ import           Prelude               hiding (lookup)
 
 import           Oden.Identifier
 import qualified Oden.Scope as Scope
-import           Oden.Syntax
 import           Oden.Type.Polymorphic
 
 import           Data.Foldable         hiding (toList)
 import qualified Data.Map              as Map
-import           Data.Monoid
 
 -------------------------------------------------------------------------------
 -- Typing Environment

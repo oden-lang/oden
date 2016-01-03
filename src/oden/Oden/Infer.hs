@@ -200,23 +200,34 @@ infer expr = case expr of
     tf <- infer f
     return (Core.NoArgFn tf (TArrSingle (Core.typeOf tf)))
 
-  Untyped.Application f p -> do
+  Untyped.Application f [] -> do
     tf <- infer f
-    tp <- infer p
     tv <- fresh
     case Core.typeOf tf of
       t@(TGoFunc _ _) -> do
-        uni t (TGoFunc [Core.typeOf tp] tv)
-        return (Core.GoFuncApplication tf tp tv)
+        uni t (TGoFunc [] tv)
+        return (Core.GoFuncApplication tf [] tv)
       t -> do
-        uni t (Core.typeOf tp `TArr` tv)
-        return (Core.Application tf tp tv)
+        uni t (TArrSingle tv)
+        return (Core.NoArgApplication tf tv)
 
-  Untyped.NoArgApplication f -> do
+  Untyped.Application f ps -> do
     tf <- infer f
-    tv <- fresh
-    uni (Core.typeOf tf) (TArrSingle tv)
-    return (Core.NoArgApplication tf tv)
+    case Core.typeOf tf of
+      t@(TGoFunc _ _) -> do
+        tv <- fresh
+        tps <- mapM infer ps
+        uni t (TGoFunc (map Core.typeOf tps) tv)
+        return (Core.GoFuncApplication tf tps tv)
+      _ -> do
+        foldM iter tf ps
+        where
+        iter :: (Core.Expr Type) -> Untyped.Expr -> Infer (Core.Expr Type)
+        iter tf' p = do
+          tv <- fresh
+          tp <- infer p
+          uni (Core.typeOf tf') (Core.typeOf tp `TArr` tv)
+          return (Core.Application tf' tp tv)
 
   Untyped.Let n e b -> do
     te <- infer e

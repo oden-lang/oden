@@ -64,8 +64,8 @@ instantiateExpr (Core.Application f p t) =
   Core.Application <$> instantiateExpr f <*> instantiateExpr p <*> replace t
 instantiateExpr (Core.NoArgApplication f t) =
   Core.NoArgApplication <$> instantiateExpr f <*> replace t
-instantiateExpr (Core.GoFuncApplication f p t) =
-  Core.GoFuncApplication <$> instantiateExpr f <*> instantiateExpr p <*> replace t
+instantiateExpr (Core.GoFuncApplication f ps t) =
+  Core.GoFuncApplication <$> instantiateExpr f <*> mapM instantiateExpr ps <*> replace t
 instantiateExpr (Core.Fn a b t) =
   Core.Fn a <$> instantiateExpr b <*> replace t
 instantiateExpr (Core.NoArgFn b t) =

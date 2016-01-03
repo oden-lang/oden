@@ -15,17 +15,17 @@ instance OdenOutput TypeError where
   name (UnificationMismatch _ _)  = "Infer.UnificationMismatch"
 
   header (UnificationFail t1 t2) s = text "Cannot unify types" <+> code s t1 <+> text "and" <+> code s t2
-  header (InfiniteType v t) _ = text "Cannot construct an infinite type"
+  header (InfiniteType _ _) _ = text "Cannot construct an infinite type"
   header (NotInScope i) s = code s i <+> text "is not in scope"
-  header (Ambigious cs) _ = text "Cannot match types"
-  header (UnificationMismatch ts1 ts2) _ = text "Types does not match"
+  header (Ambigious _) _ = text "Cannot match types"
+  header (UnificationMismatch _ _) _ = text "Types do not match"
 
-  details (UnificationFail t1 t2) _ = empty
+  details (UnificationFail _ _) _ = empty
   details (InfiniteType v t) s = code s v <+> equals <+> code s t
-  details (NotInScope i) _ = empty
-  details (Ambigious cs) s = vcat (map (formatConstraint s) cs)
-    where formatConstraint s (t1, t2) = text "Expected" <+> code s t1 <+> text "but got" <+> code s t2
-  details (UnificationMismatch ts1 ts2) s = vcat (zipWith (formatTypes s) ts1 ts2)
-    where formatTypes s t1 t2 | t1 == t2 = code s t1 <+> text "==" <+> code s t2
-          formatTypes s t1 t2 = code s t1 <+> text "!=" <+> code s t2
+  details (NotInScope _) _ = empty
+  details (Ambigious cs) s = vcat (map formatConstraint cs)
+    where formatConstraint (t1, t2) = text "Expected" <+> code s t1 <+> text "but got" <+> code s t2
+  details (UnificationMismatch ts1 ts2) s = vcat (zipWith formatTypes ts1 ts2)
+    where formatTypes t1 t2 | t1 == t2 = code s t1 <+> text "==" <+> code s t2
+          formatTypes t1 t2 = code s t1 <+> text "!=" <+> code s t2
 

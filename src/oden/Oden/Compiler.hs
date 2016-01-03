@@ -155,11 +155,11 @@ monomorph e@(Core.NoArgApplication f _) = do
   mt <- getMonoType e
   mf <- monomorph f
   return (Core.NoArgApplication mf mt)
-monomorph e@(Core.GoFuncApplication f p _) = do
+monomorph e@(Core.GoFuncApplication f ps _) = do
   mt <- getMonoType e
   mf <- monomorph f
-  mp <- monomorph p
-  return (Core.GoFuncApplication mf mp mt)
+  mps <- mapM monomorph ps
+  return (Core.GoFuncApplication mf mps mt)
 monomorph e@(Core.Fn a b _) = do
   mt <- getMonoType e
   mb <- withBinding (FunctionArgument a) (monomorph b)

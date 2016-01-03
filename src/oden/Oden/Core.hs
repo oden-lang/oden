@@ -7,7 +7,7 @@ import qualified Oden.Type.Polymorphic as Poly
 data Expr t = Symbol Identifier t
             | Application (Expr t) (Expr t) t
             | NoArgApplication (Expr t) t
-            | GoFuncApplication (Expr t) (Expr t) t
+            | GoFuncApplication (Expr t) [Expr t] t
             | Fn Name (Expr t) t
             | NoArgFn (Expr t) t
             | Let Name (Expr t) (Expr t) t
