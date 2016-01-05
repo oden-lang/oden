@@ -43,7 +43,7 @@ init-dev:
 	cabal install --enable-tests --only-dependencies
 	cabal configure --enable-tests
 
-dist/build/odenc/odenc: build
+dist/build-odenc/bin/odenc: build
 	rm -rf dist/build-odenc
 	cp -r dist/build dist/build-odenc
 	mkdir -p dist/build-odenc/bin
@@ -63,7 +63,10 @@ dist/build/odenc/odenc: build
 		dist/go-lib/importer.a \
 		src/odenc/Main.hs
 
-dist/oden: dist/build/odenc/odenc
+.PHONY: odenc
+odenc: dist/build-odenc/bin/odenc
+
+dist/oden: dist/build-odenc/bin/odenc
 	@mkdir -p dist/oden/bin
 	cp README.md dist/oden/README.txt
 	cp LICENSE.md dist/oden/LICENSE.txt
