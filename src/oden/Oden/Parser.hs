@@ -11,11 +11,9 @@ import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
 import qualified Text.Parsec.Token     as Tok
-import qualified Text.PrettyPrint      as Pretty
 
 import           Oden.Identifier
 import           Oden.Lexer            as Lexer
-import           Oden.Output           as Output
 import           Oden.Syntax           as Syntax
 
 integer :: Parser Integer

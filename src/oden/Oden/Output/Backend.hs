@@ -7,7 +7,7 @@ import           Oden.Output
 
 instance OdenOutput CodegenError where
   outputType _ = Error
-  name (UnexpectedError s)      = "Backend.UnexpectedError"
-  header (UnexpectedError s) _  = text "Unexpected error in codegen"
+  name (UnexpectedError _)      = "Backend.UnexpectedError"
+  header (UnexpectedError _) _  = text "Unexpected error in codegen"
   details (UnexpectedError s) _ = text s
 

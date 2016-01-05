@@ -4,8 +4,6 @@ module Oden.Scanner (
 ) where
 
 import           Control.Monad
-import           Data.Maybe
-import           Data.List
 import           System.Directory
 import           System.FilePath
 import           System.Posix.Files

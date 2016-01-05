@@ -41,8 +41,7 @@ formatOutputType e = do
     Error -> return $ escape s [1, 31] <> text "Error:" <> escape s [0]
 
 wikiLink :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
-wikiLink e = do
- s <- ask
+wikiLink e =
  return $ text "For more information see:"
           <+> text "https://github.com/oden-lang/oden/wiki/"
           <> text (show (outputType e))

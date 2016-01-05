@@ -5,7 +5,6 @@ import Text.Parsec
 import Text.Parsec.Error
 
 import Oden.Output as Output
-import Oden.Parser
 
 formatErrorMessage :: Message -> Doc
 formatErrorMessage (SysUnExpect s) = text "Unexpected" <+> doubleQuotes (text s)
@@ -16,6 +15,6 @@ formatErrorMessage (Message s) = text s
 instance OdenOutput ParseError where
   outputType _ = Output.Error
   name _ = "Parser.ParseError"
-  header e _ = text "Parsing failed"
+  header _ _ = text "Parsing failed"
   details e _ = vcat (map formatErrorMessage (errorMessages e))
 

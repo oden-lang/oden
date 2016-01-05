@@ -23,5 +23,7 @@ spec =
       encodeTypeInstance (Unqualified "foo") (TArrSingle (TArrSingle (TCon "Bar"))) `shouldBe` "foo_inst_to_to__Bar"
     it "encodes go func" $
       encodeTypeInstance (Unqualified "foo") (TGoFunc [TCon "Foo", TCon "Bar"] (TCon "Baz")) `shouldBe` "foo_inst_Foo_to_Bar_to_Baz"
+    it "encodes variadic go func" $
+      encodeTypeInstance (Unqualified "foo") (TVariadicGoFunc [TCon "Foo"] (TCon "Bar") (TCon "Baz")) `shouldBe` "foo_inst_Foo_to_variadic_Bar_to_Baz"
     it "encodes slice" $
       encodeTypeInstance (Unqualified "foo") (TArr (TSlice (TCon "Foo")) (TSlice (TCon "Bar"))) `shouldBe` "foo_inst_sliceof__Foo_to_sliceof__Bar"

@@ -4,7 +4,6 @@ import Text.Parsec
 import Text.Parsec.Text.Lazy
 import qualified Data.Text.Lazy as L
 import qualified Text.Parsec.Token as Tok
-import qualified Text.Parsec.Expr as Ex
 
 import Data.Functor.Identity
 

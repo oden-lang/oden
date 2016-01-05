@@ -22,8 +22,12 @@ predefAndMax :: Env
 predefAndMax = predef `extend` (Unqualified "max",
                                 Forall [] (TGoFunc [typeInt, typeInt] typeInt))
 
+predefAndMaxVariadic :: Env
+predefAndMaxVariadic = predef `extend` (Unqualified "max",
+                                        Forall [] (TVariadicGoFunc [] typeInt typeInt))
+
 spec :: Spec
-spec = do
+spec =
   describe "inferExpr" $ do
     it "infers int literal" $
       inferExpr empty (Untyped.Literal (Untyped.Int 1))
@@ -95,8 +99,8 @@ spec = do
       inferExpr predef (Untyped.Application (Untyped.Symbol (Unqualified "len")) [Untyped.Slice [Untyped.Literal (Untyped.Bool True)]])
       `shouldSucceedWith`
       (Forall [] typeInt,
-       (Core.GoFuncApplication (Core.Symbol (Unqualified "len") (TGoFunc [TSlice typeBool] typeInt))
-                               [Core.Slice [Core.Literal (Core.Bool True) typeBool] (TSlice typeBool)])
+       Core.GoFuncApplication (Core.Symbol (Unqualified "len") (TGoFunc [TSlice typeBool] typeInt))
+                              [Core.Slice [Core.Literal (Core.Bool True) typeBool] (TSlice typeBool)]
        typeInt)
 
     it "infers single-arg go func application" $
@@ -105,7 +109,26 @@ spec = do
                                                   ,Untyped.Literal (Untyped.Int 1)])
       `shouldSucceedWith`
       (Forall [] typeInt,
-       (Core.GoFuncApplication (Core.Symbol (Unqualified "max") (TGoFunc [typeInt, typeInt] typeInt))
-                               [Core.Literal (Core.Int 0) typeInt
-                               ,Core.Literal (Core.Int 1) typeInt])
+       Core.GoFuncApplication (Core.Symbol (Unqualified "max") (TGoFunc [typeInt, typeInt] typeInt))
+                              [Core.Literal (Core.Int 0) typeInt
+                              ,Core.Literal (Core.Int 1) typeInt]
+       typeInt)
+
+    it "infers variadic go func application" $
+      inferExpr predefAndMaxVariadic (Untyped.Application (Untyped.Symbol (Unqualified "max"))
+                                                          [Untyped.Literal (Untyped.Int 0)
+                                                          ,Untyped.Literal (Untyped.Int 1)])
+      `shouldSucceedWith`
+      (Forall [] typeInt,
+       Core.GoFuncApplication (Core.Symbol (Unqualified "max") (TVariadicGoFunc [] typeInt typeInt))
+                              [Core.Slice [Core.Literal (Core.Int 0) typeInt
+                                          ,Core.Literal (Core.Int 1) typeInt] typeInt]
+       typeInt)
+
+    it "infers variadic no-arg go func application" $
+      inferExpr predefAndMaxVariadic (Untyped.Application (Untyped.Symbol (Unqualified "max")) [])
+      `shouldSucceedWith`
+      (Forall [] typeInt,
+       Core.GoFuncApplication (Core.Symbol (Unqualified "max") (TVariadicGoFunc [] typeInt typeInt))
+                              [Core.Slice [] typeInt]
        typeInt)

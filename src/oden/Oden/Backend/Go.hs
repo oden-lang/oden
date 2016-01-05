@@ -84,6 +84,8 @@ codegenType (Mono.TSlice t) =
   text "[]" <> codegenType t
 codegenType (Mono.TGoFunc as r) =
   func empty (hcat (punctuate (text ", ") (map codegenType as))) (codegenType r) empty
+codegenType (Mono.TVariadicGoFunc as v r) =
+  func empty (hcat (punctuate (text ", ") (map codegenType as ++ [codegenType v <> text "..."]))) (codegenType r) empty
 
 isInfix :: Expr Mono.Type -> Bool
 isInfix (Symbol (Unqualified s) _) = s `elem` ["+", "-", "*", "/", "==", ">", "<", "<=", ">=", "++", "and", "or"]
@@ -106,13 +108,21 @@ codegenExpr (Application (Application o p1 _) p2 _) | isInfix o =
 codegenExpr (Application f p _) =
   codegenExpr f <> parens (codegenExpr p)
 codegenExpr (GoFuncApplication f ps _) =
-  codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr ps)))
+  case typeOf f of
+    Mono.TVariadicGoFunc{} ->
+      let nonVariadicParams = init ps
+          slice = last ps
+      in codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr nonVariadicParams ++ [codegenExpr slice <> text "..."])))
+    _ ->
+      codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr ps)))
 codegenExpr (NoArgApplication f _) =
   codegenExpr f <> parens empty
 codegenExpr (Fn a body (Mono.TArr d r)) =
   func empty (funcArg a d) (codegenType r) (return' body)
+codegenExpr Fn{} = text "<invalid fn type>"
 codegenExpr (NoArgFn body (Mono.TArrSingle r)) =
   func empty empty (codegenType r) (return' body)
+codegenExpr (NoArgFn _ _) = text "<invalid no-arg fn type>"
 codegenExpr (Let n expr body t) =
   parens (func empty empty (codegenType t) (text "var" <+> safeName n <+> codegenType (typeOf expr)<+> equals <+> codegenExpr expr $+$ return' body))
   <> parens empty
