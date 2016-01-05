@@ -26,6 +26,10 @@ predefAndMaxVariadic :: Env
 predefAndMaxVariadic = predef `extend` (Unqualified "max",
                                         Forall [] (TVariadicGoFunc [] typeInt typeInt))
 
+predefAndIdentityAny :: Env
+predefAndIdentityAny = predef `extend` (Unqualified "identity",
+                                        Forall [] (TGoFunc [TAny] TAny))
+
 spec :: Spec
 spec =
   describe "inferExpr" $ do
@@ -79,6 +83,37 @@ spec =
          (typeBool `TArr` typeInt))
         (Core.Literal (Core.Bool False) typeBool)
         typeInt))
+
+    it "infers fn application with any-type" $
+      inferExpr
+        predefAndIdentityAny
+        (Untyped.Application
+         (Untyped.Symbol (Unqualified "identity"))
+         [Untyped.Literal (Untyped.Bool False)])
+      `shouldSucceedWith`
+      (Forall [] TAny,
+       Core.GoFuncApplication
+        (Core.Symbol (Unqualified "identity") (TGoFunc [TAny] TAny))
+        [Core.Literal (Core.Bool False) typeBool]
+        TAny)
+
+    it "infers fn application with any-type with multiple \"instances\"" $
+      inferExpr
+        predefAndIdentityAny
+        (Untyped.Application
+         (Untyped.Symbol (Unqualified "identity"))
+         [Untyped.Application
+          (Untyped.Symbol (Unqualified "identity"))
+          [Untyped.Literal (Untyped.Bool False)]])
+      `shouldSucceedWith`
+      (Forall [] TAny,
+       Core.GoFuncApplication
+        (Core.Symbol (Unqualified "identity") (TGoFunc [TAny] TAny))
+        [Core.GoFuncApplication
+         (Core.Symbol (Unqualified "identity") (TGoFunc [TAny] TAny))
+         [Core.Literal (Core.Bool False) typeBool]
+         TAny]
+        TAny)
 
     it "infers let" $
       inferExpr empty (Untyped.Let "x" (Untyped.Literal (Untyped.Int 1)) (Untyped.Symbol (Unqualified "x")))

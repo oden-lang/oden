@@ -60,6 +60,7 @@ class Substitutable a where
   ftv   :: a -> Set.Set TVar
 
 instance Substitutable Type where
+  apply _ TAny                      = TAny
   apply _ (TCon a)                  = TCon a
   apply (Subst s) t@(TVar a)        = Map.findWithDefault t a s
   apply s (TArrSingle t)            = TArrSingle (apply s t)
@@ -68,6 +69,7 @@ instance Substitutable Type where
   apply s (TVariadicGoFunc as v r)  = TVariadicGoFunc (map (apply s) as) (apply s v) (apply s r)
   apply s (TSlice t)                = TSlice (apply s t)
 
+  ftv TAny                      = Set.empty
   ftv TCon{}                    = Set.empty
   ftv (TVar a)                  = Set.singleton a
   ftv (t1 `TArr` t2)            = ftv t1 `Set.union` ftv t2
@@ -293,6 +295,7 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
   where
     ord = zip (nub $ fv body) (map TV letters)
 
+    fv TAny           = []
     fv (TVar a)       = [a]
     fv (TArrSingle a) = fv a
     fv (TArr a b)     = fv a ++ fv b
@@ -301,6 +304,7 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
     fv (TCon _)       = []
     fv (TSlice t)     = fv t
 
+    normtype TAny           = TAny
     normtype (TArrSingle a) = TArrSingle (normtype a)
     normtype (TArr a b)     = TArr (normtype a) (normtype b)
     normtype (TGoFunc as r) = TGoFunc (map normtype as) (normtype r)
@@ -339,6 +343,10 @@ unifyMany t1 t2 = throwError $ UnificationMismatch t1 t2
 
 unifies :: Type -> Type -> Solve Subst
 unifies t1 t2 | t1 == t2 = return emptySubst
+unifies TAny (TVar v) = v `bind` TAny
+unifies (TVar v) TAny = v `bind` TAny
+unifies TAny _ = return emptySubst
+unifies _ TAny = return emptySubst
 unifies (TVar v) t = v `bind` t
 unifies t (TVar v) = v `bind` t
 unifies (TArr t1 t2) (TArr t3 t4) = unifyMany [t1, t2] [t3, t4]

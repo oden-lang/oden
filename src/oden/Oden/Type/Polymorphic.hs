@@ -20,8 +20,9 @@ instance Show TVar where
   show (TV s) = '#':s
 
 data Type
+  = TAny
   -- | A type variable.
-  = TVar TVar
+  | TVar TVar
   -- | A type constructor with a name.
   | TCon String
   -- | Like a 'TArr' but with no argument, only a return type.
@@ -38,6 +39,7 @@ data Type
   deriving (Eq, Ord)
 
 instance Show Type where
+  show TAny = "any"
   show (TArr a b) = "(" ++ show a ++ " -> " ++ show b ++ ")"
   show (TArrSingle a) = "(-> " ++ show a ++ ")"
   show (TVar a) = show a
@@ -56,6 +58,7 @@ instance Show Scheme where
     where vars = unwords (map show vs)
 
 toMonomorphic :: Type -> Either String Mono.Type
+toMonomorphic TAny = Right Mono.TAny
 toMonomorphic (TVar _) = Left "Cannot convert TVar to a monomorphic type"
 toMonomorphic (TCon s) = Right (Mono.TCon s)
 toMonomorphic (TArrSingle t) = Mono.TArrSingle <$> toMonomorphic t
@@ -68,6 +71,7 @@ isPolymorphic :: Scheme -> Bool
 isPolymorphic (Forall tvars _) = not (null tvars)
 
 isPolymorphicType :: Type -> Bool
+isPolymorphicType TAny = False
 isPolymorphicType (TVar _) = True
 isPolymorphicType (TCon _) = False
 isPolymorphicType (TArrSingle a) = isPolymorphicType a
