@@ -40,6 +40,15 @@ writeType (Mono.TGoFunc as r) = do
   withIncreasedLevel (writeType r)
   where
   writeArg a t = a >> withIncreasedLevel (writeType t) >> paddedTo
+writeType (Mono.TVariadicGoFunc as v r) = do
+  foldl writeArg (return ()) as
+  tell "variadic"
+  pad
+  withIncreasedLevel (writeType v)
+  paddedTo
+  withIncreasedLevel (writeType r)
+  where
+  writeArg a t = a >> withIncreasedLevel (writeType t) >> paddedTo
 writeType (Mono.TSlice t) = do
   tell "sliceof"
   pad

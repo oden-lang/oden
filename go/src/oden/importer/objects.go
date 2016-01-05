@@ -99,9 +99,6 @@ func encodeType(t types.Type) Type {
 		return NewSlice(st)
 	case *types.Signature:
 		sig := t.(*types.Signature)
-		if sig.Variadic() {
-			return NewUnsupported("Variadic functions")
-		}
 		v := sig.Recv()
 		var vt *Type
 		if v != nil {
@@ -109,6 +106,7 @@ func encodeType(t types.Type) Type {
 			vt = &t
 		}
 		return NewSignature(
+			sig.Variadic(),
 			vt,
 			tupleToSlice(sig.Params()),
 			tupleToSlice(sig.Results()))

@@ -33,13 +33,14 @@ func NewSlice(inner Type) Slice {
 
 type Signature struct {
 	Kind      string `json:"kind"`
+	Variadic  bool   `json:"variadic"`
 	Recv      *Type  `json:"recv"`
 	Arguments []Type `json:"arguments"`
 	Returns   []Type `json:"returns"`
 }
 
-func NewSignature(recv *Type, arguments, returns []Type) Signature {
-	return Signature{"signature", recv, arguments, returns}
+func NewSignature(variadic bool, recv *Type, arguments, returns []Type) Signature {
+	return Signature{"signature", variadic, recv, arguments, returns}
 }
 
 type Basic struct {

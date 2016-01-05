@@ -5,6 +5,7 @@ data Type
   | TArrSingle Type
   | TArr Type Type
   | TGoFunc [Type] Type
+  | TVariadicGoFunc [Type] Type Type
   | TSlice Type
   deriving (Eq, Ord)
 
@@ -20,6 +21,8 @@ instance Show Type where
   show (TArrSingle a) = "(-> " ++ show a ++ ")"
   show (TCon a) = a
   show (TGoFunc as rs) = "(go-func (" ++ unwords (map show as) ++ ") " ++ show rs ++ ")"
+  show (TVariadicGoFunc as v rs) =
+    "(go-func (" ++ unwords (map show as) ++ " (* " ++ show v ++ ")) " ++ show rs ++ ")"
   show (TSlice t) = "!(" ++ show t ++ ")"
 
 typeInt, typeBool, typeUnit, typeString :: Type

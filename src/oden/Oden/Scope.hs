@@ -7,7 +7,6 @@ import           Prelude               hiding (lookup)
 
 import qualified Oden.Core             as Core
 import           Oden.Identifier
-import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
 data Definition = ForeignDefinition Identifier Poly.Scheme
@@ -49,7 +48,6 @@ merge s1 s2 = fromList (assocs s1 ++ assocs s2)
 fromList :: [(Source, Identifier, Definition)] -> Scope
 fromList as = Scope $ foldl iter Map.empty as
   where
-  iter layers (source, id, def) =
-    let layer = Map.findWithDefault Map.empty source layers
-        layer' = Map.insert id def (Map.findWithDefault Map.empty source layers)
-    in Map.insert source layer' layers
+  iter layers (source, id', def) =
+    let layer = Map.insert id' def (Map.findWithDefault Map.empty source layers)
+    in Map.insert source layer layers

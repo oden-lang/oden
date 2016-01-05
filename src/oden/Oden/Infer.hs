@@ -60,19 +60,21 @@ class Substitutable a where
   ftv   :: a -> Set.Set TVar
 
 instance Substitutable Type where
-  apply _ (TCon a)            = TCon a
-  apply (Subst s) t@(TVar a)  = Map.findWithDefault t a s
-  apply s (TArrSingle t)      = TArrSingle (apply s t)
-  apply s (t1 `TArr` t2)      = apply s t1 `TArr` apply s t2
-  apply s (TGoFunc as r)      = TGoFunc (map (apply s) as) (apply s r)
-  apply s (TSlice t)          = TSlice (apply s t)
+  apply _ (TCon a)                  = TCon a
+  apply (Subst s) t@(TVar a)        = Map.findWithDefault t a s
+  apply s (TArrSingle t)            = TArrSingle (apply s t)
+  apply s (t1 `TArr` t2)            = apply s t1 `TArr` apply s t2
+  apply s (TGoFunc as r)            = TGoFunc (map (apply s) as) (apply s r)
+  apply s (TVariadicGoFunc as v r)  = TVariadicGoFunc (map (apply s) as) (apply s v) (apply s r)
+  apply s (TSlice t)                = TSlice (apply s t)
 
-  ftv TCon{}         = Set.empty
-  ftv (TVar a)       = Set.singleton a
-  ftv (t1 `TArr` t2) = ftv t1 `Set.union` ftv t2
-  ftv (TArrSingle t) = ftv t
-  ftv (TGoFunc as r) = foldl Set.union (ftv r) (map ftv as)
-  ftv (TSlice t)     = ftv t
+  ftv TCon{}                    = Set.empty
+  ftv (TVar a)                  = Set.singleton a
+  ftv (t1 `TArr` t2)            = ftv t1 `Set.union` ftv t2
+  ftv (TArrSingle t)            = ftv t
+  ftv (TGoFunc as r)            = foldl Set.union (ftv r) (map ftv as)
+  ftv (TVariadicGoFunc as v r)  = foldl Set.union (ftv r) (ftv v : map ftv as)
+  ftv (TSlice t)                = ftv t
 
 instance Substitutable Scheme where
   apply (Subst s) (Forall as t)   = Forall as $ apply s' t
@@ -112,6 +114,7 @@ data TypeError
   | NotInScope Identifier
   | Ambigious [Constraint]
   | UnificationMismatch [Type] [Type]
+  | ArgumentCountMismatch [Type] [Type]
   deriving (Show, Eq)
 
 -------------------------------------------------------------------------------
@@ -207,6 +210,13 @@ infer expr = case expr of
       t@(TGoFunc _ _) -> do
         uni t (TGoFunc [] tv)
         return (Core.GoFuncApplication tf [] tv)
+      -- No-param application of variadic function is automatically transformed
+      -- to application of empty slice.
+      t@(TVariadicGoFunc [] variadicArg _) -> do
+        uni t (TVariadicGoFunc [] variadicArg tv)
+        return (Core.GoFuncApplication tf [Core.Slice [] variadicArg] tv)
+      (TVariadicGoFunc nonVariadicArgs _ _) ->
+        throwError (ArgumentCountMismatch nonVariadicArgs [])
       t -> do
         uni t (TArrSingle tv)
         return (Core.NoArgApplication tf tv)
@@ -219,10 +229,17 @@ infer expr = case expr of
         tps <- mapM infer ps
         uni t (TGoFunc (map Core.typeOf tps) tv)
         return (Core.GoFuncApplication tf tps tv)
-      _ -> do
+      t@(TVariadicGoFunc nonVariadicTypes variadicType _) -> do
+        tv <- fresh
+        nonVariadicParams <- mapM infer (take (length nonVariadicTypes) ps)
+        variadicParams <- mapM infer (drop (length nonVariadicTypes) ps)
+        let allParams = nonVariadicParams ++ [Core.Slice variadicParams variadicType]
+        uni t (TVariadicGoFunc (map Core.typeOf nonVariadicParams) variadicType tv)
+        return (Core.GoFuncApplication tf allParams tv)
+      _ ->
         foldM iter tf ps
         where
-        iter :: (Core.Expr Type) -> Untyped.Expr -> Infer (Core.Expr Type)
+        iter :: Core.Expr Type -> Untyped.Expr -> Infer (Core.Expr Type)
         iter tf' p = do
           tv <- fresh
           tp <- infer p
@@ -280,12 +297,14 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
     fv (TArrSingle a) = fv a
     fv (TArr a b)     = fv a ++ fv b
     fv (TGoFunc as r) = concatMap fv as ++ fv r
+    fv (TVariadicGoFunc as v r) = concatMap fv as ++ fv v ++ fv r
     fv (TCon _)       = []
     fv (TSlice t)     = fv t
 
     normtype (TArrSingle a) = TArrSingle (normtype a)
     normtype (TArr a b)     = TArr (normtype a) (normtype b)
     normtype (TGoFunc as r) = TGoFunc (map normtype as) (normtype r)
+    normtype (TVariadicGoFunc as v r) = TVariadicGoFunc (map normtype as) (normtype v) (normtype r)
     normtype (TCon a)       = TCon a
     normtype (TSlice a)     = TSlice (normtype a)
     normtype (TVar a)       =
@@ -328,6 +347,11 @@ unifies (TGoFunc as1 r1) (TGoFunc as2 r2) = do
   a <- unifyMany as1 as2
   r <- unifies r1 r2
   return (a `compose` r)
+unifies (TVariadicGoFunc as1 v1 r1) (TVariadicGoFunc as2 v2 r2) = do
+  a <- unifyMany as1 as2
+  v <- unifies v1 v2
+  r <- unifies r1 r2
+  return (a `compose` v `compose` r)
 unifies (TSlice t1) (TSlice t2) = unifies t1 t2
 unifies t1 t2 = throwError $ UnificationFail t1 t2
 

@@ -23,6 +23,7 @@ monoToPoly (Mono.TCon n) = Poly.TCon n
 monoToPoly (Mono.TArrSingle f) = Poly.TArrSingle (monoToPoly f)
 monoToPoly (Mono.TArr f p) = Poly.TArr (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TGoFunc as r) = Poly.TGoFunc (map monoToPoly as) (monoToPoly r)
+monoToPoly (Mono.TVariadicGoFunc as v r) = Poly.TVariadicGoFunc (map monoToPoly as) (monoToPoly v) (monoToPoly r)
 monoToPoly (Mono.TSlice t) = Poly.TSlice (monoToPoly t)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
@@ -41,6 +42,11 @@ getSubstitutions (Poly.TGoFunc pas pr) (Mono.TGoFunc mas mr) = do
   as <- zipWithM getSubstitutions pas mas
   r <- getSubstitutions pr mr
   return (foldl mappend r as)
+getSubstitutions (Poly.TVariadicGoFunc pas pv pr) (Mono.TVariadicGoFunc mas mv mr) = do
+  as <- zipWithM getSubstitutions pas mas
+  r <- getSubstitutions pr mr
+  v <- getSubstitutions pv mv
+  return (foldl mappend r (v:as))
 getSubstitutions (Poly.TSlice p) (Mono.TSlice m) =
   getSubstitutions p m
 getSubstitutions poly mono = Left (TypeMismatch poly mono)
@@ -54,7 +60,10 @@ replace (Poly.TVar v) = do
 replace (Poly.TCon n) = return (Poly.TCon n)
 replace (Poly.TArrSingle t) = Poly.TArrSingle <$> replace t
 replace (Poly.TArr ft pt) = Poly.TArr <$> replace ft <*> replace pt
-replace (Poly.TGoFunc ft pt) = Poly.TGoFunc <$> mapM replace ft <*> replace pt
+replace (Poly.TGoFunc ft pt) =
+  Poly.TGoFunc <$> mapM replace ft <*> replace pt
+replace (Poly.TVariadicGoFunc ft vt pt) =
+  Poly.TVariadicGoFunc <$> mapM replace ft <*> replace vt <*> replace pt
 replace (Poly.TSlice t) = Poly.TSlice <$> replace t
 
 instantiateExpr :: Core.Expr Poly.Type

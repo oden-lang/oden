@@ -4,7 +4,7 @@ import           Text.PrettyPrint
 
 import           Oden.Compiler
 import           Oden.Output
-import           Oden.Output.Instantiate
+import           Oden.Output.Instantiate ()
 
 instance OdenOutput CompilationError where
   outputType _ = Error
@@ -18,6 +18,6 @@ instance OdenOutput CompilationError where
   header (UnexpectedPolyType e) s           = text "Unexpected polymorphic type" <+> code s e
   header (MonomorphInstantiateError err) s  = header err s
 
-  details (NotInScope i) _  = empty
+  details (NotInScope _) _  = empty
   details _ _               = empty
 
