@@ -6,6 +6,7 @@ data Type = Basic String Bool
           | Slice Type
           | Signature Bool (Maybe Type) [Type] [Type]
           | Named String String Type
+          | Interface
           | Unsupported String
           deriving (Show, Eq)
 

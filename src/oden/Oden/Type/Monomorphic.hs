@@ -1,7 +1,8 @@
 module Oden.Type.Monomorphic where
 
 data Type
-  = TCon String
+  = TAny
+  | TCon String
   | TArrSingle Type
   | TArr Type Type
   | TGoFunc [Type] Type
@@ -14,6 +15,7 @@ parensIf True s = "(" ++ s ++ ")"
 parensIf False s = s
 
 instance Show Type where
+  show TAny = "any"
   show (TArr a b) = parensIf (isArrow a) (show a) ++ " -> " ++ show b
     where
       isArrow TArr{} = True

@@ -7,7 +7,7 @@ if [ -z $command ]; then
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-ODENC=$DIR/../dist/build/odenc/odenc
+ODENC=$DIR/../dist/oden/bin/odenc
 
 cd $DIR
 tests=$(find src -name *.oden)

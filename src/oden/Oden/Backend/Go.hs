@@ -75,6 +75,7 @@ codegenIdentifier (Qualified pn n) = safeName pn <> text "." <> safeName n
 
 codegenType :: Mono.Type -> Doc
 codegenType t | t == Mono.typeUnit = empty
+codegenType Mono.TAny = text "interface{}"
 codegenType (Mono.TCon n) = safeName n
 codegenType (Mono.TArrSingle f) =
   func empty empty (codegenType f) empty

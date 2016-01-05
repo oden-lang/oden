@@ -37,6 +37,7 @@ instance FromJSON Type where
     case kind of
       "basic"         -> Basic <$> o .: "name" <*> o .: "untyped"
       "pointer"       -> Pointer <$> o .: "inner"
+      "interface"     -> return Interface
       "array"         -> G.Array <$> o .: "length"
                                  <*> o .: "inner"
       "slice"         -> Slice <$> o .: "inner"
@@ -71,6 +72,8 @@ instance FromJSON PackageObject where
       "func"  -> Func <$> o .: "name" <*> o .: "type"
       "var"   -> Var <$> o .: "name" <*> o .: "type"
       "const" -> Const <$> o .: "name" <*> o .: "type"
+      _ -> fail ("Unknown object type: " ++ t)
+  parseJSON v = fail $ "Expected JSON object for PackageObject but got: " ++ show v
 
 data PackageImportError = PackageImportError Core.PackageName String deriving (Show, Eq)
 
@@ -80,6 +83,7 @@ data PackageObjectsResponse = ErrorResponse String | ObjectsResponse [PackageObj
 instance FromJSON PackageObjectsResponse where
   parseJSON (Object o) = ErrorResponse <$> o .: "error"
                        <|> ObjectsResponse <$> o .: "objects"
+  parseJSON v = fail $ "Expected JSON object for PackageObjectsResponse but got: " ++ show v
 
 decodeResponse :: Core.PackageName -> String -> Either PackageImportError [PackageObject]
 decodeResponse pkgName s = either (Left . PackageImportError pkgName) Right $ do
@@ -107,6 +111,7 @@ convertType (Basic n True) = Left ("Untyped " ++ n ++ "s")
 convertType (Pointer _) = Left "Pointers"
 convertType (G.Array _ _) = Left "Arrays"
 convertType (Slice t) = Poly.TSlice <$> convertType t
+convertType Interface{} = Right Poly.TAny
 convertType (Signature _ (Just _) _ _) = Left "Methods (functions with receivers)"
 convertType (Signature False Nothing args []) = do
   as <- mapM convertType args

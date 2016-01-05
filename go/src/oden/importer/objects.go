@@ -117,7 +117,12 @@ func encodeType(t types.Type) Type {
 			n.Obj().Name(),
 			n.Underlying())
 	case *types.Interface:
-		return NewUnsupported("Interfaces")
+		i := t.(*types.Interface)
+		if i.Empty() {
+			return NewInterface()
+		} else {
+			return NewUnsupported("Interfaces")
+		}
 	case *types.Tuple:
 		return NewUnsupported("Tuples")
 	case *types.Map:

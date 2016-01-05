@@ -65,6 +65,14 @@ func NewNamed(pkg string, name string, underlying Type) Named {
 	return Named{"named", pkg, name, underlying}
 }
 
+type Interface struct {
+	Kind string `json:"kind"`
+}
+
+func NewInterface() Interface {
+	return Interface{"interface"}
+}
+
 type Unsupported struct {
 	Kind string `json:"kind"`
 	Name string `json:"name"`

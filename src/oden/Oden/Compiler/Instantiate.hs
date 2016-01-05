@@ -19,6 +19,7 @@ type Substitutions = Map Poly.TVar Poly.Type
 type Instantiate a = StateT Substitutions (Except InstantiateError) a
 
 monoToPoly :: Mono.Type -> Poly.Type
+monoToPoly Mono.TAny = Poly.TAny
 monoToPoly (Mono.TCon n) = Poly.TCon n
 monoToPoly (Mono.TArrSingle f) = Poly.TArrSingle (monoToPoly f)
 monoToPoly (Mono.TArr f p) = Poly.TArr (monoToPoly f) (monoToPoly p)
@@ -52,6 +53,7 @@ getSubstitutions (Poly.TSlice p) (Mono.TSlice m) =
 getSubstitutions poly mono = Left (TypeMismatch poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
+replace Poly.TAny = return Poly.TAny
 replace (Poly.TVar v) = do
   s <- get
   case Map.lookup v s of
