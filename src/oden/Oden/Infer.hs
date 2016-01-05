@@ -239,10 +239,10 @@ infer expr = case expr of
         uni t (TVariadicGoFunc (map Core.typeOf nonVariadicParams) variadicType tv)
         return (Core.GoFuncApplication tf allParams tv)
       _ ->
-        foldM iter tf ps
+        foldM app tf ps
         where
-        iter :: Core.Expr Type -> Untyped.Expr -> Infer (Core.Expr Type)
-        iter tf' p = do
+        app :: Core.Expr Type -> Untyped.Expr -> Infer (Core.Expr Type)
+        app tf' p = do
           tv <- fresh
           tp <- infer p
           uni (Core.typeOf tf') (Core.typeOf tp `TArr` tv)

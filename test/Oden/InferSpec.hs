@@ -30,6 +30,9 @@ predefAndIdentityAny :: Env
 predefAndIdentityAny = predef `extend` (Unqualified "identity",
                                         Forall [] (TGoFunc [TAny] TAny))
 
+booleanOp :: Type
+booleanOp = typeBool `TArr` (typeBool `TArr` typeBool)
+
 spec :: Spec
 spec =
   describe "inferExpr" $ do
@@ -83,6 +86,32 @@ spec =
          (typeBool `TArr` typeInt))
         (Core.Literal (Core.Bool False) typeBool)
         typeInt))
+
+    it "infers nested fn application" $
+      inferExpr
+      predef
+      (Untyped.Application
+       (Untyped.Symbol (Unqualified "or"))
+       [Untyped.Application
+        (Untyped.Symbol (Unqualified "and"))
+        [Untyped.Literal (Untyped.Bool False),
+         Untyped.Literal (Untyped.Bool False)],
+        Untyped.Literal (Untyped.Bool True)])
+      `shouldSucceedWith`
+      (Forall [] typeBool,
+       (Core.Application
+        (Core.Application
+         (Core.Symbol (Unqualified "or") booleanOp)
+         (Core.Application
+          (Core.Application
+           (Core.Symbol (Unqualified "and") booleanOp)
+           (Core.Literal (Core.Bool False) typeBool)
+           (typeBool `TArr` typeBool))
+           (Core.Literal (Core.Bool False) typeBool)
+           typeBool)
+         (typeBool `TArr` typeBool))
+        (Core.Literal (Core.Bool True) typeBool))
+       typeBool)
 
     it "infers fn application with any-type" $
       inferExpr
