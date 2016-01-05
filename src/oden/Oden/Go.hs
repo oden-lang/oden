@@ -120,6 +120,9 @@ convertType (Signature False Nothing args [ret]) = do
   as <- mapM convertType args
   r <- convertType ret
   Right (Poly.TGoFunc as r)
+convertType (Signature False Nothing args _) = do
+  as <- mapM convertType args
+  Right (Poly.TGoFunc as Poly.typeUnit)
 convertType (Signature True Nothing [] []) = Left "Variadic functions with no arguments"
 convertType (Signature True Nothing args []) = do
   as <- mapM convertType (init args)
@@ -130,7 +133,11 @@ convertType (Signature True Nothing args [ret]) = do
   v <- convertType (last args)
   r <- convertType ret
   Right (Poly.TVariadicGoFunc as v r)
-convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
+convertType (Signature True Nothing args _) = do
+  as <- mapM convertType (init args)
+  v <- convertType (last args)
+  Right (Poly.TVariadicGoFunc as v Poly.typeUnit)
+-- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
 -- TODO: Add "Named" concept in Oden type system
 convertType (Named _ _ t) = convertType t
 convertType (Unsupported n) = Left n
