@@ -9,9 +9,9 @@ IMPORTER_SRC=$(shell find go/src/oden -name '*.go')
 NODEMON=node_modules/.bin/nodemon
 
 .PHONY: build
-build: dist/build/libHSoden-*.a
+build: dist/build/libHSoden*.a
 
-dist/build/libHSoden-*.a: dist/go-lib/importer.a
+dist/build/libHSoden*.a: dist/go-lib/importer.a
 	cabal build oden
 
 dist/go-lib/importer.a: $(IMPORTER_SRC)
@@ -45,7 +45,7 @@ init-dev:
 	cabal install --enable-tests --only-dependencies
 	cabal configure --enable-tests
 
-dist/build/odenc/odenc: dist/build/libHSoden-*.a
+dist/build/odenc/odenc: dist/build/libHSoden*.a
 	rm -rf dist/build-odenc
 	cp -r dist/build dist/build-odenc
 	mkdir -p dist/build-odenc/bin
@@ -60,7 +60,7 @@ dist/build/odenc/odenc: dist/build/libHSoden-*.a
 		-static \
 		-threaded \
 		-o dist/build-odenc/bin/odenc \
-		dist/build-odenc/libHSoden-*.a \
+		dist/build-odenc/libHSoden*.a \
 		dist/build-odenc/autogen/Paths_oden.hs \
 		dist/go-lib/importer.a \
 		src/odenc/Main.hs
