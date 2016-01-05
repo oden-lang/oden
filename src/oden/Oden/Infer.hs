@@ -106,7 +106,7 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.Let x e b t)              = Core.Let x (apply s e) (apply s b) (apply s t)
   apply s (Core.Literal l t)              = Core.Literal l (apply s t)
   apply s (Core.If c tb fb t)             = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
-  apply s (Core.Slice es t)               = Core.Slice es (apply s t)
+  apply s (Core.Slice es t)               = Core.Slice (apply s es) (apply s t)
 
   ftv = ftv . Core.typeOf
 
@@ -287,7 +287,7 @@ inferPackage env (Untyped.Package name imports defs) = do
   where
   iter (e, inferred) d@(Untyped.Definition _ _) = do
       td@(Core.Definition n (sc, _)) <- inferDefinition e d
-      return (extend env (Unqualified n, sc), inferred ++ [td])
+      return (extend e (Unqualified n, sc), inferred ++ [td])
   convertImport (Untyped.Import n) = Core.Import n
 
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)
