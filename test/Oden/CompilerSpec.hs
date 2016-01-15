@@ -131,8 +131,37 @@ sliceLenMonomorphed =
       [Core.Slice [Core.Literal (Core.Bool True) Mono.typeBool] (Mono.TSlice Mono.typeBool)]
       Mono.typeInt)
 
+letWithShadowing :: Core.Definition
+letWithShadowing =
+  Core.Definition
+    "let-with-shadowing"
+    (Poly.Forall [] Poly.typeInt,
+     Core.Let
+     "x"
+     (Core.Literal (Core.Int 1) Poly.typeInt)
+     (Core.Let
+      "x"
+      (Core.Symbol (Unqualified "x") Poly.typeInt)
+      (Core.Symbol (Unqualified "x") Poly.typeInt)
+      Poly.typeInt)
+     Poly.typeInt)
+
+letWithShadowingMonomorphed :: MonomorphedDefinition
+letWithShadowingMonomorphed =
+  MonomorphedDefinition
+    "let-with-shadowing"
+    (Core.Let
+     "x"
+     (Core.Literal (Core.Int 1) Mono.typeInt)
+     (Core.Let
+      "x"
+      (Core.Symbol (Unqualified "x") Mono.typeInt)
+      (Core.Symbol (Unqualified "x") Mono.typeInt)
+      Mono.typeInt)
+                      Mono.typeInt)
+
 spec :: Spec
-spec = do
+spec =
   describe "compile" $ do
     it "compiles empty package" $
       compile Scope.empty (Core.Package myPkg [] [])
@@ -182,3 +211,11 @@ spec = do
         []
         Set.empty
         (Set.singleton sliceLenMonomorphed)
+    it "monomorphs let with shadowing" $
+      compile Scope.empty (Core.Package myPkg [] [letWithShadowing])
+      `shouldSucceedWith`
+      CompiledPackage
+        myPkg
+        []
+        Set.empty
+        (Set.singleton letWithShadowingMonomorphed)

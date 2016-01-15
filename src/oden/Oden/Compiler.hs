@@ -34,8 +34,10 @@ data LocalBinding = LetBinding Name (Core.Expr Poly.Type)
 
 type LocalBindings = Map Name LocalBinding
 
-data LetInstance = LetInstance (Name, Mono.Type) Name (Core.Expr Mono.Type)
+data LetReference = LetReference Name Mono.Type Name
                  deriving (Show, Eq, Ord)
+
+data LetInstance = LetInstance Name (Core.Expr Mono.Type)
 
 data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type) InstantiatedDefinition
                                      , monomorphed :: Map Identifier MonomorphedDefinition
@@ -43,7 +45,7 @@ data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type
                                      }
 
 type Monomorph a = RWST LocalBindings
-                        (Set LetInstance)
+                        (Set LetReference)
                         MonomorphState
                         (Except CompilationError)
                         a
@@ -99,24 +101,17 @@ getMonomorphicDefinition ident t = do
         Nothing -> instantiateDefinition key sc pe
     OdenDefinition pn _ _ -> return pn
 
--- NOTE: This function always performs the work of instantiating the let bound
--- value, even if it has been done before. Maybe move LetInstances to state and
--- keep them in a Map instead to avoid this.
-getMonomorphicLetBinding :: (Name, Mono.Type)
-                         -> Core.Expr Poly.Type
+getMonomorphicLetBinding :: Name
+                         -> Mono.Type
+                         -> Poly.Type
                          -> Monomorph Identifier
-getMonomorphicLetBinding key@(n, _) e | not(Poly.isPolymorphicType (Core.typeOf e)) = do
-  me <- monomorph e
-  tell (Set.singleton (LetInstance key n me))
+getMonomorphicLetBinding n mt pt | not (Poly.isPolymorphicType pt) = do
+  tell (Set.singleton (LetReference n mt n))
   return (Unqualified n)
-getMonomorphicLetBinding key@(n, t) e = do
-  let name = encodeTypeInstance (Unqualified n) t
-  case instantiate e t of
-    Left err -> throwError (MonomorphInstantiateError err)
-    Right expr -> do
-      me <- monomorph expr
-      tell (Set.singleton (LetInstance key name me))
-      return (Unqualified name)
+getMonomorphicLetBinding n mt _ = do
+  let encoded = encodeTypeInstance (Unqualified n) mt
+  tell (Set.singleton (LetReference n mt encoded))
+  return (Unqualified encoded)
 
 getMonomorphic :: Identifier -> Mono.Type -> Monomorph Identifier
 getMonomorphic i@(Qualified _ _) t =
@@ -127,7 +122,7 @@ getMonomorphic i@(Unqualified n) t = do
     Just (FunctionArgument a) ->
       return (Unqualified a)
     Just (LetBinding n' e) ->
-      getMonomorphicLetBinding (n', t) e
+      getMonomorphicLetBinding n' t (Core.typeOf e)
     Nothing ->
       local (const Map.empty) (getMonomorphicDefinition i t)
 
@@ -136,10 +131,6 @@ getMonoType e =
   either (const $ throwError (UnexpectedPolyType e))
          return
          (Poly.toMonomorphic (Core.typeOf e))
-
-unwrapLetInstances :: [LetInstance] -> Core.Expr Mono.Type -> Core.Expr Mono.Type
-unwrapLetInstances [] body = body
-unwrapLetInstances (LetInstance _ mn me:is) body = Core.Let mn me (unwrapLetInstances is body) (Core.typeOf body)
 
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
 monomorph e@(Core.Symbol ident _) = do
@@ -182,14 +173,29 @@ monomorph e@(Core.If cond then' else' _) = do
   mElse <- monomorph else'
   return (Core.If mCond mThen mElse mt)
 monomorph (Core.Let name expr body _) = do
-  (mBody, allInstances) <- listen (withBinding (LetBinding name expr) (monomorph body))
-  let (letInstances, other) = Set.partition (isLetInstanceFrom name) allInstances
+  (mBody, allRefs) <- listen (withBinding (LetBinding name expr) (monomorph body))
+  let (refs, other) = Set.partition (isReferenceTo name) allRefs
   tell other
-  let lExpr = unwrapLetInstances (Set.toList letInstances) mBody
-  return lExpr
+  insts <- mapM (monomorphReference expr) (Set.toList refs)
+  return (unwrapLetInstances insts mBody)
   where
-  isLetInstanceFrom :: Name -> LetInstance -> Bool
-  isLetInstanceFrom n (LetInstance (ln, _) _ _) = n == ln
+  isReferenceTo :: Name -> LetReference -> Bool
+  isReferenceTo n (LetReference ln _ _) = n == ln
+
+monomorphReference :: Core.Expr Poly.Type -> LetReference -> Monomorph LetInstance
+monomorphReference e (LetReference n _ _) | not (Poly.isPolymorphicType (Core.typeOf e)) = do
+  me <- monomorph e
+  return (LetInstance n me)
+monomorphReference e (LetReference _ mt mn) =
+  case instantiate e mt of
+    Left err -> throwError (MonomorphInstantiateError err)
+    Right expr -> do
+      me <- monomorph expr
+      return (LetInstance mn me)
+
+unwrapLetInstances :: [LetInstance] -> Core.Expr Mono.Type -> Core.Expr Mono.Type
+unwrapLetInstances [] body = body
+unwrapLetInstances (LetInstance mn me:is) body = Core.Let mn me (unwrapLetInstances is body) (Core.typeOf body)
 
 monomorphDefinition :: Core.Definition -> Monomorph ()
 monomorphDefinition d@(Core.Definition name (s, expr)) = do

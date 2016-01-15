@@ -148,7 +148,27 @@ spec =
       inferExpr empty (Untyped.Let "x" (Untyped.Literal (Untyped.Int 1)) (Untyped.Symbol (Unqualified "x")))
       `shouldSucceedWith`
       (Forall [] typeInt,
-       (Core.Let "x" (Core.Literal (Core.Int 1) typeInt) (Core.Symbol (Unqualified "x") typeInt) typeInt))
+       Core.Let "x" (Core.Literal (Core.Int 1) typeInt) (Core.Symbol (Unqualified "x") typeInt) typeInt)
+
+    it "infers let with shadowing" $
+      inferExpr empty (Untyped.Let
+                       "x"
+                       (Untyped.Literal (Untyped.Int 1))
+                       (Untyped.Let
+                        "x"
+                        (Untyped.Symbol (Unqualified "x"))
+                        (Untyped.Symbol (Unqualified "x"))))
+      `shouldSucceedWith`
+      (Forall [] typeInt,
+       Core.Let
+        "x"
+        (Core.Literal (Core.Int 1) typeInt)
+        (Core.Let
+         "x"
+         (Core.Symbol (Unqualified "x") typeInt)
+         (Core.Symbol (Unqualified "x") typeInt)
+         typeInt)
+        typeInt)
 
     it "infers polymorphic if" $
       inferExpr empty (Untyped.Fn "x" (Untyped.If (Untyped.Literal (Untyped.Bool True)) (Untyped.Symbol (Unqualified "x")) (Untyped.Symbol (Unqualified "x"))))
