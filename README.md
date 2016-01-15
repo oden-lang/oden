@@ -15,11 +15,6 @@ program in Oden is located at http://oden-lang.org.
 
 For build instructions see [BUILD.md](BUILD.md).
 
-## Experiments
-
-Some samples and experiments of Oden source files and the output files to be
-compiled with Go can be found in [`experiments/`](experiments).
-
 ## Contributing
 
 If you find this project interesting and want to help work on it, you
