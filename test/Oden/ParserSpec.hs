@@ -92,6 +92,11 @@ spec = do
       `shouldSucceedWith`
       Symbol (Unqualified "x")
 
+    it "ignores multi-line comments" $
+      parseExpr "#;\n\n foo ;whatever\tbar\n;#x"
+      `shouldSucceedWith`
+      Symbol (Unqualified "x")
+
     it "parses slice literal" $
       parseExpr "![x y z]"
       `shouldSucceedWith`

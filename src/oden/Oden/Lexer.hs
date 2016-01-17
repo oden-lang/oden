@@ -28,7 +28,7 @@ importLetter = identifierLetter <|> oneOf "."
 lexer :: Tok.GenTokenParser L.Text () Identity
 lexer = Tok.makeTokenParser Tok.LanguageDef
   { Tok.commentStart    = "#;"
-  , Tok.commentEnd      = "#;"
+  , Tok.commentEnd      = ";#"
   , Tok.commentLine     = ";"
   , Tok.nestedComments  = True
   , Tok.identStart      = identifierLetter
