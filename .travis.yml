@@ -4,4 +4,5 @@ before_install:
   - sudo apt-get update
   - sudo apt-get install haskell-platform
 script:
-  - make init-dev test dist
+  - cabal install --enable-tests --only-dependencies && cabal configure --enable-tests
+  - make test dist
