@@ -1,5 +1,7 @@
 # Oden Programming Language
 
+[![Build Status](https://travis-ci.org/oden-lang/oden.svg?branch=master)](https://travis-ci.org/oden-lang/oden)
+
 **EXPERIMENTAL!**
 
 Oden is a LISP-inspired language with static typing that compiles
