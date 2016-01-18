@@ -5,7 +5,7 @@
 Oden is a LISP-inspired language with static typing that compiles
 to native code using Go. The current implementation is working draft
 and **should be considered highly experimental**. See [Motivations
-& Goals](http://oden-lang.org/motivation-and-goals.html) for
+& Goals](http://oden-lang.org/about) for
 details.
 
 ## Documentation
