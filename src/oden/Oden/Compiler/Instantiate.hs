@@ -21,10 +21,10 @@ type Instantiate a = StateT Substitutions (Except InstantiateError) a
 monoToPoly :: Mono.Type -> Poly.Type
 monoToPoly Mono.TAny = Poly.TAny
 monoToPoly (Mono.TCon n) = Poly.TCon n
-monoToPoly (Mono.TArrSingle f) = Poly.TArrSingle (monoToPoly f)
-monoToPoly (Mono.TArr f p) = Poly.TArr (monoToPoly f) (monoToPoly p)
-monoToPoly (Mono.TGoFunc as r) = Poly.TGoFunc (map monoToPoly as) (monoToPoly r)
-monoToPoly (Mono.TVariadicGoFunc as v r) = Poly.TVariadicGoFunc (map monoToPoly as) (monoToPoly v) (monoToPoly r)
+monoToPoly (Mono.TNoArgFn f) = Poly.TNoArgFn (monoToPoly f)
+monoToPoly (Mono.TFn f p) = Poly.TFn (monoToPoly f) (monoToPoly p)
+monoToPoly (Mono.TUncurriedFn as r) = Poly.TUncurriedFn (map monoToPoly as) (monoToPoly r)
+monoToPoly (Mono.TVariadicFn as v r) = Poly.TVariadicFn (map monoToPoly as) (monoToPoly v) (monoToPoly r)
 monoToPoly (Mono.TSlice t) = Poly.TSlice (monoToPoly t)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
@@ -32,18 +32,18 @@ getSubstitutions p@(Poly.TCon pn) m@(Mono.TCon mn) =
   if pn == mn
   then Right Map.empty
   else Left (TypeMismatch p m)
-getSubstitutions (Poly.TArrSingle pf) (Mono.TArrSingle mf) =
+getSubstitutions (Poly.TNoArgFn pf) (Mono.TNoArgFn mf) =
   getSubstitutions pf mf
-getSubstitutions (Poly.TArr pf pp) (Mono.TArr mf mp) = do
+getSubstitutions (Poly.TFn pf pp) (Mono.TFn mf mp) = do
   fs <- getSubstitutions pf mf
   ps <- getSubstitutions pp mp
   return (fs `mappend` ps)
 getSubstitutions (Poly.TVar v) mono = Right (Map.singleton v (monoToPoly mono))
-getSubstitutions (Poly.TGoFunc pas pr) (Mono.TGoFunc mas mr) = do
+getSubstitutions (Poly.TUncurriedFn pas pr) (Mono.TUncurriedFn mas mr) = do
   as <- zipWithM getSubstitutions pas mas
   r <- getSubstitutions pr mr
   return (foldl mappend r as)
-getSubstitutions (Poly.TVariadicGoFunc pas pv pr) (Mono.TVariadicGoFunc mas mv mr) = do
+getSubstitutions (Poly.TVariadicFn pas pv pr) (Mono.TVariadicFn mas mv mr) = do
   as <- zipWithM getSubstitutions pas mas
   r <- getSubstitutions pr mr
   v <- getSubstitutions pv mv
@@ -60,12 +60,12 @@ replace (Poly.TVar v) = do
     Just mono -> return mono
     Nothing -> throwError (SubstitutionFailed v (Map.keys s))
 replace (Poly.TCon n) = return (Poly.TCon n)
-replace (Poly.TArrSingle t) = Poly.TArrSingle <$> replace t
-replace (Poly.TArr ft pt) = Poly.TArr <$> replace ft <*> replace pt
-replace (Poly.TGoFunc ft pt) =
-  Poly.TGoFunc <$> mapM replace ft <*> replace pt
-replace (Poly.TVariadicGoFunc ft vt pt) =
-  Poly.TVariadicGoFunc <$> mapM replace ft <*> replace vt <*> replace pt
+replace (Poly.TNoArgFn t) = Poly.TNoArgFn <$> replace t
+replace (Poly.TFn ft pt) = Poly.TFn <$> replace ft <*> replace pt
+replace (Poly.TUncurriedFn ft pt) =
+  Poly.TUncurriedFn <$> mapM replace ft <*> replace pt
+replace (Poly.TVariadicFn ft vt pt) =
+  Poly.TVariadicFn <$> mapM replace ft <*> replace vt <*> replace pt
 replace (Poly.TSlice t) = Poly.TSlice <$> replace t
 
 instantiateExpr :: Core.Expr Poly.Type
@@ -75,8 +75,8 @@ instantiateExpr (Core.Application f p t) =
   Core.Application <$> instantiateExpr f <*> instantiateExpr p <*> replace t
 instantiateExpr (Core.NoArgApplication f t) =
   Core.NoArgApplication <$> instantiateExpr f <*> replace t
-instantiateExpr (Core.GoFuncApplication f ps t) =
-  Core.GoFuncApplication <$> instantiateExpr f <*> mapM instantiateExpr ps <*> replace t
+instantiateExpr (Core.UncurriedFnApplication f ps t) =
+  Core.UncurriedFnApplication <$> instantiateExpr f <*> mapM instantiateExpr ps <*> replace t
 instantiateExpr (Core.Fn a b t) =
   Core.Fn a <$> instantiateExpr b <*> replace t
 instantiateExpr (Core.NoArgFn b t) =

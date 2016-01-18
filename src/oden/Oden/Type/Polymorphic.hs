@@ -25,28 +25,28 @@ data Type
   | TVar TVar
   -- | A type constructor with a name.
   | TCon String
-  -- | Like a 'TArr' but with no argument, only a return type.
-  | TArrSingle Type
-  -- | A TArr (arrow) represents a Oden function (with currying).
-  | TArr Type Type
-  -- | Represents a Go func and can have multiple arguments (without
-  -- currying).
-  | TGoFunc [Type] Type -- TODO: Support multiple return values somehow.
-  -- | Represents a variadic Go func.
-  | TVariadicGoFunc [Type] Type Type -- TODO: Support multiple return values somehow.
-  -- | A Go slice type.
+  -- | Like a 'TFn' but with no argument, only a return type.
+  | TNoArgFn Type
+  -- | A curried function.
+  | TFn Type Type
+  -- | A function that can have multiple arguments (no currying).
+  --   TODO: Support multiple return values somehow.
+  | TUncurriedFn [Type] Type
+  -- | A variadic function.
+  | TVariadicFn [Type] Type Type -- TODO: Support multiple return values somehow.
+  -- | A slice type.
   | TSlice Type
   deriving (Eq, Ord)
 
 instance Show Type where
   show TAny = "any"
-  show (TArr a b) = "(" ++ show a ++ " -> " ++ show b ++ ")"
-  show (TArrSingle a) = "(-> " ++ show a ++ ")"
+  show (TFn a b) = "(" ++ show a ++ " -> " ++ show b ++ ")"
+  show (TNoArgFn a) = "(-> " ++ show a ++ ")"
   show (TVar a) = show a
   show (TCon a) = a
-  show (TGoFunc as rs) = "(go-func (" ++ unwords (map show as) ++ ") " ++ show rs ++ ")"
-  show (TVariadicGoFunc as v rs) =
-    "(go-func (" ++ unwords (map show as) ++ " (* " ++ show v ++ ")) " ++ show rs ++ ")"
+  show (TUncurriedFn as rs) = "(uncurried-fn (" ++ unwords (map show as) ++ ") " ++ show rs ++ ")"
+  show (TVariadicFn as v rs) =
+    "(variadic-fn (" ++ unwords (map show as) ++ " (* " ++ show v ++ ")) " ++ show rs ++ ")"
   show (TSlice t) = "!(" ++ show t ++ ")"
 
 data Scheme = Forall [TVar] Type
@@ -61,10 +61,10 @@ toMonomorphic :: Type -> Either String Mono.Type
 toMonomorphic TAny = Right Mono.TAny
 toMonomorphic (TVar _) = Left "Cannot convert TVar to a monomorphic type"
 toMonomorphic (TCon s) = Right (Mono.TCon s)
-toMonomorphic (TArrSingle t) = Mono.TArrSingle <$> toMonomorphic t
-toMonomorphic (TArr tx ty) = Mono.TArr <$> toMonomorphic tx <*> toMonomorphic ty
-toMonomorphic (TGoFunc a r) = Mono.TGoFunc <$> mapM toMonomorphic a <*> toMonomorphic r
-toMonomorphic (TVariadicGoFunc a v r) = Mono.TVariadicGoFunc <$> mapM toMonomorphic a <*> toMonomorphic v <*> toMonomorphic r
+toMonomorphic (TNoArgFn t) = Mono.TNoArgFn <$> toMonomorphic t
+toMonomorphic (TFn tx ty) = Mono.TFn <$> toMonomorphic tx <*> toMonomorphic ty
+toMonomorphic (TUncurriedFn a r) = Mono.TUncurriedFn <$> mapM toMonomorphic a <*> toMonomorphic r
+toMonomorphic (TVariadicFn a v r) = Mono.TVariadicFn <$> mapM toMonomorphic a <*> toMonomorphic v <*> toMonomorphic r
 toMonomorphic (TSlice t) = Mono.TSlice <$> toMonomorphic t
 
 isPolymorphic :: Scheme -> Bool
@@ -74,10 +74,10 @@ isPolymorphicType :: Type -> Bool
 isPolymorphicType TAny = False
 isPolymorphicType (TVar _) = True
 isPolymorphicType (TCon _) = False
-isPolymorphicType (TArrSingle a) = isPolymorphicType a
-isPolymorphicType (TArr a b) = isPolymorphicType a || isPolymorphicType b
-isPolymorphicType (TGoFunc a r) = any isPolymorphicType (r:a)
-isPolymorphicType (TVariadicGoFunc a v r) = any isPolymorphicType (r:v:a)
+isPolymorphicType (TNoArgFn a) = isPolymorphicType a
+isPolymorphicType (TFn a b) = isPolymorphicType a || isPolymorphicType b
+isPolymorphicType (TUncurriedFn a r) = any isPolymorphicType (r:a)
+isPolymorphicType (TVariadicFn a v r) = any isPolymorphicType (r:v:a)
 isPolymorphicType (TSlice a) = isPolymorphicType a
 
 typeInt, typeBool, typeUnit, typeString :: Type

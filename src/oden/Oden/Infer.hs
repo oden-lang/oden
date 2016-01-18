@@ -63,19 +63,19 @@ instance Substitutable Type where
   apply _ TAny                      = TAny
   apply _ (TCon a)                  = TCon a
   apply (Subst s) t@(TVar a)        = Map.findWithDefault t a s
-  apply s (TArrSingle t)            = TArrSingle (apply s t)
-  apply s (t1 `TArr` t2)            = apply s t1 `TArr` apply s t2
-  apply s (TGoFunc as r)            = TGoFunc (map (apply s) as) (apply s r)
-  apply s (TVariadicGoFunc as v r)  = TVariadicGoFunc (map (apply s) as) (apply s v) (apply s r)
+  apply s (TNoArgFn t)            = TNoArgFn (apply s t)
+  apply s (t1 `TFn` t2)            = apply s t1 `TFn` apply s t2
+  apply s (TUncurriedFn as r)            = TUncurriedFn (map (apply s) as) (apply s r)
+  apply s (TVariadicFn as v r)  = TVariadicFn (map (apply s) as) (apply s v) (apply s r)
   apply s (TSlice t)                = TSlice (apply s t)
 
   ftv TAny                      = Set.empty
   ftv TCon{}                    = Set.empty
   ftv (TVar a)                  = Set.singleton a
-  ftv (t1 `TArr` t2)            = ftv t1 `Set.union` ftv t2
-  ftv (TArrSingle t)            = ftv t
-  ftv (TGoFunc as r)            = foldl Set.union (ftv r) (map ftv as)
-  ftv (TVariadicGoFunc as v r)  = foldl Set.union (ftv r) (ftv v : map ftv as)
+  ftv (t1 `TFn` t2)            = ftv t1 `Set.union` ftv t2
+  ftv (TNoArgFn t)            = ftv t
+  ftv (TUncurriedFn as r)            = foldl Set.union (ftv r) (map ftv as)
+  ftv (TVariadicFn as v r)  = foldl Set.union (ftv r) (ftv v : map ftv as)
   ftv (TSlice t)                = ftv t
 
 instance Substitutable Scheme where
@@ -100,7 +100,7 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.Symbol x t)               = Core.Symbol x (apply s t)
   apply s (Core.Application f p t)        = Core.Application (apply s f) (apply s p) (apply s t)
   apply s (Core.NoArgApplication f t)     = Core.NoArgApplication (apply s f) (apply s t)
-  apply s (Core.GoFuncApplication f p t)  = Core.GoFuncApplication (apply s f) (apply s p) (apply s t)
+  apply s (Core.UncurriedFnApplication f p t)  = Core.UncurriedFnApplication (apply s f) (apply s p) (apply s t)
   apply s (Core.Fn x b t)                 = Core.Fn x (apply s b) (apply s t)
   apply s (Core.NoArgFn b t)              = Core.NoArgFn (apply s b) (apply s t)
   apply s (Core.Let x e b t)              = Core.Let x (apply s e) (apply s b) (apply s t)
@@ -199,45 +199,45 @@ infer expr = case expr of
   Untyped.Fn a b -> do
     tv <- fresh
     tb <- inEnv (Unqualified a, Forall [] tv) (infer b)
-    return (Core.Fn a tb (tv `TArr` Core.typeOf tb))
+    return (Core.Fn a tb (tv `TFn` Core.typeOf tb))
 
   Untyped.NoArgFn f -> do
     tf <- infer f
-    return (Core.NoArgFn tf (TArrSingle (Core.typeOf tf)))
+    return (Core.NoArgFn tf (TNoArgFn (Core.typeOf tf)))
 
   Untyped.Application f [] -> do
     tf <- infer f
     tv <- fresh
     case Core.typeOf tf of
-      t@(TGoFunc _ _) -> do
-        uni t (TGoFunc [] tv)
-        return (Core.GoFuncApplication tf [] tv)
+      t@(TUncurriedFn _ _) -> do
+        uni t (TUncurriedFn [] tv)
+        return (Core.UncurriedFnApplication tf [] tv)
       -- No-param application of variadic function is automatically transformed
       -- to application of empty slice.
-      t@(TVariadicGoFunc [] variadicArg _) -> do
-        uni t (TVariadicGoFunc [] variadicArg tv)
-        return (Core.GoFuncApplication tf [Core.Slice [] variadicArg] tv)
-      (TVariadicGoFunc nonVariadicArgs _ _) ->
+      t@(TVariadicFn [] variadicArg _) -> do
+        uni t (TVariadicFn [] variadicArg tv)
+        return (Core.UncurriedFnApplication tf [Core.Slice [] variadicArg] tv)
+      (TVariadicFn nonVariadicArgs _ _) ->
         throwError (ArgumentCountMismatch nonVariadicArgs [])
       t -> do
-        uni t (TArrSingle tv)
+        uni t (TNoArgFn tv)
         return (Core.NoArgApplication tf tv)
 
   Untyped.Application f ps -> do
     tf <- infer f
     case Core.typeOf tf of
-      t@(TGoFunc _ _) -> do
+      t@(TUncurriedFn _ _) -> do
         tv <- fresh
         tps <- mapM infer ps
-        uni t (TGoFunc (map Core.typeOf tps) tv)
-        return (Core.GoFuncApplication tf tps tv)
-      t@(TVariadicGoFunc nonVariadicTypes variadicType _) -> do
+        uni t (TUncurriedFn (map Core.typeOf tps) tv)
+        return (Core.UncurriedFnApplication tf tps tv)
+      t@(TVariadicFn nonVariadicTypes variadicType _) -> do
         tv <- fresh
         nonVariadicParams <- mapM infer (take (length nonVariadicTypes) ps)
         variadicParams <- mapM infer (drop (length nonVariadicTypes) ps)
         let allParams = nonVariadicParams ++ [Core.Slice variadicParams variadicType]
-        uni t (TVariadicGoFunc (map Core.typeOf nonVariadicParams) variadicType tv)
-        return (Core.GoFuncApplication tf allParams tv)
+        uni t (TVariadicFn (map Core.typeOf nonVariadicParams) variadicType tv)
+        return (Core.UncurriedFnApplication tf allParams tv)
       _ ->
         foldM app tf ps
         where
@@ -245,7 +245,7 @@ infer expr = case expr of
         app tf' p = do
           tv <- fresh
           tp <- infer p
-          uni (Core.typeOf tf') (Core.typeOf tp `TArr` tv)
+          uni (Core.typeOf tf') (Core.typeOf tp `TFn` tv)
           return (Core.Application tf' tp tv)
 
   Untyped.Let n e b -> do
@@ -297,18 +297,18 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
 
     fv TAny           = []
     fv (TVar a)       = [a]
-    fv (TArrSingle a) = fv a
-    fv (TArr a b)     = fv a ++ fv b
-    fv (TGoFunc as r) = concatMap fv as ++ fv r
-    fv (TVariadicGoFunc as v r) = concatMap fv as ++ fv v ++ fv r
+    fv (TNoArgFn a) = fv a
+    fv (TFn a b)     = fv a ++ fv b
+    fv (TUncurriedFn as r) = concatMap fv as ++ fv r
+    fv (TVariadicFn as v r) = concatMap fv as ++ fv v ++ fv r
     fv (TCon _)       = []
     fv (TSlice t)     = fv t
 
     normtype TAny           = TAny
-    normtype (TArrSingle a) = TArrSingle (normtype a)
-    normtype (TArr a b)     = TArr (normtype a) (normtype b)
-    normtype (TGoFunc as r) = TGoFunc (map normtype as) (normtype r)
-    normtype (TVariadicGoFunc as v r) = TVariadicGoFunc (map normtype as) (normtype v) (normtype r)
+    normtype (TNoArgFn a) = TNoArgFn (normtype a)
+    normtype (TFn a b)     = TFn (normtype a) (normtype b)
+    normtype (TUncurriedFn as r) = TUncurriedFn (map normtype as) (normtype r)
+    normtype (TVariadicFn as v r) = TVariadicFn (map normtype as) (normtype v) (normtype r)
     normtype (TCon a)       = TCon a
     normtype (TSlice a)     = TSlice (normtype a)
     normtype (TVar a)       =
@@ -349,13 +349,13 @@ unifies TAny _ = return emptySubst
 unifies _ TAny = return emptySubst
 unifies (TVar v) t = v `bind` t
 unifies t (TVar v) = v `bind` t
-unifies (TArr t1 t2) (TArr t3 t4) = unifyMany [t1, t2] [t3, t4]
-unifies (TArrSingle t1) (TArrSingle t2) = unifies t1 t2
-unifies (TGoFunc as1 r1) (TGoFunc as2 r2) = do
+unifies (TFn t1 t2) (TFn t3 t4) = unifyMany [t1, t2] [t3, t4]
+unifies (TNoArgFn t1) (TNoArgFn t2) = unifies t1 t2
+unifies (TUncurriedFn as1 r1) (TUncurriedFn as2 r2) = do
   a <- unifyMany as1 as2
   r <- unifies r1 r2
   return (a `compose` r)
-unifies (TVariadicGoFunc as1 v1 r1) (TVariadicGoFunc as2 v2 r2) = do
+unifies (TVariadicFn as1 v1 r1) (TVariadicFn as2 v2 r2) = do
   a <- unifyMany as1 as2
   v <- unifies v1 v2
   r <- unifies r1 r2

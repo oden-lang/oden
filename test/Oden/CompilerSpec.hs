@@ -26,26 +26,26 @@ identityDef :: Core.Definition
 identityDef =
   Core.Definition
     "identity"
-    (Poly.Forall [tvA] (Poly.TArr a a),
+    (Poly.Forall [tvA] (Poly.TFn a a),
      Core.Fn "x" (Core.Symbol (Unqualified "x") a)
-                 (Poly.TArr a a))
+                 (Poly.TFn a a))
 
 identity2Def :: Core.Definition
 identity2Def =
   Core.Definition
     "identity2"
-    (Poly.Forall [tvA] (Poly.TArr a a),
-     Core.Fn "x" (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TArr a a))
+    (Poly.Forall [tvA] (Poly.TFn a a),
+     Core.Fn "x" (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TFn a a))
                                    (Core.Symbol (Unqualified "x") a)
                                    a)
-                 (Poly.TArr a a))
+                 (Poly.TFn a a))
 
 usingIdentityDef :: Core.Definition
 usingIdentityDef =
   Core.Definition
     "using-identity"
     (Poly.Forall [] Poly.typeInt,
-     Core.Application (Core.Symbol (Unqualified "identity") (Poly.TArr Poly.typeInt Poly.typeInt))
+     Core.Application (Core.Symbol (Unqualified "identity") (Poly.TFn Poly.typeInt Poly.typeInt))
                       (Core.Literal (Core.Int 1) Poly.typeInt)
                       Poly.typeInt)
 
@@ -54,7 +54,7 @@ usingIdentity2Def =
   Core.Definition
     "using-identity2"
     (Poly.Forall [] Poly.typeInt,
-     Core.Application (Core.Symbol (Unqualified "identity2") (Poly.TArr Poly.typeInt Poly.typeInt))
+     Core.Application (Core.Symbol (Unqualified "identity2") (Poly.TFn Poly.typeInt Poly.typeInt))
                       (Core.Literal (Core.Int 1) Poly.typeInt)
                       Poly.typeInt)
 
@@ -62,7 +62,7 @@ usingIdentityMonomorphed :: MonomorphedDefinition
 usingIdentityMonomorphed =
   MonomorphedDefinition
     "using-identity"
-    (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TArr Mono.typeInt Mono.typeInt))
+    (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
                       (Core.Literal (Core.Int 1) Mono.typeInt)
                       Mono.typeInt)
 
@@ -71,8 +71,8 @@ letBoundIdentity =
   Core.Definition
     "let-bound-identity"
     (Poly.Forall [] Poly.typeInt,
-     Core.Let "identity" (Core.Fn "x" (Core.Symbol (Unqualified "x") a) (Poly.TArr a a))
-                         (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TArr Poly.typeInt Poly.typeInt))
+     Core.Let "identity" (Core.Fn "x" (Core.Symbol (Unqualified "x") a) (Poly.TFn a a))
+                         (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TFn Poly.typeInt Poly.typeInt))
                                            (Core.Literal (Core.Int 1) Poly.typeInt)
                                            Poly.typeInt)
                       Poly.typeInt)
@@ -81,7 +81,7 @@ usingIdentity2Monomorphed :: MonomorphedDefinition
 usingIdentity2Monomorphed =
   MonomorphedDefinition
     "using-identity2"
-    (Core.Application (Core.Symbol (Unqualified "identity2_inst_int_to_int") (Mono.TArr Mono.typeInt Mono.typeInt))
+    (Core.Application (Core.Symbol (Unqualified "identity2_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
                       (Core.Literal (Core.Int 1) Mono.typeInt)
                       Mono.typeInt)
 
@@ -89,8 +89,8 @@ letBoundIdentityMonomorphed :: MonomorphedDefinition
 letBoundIdentityMonomorphed =
   MonomorphedDefinition
     "let-bound-identity"
-    (Core.Let "identity_inst_int_to_int" (Core.Fn "x" (Core.Symbol (Unqualified "x") Mono.typeInt) (Mono.TArr Mono.typeInt Mono.typeInt))
-                                         (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TArr Mono.typeInt Mono.typeInt))
+    (Core.Let "identity_inst_int_to_int" (Core.Fn "x" (Core.Symbol (Unqualified "x") Mono.typeInt) (Mono.TFn Mono.typeInt Mono.typeInt))
+                                         (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
                                                            (Core.Literal (Core.Int 1) Mono.typeInt)
                                                            Mono.typeInt)
                       Mono.typeInt)
@@ -100,25 +100,25 @@ identityInstIntToInt =
   InstantiatedDefinition
     "identity_inst_int_to_int"
     (Core.Fn "x" (Core.Symbol (Unqualified "x") Mono.typeInt)
-                 (Mono.TArr Mono.typeInt Mono.typeInt))
+                 (Mono.TFn Mono.typeInt Mono.typeInt))
 
 identity2InstIntToInt :: InstantiatedDefinition
 identity2InstIntToInt =
   InstantiatedDefinition
     "identity2_inst_int_to_int"
     (Core.Fn "x" (Core.Application
-                    (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TArr Mono.typeInt Mono.typeInt))
+                    (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
                     (Core.Symbol (Unqualified "x") Mono.typeInt)
                     Mono.typeInt)
-                 (Mono.TArr Mono.typeInt Mono.typeInt))
+                 (Mono.TFn Mono.typeInt Mono.typeInt))
 
 sliceLenDef :: Core.Definition
 sliceLenDef =
   Core.Definition
     "slice-len"
     (Poly.Forall [] Poly.typeInt,
-     Core.GoFuncApplication
-      (Core.Symbol (Unqualified "len") (Poly.TGoFunc [Poly.TSlice Poly.typeBool] Poly.typeInt))
+     Core.UncurriedFnApplication
+      (Core.Symbol (Unqualified "len") (Poly.TUncurriedFn [Poly.TSlice Poly.typeBool] Poly.typeInt))
       [Core.Slice [Core.Literal (Core.Bool True) Poly.typeBool] (Poly.TSlice Poly.typeBool)]
       Poly.typeInt)
 
@@ -126,8 +126,8 @@ sliceLenMonomorphed :: MonomorphedDefinition
 sliceLenMonomorphed =
   MonomorphedDefinition
     "slice-len"
-    (Core.GoFuncApplication
-      (Core.Symbol (Unqualified "len") (Mono.TGoFunc [Mono.TSlice Mono.typeBool] Mono.typeInt))
+    (Core.UncurriedFnApplication
+      (Core.Symbol (Unqualified "len") (Mono.TUncurriedFn [Mono.TSlice Mono.typeBool] Mono.typeInt))
       [Core.Slice [Core.Literal (Core.Bool True) Mono.typeBool] (Mono.TSlice Mono.typeBool)]
       Mono.typeInt)
 

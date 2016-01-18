@@ -39,7 +39,7 @@ return' e@(Application _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
 return' e@(NoArgApplication _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
-return' e@(GoFuncApplication _ _ t) | t == Mono.typeUnit =
+return' e@(UncurriedFnApplication _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
 return' e@(Let _ _ _ t) | t == Mono.typeUnit =
   codegenExpr e $+$ text "return"
@@ -79,15 +79,15 @@ codegenType :: Mono.Type -> Doc
 codegenType t | t == Mono.typeUnit = empty
 codegenType Mono.TAny = text "interface{}"
 codegenType (Mono.TCon n) = safeName n
-codegenType (Mono.TArrSingle f) =
+codegenType (Mono.TNoArgFn f) =
   func empty empty (codegenType f) empty
-codegenType (Mono.TArr d r) =
+codegenType (Mono.TFn d r) =
   func empty (codegenType d) (codegenType r) empty
 codegenType (Mono.TSlice t) =
   text "[]" <> codegenType t
-codegenType (Mono.TGoFunc as r) =
+codegenType (Mono.TUncurriedFn as r) =
   func empty (hcat (punctuate (text ", ") (map codegenType as))) (codegenType r) empty
-codegenType (Mono.TVariadicGoFunc as v r) =
+codegenType (Mono.TVariadicFn as v r) =
   func empty (hcat (punctuate (text ", ") (map codegenType as ++ [codegenType v <> text "..."]))) (codegenType r) empty
 
 isInfix :: Expr Mono.Type -> Bool
@@ -110,9 +110,9 @@ codegenExpr (Application (Application o p1 _) p2 _) | isInfix o =
   parens (codegenOperator p1 <+> codegenOperator o <+> codegenOperator p2)
 codegenExpr (Application f p _) =
   codegenExpr f <> parens (codegenExpr p)
-codegenExpr (GoFuncApplication f ps _) =
+codegenExpr (UncurriedFnApplication f ps _) =
   case typeOf f of
-    Mono.TVariadicGoFunc{} ->
+    Mono.TVariadicFn{} ->
       let nonVariadicParams = init ps
           slice = last ps
       in codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr nonVariadicParams ++ [codegenExpr slice <> text "..."])))
@@ -120,10 +120,10 @@ codegenExpr (GoFuncApplication f ps _) =
       codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr ps)))
 codegenExpr (NoArgApplication f _) =
   codegenExpr f <> parens empty
-codegenExpr (Fn a body (Mono.TArr d r)) =
+codegenExpr (Fn a body (Mono.TFn d r)) =
   func empty (funcArg a d) (codegenType r) (return' body)
 codegenExpr Fn{} = text "<invalid fn type>"
-codegenExpr (NoArgFn body (Mono.TArrSingle r)) =
+codegenExpr (NoArgFn body (Mono.TNoArgFn r)) =
   func empty empty (codegenType r) (return' body)
 codegenExpr (NoArgFn _ _) = text "<invalid no-arg fn type>"
 codegenExpr (Let n expr body t) =
@@ -141,9 +141,9 @@ codegenExpr (Slice exprs t) = codegenType t
                             <> braces (hcat (punctuate (comma <+> space) (map codegenExpr exprs)))
 
 codegenTopLevel :: Name -> Expr Mono.Type -> Doc
-codegenTopLevel name (NoArgFn body (Mono.TArrSingle r)) =
+codegenTopLevel name (NoArgFn body (Mono.TNoArgFn r)) =
   func (safeName name) empty (codegenType r) (return' body)
-codegenTopLevel name (Fn a body (Mono.TArr d r)) =
+codegenTopLevel name (Fn a body (Mono.TFn d r)) =
   func (safeName name) (funcArg a d) (codegenType r) (return' body)
 codegenTopLevel name expr =
   var name expr

@@ -7,7 +7,7 @@ import qualified Oden.Type.Polymorphic as Poly
 data Expr t = Symbol Identifier t
             | Application (Expr t) (Expr t) t
             | NoArgApplication (Expr t) t
-            | GoFuncApplication (Expr t) [Expr t] t
+            | UncurriedFnApplication (Expr t) [Expr t] t
             | Fn Name (Expr t) t
             | NoArgFn (Expr t) t
             | Let Name (Expr t) (Expr t) t
@@ -20,7 +20,7 @@ instance Show t => Show (Expr t) where
   show (Symbol i t) = "(" ++ show i ++ " : " ++ show t ++ ")"
   show (Application a b t) = "((" ++ show a  ++ " " ++ show b ++ ") : " ++ show t ++ ")"
   show (NoArgApplication a t) = "((" ++ show a ++ ") : " ++ show t ++ ")"
-  show (GoFuncApplication f p t) = "((" ++ show f ++ " " ++ show p ++  ") : " ++ show t ++ ")"
+  show (UncurriedFnApplication f p t) = "((" ++ show f ++ " " ++ show p ++  ") : " ++ show t ++ ")"
   show (Fn n b t) = "((fn (" ++ n ++ ") " ++ show b ++ ") : " ++ show t ++ ")"
   show (NoArgFn b t) = "((fn () " ++ show b ++ ") : " ++ show t ++ ")"
   show (Let n e b t) = "((let ((" ++ n ++ " " ++ show e ++ ")) " ++ show b ++ ") : " ++ show t ++ ")"
@@ -32,7 +32,7 @@ typeOf :: Expr t -> t
 typeOf (Symbol _ t) = t
 typeOf (Application _ _ t) = t
 typeOf (NoArgApplication _ t) = t
-typeOf (GoFuncApplication _ _ t) = t
+typeOf (UncurriedFnApplication _ _ t) = t
 typeOf (Fn _ _ t) = t
 typeOf (NoArgFn _ t) = t
 typeOf (Let _ _ _ t) = t

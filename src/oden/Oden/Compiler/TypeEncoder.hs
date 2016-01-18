@@ -28,20 +28,20 @@ paddedTo = pad >> tell "to" >> pad
 writeType :: Mono.Type -> TypeEncoder ()
 writeType Mono.TAny = tell "any"
 writeType (Mono.TCon s) = tell s
-writeType (Mono.TArrSingle t') = do
+writeType (Mono.TNoArgFn t') = do
   tell "to"
   pad
   withIncreasedLevel (writeType t')
-writeType (Mono.TArr tl tr) = do
+writeType (Mono.TFn tl tr) = do
   withIncreasedLevel (writeType tl)
   paddedTo
   withIncreasedLevel (writeType tr)
-writeType (Mono.TGoFunc as r) = do
+writeType (Mono.TUncurriedFn as r) = do
   foldl writeArg (return ()) as
   withIncreasedLevel (writeType r)
   where
   writeArg a t = a >> withIncreasedLevel (writeType t) >> paddedTo
-writeType (Mono.TVariadicGoFunc as v r) = do
+writeType (Mono.TVariadicFn as v r) = do
   foldl writeArg (return ()) as
   tell "variadic"
   pad

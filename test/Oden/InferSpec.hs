@@ -20,18 +20,18 @@ predef = fromScope predefined
 
 predefAndMax :: Env
 predefAndMax = predef `extend` (Unqualified "max",
-                                Forall [] (TGoFunc [typeInt, typeInt] typeInt))
+                                Forall [] (TUncurriedFn [typeInt, typeInt] typeInt))
 
 predefAndMaxVariadic :: Env
 predefAndMaxVariadic = predef `extend` (Unqualified "max",
-                                        Forall [] (TVariadicGoFunc [] typeInt typeInt))
+                                        Forall [] (TVariadicFn [] typeInt typeInt))
 
 predefAndIdentityAny :: Env
 predefAndIdentityAny = predef `extend` (Unqualified "identity",
-                                        Forall [] (TGoFunc [TAny] TAny))
+                                        Forall [] (TUncurriedFn [TAny] TAny))
 
 booleanOp :: Type
-booleanOp = typeBool `TArr` (typeBool `TArr` typeBool)
+booleanOp = typeBool `TFn` (typeBool `TFn` typeBool)
 
 spec :: Spec
 spec =
@@ -56,20 +56,20 @@ spec =
     it "infers identity fn" $
       inferExpr empty (Untyped.Fn "x" (Untyped.Symbol (Unqualified "x")))
       `shouldSucceedWith`
-      (Forall [TV "a"] (TArr (TVar (TV "a")) (TVar (TV "a"))),
-       Core.Fn "x" (Core.Symbol (Unqualified "x") (TVar (TV "a"))) (TArr (TVar (TV "a")) (TVar (TV "a"))))
+      (Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))),
+       Core.Fn "x" (Core.Symbol (Unqualified "x") (TVar (TV "a"))) (TFn (TVar (TV "a")) (TVar (TV "a"))))
 
     it "infers no-arg fn" $
       inferExpr empty (Untyped.NoArgFn (Untyped.Literal (Untyped.Bool True)))
       `shouldSucceedWith`
-      (Forall [] (TArrSingle typeBool),
-       Core.NoArgFn (Core.Literal (Core.Bool True) typeBool) (TArrSingle typeBool))
+      (Forall [] (TNoArgFn typeBool),
+       Core.NoArgFn (Core.Literal (Core.Bool True) typeBool) (TNoArgFn typeBool))
 
     it "infers no-arg fn application" $
       inferExpr empty (Untyped.Application (Untyped.NoArgFn (Untyped.Literal (Untyped.Bool True))) [])
       `shouldSucceedWith`
       (Forall [] typeBool,
-       (Core.NoArgApplication (Core.NoArgFn (Core.Literal (Core.Bool True) typeBool) (TArrSingle typeBool))) typeBool)
+       (Core.NoArgApplication (Core.NoArgFn (Core.Literal (Core.Bool True) typeBool) (TNoArgFn typeBool))) typeBool)
 
     it "infers multi-arg fn application" $
       inferExpr empty (Untyped.Application
@@ -80,10 +80,10 @@ spec =
        (Core.Application
         (Core.Application
          (Core.Fn "x"
-          (Core.Fn "y" (Core.Literal (Core.Int 1) typeInt) (typeBool `TArr` typeInt))
-          (typeBool `TArr` (typeBool `TArr` typeInt)))
+          (Core.Fn "y" (Core.Literal (Core.Int 1) typeInt) (typeBool `TFn` typeInt))
+          (typeBool `TFn` (typeBool `TFn` typeInt)))
          (Core.Literal (Core.Bool False) typeBool)
-         (typeBool `TArr` typeInt))
+         (typeBool `TFn` typeInt))
         (Core.Literal (Core.Bool False) typeBool)
         typeInt))
 
@@ -106,10 +106,10 @@ spec =
           (Core.Application
            (Core.Symbol (Unqualified "and") booleanOp)
            (Core.Literal (Core.Bool False) typeBool)
-           (typeBool `TArr` typeBool))
+           (typeBool `TFn` typeBool))
            (Core.Literal (Core.Bool False) typeBool)
            typeBool)
-         (typeBool `TArr` typeBool))
+         (typeBool `TFn` typeBool))
         (Core.Literal (Core.Bool True) typeBool))
        typeBool)
 
@@ -121,8 +121,8 @@ spec =
          [Untyped.Literal (Untyped.Bool False)])
       `shouldSucceedWith`
       (Forall [] TAny,
-       Core.GoFuncApplication
-        (Core.Symbol (Unqualified "identity") (TGoFunc [TAny] TAny))
+       Core.UncurriedFnApplication
+        (Core.Symbol (Unqualified "identity") (TUncurriedFn [TAny] TAny))
         [Core.Literal (Core.Bool False) typeBool]
         TAny)
 
@@ -136,10 +136,10 @@ spec =
           [Untyped.Literal (Untyped.Bool False)]])
       `shouldSucceedWith`
       (Forall [] TAny,
-       Core.GoFuncApplication
-        (Core.Symbol (Unqualified "identity") (TGoFunc [TAny] TAny))
-        [Core.GoFuncApplication
-         (Core.Symbol (Unqualified "identity") (TGoFunc [TAny] TAny))
+       Core.UncurriedFnApplication
+        (Core.Symbol (Unqualified "identity") (TUncurriedFn [TAny] TAny))
+        [Core.UncurriedFnApplication
+         (Core.Symbol (Unqualified "identity") (TUncurriedFn [TAny] TAny))
          [Core.Literal (Core.Bool False) typeBool]
          TAny]
         TAny)
@@ -173,46 +173,46 @@ spec =
     it "infers polymorphic if" $
       inferExpr empty (Untyped.Fn "x" (Untyped.If (Untyped.Literal (Untyped.Bool True)) (Untyped.Symbol (Unqualified "x")) (Untyped.Symbol (Unqualified "x"))))
       `shouldSucceedWith`
-      (Forall [TV "a"] (TArr (TVar (TV "a")) (TVar (TV "a"))),
+      (Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))),
        Core.Fn "x" (Core.If (Core.Literal (Core.Bool True) typeBool)
                             (Core.Symbol (Unqualified "x") (TVar (TV "a")))
                             (Core.Symbol (Unqualified "x") (TVar (TV "a")))
-                            (TVar (TV "a"))) (TArr (TVar (TV "a")) (TVar (TV "a"))))
+                            (TVar (TV "a"))) (TFn (TVar (TV "a")) (TVar (TV "a"))))
 
-    it "infers single-arg go func application" $
+    it "infers single-arg uncurried func application" $
       inferExpr predef (Untyped.Application (Untyped.Symbol (Unqualified "len")) [Untyped.Slice [Untyped.Literal (Untyped.Bool True)]])
       `shouldSucceedWith`
       (Forall [] typeInt,
-       Core.GoFuncApplication (Core.Symbol (Unqualified "len") (TGoFunc [TSlice typeBool] typeInt))
+       Core.UncurriedFnApplication (Core.Symbol (Unqualified "len") (TUncurriedFn [TSlice typeBool] typeInt))
                               [Core.Slice [Core.Literal (Core.Bool True) typeBool] (TSlice typeBool)]
        typeInt)
 
-    it "infers single-arg go func application" $
+    it "infers single-arg uncurried func application" $
       inferExpr predefAndMax (Untyped.Application (Untyped.Symbol (Unqualified "max"))
                                                   [Untyped.Literal (Untyped.Int 0)
                                                   ,Untyped.Literal (Untyped.Int 1)])
       `shouldSucceedWith`
       (Forall [] typeInt,
-       Core.GoFuncApplication (Core.Symbol (Unqualified "max") (TGoFunc [typeInt, typeInt] typeInt))
+       Core.UncurriedFnApplication (Core.Symbol (Unqualified "max") (TUncurriedFn [typeInt, typeInt] typeInt))
                               [Core.Literal (Core.Int 0) typeInt
                               ,Core.Literal (Core.Int 1) typeInt]
        typeInt)
 
-    it "infers variadic go func application" $
+    it "infers variadic func application" $
       inferExpr predefAndMaxVariadic (Untyped.Application (Untyped.Symbol (Unqualified "max"))
                                                           [Untyped.Literal (Untyped.Int 0)
                                                           ,Untyped.Literal (Untyped.Int 1)])
       `shouldSucceedWith`
       (Forall [] typeInt,
-       Core.GoFuncApplication (Core.Symbol (Unqualified "max") (TVariadicGoFunc [] typeInt typeInt))
+       Core.UncurriedFnApplication (Core.Symbol (Unqualified "max") (TVariadicFn [] typeInt typeInt))
                               [Core.Slice [Core.Literal (Core.Int 0) typeInt
                                           ,Core.Literal (Core.Int 1) typeInt] typeInt]
        typeInt)
 
-    it "infers variadic no-arg go func application" $
+    it "infers variadic no-arg func application" $
       inferExpr predefAndMaxVariadic (Untyped.Application (Untyped.Symbol (Unqualified "max")) [])
       `shouldSucceedWith`
       (Forall [] typeInt,
-       Core.GoFuncApplication (Core.Symbol (Unqualified "max") (TVariadicGoFunc [] typeInt typeInt))
+       Core.UncurriedFnApplication (Core.Symbol (Unqualified "max") (TVariadicFn [] typeInt typeInt))
                               [Core.Slice [] typeInt]
        typeInt)
