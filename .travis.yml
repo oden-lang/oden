@@ -4,4 +4,4 @@ before_install:
   - sudo apt-get update
   - sudo apt-get install haskell-platform
 script:
-  - make dist
+  - make init-dev test dist
