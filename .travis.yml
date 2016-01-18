@@ -3,9 +3,12 @@ go: 1.5
 before_install:
   - sudo apt-get update
   - sudo apt-get install haskell-platform
+  - cabal install cabal cabal-install
+  - echo cabal --version
 script:
   - cabal update
-  - cabal install --enable-tests --only-dependencies
+  - cabal sandbox init
   - cabal configure --enable-tests
+  - cabal install --enable-tests --only-dependencies
   - cabal test
   - make dist
