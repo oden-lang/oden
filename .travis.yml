@@ -1,10 +1,6 @@
 language: go
 go: 1.5
 
-cache:
-  directories:
-    - .cabal-sandbox
-
 env:
   global:
     - CABALVER=1.22
