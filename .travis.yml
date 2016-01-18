@@ -1,6 +1,7 @@
 language: go
 go: 1.5
 before_install:
+  - sudo apt-get update
   - sudo apt-get install haskell-platform
 script:
   - make dist
