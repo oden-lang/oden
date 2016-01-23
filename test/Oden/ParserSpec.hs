@@ -6,6 +6,7 @@ import           Test.Hspec
 import           Oden.Identifier
 import           Oden.Parser
 import           Oden.Syntax
+import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
 
@@ -103,6 +104,26 @@ spec = do
       Slice [Symbol (Unqualified "x"), Symbol (Unqualified "y"), Symbol (Unqualified "z")]
 
   describe "parseDefinition" $ do
+    it "parses type signature" $
+      parseDefinition "(: x int)"
+      `shouldSucceedWith`
+      TypeSignature "x" (Forall [] typeInt)
+
+    it "parses type signature without explicit forall" $
+      parseDefinition "(: x (int -> int))"
+      `shouldSucceedWith`
+      TypeSignature "x" (Forall [] (TFn typeInt typeInt))
+
+    it "parses polymorphic type signature without explicit forall" $
+      parseDefinition "(: x (#a -> #a))"
+      `shouldSucceedWith`
+      TypeSignature "x" (Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))))
+
+    it "parses polymorphic type signature" $
+      parseDefinition "(: x (forall (#a) (#a -> #a)))"
+      `shouldSucceedWith`
+      TypeSignature "x" (Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))))
+
     it "parses value definition" $
       parseDefinition "(def x y)"
       `shouldSucceedWith`

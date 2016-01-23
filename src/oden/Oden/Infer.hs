@@ -7,6 +7,7 @@ module Oden.Infer (
   TypeError(..),
   Subst(..),
   inferExpr,
+  inferDefinition,
   inferPackage,
   constraintsExpr
 ) where
@@ -55,9 +56,8 @@ type Solve a = ExceptT TypeError Identity a
 newtype Subst = Subst (Map.Map TVar Type)
   deriving (Eq, Ord, Show, Monoid)
 
-class Substitutable a where
+class FTV a => Substitutable a where
   apply :: Subst -> a -> a
-  ftv   :: a -> Set.Set TVar
 
 instance Substitutable Type where
   apply _ TAny                      = TAny
@@ -69,32 +69,34 @@ instance Substitutable Type where
   apply s (TVariadicFn as v r)  = TVariadicFn (map (apply s) as) (apply s v) (apply s r)
   apply s (TSlice t)                = TSlice (apply s t)
 
-  ftv TAny                      = Set.empty
-  ftv TCon{}                    = Set.empty
-  ftv (TVar a)                  = Set.singleton a
-  ftv (t1 `TFn` t2)            = ftv t1 `Set.union` ftv t2
-  ftv (TNoArgFn t)            = ftv t
-  ftv (TUncurriedFn as r)            = foldl Set.union (ftv r) (map ftv as)
-  ftv (TVariadicFn as v r)  = foldl Set.union (ftv r) (ftv v : map ftv as)
-  ftv (TSlice t)                = ftv t
 
 instance Substitutable Scheme where
   apply (Subst s) (Forall as t)   = Forall as $ apply s' t
                             where s' = Subst $ foldr Map.delete s as
-  ftv (Forall as t) = ftv t `Set.difference` Set.fromList as
 
+instance FTV Core.CanonicalExpr where
+  ftv (sc, expr) = ftv sc `Set.union` ftv expr
+
+instance Substitutable Core.CanonicalExpr where
+  apply s (sc, expr) = (apply s sc, apply s expr)
+
+instance FTV Constraint where
+  ftv (t1, t2) = ftv t1 `Set.union` ftv t2
 
 instance Substitutable Constraint where
-   apply s (t1, t2) = (apply s t1, apply s t2)
-   ftv (t1, t2) = ftv t1 `Set.union` ftv t2
+  apply s (t1, t2) = (apply s t1, apply s t2)
 
 instance Substitutable a => Substitutable [a] where
   apply = map . apply
-  ftv   = foldr (Set.union . ftv) Set.empty
+
+instance FTV Env where
+  ftv (TypeEnv env) = ftv $ Map.elems env
 
 instance Substitutable Env where
   apply s (TypeEnv env) = TypeEnv $ Map.map (apply s) env
-  ftv (TypeEnv env) = ftv $ Map.elems env
+
+instance FTV (Core.Expr Type) where
+  ftv = ftv . Core.typeOf
 
 instance Substitutable (Core.Expr Type) where
   apply s (Core.Symbol x t)               = Core.Symbol x (apply s t)
@@ -107,8 +109,6 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.Literal l t)              = Core.Literal l (apply s t)
   apply s (Core.If c tb fb t)             = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
   apply s (Core.Slice es t)               = Core.Slice (apply s es) (apply s t)
-
-  ftv = ftv . Core.typeOf
 
 data TypeError
   = UnificationFail Type Type
@@ -268,24 +268,31 @@ infer expr = case expr of
     return (Core.Slice tes (TSlice tv))
 
 inferDef :: Untyped.Definition -> Infer Core.Definition
-inferDef (Untyped.Definition name expr) = do
+inferDef (Untyped.Definition name (Just sc) expr) = do
+  te <- inEnv (Unqualified name, sc) (infer expr)
+  return (Core.Definition name (sc, te))
+inferDef (Untyped.Definition name Nothing expr) = do
   tv <- fresh
   env <- ask
   te <- inEnv (Unqualified name, Forall [] tv) (infer expr)
   return (Core.Definition name (generalize env te))
 
 inferDefinition :: Env -> Untyped.Definition -> Either TypeError Core.Definition
-inferDefinition env def = do
+inferDefinition env def@(Untyped.Definition _ Nothing _) = do
   (Core.Definition name (_, te), cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
   return $ Core.Definition name (closeOver (apply subst te))
+inferDefinition env def = do
+  (Core.Definition name ce, cs) <- runInfer env (inferDef def)
+  subst <- runSolve cs
+  return $ Core.Definition name (apply subst ce)
 
 inferPackage :: Env -> Untyped.Package -> Either TypeError (Core.Package, Env)
 inferPackage env (Untyped.Package name imports defs) = do
   (env', inferred) <- foldM iter (env, []) defs
   return (Core.Package name (map convertImport imports) inferred, env')
   where
-  iter (e, inferred) d@(Untyped.Definition _ _) = do
+  iter (e, inferred) d@Untyped.Definition{} = do
       td@(Core.Definition n (sc, _)) <- inferDefinition e d
       return (extend e (Unqualified n, sc), inferred ++ [td])
   convertImport (Untyped.Import n) = Core.Import n

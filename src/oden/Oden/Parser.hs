@@ -7,6 +7,7 @@ module Oden.Parser (
 ) where
 
 import           Data.List
+import qualified Data.Set              as Set
 import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
@@ -15,6 +16,7 @@ import qualified Text.Parsec.Token     as Tok
 import           Oden.Identifier
 import           Oden.Lexer            as Lexer
 import           Oden.Syntax           as Syntax
+import           Oden.Type.Polymorphic
 
 integer :: Parser Integer
 integer = Tok.integer lexer
@@ -83,12 +85,35 @@ expr =
   <|> slice
   <|> symbol
 
-definition :: Parser Definition
-definition = parens (reserved "def" *> (fnDef <|> valueDef))
+tvar :: Parser TVar
+tvar = char '#' *> (TV <$> identifier)
+
+type' :: Parser Type
+type' = var <|> any' <|> con <|> fn'
   where
+  var = TVar <$> tvar
+  any' = reserved "any" *> return TAny
+  con = TCon <$> identifier
+  fn' = parens (TFn <$> type' <*> (reserved "->" *> type'))
+
+explicitlyQuantifiedType :: Parser Scheme
+explicitlyQuantifiedType = parens (reserved "forall" *>
+                         (Forall <$> parens (many tvar)
+                                 <*> type'))
+implicitlyQuantifiedType :: Parser Scheme
+implicitlyQuantifiedType = do
+  t <- type'
+  return (Forall (Set.toList (ftv t)) t)
+
+definition :: Parser Definition
+definition = parens (typeSignature <|> def)
+  where
+  signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
+  typeSignature = reserved ":" *> (TypeSignature <$> identifier <*> signature)
   valueDef = ValueDefinition <$> identifier <*> expr
   fnDef =
     parens (FnDefinition <$> identifier <*> many identifier) <*> expr
+  def = reserved "def" *> (fnDef <|> valueDef)
 
 pkgDecl :: Parser [Name]
 pkgDecl = parens $ do

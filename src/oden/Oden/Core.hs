@@ -57,7 +57,9 @@ data Definition = Definition Name CanonicalExpr
                 deriving (Eq, Ord)
 
 instance Show Definition where
-  show (Definition name (sc, te)) = "(def " ++ name ++ " " ++ show sc ++ " " ++ show te ++ ")"
+  show (Definition name (sc, te)) =
+    "(: " ++ name ++ " " ++ show sc ++ ")"
+    ++ "\n(def " ++ name ++ " " ++ show te ++ ")"
 
 type PackageName = [Name]
 

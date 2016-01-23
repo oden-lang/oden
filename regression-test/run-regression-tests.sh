@@ -1,8 +1,9 @@
 #!/bin/bash
+prg=$0
 command=$1
 
 if [ -z $command ]; then
-  echo "Usage: run-regression-tests.sh (validate|save)"
+  echo "Usage: $prg (validate|save)"
   exit 1
 fi
 
@@ -34,7 +35,15 @@ for test in $tests; do
   go_out=$(GOPATH=$tmp_go_path go run $(find $tmp_go_path -name *.go) 2>&1)
   go_return=$?
 
-  expected_out=$(cat "$test.expected.txt")
+  if [ ! -f "$test.expected.txt" ]; then
+    if [[ $command == "validate" ]]; then
+      print_err "✗ $test"
+      echo "Missing file $test.expected.txt!"
+      echo "Run \"$prg save\" to generate such a file."
+      echo ""
+      continue
+    fi
+  fi
 
   if [[ $oden_return -ne 0 ]]; then
     print_err "✗ $test"
@@ -45,6 +54,7 @@ for test in $tests; do
     echo "$go_out"
     echo ""
   else
+    expected_out=$(cat "$test.expected.txt")
     if [[ $command == "save" ]]; then
       print_success "✓ $test"
       echo -e "\033[35mSaving results.\033[0m"

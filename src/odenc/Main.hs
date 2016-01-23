@@ -9,11 +9,13 @@ import           Oden.Compiler
 import qualified Oden.Core               as Core
 import qualified Oden.Core.Untyped       as Untyped
 import qualified Oden.Env                as Env
+import           Oden.Explode
 import qualified Oden.Go                 as Go
 import           Oden.Infer
 import qualified Oden.Output             as Output
 import           Oden.Output.Backend     ()
 import           Oden.Output.Compiler    ()
+import           Oden.Output.Explode     ()
 import           Oden.Output.Go          ()
 import           Oden.Output.Infer       ()
 import           Oden.Output.Instantiate ()
@@ -57,8 +59,14 @@ printOutput o = do
                                         Output.markdown = True }
   return (Output.print settings o)
 
+printOutputs :: Output.OdenOutput o => [o] -> Odenc String
+printOutputs = fmap unlines . mapM printOutput
+
 liftEither :: Output.OdenOutput e => Either e b -> Odenc b
 liftEither = either (printOutput >=> throwError) return
+
+liftEither' :: Output.OdenOutput e => Either [e] b -> Odenc b
+liftEither' = either (printOutputs >=> throwError) return
 
 readPackage :: FilePath -> Odenc Syntax.Package
 readPackage fname = do
@@ -88,7 +96,7 @@ compileFile (OdenSourceFile fname _) = do
   opts <- ask
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
-  let corePkg = Syntax.explodePackage syntaxPkg
+  corePkg <- liftEither' (explodePackage syntaxPkg)
   importsScope <- scanImports corePkg
   let scope' = Scope.merge predefined importsScope
       typeEnv = Env.fromScope scope'

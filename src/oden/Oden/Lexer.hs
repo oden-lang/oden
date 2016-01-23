@@ -13,7 +13,9 @@ reservedNames = [
     "def",
     "let",
     "fix",
-    "if"
+    "if",
+    "any",
+    "->"
   ]
 
 reservedOps :: [String]

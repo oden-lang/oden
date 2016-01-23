@@ -5,9 +5,9 @@ import           Test.Hspec
 import qualified Oden.Core             as Core
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Env
-import           Oden.Predefined
 import           Oden.Identifier
 import           Oden.Infer
+import           Oden.Predefined
 import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
@@ -33,8 +33,62 @@ predefAndIdentityAny = predef `extend` (Unqualified "identity",
 booleanOp :: Type
 booleanOp = typeBool `TFn` (typeBool `TFn` typeBool)
 
+countToZero :: Untyped.Expr
+countToZero =
+  Untyped.Fn
+  "x"
+  (Untyped.If
+   (Untyped.Application
+    (Untyped.Application
+     (Untyped.Symbol (Unqualified "=="))
+     [Untyped.Symbol (Unqualified "x")])
+    [Untyped.Literal (Untyped.Int 0)])
+   (Untyped.Literal (Untyped.Int 0))
+   (Untyped.Application
+    (Untyped.Symbol (Unqualified "f"))
+    [Untyped.Application
+     (Untyped.Application
+      (Untyped.Symbol (Unqualified "-"))
+      [Untyped.Symbol (Unqualified "x")])
+     [Untyped.Literal (Untyped.Int 1)]]))
+
+intToInt :: Type
+intToInt = TFn typeInt typeInt
+
+intToIntToInt :: Type
+intToIntToInt = TFn typeInt (TFn typeInt typeInt)
+
+countToZeroTyped :: Core.Definition
+countToZeroTyped =
+  Core.Definition
+   "f"
+   (Forall [] (TFn typeInt typeInt),
+    Core.Fn
+    "x"
+    (Core.If
+     (Core.Application
+      (Core.Application
+       (Core.Symbol (Unqualified "==") (TFn typeInt (TFn typeInt typeBool)))
+       (Core.Symbol (Unqualified "x") typeInt)
+       (TFn typeInt typeBool))
+      (Core.Literal (Core.Int 0) typeInt)
+      typeBool)
+     (Core.Literal (Core.Int 0) typeInt)
+     (Core.Application
+      (Core.Symbol (Unqualified "f") intToInt)
+      (Core.Application
+       (Core.Application
+        (Core.Symbol (Unqualified "-") intToIntToInt)
+        (Core.Symbol (Unqualified "x") typeInt)
+        intToInt)
+       (Core.Literal (Core.Int 1) typeInt)
+       typeInt)
+      typeInt)
+     typeInt)
+    intToInt)
+
 spec :: Spec
-spec =
+spec = do
   describe "inferExpr" $ do
     it "infers int literal" $
       inferExpr empty (Untyped.Literal (Untyped.Int 1))
@@ -216,3 +270,40 @@ spec =
        Core.UncurriedFnApplication (Core.Symbol (Unqualified "max") (TVariadicFn [] typeInt typeInt))
                               [Core.Slice [] typeInt]
        typeInt)
+
+  describe "inferDefinition" $ do
+    it "infers definition without type signature" $
+      inferDefinition empty (Untyped.Definition "x" Nothing (Untyped.Literal (Untyped.Int 1)))
+      `shouldSucceedWith`
+      Core.Definition "x" (Forall [] typeInt, Core.Literal (Core.Int 1) typeInt)
+
+    it "infers polymorphic definition without type signature" $
+      shouldSucceed $
+        inferDefinition
+          empty
+          (Untyped.Definition "id"
+                              Nothing
+                              (Untyped.Fn "x" (Untyped.Symbol (Unqualified "x"))))
+
+    it "infers definition with type signature" $
+      inferDefinition empty (Untyped.Definition "x" (Just $ Forall [] TAny) (Untyped.Literal (Untyped.Int 1)))
+      `shouldSucceedWith`
+      Core.Definition "x" (Forall [] TAny, Core.Literal (Core.Int 1) typeInt)
+
+    it "infers polymorphic definition with type signature" $
+      inferDefinition empty (Untyped.Definition "id"
+                                                (Just $ Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))))
+                                                (Untyped.Fn "x" (Untyped.Symbol (Unqualified "x"))))
+      `shouldSucceedWith`
+      Core.Definition "id" (Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))),
+                            Core.Fn "x" (Core.Symbol (Unqualified "x") (TVar (TV "a"))) (TFn (TVar (TV "a")) (TVar (TV "a"))))
+
+    it "infers recursive definition" $
+      inferDefinition predef (Untyped.Definition "f" (Just $ Forall [] intToInt) countToZero)
+      `shouldSucceedWith`
+      countToZeroTyped
+
+    it "infers recursive definition without type signature" $
+      inferDefinition predef (Untyped.Definition "f" Nothing countToZero)
+      `shouldSucceedWith`
+      countToZeroTyped

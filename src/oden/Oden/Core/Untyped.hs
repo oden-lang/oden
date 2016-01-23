@@ -1,6 +1,7 @@
 module Oden.Core.Untyped where
 
 import           Oden.Identifier
+import           Oden.Type.Polymorphic
 
 data Expr = Symbol Identifier
           | Application Expr [Expr]
@@ -17,7 +18,7 @@ data Literal = Int Integer
              | String String
              deriving (Show, Eq, Ord)
 
-data Definition = Definition Name Expr
+data Definition = Definition Name (Maybe Scheme) Expr
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]
