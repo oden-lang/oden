@@ -89,12 +89,18 @@ tvar :: Parser TVar
 tvar = char '#' *> (TV <$> identifier)
 
 type' :: Parser Type
-type' = var <|> any' <|> con <|> fn'
+type' = slice'
+        <|> var
+        <|> any'
+        <|> con
+        <|> parens (noArgFn <|> fn')
   where
   var = TVar <$> tvar
   any' = reserved "any" *> return TAny
   con = TCon <$> identifier
-  fn' = parens (TFn <$> type' <*> (reserved "->" *> type'))
+  fn' = TFn <$> type' <*> (reserved "->" *> type')
+  noArgFn = TNoArgFn <$> (reserved "->" *> type')
+  slice' = TSlice <$> (char '!' *> brackets type')
 
 explicitlyQuantifiedType :: Parser Scheme
 explicitlyQuantifiedType = parens (reserved "forall" *>

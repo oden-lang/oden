@@ -114,6 +114,16 @@ spec = do
       `shouldSucceedWith`
       TypeSignature "x" (Forall [] (TFn typeInt typeInt))
 
+    it "parses type signature with no-arg fn" $
+      parseDefinition "(: x (-> unit))"
+      `shouldSucceedWith`
+      TypeSignature "x" (Forall [] (TNoArgFn typeUnit))
+
+    it "parses type signature with slice" $
+      parseDefinition "(: x ![int])"
+      `shouldSucceedWith`
+      TypeSignature "x" (Forall [] (TSlice typeInt))
+
     it "parses polymorphic type signature without explicit forall" $
       parseDefinition "(: x (#a -> #a))"
       `shouldSucceedWith`
