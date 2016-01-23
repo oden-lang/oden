@@ -1,5 +1,5 @@
 name:                oden
-version:             0.2.0
+version:             0.2.1
 license:             MIT
 license-file:        LICENSE.md
 author:              Oskar Wickström
@@ -44,6 +44,7 @@ library
     Oden.Output,
     Oden.Output.Backend,
     Oden.Output.Compiler,
+    Oden.Output.Explode,
     Oden.Output.Go,
     Oden.Output.Infer,
     Oden.Output.Instantiate,
