@@ -36,6 +36,7 @@ library
     Oden.Core,
     Oden.Core.Untyped,
     Oden.Env,
+    Oden.Explode,
     Oden.Identifier,
     Oden.Infer,
     Oden.Go,
