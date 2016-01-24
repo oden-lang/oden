@@ -62,6 +62,7 @@ usingIdentityMonomorphed :: MonomorphedDefinition
 usingIdentityMonomorphed =
   MonomorphedDefinition
     "using-identity"
+    Mono.typeInt
     (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
                       (Core.Literal (Core.Int 1) Mono.typeInt)
                       Mono.typeInt)
@@ -81,6 +82,7 @@ usingIdentity2Monomorphed :: MonomorphedDefinition
 usingIdentity2Monomorphed =
   MonomorphedDefinition
     "using-identity2"
+    Mono.typeInt
     (Core.Application (Core.Symbol (Unqualified "identity2_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
                       (Core.Literal (Core.Int 1) Mono.typeInt)
                       Mono.typeInt)
@@ -89,6 +91,7 @@ letBoundIdentityMonomorphed :: MonomorphedDefinition
 letBoundIdentityMonomorphed =
   MonomorphedDefinition
     "let-bound-identity"
+    Mono.typeInt
     (Core.Let "identity_inst_int_to_int" (Core.Fn "x" (Core.Symbol (Unqualified "x") Mono.typeInt) (Mono.TFn Mono.typeInt Mono.typeInt))
                                          (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
                                                            (Core.Literal (Core.Int 1) Mono.typeInt)
@@ -126,6 +129,7 @@ sliceLenMonomorphed :: MonomorphedDefinition
 sliceLenMonomorphed =
   MonomorphedDefinition
     "slice-len"
+    Mono.typeInt
     (Core.UncurriedFnApplication
       (Core.Symbol (Unqualified "len") (Mono.TUncurriedFn [Mono.TSlice Mono.typeBool] Mono.typeInt))
       [Core.Slice [Core.Literal (Core.Bool True) Mono.typeBool] (Mono.TSlice Mono.typeBool)]
@@ -150,6 +154,7 @@ letWithShadowingMonomorphed :: MonomorphedDefinition
 letWithShadowingMonomorphed =
   MonomorphedDefinition
     "let-with-shadowing"
+    Mono.typeInt
     (Core.Let
      "x"
      (Core.Literal (Core.Int 1) Mono.typeInt)

@@ -33,6 +33,12 @@ predefAndIdentityAny = predef `extend` (Unqualified "identity",
 booleanOp :: Type
 booleanOp = typeBool `TFn` (typeBool `TFn` typeBool)
 
+tvA :: TVar
+tvA = TV "a"
+
+tvarA :: Type
+tvarA = TVar (TV "a")
+
 countToZero :: Untyped.Expr
 countToZero =
   Untyped.Fn
@@ -86,6 +92,35 @@ countToZeroTyped =
       typeInt)
      typeInt)
     intToInt)
+
+twiceUntyped :: Untyped.Expr
+twiceUntyped =
+  Untyped.Fn
+   "f"
+   (Untyped.Fn
+   "x"
+   (Untyped.Application
+     (Untyped.Symbol (Unqualified "f"))
+     [Untyped.Application
+     (Untyped.Symbol (Unqualified "f"))
+     [Untyped.Symbol (Unqualified "x")]]))
+
+twiceTyped :: Core.Definition
+twiceTyped =
+  Core.Definition "twice" (Forall [tvA] (TFn (TFn tvarA tvarA) (TFn tvarA tvarA)),
+                           Core.Fn
+                           "f"
+                           (Core.Fn
+                           "x"
+                           (Core.Application
+                             (Core.Symbol (Unqualified "f") (TFn tvarA tvarA))
+                             (Core.Application
+                             (Core.Symbol (Unqualified "f") (TFn tvarA tvarA))
+                             (Core.Symbol (Unqualified "x") tvarA)
+                             tvarA)
+                             tvarA)
+                           (TFn tvarA tvarA))
+                           (TFn (TFn tvarA tvarA) (TFn tvarA tvarA)))
 
 spec :: Spec
 spec = do
@@ -298,6 +333,33 @@ spec = do
       Core.Definition "id" (Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))),
                             Core.Fn "x" (Core.Symbol (Unqualified "x") (TVar (TV "a"))) (TFn (TVar (TV "a")) (TVar (TV "a"))))
 
+    it "fails when specified type signature does not unify" $
+      shouldFail $
+        inferDefinition empty (Untyped.Definition "some-number"
+                                                  (Just $ Forall [] typeBool)
+                                                  (Untyped.Literal (Untyped.Int 1)))
+
+    it "subsumes int with any" $
+        inferDefinition empty (Untyped.Definition "some-number"
+                                                  (Just $ Forall [] TAny)
+                                                  (Untyped.Literal (Untyped.Int 1)))
+        `shouldSucceedWith`
+        Core.Definition "some-number" (Forall [] TAny, Core.Literal (Core.Int 1) typeInt)
+
+
+    it "infers twice function with correct type signature" $
+      inferDefinition empty (Untyped.Definition "twice"
+                                                (Just $ Forall [tvA] (TFn (TFn tvarA tvarA) (TFn tvarA tvarA)))
+                                                twiceUntyped)
+      `shouldSucceedWith`
+      twiceTyped
+
+    it "fails on twice function with incorrect type signature" $
+      shouldFail $
+        inferDefinition empty (Untyped.Definition "twice"
+                                                  (Just $ Forall [tvA] (TFn tvarA tvarA))
+                                                  twiceUntyped)
+
     it "infers recursive definition" $
       inferDefinition predef (Untyped.Definition "f" (Just $ Forall [] intToInt) countToZero)
       `shouldSucceedWith`
@@ -307,3 +369,7 @@ spec = do
       inferDefinition predef (Untyped.Definition "f" Nothing countToZero)
       `shouldSucceedWith`
       countToZeroTyped
+
+    it "fails on recursive with incorrect signature" $
+      shouldFail $
+        inferDefinition predef (Untyped.Definition "f" (Just $ Forall [] (TFn typeInt TAny)) countToZero)

@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 
 module Oden.Infer (
@@ -12,18 +11,22 @@ module Oden.Infer (
   constraintsExpr
 ) where
 
+import           Control.Arrow          (left)
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Monad.RWS      hiding ((<>))
 
 import           Data.List              (nub)
 import qualified Data.Map               as Map
+import           Data.Maybe
 import qualified Data.Set               as Set
 
 import qualified Oden.Core              as Core
 import qualified Oden.Core.Untyped      as Untyped
 import           Oden.Env               as Env
 import           Oden.Identifier
+import           Oden.Infer.Substitution
+import           Oden.Infer.Subsumption
 import           Oden.Type.Polymorphic
 
 -------------------------------------------------------------------------------
@@ -53,32 +56,6 @@ type Unifier = (Subst, [Constraint])
 -- | Constraint solver monad
 type Solve a = ExceptT TypeError Identity a
 
-newtype Subst = Subst (Map.Map TVar Type)
-  deriving (Eq, Ord, Show, Monoid)
-
-class FTV a => Substitutable a where
-  apply :: Subst -> a -> a
-
-instance Substitutable Type where
-  apply _ TAny                      = TAny
-  apply _ (TCon a)                  = TCon a
-  apply (Subst s) t@(TVar a)        = Map.findWithDefault t a s
-  apply s (TNoArgFn t)            = TNoArgFn (apply s t)
-  apply s (t1 `TFn` t2)            = apply s t1 `TFn` apply s t2
-  apply s (TUncurriedFn as r)            = TUncurriedFn (map (apply s) as) (apply s r)
-  apply s (TVariadicFn as v r)  = TVariadicFn (map (apply s) as) (apply s v) (apply s r)
-  apply s (TSlice t)                = TSlice (apply s t)
-
-
-instance Substitutable Scheme where
-  apply (Subst s) (Forall as t)   = Forall as $ apply s' t
-                            where s' = Subst $ foldr Map.delete s as
-
-instance FTV Core.CanonicalExpr where
-  ftv (sc, expr) = ftv sc `Set.union` ftv expr
-
-instance Substitutable Core.CanonicalExpr where
-  apply s (sc, expr) = (apply s sc, apply s expr)
 
 instance FTV Constraint where
   ftv (t1, t2) = ftv t1 `Set.union` ftv t2
@@ -86,29 +63,11 @@ instance FTV Constraint where
 instance Substitutable Constraint where
   apply s (t1, t2) = (apply s t1, apply s t2)
 
-instance Substitutable a => Substitutable [a] where
-  apply = map . apply
-
 instance FTV Env where
   ftv (TypeEnv env) = ftv $ Map.elems env
 
 instance Substitutable Env where
   apply s (TypeEnv env) = TypeEnv $ Map.map (apply s) env
-
-instance FTV (Core.Expr Type) where
-  ftv = ftv . Core.typeOf
-
-instance Substitutable (Core.Expr Type) where
-  apply s (Core.Symbol x t)               = Core.Symbol x (apply s t)
-  apply s (Core.Application f p t)        = Core.Application (apply s f) (apply s p) (apply s t)
-  apply s (Core.NoArgApplication f t)     = Core.NoArgApplication (apply s f) (apply s t)
-  apply s (Core.UncurriedFnApplication f p t)  = Core.UncurriedFnApplication (apply s f) (apply s p) (apply s t)
-  apply s (Core.Fn x b t)                 = Core.Fn x (apply s b) (apply s t)
-  apply s (Core.NoArgFn b t)              = Core.NoArgFn (apply s b) (apply s t)
-  apply s (Core.Let x e b t)              = Core.Let x (apply s e) (apply s b) (apply s t)
-  apply s (Core.Literal l t)              = Core.Literal l (apply s t)
-  apply s (Core.If c tb fb t)             = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
-  apply s (Core.Slice es t)               = Core.Slice (apply s es) (apply s t)
 
 data TypeError
   = UnificationFail Type Type
@@ -117,6 +76,7 @@ data TypeError
   | Ambigious [Constraint]
   | UnificationMismatch [Type] [Type]
   | ArgumentCountMismatch [Type] [Type]
+  | TypeSignatureSubsumptionError Name SubsumptionError
   deriving (Show, Eq)
 
 -------------------------------------------------------------------------------
@@ -268,13 +228,11 @@ infer expr = case expr of
     return (Core.Slice tes (TSlice tv))
 
 inferDef :: Untyped.Definition -> Infer Core.Definition
-inferDef (Untyped.Definition name (Just sc) expr) = do
-  te <- inEnv (Unqualified name, sc) (infer expr)
-  return (Core.Definition name (sc, te))
-inferDef (Untyped.Definition name Nothing expr) = do
+inferDef (Untyped.Definition name s expr) = do
   tv <- fresh
   env <- ask
-  te <- inEnv (Unqualified name, Forall [] tv) (infer expr)
+  let recType = fromMaybe (Forall [] tv) s
+  te <- inEnv (Unqualified name, recType) (infer expr)
   return (Core.Definition name (generalize env te))
 
 inferDefinition :: Env -> Untyped.Definition -> Either TypeError Core.Definition
@@ -282,10 +240,12 @@ inferDefinition env def@(Untyped.Definition _ Nothing _) = do
   (Core.Definition name (_, te), cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
   return $ Core.Definition name (closeOver (apply subst te))
-inferDefinition env def = do
+inferDefinition env def@(Untyped.Definition _ (Just st) _) = do
   (Core.Definition name ce, cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
-  return $ Core.Definition name (apply subst ce)
+  let (Forall _ _, substExpr) = apply subst ce
+  ce' <- left (TypeSignatureSubsumptionError name) $ subsumeTypeSignature st substExpr
+  return $ Core.Definition name ce'
 
 inferPackage :: Env -> Untyped.Package -> Either TypeError (Core.Package, Env)
 inferPackage env (Untyped.Package name imports defs) = do
@@ -327,14 +287,6 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
 -- Constraint Solver
 -------------------------------------------------------------------------------
 
--- | The empty substitution
-emptySubst :: Subst
-emptySubst = mempty
-
--- | Compose substitutions
-compose :: Subst -> Subst -> Subst
-(Subst s1) `compose` (Subst s2) = Subst $ Map.map (apply (Subst s1)) s2 `Map.union` s1
-
 -- | Run the constraint solver
 runSolve :: [Constraint] -> Either TypeError Subst
 runSolve cs = runIdentity $ runExceptT $ solver st
@@ -353,7 +305,6 @@ unifies t1 t2 | t1 == t2 = return emptySubst
 unifies TAny (TVar v) = v `bind` TAny
 unifies (TVar v) TAny = v `bind` TAny
 unifies TAny _ = return emptySubst
-unifies _ TAny = return emptySubst
 unifies (TVar v) t = v `bind` t
 unifies t (TVar v) = v `bind` t
 unifies (TFn t1 t2) (TFn t3 t4) = unifyMany [t1, t2] [t3, t4]

@@ -26,13 +26,16 @@ func name arg returnType body =
   <+> returnType
   <+> if isEmpty body then empty else block body
 
-var :: Name -> Expr Mono.Type -> Doc
-var name expr =
+varWithType :: Name -> Mono.Type -> Expr Mono.Type -> Doc
+varWithType name mt expr =
   text "var"
   <+> safeName name
-  <+> codegenType (typeOf expr)
+  <+> codegenType mt
   <+> equals
   <+> codegenExpr expr
+
+var :: Name -> Expr Mono.Type -> Doc
+var name expr = varWithType name (typeOf expr) expr
 
 return' :: Expr Mono.Type -> Doc
 return' e@(Application _ _ t) | t == Mono.typeUnit =
@@ -140,21 +143,25 @@ codegenExpr (If condExpr thenExpr elseExpr t) =
 codegenExpr (Slice exprs t) = codegenType t
                             <> braces (hcat (punctuate (comma <+> space) (map codegenExpr exprs)))
 
-codegenTopLevel :: Name -> Expr Mono.Type -> Doc
-codegenTopLevel name (NoArgFn body (Mono.TNoArgFn r)) =
+codegenTopLevel :: Name -> Mono.Type -> Expr Mono.Type -> Doc
+codegenTopLevel name (Mono.TNoArgFn r) (NoArgFn body _) =
   func (safeName name) empty (codegenType r) (return' body)
-codegenTopLevel name (Fn a body (Mono.TFn d r)) =
+codegenTopLevel name _ (NoArgFn body (Mono.TNoArgFn r)) =
+  func (safeName name) empty (codegenType r) (return' body)
+codegenTopLevel name (Mono.TFn d r) (Fn a body _) =
   func (safeName name) (funcArg a d) (codegenType r) (return' body)
-codegenTopLevel name expr =
-  var name expr
+codegenTopLevel name _ (Fn a body (Mono.TFn d r)) =
+  func (safeName name) (funcArg a d) (codegenType r) (return' body)
+codegenTopLevel name t expr =
+  varWithType name t expr
 
 codegenInstance :: InstantiatedDefinition -> Doc
 codegenInstance (InstantiatedDefinition name expr) =
-  codegenTopLevel name expr
+  codegenTopLevel name (typeOf expr) expr
 
 codegenMonomorphed :: MonomorphedDefinition -> Doc
-codegenMonomorphed (MonomorphedDefinition name expr) =
-  codegenTopLevel name expr
+codegenMonomorphed (MonomorphedDefinition name mt expr) =
+  codegenTopLevel name mt expr
 
 codegenImport :: Import -> Doc
 codegenImport (Import name) =

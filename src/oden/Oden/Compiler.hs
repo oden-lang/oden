@@ -13,7 +13,7 @@ import           Oden.Scope                as Scope
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
-data MonomorphedDefinition = MonomorphedDefinition Name (Core.Expr Mono.Type)
+data MonomorphedDefinition = MonomorphedDefinition Name Mono.Type (Core.Expr Mono.Type)
                            deriving (Show, Eq, Ord)
 
 data InstantiatedDefinition =
@@ -198,11 +198,13 @@ unwrapLetInstances [] body = body
 unwrapLetInstances (LetInstance mn me:is) body = Core.Let mn me (unwrapLetInstances is body) (Core.typeOf body)
 
 monomorphDefinition :: Core.Definition -> Monomorph ()
-monomorphDefinition d@(Core.Definition name (s, expr)) = do
+monomorphDefinition d@(Core.Definition name (Poly.Forall _ st, expr)) = do
   addToScope d
-  unless (Poly.isPolymorphic s) $ do
-    mExpr <- monomorph expr
-    addMonomorphed name (MonomorphedDefinition name mExpr)
+  case Poly.toMonomorphic st of
+    Left _ -> return ()
+    Right mt -> do
+      mExpr <- monomorph expr
+      addMonomorphed name (MonomorphedDefinition name mt mExpr)
 
 monomorphPackage :: Scope -> Core.Package -> Either CompilationError CompiledPackage
 monomorphPackage scope' (Core.Package name imports definitions) = do
