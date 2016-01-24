@@ -39,6 +39,8 @@ library
     Oden.Explode,
     Oden.Identifier,
     Oden.Infer,
+    Oden.Infer.Substitution,
+    Oden.Infer.Subsumption,
     Oden.Go,
     Oden.Go.Types,
     Oden.Lexer,
