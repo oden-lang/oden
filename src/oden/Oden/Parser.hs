@@ -7,7 +7,6 @@ module Oden.Parser (
 ) where
 
 import           Data.List
-import qualified Data.Set              as Set
 import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
@@ -16,7 +15,6 @@ import qualified Text.Parsec.Token     as Tok
 import           Oden.Identifier
 import           Oden.Lexer            as Lexer
 import           Oden.Syntax           as Syntax
-import           Oden.Type.Polymorphic
 
 integer :: Parser Integer
 integer = Tok.integer lexer
@@ -85,35 +83,31 @@ expr =
   <|> slice
   <|> symbol
 
-tvar :: Parser TVar
-tvar = char '#' *> (TV <$> identifier)
+tvar :: Parser String
+tvar = char '#' *> identifier
 
-type' :: Parser Type
+type' :: Parser TypeExpr
 type' = slice'
         <|> var
         <|> any'
         <|> con
         <|> parens (noArgFn <|> fn')
   where
-  var = TVar <$> tvar
-  any' = reserved "any" *> return TAny
-  con = TCon <$> identifier
-  fn' = TFn <$> type' <*> (reserved "->" *> type')
-  noArgFn = TNoArgFn <$> (reserved "->" *> type')
-  slice' = TSlice <$> (char '!' *> brackets type')
+  var = TEVar <$> tvar
+  any' = reserved "any" *> return TEAny
+  con = TECon <$> identifier
+  fn' = TEFn <$> type' <*> (rArrow *> type')
+  noArgFn = TENoArgFn <$> (rArrow *> type')
+  slice' = TESlice <$> (char '!' *> brackets type')
 
-explicitlyQuantifiedType :: Parser Scheme
-explicitlyQuantifiedType = parens (reserved "forall" *>
-                         (Forall <$> parens (many tvar)
-                                 <*> type'))
-implicitlyQuantifiedType :: Parser Scheme
-implicitlyQuantifiedType = do
-  t <- type'
-  return (Forall (Set.toList (ftv t)) t)
 
 definition :: Parser Definition
 definition = parens (typeSignature <|> def)
   where
+  explicitlyQuantifiedType = parens (reserved "forall" *>
+                                    (Explicit <$> parens (many tvar)
+                                              <*> type'))
+  implicitlyQuantifiedType = Implicit <$> type'
   signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
   typeSignature = reserved ":" *> (TypeSignature <$> identifier <*> signature)
   valueDef = ValueDefinition <$> identifier <*> expr

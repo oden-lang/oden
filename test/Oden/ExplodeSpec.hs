@@ -54,12 +54,12 @@ spec = do
       [U.Definition "f" Nothing (U.Fn "x" (U.Fn "y" (U.Symbol (Unqualified "x"))))]
 
     it "converts type signature and definition" $
-      explodeDefinitions [TypeSignature "f" (Forall [] (TCon "a")),
+      explodeDefinitions [TypeSignature "f" (Implicit (TECon "a")),
                           FnDefinition "f" [] (Symbol (Unqualified "x"))]
       `shouldSucceedWith`
       [U.Definition "f" (Just $ Forall [] (TCon "a")) (U.NoArgFn (U.Symbol (Unqualified "x")))]
 
     it "returns error on type signature without definition" $
-      explodeDefinitions [TypeSignature "f" (Forall [] (TCon "a"))]
+      explodeDefinitions [TypeSignature "f" (Implicit (TECon "a"))]
       `shouldFailWith`
       [TypeSignatureWithoutDefinition "f" (Forall [] (TCon "a"))]

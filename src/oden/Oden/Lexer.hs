@@ -66,6 +66,9 @@ braces p = char '{' *> p <* char '}'
 brackets :: Parser a -> Parser a
 brackets p = char '[' *> p <* char ']'
 
+rArrow :: Parser ()
+rArrow = reserved "->"
+
 packageName :: Parser [String]
 packageName = part `sepBy` char '/'
   where

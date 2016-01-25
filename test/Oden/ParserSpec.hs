@@ -6,9 +6,14 @@ import           Test.Hspec
 import           Oden.Identifier
 import           Oden.Parser
 import           Oden.Syntax
-import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
+
+typeInt :: TypeExpr
+typeInt = TECon "int"
+
+typeUnit :: TypeExpr
+typeUnit = TECon "unit"
 
 spec :: Spec
 spec = do
@@ -107,32 +112,37 @@ spec = do
     it "parses type signature" $
       parseDefinition "(: x int)"
       `shouldSucceedWith`
-      TypeSignature "x" (Forall [] typeInt)
+      TypeSignature "x" (Implicit typeInt)
 
     it "parses type signature without explicit forall" $
       parseDefinition "(: x (int -> int))"
       `shouldSucceedWith`
-      TypeSignature "x" (Forall [] (TFn typeInt typeInt))
+      TypeSignature "x" (Implicit (TEFn typeInt typeInt))
 
     it "parses type signature with no-arg fn" $
       parseDefinition "(: x (-> unit))"
       `shouldSucceedWith`
-      TypeSignature "x" (Forall [] (TNoArgFn typeUnit))
+      TypeSignature "x" (Implicit (TENoArgFn typeUnit))
 
     it "parses type signature with slice" $
       parseDefinition "(: x ![int])"
       `shouldSucceedWith`
-      TypeSignature "x" (Forall [] (TSlice typeInt))
+      TypeSignature "x" (Implicit (TESlice typeInt))
 
-    it "parses polymorphic type signature without explicit forall" $
+    it "parses polymorphic type signature with implicit forall" $
       parseDefinition "(: x (#a -> #a))"
       `shouldSucceedWith`
-      TypeSignature "x" (Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))))
+      TypeSignature "x" (Implicit (TEFn (TEVar ("a")) (TEVar ("a"))))
+
+    it "parses polymorphic type signature with explicit forall" $
+      parseDefinition "(: x (forall (#a) (#a -> #a)))"
+      `shouldSucceedWith`
+      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar ("a")) (TEVar ("a"))))
 
     it "parses polymorphic type signature" $
       parseDefinition "(: x (forall (#a) (#a -> #a)))"
       `shouldSucceedWith`
-      TypeSignature "x" (Forall [TV "a"] (TFn (TVar (TV "a")) (TVar (TV "a"))))
+      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar ("a")) (TEVar ("a"))))
 
     it "parses value definition" $
       parseDefinition "(def x y)"

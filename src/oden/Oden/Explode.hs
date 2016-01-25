@@ -12,6 +12,7 @@ import           Oden.Syntax
 import           Oden.Type.Polymorphic
 
 import qualified Data.Map              as Map
+import qualified Data.Set              as Set
 
 data ExplodeError = TypeSignatureWithoutDefinition Name Scheme
                   deriving (Show, Eq)
@@ -48,6 +49,22 @@ explodeExpr (Slice es) =
 explodeImport :: Import -> Untyped.Import
 explodeImport (Import name) = Untyped.Import name
 
+explodeType :: TypeExpr -> Type
+explodeType TEAny = TAny
+explodeType (TEVar s) = TVar (TV s)
+explodeType (TECon s) = TCon s
+explodeType (TEFn d r) = TFn (explodeType d) (explodeType r)
+explodeType (TENoArgFn r) = TNoArgFn (explodeType r)
+explodeType (TESlice t) = TSlice (explodeType t)
+
+explodeScheme :: SchemeExpr -> Scheme
+explodeScheme (Implicit t) =
+  let t' = explodeType t
+  in Forall (Set.toList (ftv t')) t'
+explodeScheme (Explicit vars t) =
+  let t' = explodeType t
+  in Forall (map TV vars) t'
+
 explodeDefinitions :: [Definition] -> Either [ExplodeError] [Untyped.Definition]
 explodeDefinitions ds =
   let (scs, defs) = foldl iter (Map.empty, []) ds
@@ -61,7 +78,7 @@ explodeDefinitions ds =
           let def = Untyped.Definition name (Map.lookup name ts) (explodeExpr expr)
           in (Map.delete name ts, defs ++ [def])
         iter (ts, defs) (TypeSignature name sc) =
-          (Map.insert name sc ts, defs)
+          (Map.insert name (explodeScheme sc) ts, defs)
 
 explodePackage :: Package -> Either [ExplodeError] Untyped.Package
 explodePackage (Package name imports definitions) = do

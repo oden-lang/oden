@@ -1,7 +1,6 @@
 module Oden.Syntax where
 
 import           Oden.Identifier
-import           Oden.Type.Polymorphic
 
 type Binding = (Name, Expr)
 
@@ -19,9 +18,21 @@ data Literal = Int Integer
              | String String
              deriving (Show, Eq, Ord)
 
+data TypeExpr = TEAny
+              | TEVar String
+              | TECon String
+              | TEFn TypeExpr TypeExpr
+              | TENoArgFn TypeExpr
+              | TESlice TypeExpr
+              deriving (Show, Eq, Ord)
+
+data SchemeExpr = Explicit [String] TypeExpr
+                | Implicit TypeExpr
+                deriving (Show, Eq, Ord)
+
 data Definition = ValueDefinition Name Expr
                 | FnDefinition Name [Name] Expr
-                | TypeSignature Name Scheme
+                | TypeSignature Name SchemeExpr
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]
