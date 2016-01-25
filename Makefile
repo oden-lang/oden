@@ -29,7 +29,7 @@ $(TMP):
 
 .PHONY: test
 test:
-	cabal exec runhaskell -- -isrc/oden -itest test/Spec.hs
+	cabal exec runhaskell -- -isrc -itest test/Spec.hs
 
 .PHONY: watch-test
 watch-test: $(NODEMON)
@@ -52,8 +52,8 @@ dist/build-odenc/bin/odenc: build
 		-package-db .cabal-sandbox/*-packages.conf.d \
 		-odir dist/build-odenc \
 		-hidir dist/build-odenc \
-		-isrc/odenc \
-		-isrc/oden \
+		-iodenc \
+		-isrc \
 		-fPIC \
 		-static \
 		-threaded \
@@ -61,7 +61,7 @@ dist/build-odenc/bin/odenc: build
 		dist/build-odenc/libHSoden*.a \
 		dist/build-odenc/autogen/Paths_oden.hs \
 		dist/go-lib/importer.a \
-		src/odenc/Main.hs
+		odenc/Main.hs
 
 .PHONY: odenc
 odenc: dist/build-odenc/bin/odenc
@@ -88,7 +88,7 @@ docker-dist:
 		--env VERSION=$(VERSION) \
 		--name oden-builder \
 		oden-build:$(VERSION)
-	docker cp oden-builder:/src/oden/dist/oden-$(VERSION)-linux.tar.gz dist
+	docker cp oden-builder:/src/dist/oden-$(VERSION)-linux.tar.gz dist
 
 release: $(DIST_ARCHIVE)
 	@echo "\n\nDon't forget to set env variable GITHUB_TOKEN first!\n\n"
