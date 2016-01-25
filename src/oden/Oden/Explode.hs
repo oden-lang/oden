@@ -53,7 +53,9 @@ explodeType :: TypeExpr -> Type
 explodeType TEAny = TAny
 explodeType (TEVar s) = TVar (TV s)
 explodeType (TECon s) = TCon s
-explodeType (TEFn d r) = TFn (explodeType d) (explodeType r)
+explodeType (TEFn d []) = explodeType d
+explodeType (TEFn d (r:rs)) =
+  TFn (explodeType d) (explodeType (TEFn r rs))
 explodeType (TENoArgFn r) = TNoArgFn (explodeType r)
 explodeType (TESlice t) = TSlice (explodeType t)
 

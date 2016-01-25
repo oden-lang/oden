@@ -117,7 +117,7 @@ spec = do
     it "parses type signature without explicit forall" $
       parseDefinition "(: x (int -> int))"
       `shouldSucceedWith`
-      TypeSignature "x" (Implicit (TEFn typeInt typeInt))
+      TypeSignature "x" (Implicit (TEFn typeInt [typeInt]))
 
     it "parses type signature with no-arg fn" $
       parseDefinition "(: x (-> unit))"
@@ -132,17 +132,17 @@ spec = do
     it "parses polymorphic type signature with implicit forall" $
       parseDefinition "(: x (#a -> #a))"
       `shouldSucceedWith`
-      TypeSignature "x" (Implicit (TEFn (TEVar ("a")) (TEVar ("a"))))
+      TypeSignature "x" (Implicit (TEFn (TEVar ("a")) [TEVar ("a")]))
 
     it "parses polymorphic type signature with explicit forall" $
       parseDefinition "(: x (forall (#a) (#a -> #a)))"
       `shouldSucceedWith`
-      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar ("a")) (TEVar ("a"))))
+      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar ("a")) [TEVar ("a")]))
 
     it "parses polymorphic type signature" $
       parseDefinition "(: x (forall (#a) (#a -> #a)))"
       `shouldSucceedWith`
-      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar ("a")) (TEVar ("a"))))
+      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar ("a")) [TEVar ("a")]))
 
     it "parses value definition" $
       parseDefinition "(def x y)"

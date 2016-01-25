@@ -21,7 +21,7 @@ data Literal = Int Integer
 data TypeExpr = TEAny
               | TEVar String
               | TECon String
-              | TEFn TypeExpr TypeExpr
+              | TEFn TypeExpr [TypeExpr]
               | TENoArgFn TypeExpr
               | TESlice TypeExpr
               deriving (Show, Eq, Ord)

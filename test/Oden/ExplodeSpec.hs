@@ -53,6 +53,12 @@ spec = do
       `shouldSucceedWith`
       [U.Definition "f" Nothing (U.Fn "x" (U.Fn "y" (U.Symbol (Unqualified "x"))))]
 
+    it "converts type signature with uncurried fn type expression" $
+      explodeDefinitions [TypeSignature "f" (Implicit (TEFn (TECon "a") [TECon "a", TECon "a"])),
+                          FnDefinition "f" [] (Symbol (Unqualified "x"))]
+      `shouldSucceedWith`
+      [U.Definition "f" (Just $ Forall [] (TFn (TCon "a") (TFn (TCon "a") (TCon "a")))) (U.NoArgFn (U.Symbol (Unqualified "x")))]
+
     it "converts type signature and definition" $
       explodeDefinitions [TypeSignature "f" (Implicit (TECon "a")),
                           FnDefinition "f" [] (Symbol (Unqualified "x"))]

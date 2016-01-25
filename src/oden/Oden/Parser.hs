@@ -96,7 +96,10 @@ type' = slice'
   var = TEVar <$> tvar
   any' = reserved "any" *> return TEAny
   con = TECon <$> identifier
-  fn' = TEFn <$> type' <*> (rArrow *> type')
+  fn' = do
+    d <- type'
+    _ <- rArrow
+    TEFn d <$> (type' `sepBy1` rArrow)
   noArgFn = TENoArgFn <$> (rArrow *> type')
   slice' = TESlice <$> (char '!' *> brackets type')
 
