@@ -26,6 +26,10 @@ can submit bug reports, suggestions and change requests at
 Please start by posting an issue even if you have a pull request ready,
 so we can begin with a discussion.
 
+## Changelog
+
+See [CHANGELOG.md].
+
 ## License
 
 Copyright 2015 Oskar Wickström

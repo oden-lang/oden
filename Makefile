@@ -71,6 +71,7 @@ dist/oden: dist/build-odenc/bin/odenc
 	cp README.md dist/oden/README.txt
 	cp LICENSE.md dist/oden/LICENSE.txt
 	cp CREDITS.md dist/oden/CREDITS.txt
+	cp CHANGELOG.md dist/oden/CHANGELOG.txt
 	cp dist/build-odenc/bin/odenc dist/oden/bin/odenc
 
 $(DIST_ARCHIVE): dist/oden
