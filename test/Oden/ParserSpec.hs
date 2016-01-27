@@ -43,6 +43,10 @@ spec = do
       `shouldSucceedWith`
       Literal (Int 123)
 
+    it "parses + 123 as symbol and integer literal" $
+      shouldFail $
+        parseExpr "+ 123"
+
     it "parses false literal" $
       parseExpr "false"
       `shouldSucceedWith`

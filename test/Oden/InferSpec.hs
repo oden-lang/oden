@@ -215,6 +215,21 @@ spec = do
         [Core.Literal (Core.Bool False) typeBool]
         TAny)
 
+    it "infers (+ 1 1)" $
+      inferExpr
+        predef
+        (Untyped.Application
+         (Untyped.Symbol (Unqualified "+"))
+         [Untyped.Literal (Untyped.Int 1)
+         ,Untyped.Literal (Untyped.Int 1)])
+      `shouldSucceedWith`
+      (Forall [] typeInt,
+       Core.UncurriedFnApplication
+        (Core.Symbol (Unqualified "+") (TUncurriedFn [typeInt, typeInt] typeInt))
+        [(Core.Literal (Core.Int 1) typeInt)
+        ,(Core.Literal (Core.Int 1) typeInt)]
+        typeInt)
+
     it "infers fn application with any-type with multiple \"instances\"" $
       inferExpr
         predefAndIdentityAny
@@ -307,6 +322,22 @@ spec = do
        typeInt)
 
   describe "inferDefinition" $ do
+
+    it "infers (def n (+ 1 1))" $
+      inferDefinition predef (Untyped.Definition "n" Nothing (Untyped.Application
+                                                              (Untyped.Symbol (Unqualified "+"))
+                                                              [Untyped.Literal (Untyped.Int 1)
+                                                              ,Untyped.Literal (Untyped.Int 1)]))
+      `shouldSucceedWith`
+      Core.Definition
+      "n"
+      (Forall [] typeInt,
+       Core.UncurriedFnApplication
+        (Core.Symbol (Unqualified "+") (TUncurriedFn [typeInt, typeInt] typeInt))
+        [(Core.Literal (Core.Int 1) typeInt)
+        ,(Core.Literal (Core.Int 1) typeInt)]
+        typeInt)
+
     it "infers definition without type signature" $
       inferDefinition empty (Untyped.Definition "x" Nothing (Untyped.Literal (Untyped.Int 1)))
       `shouldSucceedWith`

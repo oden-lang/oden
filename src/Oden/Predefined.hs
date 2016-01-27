@@ -10,7 +10,7 @@ pairs :: [(Identifier, Scheme)]
 pairs = [
   (Unqualified "unit", Forall [] typeUnit),
 
-  (Unqualified "+", Forall [] (TFn typeInt (TFn typeInt typeInt))),
+  (Unqualified "+", Forall [] (TUncurriedFn [typeInt, typeInt] typeInt)),
   (Unqualified "-", Forall [] (TFn typeInt (TFn typeInt typeInt))),
   (Unqualified "*", Forall [] (TFn typeInt (TFn typeInt typeInt))),
   (Unqualified "/", Forall [] (TFn typeInt (TFn typeInt typeInt))),

@@ -16,8 +16,16 @@ import           Oden.Identifier
 import           Oden.Lexer            as Lexer
 import           Oden.Syntax           as Syntax
 
+sign :: Parser (Integer -> Integer)
+sign = (char '-' >> return negate)
+       <|> (char '+' >> return id)
+       <|> return id
+
 integer :: Parser Integer
-integer = Tok.integer lexer
+integer = do
+  f <- sign
+  n <- Tok.natural lexer
+  return (f n)
 
 symbol :: Parser Expr
 symbol = do

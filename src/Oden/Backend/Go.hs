@@ -113,6 +113,8 @@ codegenExpr (Application (Application o p1 _) p2 _) | isInfix o =
   parens (codegenOperator p1 <+> codegenOperator o <+> codegenOperator p2)
 codegenExpr (Application f p _) =
   codegenExpr f <> parens (codegenExpr p)
+codegenExpr (UncurriedFnApplication o [p1, p2] _) | isInfix o =
+  parens (codegenOperator p1 <+> codegenOperator o <+> codegenOperator p2)
 codegenExpr (UncurriedFnApplication f ps _) =
   case typeOf f of
     Mono.TVariadicFn{} ->
