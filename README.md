@@ -28,7 +28,7 @@ so we can begin with a discussion.
 
 ## Changelog
 
-See [CHANGELOG.md].
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
