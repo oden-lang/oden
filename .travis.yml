@@ -1,27 +1,32 @@
 language: go
 go: 1.5
-
 env:
   global:
-    - CABALVER=1.22
-    - GHCVER=7.10.1
-    - HAPPYVER=1.19.5
-    - ALEXVER=3.1.4
-
+  - CABALVER=1.22
+  - GHCVER=7.10.1
+  - HAPPYVER=1.19.5
+  - ALEXVER=3.1.4
 before_install:
-  - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
-  - travis_retry sudo apt-get update
-  - travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER
-  - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
-  - travis_retry sudo apt-get install alex-$ALEXVER
-  - export PATH=/opt/alex/$ALEXVER/bin:$PATH
-  - travis_retry sudo apt-get install happy-$HAPPYVER
-  - export PATH=/opt/happy/$HAPPYVER/bin:$PATH
-  - cabal update
-
+- travis_retry sudo add-apt-repository -y ppa:hvr/ghc
+- travis_retry sudo apt-get update
+- travis_retry sudo apt-get install cabal-install-$CABALVER ghc-$GHCVER
+- export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$PATH
+- travis_retry sudo apt-get install alex-$ALEXVER
+- export PATH=/opt/alex/$ALEXVER/bin:$PATH
+- travis_retry sudo apt-get install happy-$HAPPYVER
+- export PATH=/opt/happy/$HAPPYVER/bin:$PATH
+- cabal update
 script:
-  - cabal sandbox init
-  - cabal install --enable-tests --only-dependencies
-  - cabal configure --enable-tests
-  - cabal test
-  - make dist
+- cabal sandbox init
+- cabal install --enable-tests --only-dependencies
+- cabal configure --enable-tests
+- cabal test
+- make dist
+deploy:
+  provider: releases
+  api_key:
+    secure: NvQyBgKl6i52Nec86FUN03Sp+EhyMhzDOF7J3LMv6uUKRxfH0KQYoXNxoOzpjeh+D0q8yP0AFfeSnU1m6h+2Xtew5LLW7hLpe7H44F9l8z4Fx5UwzVj/jL5Pbw7v3hM3VyA630QucCFGbew7vFvaD+NEMq6sADCjPenBF42jPpCu8aNcu9l3tBpb8F34W9HNueIpXjeJYPFagwJaeTVZQESis9So+jwaVyN/UcaFXWgG06cCfXXCIlGsgDgaEFIBrpKeD5GXaWh91TNBHFOw0MBN9fB2mh5s2Bg5ZNXZKTdBgfpclWpCWdjlbsoapOpj8mmUM7SwH6ZQJKIwjWfmi1fB71ddMiVWcLSwrwfw+UWdJ6PNx9vaWfc7lhwWQa9l5WpB3lWfSSfN2KG8mHs5ncdxLvXTHLaU8wgV5Odcx+3EktNA/YMtVh5aKm3X9+XAbqoYYbUTCjo2IPYvxFsZV6bo3+FwPB2za3ifPr9hCUxBgcswJ/qU0Py6etD1faswVmeQVojWUq7iBcRKvTk/qMLu914mBXR50uIewUkpJGGdwH01YCiLKWJtgGlAjPL74gb0g2xlnpoStJKFXbBdDSgrA2b8kaQpi/81v8wf39DqU5GzMzsNxggEER6cHYyCAKpXJtI9yss85OH0NJHiwyht7PQRgv8tgqUwJ+Ef0j8=
+  file: dist/oden-$TRAVIS_TAG-$TRAVIS_OS_NAME.tar.gz
+  skip_cleanup: true
+  on:
+    tags: true
