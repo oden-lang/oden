@@ -19,12 +19,16 @@ For build instructions see [BUILD.md](BUILD.md).
 
 ## Contributing
 
-If you find this project interesting and want to help work on it, you
-can submit bug reports, suggestions and change requests at
-[the GitHub issues page](https://github.com/oden-lang/oden/issues).
+We are committed to providing a welcoming and inspiring community for all and
+expect our [Code of Conduct](http://oden-lang.org/code-of-conduct/) to be
+honored. Anyone who violates this code of conduct may be banned from the
+community.
 
-Please start by posting an issue even if you have a pull request ready,
-so we can begin with a discussion.
+If you find the Oden project interesting and want to help work on it, you
+can submit bug reports, suggestions and change requests at
+[the GitHub issues page](https://github.com/oden-lang/oden/issues). Please
+start by posting an issue before sending pull requests, so we can begin with a
+discussion.
 
 ## Changelog
 
