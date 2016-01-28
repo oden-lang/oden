@@ -21,12 +21,15 @@ script:
 - cabal install --enable-tests --only-dependencies
 - cabal configure --enable-tests
 - cabal test
-- make dist
+- VERSION=$TRAVIS_TAG make dist
+cache:
+  directories:
+    - .cabal-sandbox
 deploy:
   provider: releases
   api_key:
-    secure: NvQyBgKl6i52Nec86FUN03Sp+EhyMhzDOF7J3LMv6uUKRxfH0KQYoXNxoOzpjeh+D0q8yP0AFfeSnU1m6h+2Xtew5LLW7hLpe7H44F9l8z4Fx5UwzVj/jL5Pbw7v3hM3VyA630QucCFGbew7vFvaD+NEMq6sADCjPenBF42jPpCu8aNcu9l3tBpb8F34W9HNueIpXjeJYPFagwJaeTVZQESis9So+jwaVyN/UcaFXWgG06cCfXXCIlGsgDgaEFIBrpKeD5GXaWh91TNBHFOw0MBN9fB2mh5s2Bg5ZNXZKTdBgfpclWpCWdjlbsoapOpj8mmUM7SwH6ZQJKIwjWfmi1fB71ddMiVWcLSwrwfw+UWdJ6PNx9vaWfc7lhwWQa9l5WpB3lWfSSfN2KG8mHs5ncdxLvXTHLaU8wgV5Odcx+3EktNA/YMtVh5aKm3X9+XAbqoYYbUTCjo2IPYvxFsZV6bo3+FwPB2za3ifPr9hCUxBgcswJ/qU0Py6etD1faswVmeQVojWUq7iBcRKvTk/qMLu914mBXR50uIewUkpJGGdwH01YCiLKWJtgGlAjPL74gb0g2xlnpoStJKFXbBdDSgrA2b8kaQpi/81v8wf39DqU5GzMzsNxggEER6cHYyCAKpXJtI9yss85OH0NJHiwyht7PQRgv8tgqUwJ+Ef0j8=
+    secure: f8vgUN0ng9BWeBO/WcNzIS11BDDyNF/qFHqs0WsxHnausDAC91O1VPEayDpNE5MUHIgLDgLGVl7NE34lHvVTnTVkC2drM8pXVVSSaS+ZSkaCajeMZ82nK30OK36MwUXpOu6FJ/zkRX+8hiQbysRemTvh+w4xXNTb7eBBMs+50wFmxB6oon3zLcd9uR1N8QQ9Vxor8Mb7W5KIkjFnUHPrxfw1KByUw+6rgug+OYoDRSLSCmxiULzPRWeHbKdtGvd9kNhXQQc9KCc8UGfkG0C/TPBdtXqRDoQ/4Szevy6zK8wNK/FyMuKAw1JtX7qy7IBtsQgkavqDKEz61+CxppBN92q+aWcS6QxuJ0nHhtJ82dWNRiM5/xoEC96/tHOgXU/VDNtfZttT68AwWurU4dgZxBwUPzcps2x+R076CVnyQZ+84m1KTTzFr0xCyI+rglmHca1REfqYdZ3/th6WRXUMjHROO6mM9ZNK4EgAAGRVJVYBsdIneMSjklaD32fgfmZnMqxKhOqWe2cOzK7yhrOy8BdUnIG8D7ihM2wyS3n/VG7FWI2LwZrZ7doV1v32wgLeCN0Eqqu5Gbx26BBCOD7k30ik7iGAd0VnDQ10vE6ccLNY9ACZYXdXMLLOBjuZ9UWFc3Udm5M5Z1vjCq0D0AGcTohHeSA4VA/LaaiDDM/pCEU=
   file: dist/oden-$TRAVIS_TAG-$TRAVIS_OS_NAME.tar.gz
-  skip_cleanup: true
   on:
     tags: true
+    repo: oden-lang/oden
