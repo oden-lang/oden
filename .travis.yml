@@ -2,12 +2,9 @@ language: go
 go: 1.5
 sudo: false
 
-#env:
-  #global:
-  #- CABALVER=1.22
-  #- GHCVER=7.10.1
-  #- HAPPYVER=1.19.5
-  #- ALEXVER=3.1.4
+os:
+  - linux
+  - osx
 
 addons:
   apt:
@@ -19,22 +16,29 @@ addons:
     - alex-3.1.4
     - happy-1.19.5
 
-before_script:
+before_install:
 - export PATH=/opt/ghc/7.10.1/bin:/opt/cabal/1.22/bin:$PATH
 - export PATH=/opt/alex/3.1.4/bin:$PATH
 - export PATH=/opt/happy/1.19.5/bin:$PATH
 
-script:
+install:
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ghc cabal-install; fi
 - travis_retry cabal update
 
 # https://github.com/hvr/multi-ghc-travis#known-issues
-- sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config; fi
 
 - cabal sandbox init
 - cabal install --enable-tests --only-dependencies
+
+script:
 - cabal configure --enable-tests
 - cabal test
-- VERSION=$TRAVIS_TAG make dist
+- export VERSION=branch-$TRAVIS_BRANCH-job-$TRAVIS_JOB_NUMBER
+- if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-$TRAVIS_PULL_REQUEST-job-$TRAVIS_JOB_NUMBER; fi
+- if [[ "$TRAVIS_TAG" != "" ]]; then export VERSION=$TRAVIS_TAG; fi
+- make dist
 
 cache:
   apt: true
