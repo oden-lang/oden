@@ -25,7 +25,11 @@ before_script:
 - export PATH=/opt/happy/1.19.5/bin:$PATH
 
 script:
-- cabal update
+- travis_retry cabal update
+
+# https://github.com/hvr/multi-ghc-travis#known-issues
+- sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config
+
 - cabal sandbox init
 - cabal install --enable-tests --only-dependencies
 - cabal configure --enable-tests
