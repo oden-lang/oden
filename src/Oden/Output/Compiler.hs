@@ -18,6 +18,7 @@ instance OdenOutput CompilationError where
   header (UnexpectedPolyType e) s           = text "Unexpected polymorphic type" <+> code s e
   header (MonomorphInstantiateError err) s  = header err s
 
-  details (NotInScope _) _  = empty
-  details _ _               = empty
+  details (NotInScope _) _          = empty
+  details (UnexpectedPolyType _) _  = text "This can usually be fixed by adding (stricter) type signatures to top-level forms."
+  details _ _                       = empty
 
