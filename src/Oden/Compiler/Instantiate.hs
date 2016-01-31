@@ -70,6 +70,7 @@ replace (Poly.TSlice t) = Poly.TSlice <$> replace t
 
 instantiateExpr :: Core.Expr Poly.Type
                 -> Instantiate (Core.Expr Poly.Type)
+instantiateExpr (Core.Op o e1 e2 t) = Core.Op o <$> instantiateExpr e1 <*> instantiateExpr e2 <*> replace t
 instantiateExpr (Core.Symbol i t) = Core.Symbol i <$> replace t
 instantiateExpr (Core.Application f p t) =
   Core.Application <$> instantiateExpr f <*> instantiateExpr p <*> replace t

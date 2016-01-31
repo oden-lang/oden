@@ -49,6 +49,7 @@ instance FTV (Core.Expr Type) where
 
 instance Substitutable (Core.Expr Type) where
   apply s (Core.Symbol x t)               = Core.Symbol x (apply s t)
+  apply s (Core.Op o e1 e2 t)             = Core.Op o (apply s e1) (apply s e2) (apply s t)
   apply s (Core.Application f p t)        = Core.Application (apply s f) (apply s p) (apply s t)
   apply s (Core.NoArgApplication f t)     = Core.NoArgApplication (apply s f) (apply s t)
   apply s (Core.UncurriedFnApplication f p t)  = Core.UncurriedFnApplication (apply s f) (apply s p) (apply s t)

@@ -1,21 +1,20 @@
-;; -*- mode: lisp;-*-
-(pkg typesig/main)
+package typesig/main
 
-(import fmt)
+import fmt
 
-(def (identity-no-type-sig x) x)
+identityNoTypeSig x -> x
 
-(: identity-implicit (#a -> #a))
-(def (identity-implicit x) x)
+identityImplicit :: #a -> #a
+identityImplicit x -> x
 
-(: identity-explicit (forall (#a) (#a -> #a)))
-(def (identity-explicit x) x)
+identityExplicit :: forall #a. #a -> #a
+identityExplicit x -> x
 
-(: the-message string)
-(def the-message "Type signatures work!")
+theMessage :: string
+theMessage = "Type signatures work!"
 
-(def (main)
-  (fmt.Println
-   (identity-explicit
-    (identity-implicit
-     (identity-no-type-sig the-message)))))
+main ->
+  fmt.Println(
+    identityExplicit(
+      identityImplicit(
+        identityNoTypeSig(theMessage))))

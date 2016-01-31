@@ -10,22 +10,7 @@ pairs :: [(Identifier, Scheme)]
 pairs = [
   (Unqualified "unit", Forall [] typeUnit),
 
-  (Unqualified "+", Forall [] (TUncurriedFn [typeInt, typeInt] typeInt)),
-  (Unqualified "-", Forall [] (TFn typeInt (TFn typeInt typeInt))),
-  (Unqualified "*", Forall [] (TFn typeInt (TFn typeInt typeInt))),
-  (Unqualified "/", Forall [] (TFn typeInt (TFn typeInt typeInt))),
-  (Unqualified "<", Forall [] (TFn typeInt (TFn typeInt typeBool))),
-  (Unqualified ">", Forall [] (TFn typeInt (TFn typeInt typeBool))),
-  (Unqualified "<=", Forall [] (TFn typeInt (TFn typeInt typeBool))),
-  (Unqualified ">=", Forall [] (TFn typeInt (TFn typeInt typeBool))),
-
-  (Unqualified "and", Forall [] (TFn typeBool (TFn typeBool typeBool))),
-  (Unqualified "or", Forall [] (TFn typeBool (TFn typeBool typeBool))),
   (Unqualified "not", Forall [] (TFn typeBool typeBool)),
-
-  (Unqualified "==", Forall [TV "a"] (TFn (TVar (TV "a")) (TFn (TVar (TV "a")) typeBool))),
-
-  (Unqualified "++", Forall [] (TFn typeString (TFn typeString typeString))),
 
   (Unqualified "len", Forall [TV "a"] (TUncurriedFn [TSlice (TVar (TV "a"))] typeInt))
   ]

@@ -1,20 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Oden.Parser (
-  parseExpr,
-  parseDefinition,
-  parsePackage
-) where
+module Oden.Parser where
 
-import           Data.List
 import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
 import qualified Text.Parsec.Token     as Tok
+import qualified Text.Parsec.Expr      as Ex
 
 import           Oden.Identifier
 import           Oden.Lexer            as Lexer
 import           Oden.Syntax           as Syntax
+import           Oden.Core.Operator
 
 sign :: Parser (Integer -> Integer)
 sign = (char '-' >> return negate)
@@ -28,12 +25,10 @@ integer = do
   return (f n)
 
 symbol :: Parser Expr
-symbol = do
-  x <- identifier `sepBy1` char '.'
-  case x of
-    [n] -> return (Symbol (Unqualified n))
-    [p, n] -> return (Symbol (Qualified p n))
-    names -> fail ("Invalid symbol: " ++ intercalate "." names)
+symbol = Symbol <$> (try qualified <|> unqualified)
+  where
+  qualified = Qualified <$> identifier <*> (char '.' *> identifier)
+  unqualified = Unqualified <$> identifier
 
 number :: Parser Expr
 number = do
@@ -53,97 +48,143 @@ if' :: Parser Expr
 if' = do
   reserved "if"
   cond <- expr
+  reserved "then"
   t <- expr
+  reserved "else"
   f <- expr
   return (If cond t f)
 
 fn :: Parser Expr
 fn = do
   reserved "fn"
-  Fn <$> parens (many identifier) <*> expr
+  Fn <$> many identifier <*> (whitespace *> rArrow *> whitespace *> expr)
 
 binding :: Parser Binding
-binding = parens $ (,) <$> identifier <*> expr
+binding = do
+  i <- identifier
+  reservedOp "="
+  e <- expr
+  return (i, e)
 
 let' :: Parser Expr
 let' = do
   reserved "let"
-  Let <$> parens (many1 binding) <*> expr
+  bindings <- many1 binding
+  reserved "in"
+  Let bindings <$> expr
 
 application :: Parser Expr
 application = do
-  f <- expr
-  args <- many expr
+  f <- symbol <|> parens expr
+  args <- parensList expr
   return $ Application f args
 
 slice :: Parser Expr
-slice = Slice <$> (char '!' *> brackets (expr `sepBy` whitespace))
+slice = Slice <$> (char '!' *> brackets (expr `sepBy` comma))
 
-expr :: Parser Expr
-expr =
-  bool
-  <|> try number
-  <|> parens (fn
-              <|> if'
-              <|> let'
-              <|> application)
+aexp :: Parser Expr
+aexp =
+  fn
+  <|> if'
+  <|> let'
   <|> stringLiteral
   <|> slice
+  <|> bool
+  <|> try number
+  <|> try application
   <|> symbol
+  <|> parens expr
 
 tvar :: Parser String
 tvar = char '#' *> identifier
 
 type' :: Parser TypeExpr
-type' = slice'
-        <|> var
+type' = do
+  ts <- simple `sepBy1` rArrow
+  case ts of
+    [t] -> return t
+    (d:r) -> return (TEFn d r)
+    [] -> fail ""
+  where
+  simple = slice'
+        <|> noArgFn
         <|> any'
         <|> con
-        <|> parens (noArgFn <|> fn')
-  where
+        <|> var
+        <|> parens type'
   var = TEVar <$> tvar
   any' = reserved "any" *> return TEAny
   con = TECon <$> identifier
-  fn' = do
-    d <- type'
-    _ <- rArrow
-    TEFn d <$> (type' `sepBy1` rArrow)
   noArgFn = TENoArgFn <$> (rArrow *> type')
   slice' = TESlice <$> (char '!' *> brackets type')
 
+expr :: Parser Expr
+expr = Ex.buildExpressionParser table aexp
 
-definition :: Parser Definition
-definition = parens (typeSignature <|> def)
-  where
-  explicitlyQuantifiedType = parens (reserved "forall" *>
-                                    (Explicit <$> parens (many tvar)
-                                              <*> type'))
-  implicitlyQuantifiedType = Implicit <$> type'
-  signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
-  typeSignature = reserved ":" *> (TypeSignature <$> identifier <*> signature)
-  valueDef = ValueDefinition <$> identifier <*> expr
-  fnDef =
-    parens (FnDefinition <$> identifier <*> many identifier) <*> expr
-  def = reserved "def" *> (fnDef <|> valueDef)
+infixOp :: String -> (a -> a -> a) -> Ex.Assoc -> Op a
+infixOp x f = Ex.Infix (reservedOp x >> return f)
+
+table :: Operators Expr
+table = [
+    [
+      infixOp "*" (Op Multiply) Ex.AssocLeft,
+      infixOp "/" (Op Divide) Ex.AssocLeft
+    ],
+    [
+      infixOp "+" (Op Add) Ex.AssocLeft,
+      infixOp "-" (Op Subtract) Ex.AssocLeft,
+
+      infixOp "++" (Op Concat) Ex.AssocLeft
+    ],
+    [
+      infixOp "<" (Op LessThan) Ex.AssocLeft,
+      infixOp ">" (Op GreaterThan) Ex.AssocLeft,
+      infixOp "<=" (Op LessThanEqual) Ex.AssocLeft,
+      infixOp ">=" (Op GreaterThanEqual) Ex.AssocLeft,
+      infixOp "==" (Op Equals) Ex.AssocLeft
+    ],
+    [
+      infixOp "&&" (Op And) Ex.AssocLeft,
+      infixOp "||" (Op Or) Ex.AssocLeft
+    ]
+  ]
 
 pkgDecl :: Parser [Name]
-pkgDecl = parens $ do
-  reserved "pkg"
-  packageName
+pkgDecl = reserved "package" *> packageName <* topSeparator
 
-import' :: Parser Import
-import' = parens $ do
-  reserved "import"
-  Import <$> importName
+topLevel :: Parser TopLevel
+topLevel = import' <|> try typeSignature <|> def
+  where
+  explicitlyQuantifiedType = do
+    reservedOp "forall"
+    vars <- many1 tvar
+    reserved "."
+    Explicit vars <$> type'
+  implicitlyQuantifiedType = Implicit <$> type'
+  signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
+  typeSignature = do
+    i <- identifier
+    reservedOp "::"
+    TypeSignature i <$> signature
+  valueDef = do
+    i <- identifier
+    reservedOp "="
+    ValueDefinition i <$> expr
+  fnDef =
+    FnDefinition <$> identifier <*> many identifier <*> (rArrow *> expr)
+  def = try valueDef <|> fnDef
+  import' = do
+    reserved "import"
+    ImportDeclaration <$> importName
 
-pkg :: Parser Package
-pkg = Package <$> pkgDecl <*> many (try import') <*> many definition
+package :: Parser Package
+package = Package <$> pkgDecl <*> topLevel `sepBy` topSeparator
 
 parseExpr :: L.Text -> Either ParseError Expr
 parseExpr = parse (contents expr) "<stdin>"
 
-parseDefinition :: L.Text -> Either ParseError Definition
-parseDefinition = parse (contents definition) "<stdin>"
+parseTopLevel :: L.Text -> Either ParseError TopLevel
+parseTopLevel = parse (contents topLevel) "<stdin>"
 
 parsePackage ::  FilePath -> L.Text -> Either ParseError Package
-parsePackage = parse (contents pkg)
+parsePackage = parse (contents package)

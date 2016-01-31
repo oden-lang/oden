@@ -1,16 +1,12 @@
-;; -*- mode: lisp;-*-
+// package declaration
+package main
 
-;; package declaration
-(pkg main)
+// import declaration
+import fmt
 
-;; import declaration
-(import fmt)
+identity-string x -> "" ++ x
 
-;; function definition can also use the usual scheme shorthand
-(def (identity-string x) (++ "" x))
+result = identity-string("Hello") ++ ", world!"
 
-;; value definition
-(def result (++ (identity-string "Hello") ", world!"))
-
-;; main function definition, must have type (-> unit)
-(def main (fn () (fmt.Println result)))
+// main function definition, must have type (-> unit)
+main -> fmt.Println(result)

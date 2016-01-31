@@ -1,10 +1,12 @@
 module Oden.Syntax where
 
 import           Oden.Identifier
+import           Oden.Core.Operator
 
 type Binding = (Name, Expr)
 
 data Expr = Symbol Identifier
+          | Op BinaryOperator Expr Expr
           | Application Expr [Expr]
           | Fn [Name] Expr
           | Let [Binding] Expr
@@ -30,15 +32,13 @@ data SchemeExpr = Explicit [String] TypeExpr
                 | Implicit TypeExpr
                 deriving (Show, Eq, Ord)
 
-data Definition = ValueDefinition Name Expr
-                | FnDefinition Name [Name] Expr
-                | TypeSignature Name SchemeExpr
-                deriving (Show, Eq, Ord)
-
 type PackageName = [Name]
 
-data Import = Import PackageName
-            deriving (Show, Eq, Ord)
+data TopLevel = ImportDeclaration PackageName
+                | TypeSignature Name SchemeExpr
+                | ValueDefinition Name Expr
+                | FnDefinition Name [Name] Expr
+                deriving (Show, Eq, Ord)
 
-data Package = Package PackageName [Import] [Definition]
+data Package = Package PackageName [TopLevel]
              deriving (Show, Eq, Ord)

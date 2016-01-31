@@ -10,6 +10,7 @@ import           Text.Regex.PCRE.Heavy
 import           Oden.Backend
 import           Oden.Compiler
 import           Oden.Core
+import           Oden.Core.Operator
 import           Oden.Identifier
 import qualified Oden.Type.Monomorphic as Mono
 
@@ -96,10 +97,6 @@ codegenType (Mono.TUncurriedFn as r) =
 codegenType (Mono.TVariadicFn as v r) =
   func empty (hcat (punctuate (text ", ") (map codegenType as ++ [codegenType v <> text "..."]))) (codegenType r) empty
 
-isInfix :: Expr Mono.Type -> Bool
-isInfix (Symbol (Unqualified s) _) = s `elem` ["+", "-", "*", "/", "==", ">", "<", "<=", ">=", "++", "and", "or"]
-isInfix _ = False
-
 showGoString :: Show a => a -> String
 showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)
   where
@@ -111,24 +108,19 @@ showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)
       | length s' < n  = replicate (n - length s') '0' ++ s'
       | otherwise      = s'
 
-codegenOperator :: Expr Mono.Type -> Doc
-codegenOperator (Symbol (Unqualified "++") _) = text "+"
-codegenOperator (Symbol (Unqualified "and") _) = text "&&"
-codegenOperator (Symbol (Unqualified "or") _) = text "||"
-codegenOperator (Symbol (Unqualified s) _) | s `elem` ["+", "-", "*", "/", "==", ">", "<", "<=", ">=", "++"] = text s
-codegenOperator e = codegenExpr e
+codegenOperator :: BinaryOperator -> Doc
+codegenOperator Concat = text "+"
+codegenOperator o = text (show o)
 
 codegenExpr :: Expr Mono.Type -> Doc
 codegenExpr (Symbol i _) =
   codegenIdentifier i
+codegenExpr (Op o e1 e2 _) =
+  parens (codegenExpr e1 <+> codegenOperator o <+> codegenExpr e2)
 codegenExpr (Application (Symbol (Unqualified "not") _) e _) =
   text "!" <> codegenExpr e
-codegenExpr (Application (Application o p1 _) p2 _) | isInfix o =
-  parens (codegenOperator p1 <+> codegenOperator o <+> codegenOperator p2)
 codegenExpr (Application f p _) =
   codegenExpr f <> parens (codegenExpr p)
-codegenExpr (UncurriedFnApplication o [p1, p2] _) | isInfix o =
-  parens (codegenOperator p1 <+> codegenOperator o <+> codegenOperator p2)
 codegenExpr (UncurriedFnApplication f ps _) =
   case typeOf f of
     Mono.TVariadicFn{} ->

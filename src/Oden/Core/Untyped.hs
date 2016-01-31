@@ -1,9 +1,11 @@
 module Oden.Core.Untyped where
 
 import           Oden.Identifier
+import           Oden.Core.Operator
 import           Oden.Type.Polymorphic
 
 data Expr = Symbol Identifier
+          | Op BinaryOperator Expr Expr
           | Application Expr [Expr]
           | Fn Name Expr
           | NoArgFn Expr

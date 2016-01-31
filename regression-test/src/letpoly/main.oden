@@ -1,11 +1,7 @@
-;; -*- mode: lisp;-*-
-(pkg letpoly/main)
+package letpoly/main
 
-(import fmt)
+import fmt
 
-(def (identity x) x)
+identity x -> x
 
-(def (main)
-  (fmt.Println
-   (let ((id (identity identity)))
-     (id "a"))))
+main -> fmt.Println(let id = identity(identity) in id("a"))

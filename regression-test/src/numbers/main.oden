@@ -1,14 +1,9 @@
-;; -*- mode: lisp;-*-
-(pkg numbers/main)
+package numbers/main
 
-(import fmt)
-(import strconv)
+import fmt
 
-(def (plus x y)
-  (+ x y))
+plus x y -> x + y
 
-(def plus-1 (plus +1))
+plus1 = plus(1)
 
-(def (main)
-  (fmt.Println (strconv.Itoa (plus-1 (plus-1 -10)))))
-
+main -> fmt.Println(plus1(plus1(-10)))

@@ -6,6 +6,7 @@ import           Test.Hspec
 import           Oden.Identifier
 import           Oden.Parser
 import           Oden.Syntax
+import           Oden.Core.Operator
 
 import           Oden.Assertions
 
@@ -63,133 +64,148 @@ spec = do
       Literal (String "foo bar 123")
 
     it "parses fn expression" $
-      parseExpr "(fn (x) x)"
+      parseExpr "fn x -> x"
       `shouldSucceedWith`
       Fn ["x"] (Symbol (Unqualified "x"))
 
     it "parses multi-arg fn expression" $
-      parseExpr "(fn (x y z) x)"
+      parseExpr "fn x y z -> x"
       `shouldSucceedWith`
       Fn ["x", "y", "z"] (Symbol (Unqualified "x"))
 
     it "parses no-arg fn expression" $
-      parseExpr "(fn () x)"
+      parseExpr "fn -> x"
       `shouldSucceedWith`
       Fn [] (Symbol (Unqualified "x"))
 
     it "parses if expression" $
-      parseExpr "(if a b c)"
+      parseExpr "if a then b else c"
       `shouldSucceedWith`
       If (Symbol (Unqualified "a")) (Symbol (Unqualified "b")) (Symbol (Unqualified "c"))
 
     it "parses let expression" $
-      parseExpr "(let ((x y)) z)"
+      parseExpr "let x = y in z"
       `shouldSucceedWith`
       Let [("x", Symbol (Unqualified "y"))] (Symbol (Unqualified "z"))
 
+    it "parses binary operator application" $
+      parseExpr "x + y"
+      `shouldSucceedWith`
+      Op Add (Symbol (Unqualified "x")) (Symbol (Unqualified "y"))
+
+    it "parses string concat application" $
+      parseExpr "x ++ y"
+      `shouldSucceedWith`
+      Op Concat (Symbol (Unqualified "x")) (Symbol (Unqualified "y"))
+
     it "parses single-arg fn application" $
-      parseExpr "(x y)"
+      parseExpr "x(y)"
       `shouldSucceedWith`
       Application (Symbol (Unqualified "x")) [Symbol (Unqualified "y")]
 
+    it "parses single-arg fn application" $
+      parseExpr "(fn x -> x)(y)"
+      `shouldSucceedWith`
+      Application (Fn ["x"] (Symbol (Unqualified "x"))) [Symbol (Unqualified "y")]
+
     it "ignores whitespace" $
-      parseExpr "(  x \n\n y \r\n\t   )"
+      parseExpr "x(   \n\n y \r\n\t   )"
       `shouldSucceedWith`
       Application (Symbol (Unqualified "x")) [Symbol (Unqualified "y")]
 
     it "ignores comments" $
-      parseExpr "\n;; foobar\nx"
+      parseExpr "\n// foobar\nx"
       `shouldSucceedWith`
       Symbol (Unqualified "x")
 
     it "ignores multi-line comments" $
-      parseExpr "#;\n\n foo ;whatever\tbar\n;#x"
+      parseExpr "/*\n\n foo //whatever\tbar\n*/x"
       `shouldSucceedWith`
       Symbol (Unqualified "x")
 
     it "parses slice literal" $
-      parseExpr "![x y z]"
+      parseExpr "![x, y, z]"
       `shouldSucceedWith`
       Slice [Symbol (Unqualified "x"), Symbol (Unqualified "y"), Symbol (Unqualified "z")]
 
-  describe "parseDefinition" $ do
+  describe "parseTopLevel" $ do
     it "parses type signature" $
-      parseDefinition "(: x int)"
+      parseTopLevel "x :: int"
       `shouldSucceedWith`
       TypeSignature "x" (Implicit typeInt)
 
     it "parses type signature without explicit forall" $
-      parseDefinition "(: x (int -> int))"
+      parseTopLevel "x :: int -> int"
       `shouldSucceedWith`
       TypeSignature "x" (Implicit (TEFn typeInt [typeInt]))
 
     it "parses type signature with no-arg fn" $
-      parseDefinition "(: x (-> unit))"
+      parseTopLevel "x :: -> unit"
       `shouldSucceedWith`
       TypeSignature "x" (Implicit (TENoArgFn typeUnit))
 
     it "parses type signature with slice" $
-      parseDefinition "(: x ![int])"
+      parseTopLevel "x :: ![int]"
       `shouldSucceedWith`
       TypeSignature "x" (Implicit (TESlice typeInt))
 
     it "parses polymorphic type signature with implicit forall" $
-      parseDefinition "(: x (#a -> #a))"
+      parseTopLevel "x :: #a -> #a"
       `shouldSucceedWith`
-      TypeSignature "x" (Implicit (TEFn (TEVar ("a")) [TEVar ("a")]))
+      TypeSignature "x" (Implicit (TEFn (TEVar "a") [TEVar "a"]))
 
     it "parses polymorphic type signature with explicit forall" $
-      parseDefinition "(: x (forall (#a) (#a -> #a)))"
+      parseTopLevel "x :: forall #a. #a -> #a"
       `shouldSucceedWith`
-      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar ("a")) [TEVar ("a")]))
+      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar "a") [TEVar "a"]))
 
     it "parses polymorphic type signature" $
-      parseDefinition "(: x (forall (#a) (#a -> #a)))"
+      parseTopLevel "x :: forall #a. #a -> #a"
       `shouldSucceedWith`
-      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar ("a")) [TEVar ("a")]))
+      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar "a") [TEVar "a"]))
 
     it "parses value definition" $
-      parseDefinition "(def x y)"
+      parseTopLevel "x = y"
       `shouldSucceedWith`
       ValueDefinition "x" (Symbol (Unqualified "y"))
 
     it "parses fn definition" $
-      parseDefinition "(def f (fn (x) x))"
+      parseTopLevel "f = fn x -> x"
       `shouldSucceedWith`
       ValueDefinition "f" (Fn ["x"] (Symbol (Unqualified "x")))
 
     it "parses short-hand fn definition" $
-      parseDefinition "(def (f x) x)"
+      parseTopLevel "f x -> x"
       `shouldSucceedWith`
       FnDefinition "f" ["x"] (Symbol (Unqualified "x"))
 
     it "parses short-hand no-arg fn definition" $
-      parseDefinition "(def (side-effect) x)"
+      parseTopLevel "side-effect -> x"
       `shouldSucceedWith`
       FnDefinition "side-effect" [] (Symbol (Unqualified "x"))
 
     it "parses short-hand multi-arg fn definition" $
-      parseDefinition "(def (f x y z) x)"
+      parseTopLevel "f x y z -> x"
       `shouldSucceedWith`
       FnDefinition "f" ["x", "y", "z"] (Symbol (Unqualified "x"))
 
   describe "parsePackage" $ do
     it "parses package declaration" $
-      parsePackage "bar.oden" "(pkg foo/bar)"
+      parsePackage "bar.oden" "package foo/bar"
       `shouldSucceedWith`
-      Package ["foo", "bar"] [] []
+      Package ["foo", "bar"] []
 
     it "parses imports" $
-      parsePackage "bar.oden" "(pkg foo/bar) (import bar/baz)\n(import foo)\n(import github.com/foo/bar)"
+      parsePackage "bar.oden" "package foo/bar\nimport bar/baz\nimport foo\nimport github.com/foo/bar"
       `shouldSucceedWith`
-      Package ["foo", "bar"] [Import ["bar", "baz"], Import ["foo"], Import ["github.com", "foo", "bar"]] []
+      Package ["foo", "bar"] [ImportDeclaration ["bar", "baz"], ImportDeclaration ["foo"], ImportDeclaration ["github.com", "foo", "bar"]]
 
     it "parses github.com import" $
-      parsePackage "bar.oden" "(pkg foo/bar) (import github.com/foo/bar)"
+      parsePackage "bar.oden" "package foo/bar\nimport github.com/foo/bar"
       `shouldSucceedWith`
-      Package ["foo", "bar"] [Import ["github.com", "foo", "bar"]] []
+      Package ["foo", "bar"] [ImportDeclaration ["github.com", "foo", "bar"]]
 
     it "parses definitions" $
-      parsePackage "bar.oden" "(pkg foo/bar) (import bar/baz)"
+      parsePackage "bar.oden" "package foo/bar\nimport bar/baz"
       `shouldSucceedWith`
-      Package ["foo", "bar"] [Import ["bar", "baz"]] []
+      Package ["foo", "bar"] [ImportDeclaration ["bar", "baz"]]

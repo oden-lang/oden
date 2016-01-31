@@ -1,6 +1,6 @@
-;; -*- mode: lisp;-*-
-(pkg unicode/main)
+package unicode/main
 
-(import fmt)
+import fmt
 
-(def (main) (fmt.Println "As a [Swede], \229äö is what I want to write. \\\\ \"oh yeah\""))
+main ->
+  fmt.Println("As a [Swede], \229äö is what I want to write. \\\\ \"oh yeah\"")

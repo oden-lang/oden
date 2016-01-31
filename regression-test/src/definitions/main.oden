@@ -1,11 +1,9 @@
-;; -*- mode: lisp;-*-
-(pkg definitions/main)
+package definitions/main
 
-(import fmt)
+import fmt
 
-(def hello "Hello")
+hello = "Hello"
 
-(def hello-world (++ hello ", world!"))
+helloWorld = hello ++ ", world!"
 
-(def (main)
-  (fmt.Println hello-world))
+main -> fmt.Println(helloWorld)

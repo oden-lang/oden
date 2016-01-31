@@ -37,35 +37,35 @@ spec = do
       `shouldBe`
       U.Application (U.Fn "x" (U.Fn "y" (U.Symbol (Unqualified "x")))) [U.Symbol (Unqualified "x"), U.Symbol (Unqualified "y")]
 
-  describe "explodeDefinitions" $ do
+  describe "explodeTopLevel" $ do
     it "converts fn definition with no argument" $
-      explodeDefinitions [FnDefinition "f" [] (Symbol (Unqualified "x"))]
+      (snd <$> explodeTopLevel [FnDefinition "f" [] (Symbol (Unqualified "x"))])
       `shouldSucceedWith`
       [U.Definition "f" Nothing (U.NoArgFn (U.Symbol (Unqualified "x")))]
 
     it "converts fn definition with single argument" $
-      explodeDefinitions [FnDefinition "f" ["x"] (Symbol (Unqualified "x"))]
+      (snd <$> explodeTopLevel [FnDefinition "f" ["x"] (Symbol (Unqualified "x"))])
       `shouldSucceedWith`
       [U.Definition "f" Nothing (U.Fn "x" (U.Symbol (Unqualified "x")))]
 
     it "converts fn definition with multiple arguments" $
-      explodeDefinitions [FnDefinition "f" ["x", "y"] (Symbol (Unqualified "x"))]
+      (snd <$> explodeTopLevel [FnDefinition "f" ["x", "y"] (Symbol (Unqualified "x"))])
       `shouldSucceedWith`
       [U.Definition "f" Nothing (U.Fn "x" (U.Fn "y" (U.Symbol (Unqualified "x"))))]
 
     it "converts type signature with uncurried fn type expression" $
-      explodeDefinitions [TypeSignature "f" (Implicit (TEFn (TECon "a") [TECon "a", TECon "a"])),
-                          FnDefinition "f" [] (Symbol (Unqualified "x"))]
+      (snd <$> explodeTopLevel [TypeSignature "f" (Implicit (TEFn (TECon "a") [TECon "a", TECon "a"])),
+                                FnDefinition "f" [] (Symbol (Unqualified "x"))])
       `shouldSucceedWith`
       [U.Definition "f" (Just $ Forall [] (TFn (TCon "a") (TFn (TCon "a") (TCon "a")))) (U.NoArgFn (U.Symbol (Unqualified "x")))]
 
     it "converts type signature and definition" $
-      explodeDefinitions [TypeSignature "f" (Implicit (TECon "a")),
-                          FnDefinition "f" [] (Symbol (Unqualified "x"))]
+      (snd <$> explodeTopLevel [TypeSignature "f" (Implicit (TECon "a")),
+                                FnDefinition "f" [] (Symbol (Unqualified "x"))])
       `shouldSucceedWith`
       [U.Definition "f" (Just $ Forall [] (TCon "a")) (U.NoArgFn (U.Symbol (Unqualified "x")))]
 
     it "returns error on type signature without definition" $
-      explodeDefinitions [TypeSignature "f" (Implicit (TECon "a"))]
+      explodeTopLevel [TypeSignature "f" (Implicit (TECon "a"))]
       `shouldFailWith`
       [TypeSignatureWithoutDefinition "f" (Forall [] (TCon "a"))]

@@ -1,10 +1,7 @@
-;; -*- mode: lisp;-*-
-(pkg logic/main)
+package logic/main
 
-(import fmt)
+import fmt
 
-(def (main)
-  (fmt.Println
-    (if (or (not (and true false)) false)
-      "yey"
-      "ney")))
+main -> fmt.Println(if not(true && false) || false
+                    then "yey"
+                    else "ney")

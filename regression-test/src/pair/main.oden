@@ -1,15 +1,11 @@
-;; -*- mode: lisp;-*-
-(pkg pair/main)
+package pair/main
 
-(import fmt)
+import fmt
 
-(def (pair x y)
-  (fn (f) (f x y)))
+pair x y f -> f(x, y)
 
-(def (first p)
-  (p (fn (x y) x)))
+first p -> p(fn x y -> x)
 
-(def p (pair "a" "b"))
+p = pair("a", "b")
 
-(def (main)
-  (fmt.Println (first p)))
+main -> fmt.Println(first(p))

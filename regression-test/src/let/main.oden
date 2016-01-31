@@ -1,9 +1,5 @@
-;; -*- mode: lisp;-*-
-(pkg let/main)
+package let/main
 
-(import fmt)
+import fmt
 
-(def (main)
-  (fmt.Println
-   (let ((name "Foo"))
-     (++ name "!"))))
+main -> fmt.Println(let name = "Foo" in name ++ "!")

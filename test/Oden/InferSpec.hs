@@ -4,6 +4,7 @@ import           Test.Hspec
 
 import qualified Oden.Core             as Core
 import qualified Oden.Core.Untyped     as Untyped
+import           Oden.Core.Operator
 import           Oden.Env
 import           Oden.Identifier
 import           Oden.Infer
@@ -44,19 +45,17 @@ countToZero =
   Untyped.Fn
   "x"
   (Untyped.If
-   (Untyped.Application
-    (Untyped.Application
-     (Untyped.Symbol (Unqualified "=="))
-     [Untyped.Symbol (Unqualified "x")])
-    [Untyped.Literal (Untyped.Int 0)])
+   (Untyped.Op
+    Equals
+    (Untyped.Symbol (Unqualified "x"))
+    (Untyped.Literal (Untyped.Int 0)))
    (Untyped.Literal (Untyped.Int 0))
    (Untyped.Application
     (Untyped.Symbol (Unqualified "f"))
-    [Untyped.Application
-     (Untyped.Application
-      (Untyped.Symbol (Unqualified "-"))
-      [Untyped.Symbol (Unqualified "x")])
-     [Untyped.Literal (Untyped.Int 1)]]))
+    [Untyped.Op
+     Subtract
+     (Untyped.Symbol (Unqualified "x"))
+     (Untyped.Literal (Untyped.Int 1))]))
 
 intToInt :: Type
 intToInt = TFn typeInt typeInt
@@ -72,21 +71,17 @@ countToZeroTyped =
     Core.Fn
     "x"
     (Core.If
-     (Core.Application
-      (Core.Application
-       (Core.Symbol (Unqualified "==") (TFn typeInt (TFn typeInt typeBool)))
-       (Core.Symbol (Unqualified "x") typeInt)
-       (TFn typeInt typeBool))
+     (Core.Op
+      Equals
+      (Core.Symbol (Unqualified "x") typeInt)
       (Core.Literal (Core.Int 0) typeInt)
       typeBool)
      (Core.Literal (Core.Int 0) typeInt)
      (Core.Application
       (Core.Symbol (Unqualified "f") intToInt)
-      (Core.Application
-       (Core.Application
-        (Core.Symbol (Unqualified "-") intToIntToInt)
-        (Core.Symbol (Unqualified "x") typeInt)
-        intToInt)
+      (Core.Op
+       Subtract
+       (Core.Symbol (Unqualified "x") typeInt)
        (Core.Literal (Core.Int 1) typeInt)
        typeInt)
       typeInt)
@@ -179,27 +174,23 @@ spec = do
     it "infers nested fn application" $
       inferExpr
       predef
-      (Untyped.Application
-       (Untyped.Symbol (Unqualified "or"))
-       [Untyped.Application
-        (Untyped.Symbol (Unqualified "and"))
-        [Untyped.Literal (Untyped.Bool False),
-         Untyped.Literal (Untyped.Bool False)],
-        Untyped.Literal (Untyped.Bool True)])
+      (Untyped.Op
+       Or
+       (Untyped.Op
+        And
+        (Untyped.Literal (Untyped.Bool False))
+        (Untyped.Literal (Untyped.Bool False)))
+       (Untyped.Literal (Untyped.Bool True)))
       `shouldSucceedWith`
       (Forall [] typeBool,
-       (Core.Application
-        (Core.Application
-         (Core.Symbol (Unqualified "or") booleanOp)
-         (Core.Application
-          (Core.Application
-           (Core.Symbol (Unqualified "and") booleanOp)
-           (Core.Literal (Core.Bool False) typeBool)
-           (typeBool `TFn` typeBool))
-           (Core.Literal (Core.Bool False) typeBool)
-           typeBool)
-         (typeBool `TFn` typeBool))
-        (Core.Literal (Core.Bool True) typeBool))
+       Core.Op
+       Or
+       (Core.Op
+        And
+        (Core.Literal (Core.Bool False) typeBool)
+        (Core.Literal (Core.Bool False) typeBool)
+        typeBool)
+       (Core.Literal (Core.Bool True) typeBool)
        typeBool)
 
     it "infers fn application with any-type" $
@@ -215,19 +206,19 @@ spec = do
         [Core.Literal (Core.Bool False) typeBool]
         TAny)
 
-    it "infers (+ 1 1)" $
+    it "infers 1 + 1" $
       inferExpr
         predef
-        (Untyped.Application
-         (Untyped.Symbol (Unqualified "+"))
-         [Untyped.Literal (Untyped.Int 1)
-         ,Untyped.Literal (Untyped.Int 1)])
+        (Untyped.Op
+         Add
+         (Untyped.Literal (Untyped.Int 1))
+         (Untyped.Literal (Untyped.Int 1)))
       `shouldSucceedWith`
       (Forall [] typeInt,
-       Core.UncurriedFnApplication
-        (Core.Symbol (Unqualified "+") (TUncurriedFn [typeInt, typeInt] typeInt))
-        [(Core.Literal (Core.Int 1) typeInt)
-        ,(Core.Literal (Core.Int 1) typeInt)]
+        Core.Op
+        Add
+        (Core.Literal (Core.Int 1) typeInt)
+        (Core.Literal (Core.Int 1) typeInt)
         typeInt)
 
     it "infers fn application with any-type with multiple \"instances\"" $
@@ -324,19 +315,19 @@ spec = do
   describe "inferDefinition" $ do
 
     it "infers (def n (+ 1 1))" $
-      inferDefinition predef (Untyped.Definition "n" Nothing (Untyped.Application
-                                                              (Untyped.Symbol (Unqualified "+"))
-                                                              [Untyped.Literal (Untyped.Int 1)
-                                                              ,Untyped.Literal (Untyped.Int 1)]))
+      inferDefinition predef (Untyped.Definition "n" Nothing (Untyped.Op
+                                                              Add
+                                                              (Untyped.Literal (Untyped.Int 1))
+                                                              (Untyped.Literal (Untyped.Int 1))))
       `shouldSucceedWith`
       Core.Definition
       "n"
       (Forall [] typeInt,
-       Core.UncurriedFnApplication
-        (Core.Symbol (Unqualified "+") (TUncurriedFn [typeInt, typeInt] typeInt))
-        [(Core.Literal (Core.Int 1) typeInt)
-        ,(Core.Literal (Core.Int 1) typeInt)]
-        typeInt)
+       Core.Op
+       Add
+       (Core.Literal (Core.Int 1) typeInt)
+       (Core.Literal (Core.Int 1) typeInt)
+       typeInt)
 
     it "infers definition without type signature" $
       inferDefinition empty (Untyped.Definition "x" Nothing (Untyped.Literal (Untyped.Int 1)))

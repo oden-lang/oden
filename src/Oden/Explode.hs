@@ -2,7 +2,7 @@ module Oden.Explode
 (
  ExplodeError(..),
  explodeExpr,
- explodeDefinitions,
+ explodeTopLevel,
  explodePackage
 ) where
 
@@ -18,6 +18,8 @@ data ExplodeError = TypeSignatureWithoutDefinition Name Scheme
                   deriving (Show, Eq)
 
 explodeExpr :: Expr -> Untyped.Expr
+explodeExpr (Op o e1 e2) =
+  Untyped.Op o (explodeExpr e1) (explodeExpr e2)
 explodeExpr (Symbol i) =
   Untyped.Symbol i
 explodeExpr (Literal (Bool b)) =
@@ -46,9 +48,6 @@ explodeExpr (Let ((n, e):bs) b) =
 explodeExpr (Slice es) =
   Untyped.Slice (map explodeExpr es)
 
-explodeImport :: Import -> Untyped.Import
-explodeImport (Import name) = Untyped.Import name
-
 explodeType :: TypeExpr -> Type
 explodeType TEAny = TAny
 explodeType (TEVar s) = TVar (TV s)
@@ -67,23 +66,24 @@ explodeScheme (Explicit vars t) =
   let t' = explodeType t
   in Forall (map TV vars) t'
 
-explodeDefinitions :: [Definition] -> Either [ExplodeError] [Untyped.Definition]
-explodeDefinitions ds =
-  let (scs, defs) = foldl iter (Map.empty, []) ds
+explodeTopLevel :: [TopLevel] -> Either [ExplodeError] ([Untyped.Import], [Untyped.Definition])
+explodeTopLevel top =
+  let (is, scs, defs) = foldl iter ([], Map.empty, []) top
   in case Map.assocs scs of
-    [] -> Right defs
+    [] -> Right (is, defs)
     as -> Left (map (uncurry TypeSignatureWithoutDefinition) as)
-  where iter (ts, defs) (FnDefinition name args body) =
+  where iter (is, ts, defs) (FnDefinition name args body) =
           let def = Untyped.Definition name (Map.lookup name ts) (explodeExpr (Fn args body))
-          in (Map.delete name ts, defs ++ [def])
-        iter (ts, defs) (ValueDefinition name expr) =
+          in (is, Map.delete name ts, defs ++ [def])
+        iter (is, ts, defs) (ValueDefinition name expr) =
           let def = Untyped.Definition name (Map.lookup name ts) (explodeExpr expr)
-          in (Map.delete name ts, defs ++ [def])
-        iter (ts, defs) (TypeSignature name sc) =
-          (Map.insert name (explodeScheme sc) ts, defs)
+          in (is, Map.delete name ts, defs ++ [def])
+        iter (is, ts, defs) (TypeSignature name sc) =
+          (is, Map.insert name (explodeScheme sc) ts, defs)
+        iter (is, ts, defs) (ImportDeclaration name) =
+          (is ++ [Untyped.Import name], ts, defs)
 
 explodePackage :: Package -> Either [ExplodeError] Untyped.Package
-explodePackage (Package name imports definitions) = do
-  let is = map explodeImport imports
-  ds <- explodeDefinitions definitions
+explodePackage (Package name definitions) = do
+  (is, ds) <- explodeTopLevel definitions
   return (Untyped.Package name is ds)

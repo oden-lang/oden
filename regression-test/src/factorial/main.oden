@@ -1,13 +1,10 @@
-;; -*- mode: lisp;-*-
-(pkg factorial/main)
+package factorial/main
 
-(import fmt)
-(import strconv)
+import fmt
 
-(def (factorial n)
-  (if (< n 2)
-      1
-    (* n (factorial (- n 1)))))
+factorial n ->
+  if n < 2
+  then 1
+  else n * factorial(n - 1)
 
-(def (main)
-  (fmt.Println (strconv.Itoa (factorial 5))))
+main -> fmt.Println(factorial(5))

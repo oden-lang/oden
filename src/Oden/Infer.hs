@@ -22,6 +22,7 @@ import           Data.Maybe
 import qualified Data.Set               as Set
 
 import qualified Oden.Core              as Core
+import           Oden.Core.Operator
 import qualified Oden.Core.Untyped      as Untyped
 import           Oden.Env               as Env
 import           Oden.Identifier
@@ -151,6 +152,27 @@ infer expr = case expr of
     return (Core.Literal (Core.Bool b) typeBool)
   Untyped.Literal (Untyped.String s) ->
     return (Core.Literal (Core.String s) typeString)
+
+  Untyped.Op o e1 e2 -> do
+    (ot, rt) <- case o of
+                    Add               -> return (typeInt, typeInt)
+                    Subtract          -> return (typeInt, typeInt)
+                    Multiply          -> return (typeInt, typeInt)
+                    Divide            -> return (typeInt, typeInt)
+                    Equals            -> do tv <- fresh
+                                            return (tv, typeBool)
+                    Concat            -> return (typeString, typeString)
+                    LessThan          -> return (typeInt, typeBool)
+                    GreaterThan       -> return (typeInt, typeBool)
+                    LessThanEqual     -> return (typeInt, typeBool)
+                    GreaterThanEqual  -> return (typeInt, typeBool)
+                    And               -> return (typeBool, typeBool)
+                    Or                -> return (typeBool, typeBool)
+    te1 <- infer e1
+    te2 <- infer e2
+    uni (Core.typeOf te1) ot
+    uni (Core.typeOf te2) ot
+    return (Core.Op o te1 te2 rt)
 
   Untyped.Symbol x -> do
     t <- lookupEnv x

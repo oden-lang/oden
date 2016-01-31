@@ -2,9 +2,11 @@
 module Oden.Core where
 
 import Oden.Identifier
+import Oden.Core.Operator
 import qualified Oden.Type.Polymorphic as Poly
 
 data Expr t = Symbol Identifier t
+            | Op BinaryOperator (Expr t) (Expr t) t
             | Application (Expr t) (Expr t) t
             | NoArgApplication (Expr t) t
             | UncurriedFnApplication (Expr t) [Expr t] t
@@ -18,6 +20,7 @@ data Expr t = Symbol Identifier t
 
 instance Show t => Show (Expr t) where
   show (Symbol i t) = "(" ++ show i ++ " : " ++ show t ++ ")"
+  show (Op o e1 e2 t) = "(" ++ show e1 ++ " " ++ show o ++ " " ++ show e2 ++ " :: " ++ show t ++ ")"
   show (Application a b t) = "((" ++ show a  ++ " " ++ show b ++ ") : " ++ show t ++ ")"
   show (NoArgApplication a t) = "((" ++ show a ++ ") : " ++ show t ++ ")"
   show (UncurriedFnApplication f p t) = "((" ++ show f ++ " " ++ show p ++  ") : " ++ show t ++ ")"
@@ -30,6 +33,7 @@ instance Show t => Show (Expr t) where
 
 typeOf :: Expr t -> t
 typeOf (Symbol _ t) = t
+typeOf (Op _ _ _ t) = t
 typeOf (Application _ _ t) = t
 typeOf (NoArgApplication _ t) = t
 typeOf (UncurriedFnApplication _ _ t) = t

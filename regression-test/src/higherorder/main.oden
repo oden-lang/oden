@@ -1,15 +1,9 @@
-;; -*- mode: lisp;-*-
-(pkg higherorder/main)
+package higherorder/main
 
-(import fmt)
-(import strconv)
+import fmt
 
-(def (identity x) x)
+identity x -> x
 
-(def (apply-to-1 x)
-  (x 1))
+applyTo1 x -> x(1)
 
-(def (main)
-  (fmt.Println
-    (strconv.Itoa
-      ((identity apply-to-1) (fn (x) (* x 2))))))
+main -> fmt.Println((identity(applyTo1))(fn x -> x * 2))

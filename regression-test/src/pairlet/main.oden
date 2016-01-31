@@ -1,15 +1,10 @@
-;; -*- mode: lisp;-*-
-(pkg pairlet/main)
+package pairlet/main
 
-(import fmt)
+import fmt
 
-(def (pair x y)
-  (fn (f) (f x y)))
+pair x y f -> f(x, y)
 
-(def (first p)
-  (p (fn (x y) x)))
+first p -> p(fn x y -> x)
 
-(def (main)
-  (fmt.Println
-   (let ((p (pair "a" 1)))
-     (first p))))
+main ->
+  fmt.Println(let p = pair("a", 1) in first(p))
