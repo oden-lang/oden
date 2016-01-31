@@ -23,7 +23,7 @@ before_install:
 
 install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
-- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ghc cabal-install; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ghc cabal-install pcre; fi
 - travis_retry cabal update
 
 # https://github.com/hvr/multi-ghc-travis#known-issues
