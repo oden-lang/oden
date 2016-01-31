@@ -32,7 +32,8 @@ for test in $tests; do
   oden_out=$($ODENC -p$tmp_oden_path -o$tmp_go_path 2>&1)
   oden_return=$?
 
-  go_out=$(GOPATH=$tmp_go_path go run $(find $tmp_go_path -name *.go) 2>&1)
+  go_out_file=$()$(mktemp -t go_out)
+  GOPATH=$tmp_go_path go run $(find $tmp_go_path -name *.go) > $go_out_file 2>&1
   go_return=$?
 
   if [ ! -f "$test.expected.txt" ]; then
@@ -53,20 +54,19 @@ for test in $tests; do
     print_err "✗ $test"
     cat $(find $tmp_go_path -name *.go)
     echo ""
-    echo "$go_out"
+    cat $go_out_file
     echo ""
   else
-    expected_out=$(cat "$test.expected.txt")
+    expected_out_file="$test.expected.txt"
     if [[ $command == "save" ]]; then
       print_success "✓ $test"
       echo -e "\033[35mSaving results.\033[0m"
-      echo -e $go_out > "$test.expected.txt"
+      echo -e $go_out_file > "$test.expected.txt"
     elif [[ $command == "validate" ]]; then
-      if [[ $go_out == $expected_out ]]; then
+      if diff $go_out_file $expected_out_file ; then
         print_success "✓ $test"
       else
         print_err "✗ $test"
-        echo "'$go_out' ≠ '$expected_out'"
       fi
     fi
   fi
