@@ -51,6 +51,8 @@ for test in $tests; do
     echo ""
   elif [[ $go_return -ne 0 ]]; then
     print_err "✗ $test"
+    cat $(find $tmp_go_path -name *.go)
+    echo ""
     echo "$go_out"
     echo ""
   else

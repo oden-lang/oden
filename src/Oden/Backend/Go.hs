@@ -1,8 +1,11 @@
+{-# LANGUAGE QuasiQuotes, FlexibleContexts #-}
 module Oden.Backend.Go where
 
 import qualified Data.Set              as Set
+import           Numeric
 import           System.FilePath
 import           Text.PrettyPrint
+import           Text.Regex.PCRE.Heavy
 
 import           Oden.Backend
 import           Oden.Compiler
@@ -97,6 +100,17 @@ isInfix :: Expr Mono.Type -> Bool
 isInfix (Symbol (Unqualified s) _) = s `elem` ["+", "-", "*", "/", "==", ">", "<", "<=", ">=", "++", "and", "or"]
 isInfix _ = False
 
+showGoString :: Show a => a -> String
+showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)
+  where
+  toHex (_:n:_) = "\\U" ++ pad 8 (showHex (read n :: Int) "")
+  toHex (m:_) = m
+  toHex [] = ""
+  pad :: Int -> String -> String
+  pad n s'
+      | length s' < n  = replicate (n - length s') '0' ++ s'
+      | otherwise      = s'
+
 codegenOperator :: Expr Mono.Type -> Doc
 codegenOperator (Symbol (Unqualified "++") _) = text "+"
 codegenOperator (Symbol (Unqualified "and") _) = text "&&"
@@ -137,7 +151,7 @@ codegenExpr (Let n expr body t) =
 codegenExpr (Literal (Int n) _) = integer n
 codegenExpr (Literal (Bool True) _) = text "true"
 codegenExpr (Literal (Bool False) _) = text "false"
-codegenExpr (Literal (String s) _) = text (show s)
+codegenExpr (Literal (String s) _) = text (showGoString s)
 codegenExpr (If condExpr thenExpr elseExpr t) =
   parens
   (func empty empty (codegenType t) (text "if" <+> codegenExpr condExpr <+> block (return' thenExpr) <+> text "else" <+> block (return' elseExpr)))

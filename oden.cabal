@@ -21,6 +21,7 @@ library
     mtl           >= 2.2   && <2.3,
     transformers  >= 0.4.2 && <0.5,
     aeson         >= 0.10,
+    pcre-heavy    >= 1.0,
     bytestring,
     unordered-containers,
     vector,

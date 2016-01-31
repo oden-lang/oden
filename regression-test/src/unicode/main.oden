@@ -1,0 +1,5 @@
+(pkg unicode/main)
+
+(import fmt)
+
+(def (main) (fmt.Println "As a Swede, åäö is what I want to write."))
