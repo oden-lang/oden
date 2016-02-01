@@ -35,6 +35,7 @@ library
     Oden.Compiler.Instantiate,
     Oden.Compiler.TypeEncoder
     Oden.Core,
+    Oden.Core.Operator,
     Oden.Core.Untyped,
     Oden.Env,
     Oden.Explode,
