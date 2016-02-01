@@ -44,12 +44,18 @@ bool :: Parser Expr
 bool = (reserved "true" >> return (Literal (Bool True)))
     <|> (reserved "false" >> return (Literal (Bool False)))
 
+block :: Parser Expr
+block = braces (whitespace *> expr <* whitespace)
+
 if' :: Parser Expr
 if' = do
   reserved "if"
   cond <- expr
+  spaces
   reserved "then"
+  spaces
   t <- expr
+  spaces
   reserved "else"
   f <- expr
   return (If cond t f)
@@ -57,7 +63,7 @@ if' = do
 fn :: Parser Expr
 fn = do
   reserved "fn"
-  Fn <$> many identifier <*> (whitespace *> rArrow *> whitespace *> expr)
+  Fn <$> many identifier <*> (spaces *> rArrow *> spaces *> expr)
 
 binding :: Parser Binding
 binding = do
@@ -93,6 +99,7 @@ aexp =
   <|> try number
   <|> try application
   <|> symbol
+  <|> block
   <|> parens expr
 
 tvar :: Parser String
