@@ -45,7 +45,12 @@ bool = (reserved "true" >> return (Literal (Bool True)))
     <|> (reserved "false" >> return (Literal (Bool False)))
 
 block :: Parser Expr
-block = braces (whitespace *> expr <* whitespace)
+block = try emptyBlock <|> nonEmptyBlock
+  where
+  emptyBlock = do
+    reserved "{}"
+    return (Literal Unit)
+  nonEmptyBlock = Block <$> braces (whitespace *> (expr `sepBy1` topSeparator) <* whitespace)
 
 if' :: Parser Expr
 if' = do
@@ -88,9 +93,9 @@ application = do
 slice :: Parser Expr
 slice = Slice <$> (char '!' *> brackets (expr `sepBy` comma))
 
-aexp :: Parser Expr
-aexp =
-  fn
+term :: Parser Expr
+term =
+  try fn
   <|> if'
   <|> let'
   <|> stringLiteral
@@ -116,17 +121,19 @@ type' = do
   simple = slice'
         <|> noArgFn
         <|> any'
+        <|> unit'
         <|> con
         <|> var
         <|> parens type'
   var = TEVar <$> tvar
   any' = reserved "any" *> return TEAny
+  unit' = reserved "{}" *> return TEUnit
   con = TECon <$> identifier
   noArgFn = TENoArgFn <$> (rArrow *> type')
   slice' = TESlice <$> (char '!' *> brackets type')
 
 expr :: Parser Expr
-expr = Ex.buildExpressionParser table aexp
+expr = Ex.buildExpressionParser table term
 
 infixOp :: String -> (a -> a -> a) -> Ex.Assoc -> Op a
 infixOp x f = Ex.Infix (reservedOp x >> return f)

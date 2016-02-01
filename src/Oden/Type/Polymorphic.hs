@@ -7,7 +7,6 @@ module Oden.Type.Polymorphic (
   isPolymorphicType,
   typeInt,
   typeBool,
-  typeUnit,
   typeString,
   FTV,
   ftv
@@ -27,6 +26,8 @@ data Type
   = TAny
   -- | A type variable.
   | TVar TVar
+  -- | The unit type.
+  | TUnit
   -- | A type constructor with a name.
   | TCon String
   -- | Like a 'TFn' but with no argument, only a return type.
@@ -44,6 +45,7 @@ data Type
 
 instance Show Type where
   show TAny = "any"
+  show TUnit = "{}"
   show (TFn a b) = "(" ++ show a ++ " -> " ++ show b ++ ")"
   show (TNoArgFn a) = "(-> " ++ show a ++ ")"
   show (TVar a) = show a
@@ -63,6 +65,7 @@ instance Show Scheme where
 
 toMonomorphic :: Type -> Either String Mono.Type
 toMonomorphic TAny = Right Mono.TAny
+toMonomorphic TUnit = Right Mono.TUnit
 toMonomorphic (TVar _) = Left "Cannot convert TVar to a monomorphic type"
 toMonomorphic (TCon s) = Right (Mono.TCon s)
 toMonomorphic (TNoArgFn t) = Mono.TNoArgFn <$> toMonomorphic t
@@ -76,6 +79,7 @@ isPolymorphic (Forall tvars _) = not (null tvars)
 
 isPolymorphicType :: Type -> Bool
 isPolymorphicType TAny = False
+isPolymorphicType TUnit = False
 isPolymorphicType (TVar _) = True
 isPolymorphicType (TCon _) = False
 isPolymorphicType (TNoArgFn a) = isPolymorphicType a
@@ -84,10 +88,9 @@ isPolymorphicType (TUncurriedFn a r) = any isPolymorphicType (r:a)
 isPolymorphicType (TVariadicFn a v r) = any isPolymorphicType (r:v:a)
 isPolymorphicType (TSlice a) = isPolymorphicType a
 
-typeInt, typeBool, typeUnit, typeString :: Type
+typeInt, typeBool, typeString :: Type
 typeInt  = TCon "int"
 typeBool = TCon "bool"
-typeUnit = TCon "unit"
 typeString = TCon "string"
 
 class FTV a where
@@ -95,6 +98,7 @@ class FTV a where
 
 instance FTV Type where
   ftv TAny                      = Set.empty
+  ftv TUnit                     = Set.empty
   ftv TCon{}                    = Set.empty
   ftv (TVar a)                  = Set.singleton a
   ftv (t1 `TFn` t2)            = ftv t1 `Set.union` ftv t2

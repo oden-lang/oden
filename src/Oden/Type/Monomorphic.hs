@@ -2,6 +2,7 @@ module Oden.Type.Monomorphic where
 
 data Type
   = TAny
+  | TUnit
   | TCon String
   | TNoArgFn Type
   | TFn Type Type
@@ -16,6 +17,7 @@ parensIf False s = s
 
 instance Show Type where
   show TAny = "any"
+  show TUnit = "{}"
   show (TFn a b) = parensIf (isArrow a) (show a) ++ " -> " ++ show b
     where
       isArrow TFn{} = True
@@ -27,8 +29,7 @@ instance Show Type where
     "(variadic-fn (" ++ unwords (map show as) ++ " (* " ++ show v ++ ")) " ++ show rs ++ ")"
   show (TSlice t) = "!(" ++ show t ++ ")"
 
-typeInt, typeBool, typeUnit, typeString :: Type
+typeInt, typeBool, typeString :: Type
 typeInt  = TCon "int"
 typeBool = TCon "bool"
-typeUnit = TCon "unit"
 typeString = TCon "string"

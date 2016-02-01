@@ -27,6 +27,7 @@ paddedTo = pad >> tell "to" >> pad
 
 writeType :: Mono.Type -> TypeEncoder ()
 writeType Mono.TAny = tell "any"
+writeType Mono.TUnit = tell "unit"
 writeType (Mono.TCon s) = tell s
 writeType (Mono.TNoArgFn t') = do
   tell "to"

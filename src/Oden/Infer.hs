@@ -146,6 +146,8 @@ generalize env t  = (Forall as (Core.typeOf t), t)
 
 infer :: Untyped.Expr -> Infer (Core.Expr Type)
 infer expr = case expr of
+  Untyped.Literal Untyped.Unit  ->
+    return (Core.Literal Core.Unit TUnit)
   Untyped.Literal (Untyped.Int n)  ->
     return (Core.Literal (Core.Int n) typeInt)
   Untyped.Literal (Untyped.Bool b) ->
@@ -249,6 +251,14 @@ infer expr = case expr of
     mapM_ (uni tv . Core.typeOf) tes
     return (Core.Slice tes (TSlice tv))
 
+  Untyped.Block es -> do
+    tv <- fresh
+    tes <- mapM infer es
+    case tes of
+      [] -> uni tv TUnit
+      _ -> uni tv (Core.typeOf (last tes))
+    return (Core.Block tes tv)
+
 inferDef :: Untyped.Definition -> Infer Core.Definition
 inferDef (Untyped.Definition name s expr) = do
   tv <- fresh
@@ -285,6 +295,7 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
     ord = zip (nub $ fv body) (map TV letters)
 
     fv TAny           = []
+    fv TUnit          = []
     fv (TVar a)       = [a]
     fv (TNoArgFn a) = fv a
     fv (TFn a b)     = fv a ++ fv b
@@ -294,8 +305,9 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
     fv (TSlice t)     = fv t
 
     normtype TAny           = TAny
-    normtype (TNoArgFn a) = TNoArgFn (normtype a)
-    normtype (TFn a b)     = TFn (normtype a) (normtype b)
+    normtype TUnit          = TUnit
+    normtype (TNoArgFn a)   = TNoArgFn (normtype a)
+    normtype (TFn a b)      = TFn (normtype a) (normtype b)
     normtype (TUncurriedFn as r) = TUncurriedFn (map normtype as) (normtype r)
     normtype (TVariadicFn as v r) = TVariadicFn (map normtype as) (normtype v) (normtype r)
     normtype (TCon a)       = TCon a

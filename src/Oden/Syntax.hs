@@ -13,14 +13,17 @@ data Expr = Symbol Identifier
           | Literal Literal
           | If Expr Expr Expr
           | Slice [Expr]
+          | Block [Expr]
           deriving (Show, Eq, Ord)
 
 data Literal = Int Integer
              | Bool Bool
              | String String
+             | Unit
              deriving (Show, Eq, Ord)
 
 data TypeExpr = TEAny
+              | TEUnit
               | TEVar String
               | TECon String
               | TEFn TypeExpr [TypeExpr]

@@ -8,7 +8,7 @@ import Oden.Scope
 
 pairs :: [(Identifier, Scheme)]
 pairs = [
-  (Unqualified "unit", Forall [] typeUnit),
+  (Unqualified "unit", Forall [] TUnit),
 
   (Unqualified "not", Forall [] (TFn typeBool typeBool)),
 

@@ -28,9 +28,10 @@ explodeExpr (Literal (Int i)) =
   Untyped.Literal (Untyped.Int i)
 explodeExpr (Literal (String s)) =
   Untyped.Literal (Untyped.String s)
+explodeExpr (Literal Unit) =
+  Untyped.Literal Untyped.Unit
 explodeExpr (If c t f) =
   Untyped.If (explodeExpr c) (explodeExpr t) (explodeExpr f)
--- (f x y z)
 explodeExpr (Application f ps) =
   Untyped.Application (explodeExpr f) (map explodeExpr ps)
 explodeExpr (Fn [] b) =
@@ -47,9 +48,12 @@ explodeExpr (Let ((n, e):bs) b) =
   Untyped.Let n (explodeExpr e) (explodeExpr (Let bs b))
 explodeExpr (Slice es) =
   Untyped.Slice (map explodeExpr es)
+explodeExpr (Block es) =
+  Untyped.Block (map explodeExpr es)
 
 explodeType :: TypeExpr -> Type
 explodeType TEAny = TAny
+explodeType TEUnit = TUnit
 explodeType (TEVar s) = TVar (TV s)
 explodeType (TECon s) = TCon s
 explodeType (TEFn d []) = explodeType d

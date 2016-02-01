@@ -115,19 +115,19 @@ convertType Interface{} = Right Poly.TAny
 convertType (Signature _ (Just _) _ _) = Left "Methods (functions with receivers)"
 convertType (Signature False Nothing args []) = do
   as <- mapM convertType args
-  Right (Poly.TUncurriedFn as Poly.typeUnit)
+  Right (Poly.TUncurriedFn as Poly.TUnit)
 convertType (Signature False Nothing args [ret]) = do
   as <- mapM convertType args
   r <- convertType ret
   Right (Poly.TUncurriedFn as r)
 convertType (Signature False Nothing args _) = do
   as <- mapM convertType args
-  Right (Poly.TUncurriedFn as Poly.typeUnit)
+  Right (Poly.TUncurriedFn as Poly.TUnit)
 convertType (Signature True Nothing [] []) = Left "Variadic functions with no arguments"
 convertType (Signature True Nothing args []) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
-  Right (Poly.TVariadicFn as v Poly.typeUnit)
+  Right (Poly.TVariadicFn as v Poly.TUnit)
 convertType (Signature True Nothing args [ret]) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
@@ -136,7 +136,7 @@ convertType (Signature True Nothing args [ret]) = do
 convertType (Signature True Nothing args _) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
-  Right (Poly.TVariadicFn as v Poly.typeUnit)
+  Right (Poly.TVariadicFn as v Poly.TUnit)
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
 -- TODO: Add "Named" concept in Oden type system
 convertType (Named _ _ t) = convertType t

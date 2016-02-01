@@ -1,0 +1,8 @@
+package blocks/main
+
+import fmt
+
+result = {}
+
+main :: -> unit
+main -> fmt.Println(result)

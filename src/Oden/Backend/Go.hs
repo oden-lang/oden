@@ -28,7 +28,7 @@ func name arg returnType body =
   <+> name
   <> parens arg
   <+> returnType
-  <+> if isEmpty body then empty else block body
+  <+> body
 
 varWithType :: Name -> Mono.Type -> Expr Mono.Type -> Doc
 varWithType name mt expr =
@@ -42,19 +42,21 @@ var :: Name -> Expr Mono.Type -> Doc
 var name expr = varWithType name (typeOf expr) expr
 
 return' :: Expr Mono.Type -> Doc
-return' e@(Application _ _ t) | t == Mono.typeUnit =
+return' e@(Application _ _ Mono.TUnit) =
   codegenExpr e $+$ text "return"
-return' e@(NoArgApplication _ t) | t == Mono.typeUnit =
+return' e@(NoArgApplication _ Mono.TUnit) =
   codegenExpr e $+$ text "return"
-return' e@(UncurriedFnApplication _ _ t) | t == Mono.typeUnit =
+return' e@(UncurriedFnApplication _ _ Mono.TUnit) =
   codegenExpr e $+$ text "return"
-return' e@(Let _ _ _ t) | t == Mono.typeUnit =
+return' e@(Let _ _ _ Mono.TUnit) =
   codegenExpr e $+$ text "return"
-return' e@(If _ _ _ t) | t == Mono.typeUnit =
+return' e@(If _ _ _ Mono.TUnit)  =
   codegenExpr e $+$ text "return"
-return' (Symbol (Unqualified "unit") _) =
+return' e@(Block _ Mono.TUnit)  =
+  codegenExpr e $+$ text "return"
+return' (Literal Unit _) =
   text "return"
-return' e@(Symbol _ t) | t == Mono.typeUnit =
+return' e@(Symbol _ t) | t == Mono.TUnit =
   codegenExpr e $+$ text "return"
 return' expr = text "return" <+> codegenExpr expr
 
@@ -83,7 +85,7 @@ codegenIdentifier (Unqualified n) = safeName n
 codegenIdentifier (Qualified pn n) = safeName pn <> text "." <> safeName n
 
 codegenType :: Mono.Type -> Doc
-codegenType t | t == Mono.typeUnit = empty
+codegenType Mono.TUnit = empty
 codegenType Mono.TAny = text "interface{}"
 codegenType (Mono.TCon n) = safeName n
 codegenType (Mono.TNoArgFn f) =
@@ -132,34 +134,43 @@ codegenExpr (UncurriedFnApplication f ps _) =
 codegenExpr (NoArgApplication f _) =
   codegenExpr f <> parens empty
 codegenExpr (Fn a body (Mono.TFn d r)) =
-  func empty (funcArg a d) (codegenType r) (return' body)
+  func empty (funcArg a d) (codegenType r) (braces (return' body))
 codegenExpr Fn{} = text "<invalid fn type>"
 codegenExpr (NoArgFn body (Mono.TNoArgFn r)) =
-  func empty empty (codegenType r) (return' body)
+  func empty empty (codegenType r) (braces (return' body))
 codegenExpr (NoArgFn _ _) = text "<invalid no-arg fn type>"
 codegenExpr (Let n expr body t) =
-  parens (func empty empty (codegenType t) (text "var" <+> safeName n <+> codegenType (typeOf expr)<+> equals <+> codegenExpr expr $+$ return' body))
+  parens (func empty empty (codegenType t) (braces (text "var" <+> safeName n <+> codegenType (typeOf expr)<+> equals <+> codegenExpr expr $+$ return' body)))
   <> parens empty
 codegenExpr (Literal (Int n) _) = integer n
 codegenExpr (Literal (Bool True) _) = text "true"
 codegenExpr (Literal (Bool False) _) = text "false"
 codegenExpr (Literal (String s) _) = text (showGoString s)
+codegenExpr (Literal Unit _) = text "<invalid unit literal>"
 codegenExpr (If condExpr thenExpr elseExpr t) =
   parens
-  (func empty empty (codegenType t) (text "if" <+> codegenExpr condExpr <+> block (return' thenExpr) <+> text "else" <+> block (return' elseExpr)))
+  (func empty empty (codegenType t) (braces (text "if" <+> codegenExpr condExpr <+> block (return' thenExpr) <+> text "else" <+> block (return' elseExpr))))
   <> parens empty
 codegenExpr (Slice exprs t) = codegenType t
                             <> braces (hcat (punctuate (comma <+> space) (map codegenExpr exprs)))
+codegenExpr (Block [] t) =
+  parens
+  (func empty empty (codegenType t) (braces empty))
+  <> parens empty
+codegenExpr (Block exprs t) =
+  parens
+  (func empty empty (codegenType t) (braces (vcat (map codegenExpr (init exprs) ++ [return' (last exprs)]))))
+  <> parens empty
 
 codegenTopLevel :: Name -> Mono.Type -> Expr Mono.Type -> Doc
 codegenTopLevel name (Mono.TNoArgFn r) (NoArgFn body _) =
-  func (safeName name) empty (codegenType r) (return' body)
+  func (safeName name) empty (codegenType r) (braces (return' body))
 codegenTopLevel name _ (NoArgFn body (Mono.TNoArgFn r)) =
-  func (safeName name) empty (codegenType r) (return' body)
+  func (safeName name) empty (codegenType r) (braces (return' body))
 codegenTopLevel name (Mono.TFn d r) (Fn a body _) =
-  func (safeName name) (funcArg a d) (codegenType r) (return' body)
+  func (safeName name) (funcArg a d) (codegenType r) (braces (return' body))
 codegenTopLevel name _ (Fn a body (Mono.TFn d r)) =
-  func (safeName name) (funcArg a d) (codegenType r) (return' body)
+  func (safeName name) (funcArg a d) (codegenType r) (braces (return' body))
 codegenTopLevel name t expr =
   varWithType name t expr
 

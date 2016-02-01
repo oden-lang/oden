@@ -25,6 +25,7 @@ class FTV a => Substitutable a where
 
 instance Substitutable Type where
   apply _ TAny                      = TAny
+  apply _ TUnit                     = TUnit
   apply _ (TCon a)                  = TCon a
   apply (Subst s) t@(TVar a)        = Map.findWithDefault t a s
   apply s (TNoArgFn t)            = TNoArgFn (apply s t)
@@ -59,6 +60,7 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.Literal l t)              = Core.Literal l (apply s t)
   apply s (Core.If c tb fb t)             = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
   apply s (Core.Slice es t)               = Core.Slice (apply s es) (apply s t)
+  apply s (Core.Block es t)               = Core.Block (apply s es) (apply s t)
 
 instance Substitutable a => Substitutable [a] where
   apply = map . apply

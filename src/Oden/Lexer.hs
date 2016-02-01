@@ -86,10 +86,10 @@ parensList :: Parser a -> Parser [a]
 parensList p = parens (Tok.commaSep lexer p)
 
 braces :: Parser a -> Parser a
-braces p = char '{' *> p <* char '}'
+braces = Tok.braces lexer
 
 brackets :: Parser a -> Parser a
-brackets p = char '[' *> p <* char ']'
+brackets = Tok.brackets lexer
 
 rArrow :: Parser ()
 rArrow = reservedOp "->"
