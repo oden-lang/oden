@@ -93,9 +93,9 @@ scanImports (Untyped.Package _ imports _) = foldM scanImport Scope.empty imports
             _ -> return ()
           return (Scope.merge scope' pkgScope)
 
-validate :: Core.Package -> Odenc ()
-validate pkg = do
-  warnings <- liftEither' (runAll pkg)
+validatePkg :: Core.Package -> Odenc ()
+validatePkg pkg = do
+  warnings <- liftEither (validate pkg)
   mapM_ logWarning warnings
 
 compileFile :: SourceFile -> Odenc [CompiledFile]
@@ -108,7 +108,7 @@ compileFile (OdenSourceFile fname _) = do
   let scope' = Scope.merge predefined importsScope
       typeEnv = Env.fromScope scope'
   (inferredPkg, _) <- liftEither (inferPackage typeEnv corePkg)
-  validate inferredPkg
+  validatePkg inferredPkg
   logCompiling inferredPkg
   compiledPkg <- liftEither (compile scope' inferredPkg)
   files <- liftEither (codegen (GoBackend $ outPath opts) compiledPkg)

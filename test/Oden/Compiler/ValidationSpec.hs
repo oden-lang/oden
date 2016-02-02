@@ -4,29 +4,83 @@ import           Test.Hspec
 
 import           Oden.Compiler.Validation
 import           Oden.Core
+import           Oden.Identifier
 import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
 
-unitExpr :: CanonicalExpr
-unitExpr = (Forall [] TUnit, Literal Unit TUnit)
+canonical :: Expr Type -> CanonicalExpr
+canonical e = (Forall [] (typeOf e), e)
+
+strExpr :: Expr Type
+strExpr = Literal (String "hello") (TCon "string")
+
+letExpr :: Name -> Expr Type -> Expr Type -> Expr Type
+letExpr n value body = Let n value body (typeOf body)
+
+fnExpr :: Name -> Expr Type -> Expr Type
+fnExpr n body = Fn n body (TFn (TCon "string") (typeOf body))
 
 spec :: Spec
 spec =
-  describe "checkRedefinitions" $ do
+  describe "validate" $ do
+
     it "accepts uniquely named definitions" $
-      checkRedefinitions (Package ["mypkg"] [] [
-            Definition "foo" unitExpr,
-            Definition "bar" unitExpr,
-            Definition "baz" unitExpr
+      validate (Package ["mypkg"] [] [
+            Definition "foo" (canonical strExpr),
+            Definition "bar" (canonical strExpr),
+            Definition "baz" (canonical strExpr)
         ])
       `shouldSucceedWith`
       []
+
     it "throws an error on duplicate top-level names" $
-      checkRedefinitions (Package ["mypkg"] [] [
-            Definition "foo" unitExpr,
-            Definition "bar" unitExpr,
-            Definition "foo" unitExpr
+      validate (Package ["mypkg"] [] [
+            Definition "foo" $ canonical strExpr,
+            Definition "bar" $ canonical strExpr,
+            Definition "foo" $ canonical strExpr
+        ])
+      `shouldFailWith`
+      Redefinition "foo"
+
+    it "throws an error on let-bound name shadowing top-level definition" $
+      validate (Package ["mypkg"] [] [
+            Definition
+            "foo"
+            (canonical strExpr),
+            Definition
+            "bar"
+            (canonical (letExpr "foo" strExpr strExpr))
+        ])
+      `shouldFailWith`
+      Redefinition "foo"
+
+    it "throws an error on let-bound name shadowing other let-bound name" $
+      validate (Package ["mypkg"] [] [
+            Definition
+            "bar"
+            (canonical (letExpr "foo" strExpr (letExpr "foo" strExpr strExpr)))
+        ])
+      `shouldFailWith`
+      Redefinition "foo"
+
+    it "throws an error on arg shadowing top-level definition" $
+      validate (Package ["mypkg"] [] [
+            Definition
+            "foo"
+            (canonical strExpr),
+            Definition
+            "bar"
+            (canonical (fnExpr "foo" strExpr))
+        ])
+      `shouldFailWith`
+      Redefinition "foo"
+
+    it "throws an error on fn arg shadowing other fn arg" $
+      validate (Package ["mypkg"] [] [
+            Definition
+            "bar"
+            (canonical (fnExpr "foo" (fnExpr "foo" strExpr)))
         ])
       `shouldFailWith`
       Redefinition "foo"

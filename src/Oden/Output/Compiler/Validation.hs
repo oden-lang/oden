@@ -3,6 +3,7 @@ module Oden.Output.Compiler.Validation where
 import           Text.PrettyPrint
 
 import           Oden.Compiler.Validation
+import           Oden.Core
 import           Oden.Output
 
 instance OdenOutput ValidationError where
@@ -12,15 +13,17 @@ instance OdenOutput ValidationError where
 
   header (Redefinition i) s = strCode s i <+> text "is already defined"
 
-  details (Redefinition _) _ = empty
+  details (Redefinition _) _ = text "Shadowing is not allowed"
 
 
 instance OdenOutput ValidationWarning where
-  outputType (NameShadowed _)   = Warning
+  outputType (ValueDiscarded _)   = Warning
 
-  name (NameShadowed _)         = "Compiler.Validation.NameShadowed"
+  name (ValueDiscarded _)         = "Compiler.Validation.ValueDiscarded"
 
-  header (NameShadowed n) s     = text "Binding shadows" <+> strCode s n
+  header (ValueDiscarded e) s     = text "Value of type"
+                                    <+> code s (typeOf e)
+                                    <+> text "discarded"
 
-  details (NameShadowed _) _    = empty
+  details (ValueDiscarded _) _    = empty
 
