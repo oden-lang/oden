@@ -1,11 +1,9 @@
 language: go
 go: 1.5
 sudo: false
-
 os:
-  - linux
-  - osx
-
+- linux
+- osx
 addons:
   apt:
     sources:
@@ -15,36 +13,30 @@ addons:
     - ghc-7.10.1
     - alex-3.1.4
     - happy-1.19.5
-
 before_install:
 - export PATH=/opt/ghc/7.10.1/bin:/opt/cabal/1.22/bin:$PATH
 - export PATH=/opt/alex/3.1.4/bin:$PATH
 - export PATH=/opt/happy/1.19.5/bin:$PATH
-
 install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ghc cabal-install pcre; fi
 - travis_retry cabal update
-
-# https://github.com/hvr/multi-ghc-travis#known-issues
-- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config; fi
-
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config;
+  fi
 - cabal sandbox init
 - cabal install --enable-tests --only-dependencies
-
 script:
 - cabal configure --enable-tests
 - cabal test
 - export VERSION=branch-$TRAVIS_BRANCH-job-$TRAVIS_JOB_NUMBER
-- if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-$TRAVIS_PULL_REQUEST-job-$TRAVIS_JOB_NUMBER; fi
+- if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-$TRAVIS_PULL_REQUEST-job-$TRAVIS_JOB_NUMBER;
+  fi
 - if [[ "$TRAVIS_TAG" != "" ]]; then export VERSION=$TRAVIS_TAG; fi
 - make dist
-
 cache:
   apt: true
   directories:
-    - .cabal-sandbox
-
+  - .cabal-sandbox
 deploy:
   provider: releases
   api_key:
@@ -53,3 +45,6 @@ deploy:
   on:
     tags: true
     repo: oden-lang/oden
+notifications:
+  slack:
+    secure: CzIDDPphI227LamRZdSmjyDZijMyJVBvtSpMKRh/S7C19T9HbwbD7DUh8Aiif5V4L4VFbd/Pp21/D7WPY4bf9+Iv7wVD9NAUwPaZ/elkk310bcqEuShSsGY8YhUwaz68CU89APLs318qSntE8X3YQ+xWp9NRJBw+eJXAosrKFWn8a29sJdbfGlhKU8pZ6OnUDIlXaX254zcr/OcQZl9dnrN20XsCuMN693gI1gKgA1fQyKC29wfUy7RICmOajq3pHKG9YDMdNnYJRddsw9Yh8h8xiICoTLE9Bb54GzZMTzm15/BSqhHTQ/wHQbDkKmjN0CQyuoexnaMX++oCHGg6Uz8pUNIMcIow8pAklqTKodqfB4r0rhMPrx7CC+ASLZp5bXp/AxocP7fINq/4XqP4ny4ufl8cuTJPt/1MgtOqisHIQhBk//duspAfcqGBT7sIN77Cd5FmbbTl7VpliZnvIhPVInZPpatBksQaQ7MOXkayjmBiQgzwS1SH3kX277WAI1boaV2LHlnRy2aACrMP7uBdp7EJjzsQVWLqUS4YM0UzBV8a/vlrisrAm+lMkzTt7QaJVOJEhTpK83o9qBx7OG5FIBovIl0q/4bcpsmL271H9jBvARFbF1/Ng9znvbvmYd8tEh6uZb5XfC+r9jURGnGFDKf2kP5SRHMEHN4wC/I=
