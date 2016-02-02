@@ -1,9 +1,9 @@
-module Oden.CompilerSpec where
+module Oden.Compiler.MonomorphizationSpec where
 
 import           Data.Set              as Set
 import           Test.Hspec
 
-import           Oden.Compiler
+import           Oden.Compiler.Monomorphization
 import qualified Oden.Core             as Core
 import           Oden.Identifier
 import           Oden.Predefined
@@ -171,7 +171,7 @@ spec =
     it "compiles empty package" $
       compile Scope.empty (Core.Package myPkg [] [])
       `shouldSucceedWith`
-      CompiledPackage
+      MonomorphedPackage
         myPkg
         []
         Set.empty
@@ -179,7 +179,7 @@ spec =
     it "excludes unused polymorphic definitions" $
       compile Scope.empty (Core.Package myPkg [] [identityDef])
       `shouldSucceedWith`
-      CompiledPackage
+      MonomorphedPackage
         myPkg
         []
         Set.empty
@@ -187,7 +187,7 @@ spec =
     it "monomorphs polymorphic function usage" $
       compile Scope.empty (Core.Package myPkg [] [identityDef, usingIdentityDef])
       `shouldSucceedWith`
-      CompiledPackage
+      MonomorphedPackage
         myPkg
         []
         (Set.singleton identityInstIntToInt)
@@ -195,7 +195,7 @@ spec =
     it "monomorphs polymorphic function usage recursively" $
       compile Scope.empty (Core.Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
       `shouldSucceedWith`
-      CompiledPackage
+      MonomorphedPackage
         myPkg
         []
         (Set.fromList [identityInstIntToInt, identity2InstIntToInt])
@@ -203,7 +203,7 @@ spec =
     it "monomorphs let bound polymorphic function" $
       compile Scope.empty (Core.Package myPkg [] [letBoundIdentity])
       `shouldSucceedWith`
-      CompiledPackage
+      MonomorphedPackage
         myPkg
         []
         Set.empty
@@ -211,7 +211,7 @@ spec =
     it "uses polymorphic predefined Go funcs" $
       compile predefined (Core.Package myPkg [] [sliceLenDef])
       `shouldSucceedWith`
-      CompiledPackage
+      MonomorphedPackage
         myPkg
         []
         Set.empty
@@ -219,7 +219,7 @@ spec =
     it "monomorphs let with shadowing" $
       compile Scope.empty (Core.Package myPkg [] [letWithShadowing])
       `shouldSucceedWith`
-      CompiledPackage
+      MonomorphedPackage
         myPkg
         []
         Set.empty

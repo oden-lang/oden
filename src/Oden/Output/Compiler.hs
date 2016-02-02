@@ -3,14 +3,15 @@ module Oden.Output.Compiler where
 import           Text.PrettyPrint
 
 import           Oden.Compiler
+import           Oden.Compiler.Monomorphization
 import           Oden.Output
 import           Oden.Output.Instantiate ()
 
-instance OdenOutput CompilationError where
+instance OdenOutput MonomorphError where
   outputType _ = Error
-  name (NotInScope _)                   = "Compiler.NotInScope"
-  name (AmbigiousReference _ _)         = "Compiler.AmbigiousReference"
-  name (UnexpectedPolyType _)           = "Compiler.UnexpectedPolyType"
+  name (NotInScope _)                   = "Compiler.Monomorph.NotInScope"
+  name (AmbigiousReference _ _)         = "Compiler.Monomorph.AmbigiousReference"
+  name (UnexpectedPolyType _)           = "Compiler.Monomorph.UnexpectedPolyType"
   name (MonomorphInstantiateError err)  = name err
 
   header (NotInScope i) s                   = code s i <+> text "is not in scope"
@@ -21,4 +22,11 @@ instance OdenOutput CompilationError where
   details (NotInScope _) _          = empty
   details (UnexpectedPolyType _) _  = text "This can usually be fixed by adding (stricter) type signatures to top-level forms."
   details _ _                       = empty
+
+
+instance OdenOutput CompilationError where
+  outputType (MonomorphError e)   = outputType e
+  name (MonomorphError e)         = name e
+  header (MonomorphError e)       = header e
+  details (MonomorphError e)      = details e
 

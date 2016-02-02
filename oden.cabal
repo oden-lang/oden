@@ -33,6 +33,7 @@ library
     Oden.Backend.Go,
     Oden.Compiler,
     Oden.Compiler.Instantiate,
+    Oden.Compiler.Monomorphization,
     Oden.Compiler.TypeEncoder
     Oden.Core,
     Oden.Core.Operator,

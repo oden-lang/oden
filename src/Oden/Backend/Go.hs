@@ -8,7 +8,7 @@ import           Text.PrettyPrint
 import           Text.Regex.PCRE.Heavy
 
 import           Oden.Backend
-import           Oden.Compiler
+import           Oden.Compiler.Monomorphization
 import           Oden.Core
 import           Oden.Core.Operator
 import           Oden.Identifier
@@ -186,8 +186,8 @@ codegenImport :: Import -> Doc
 codegenImport (Import name) =
   text "import" <+> doubleQuotes (hcat (punctuate (text "/") (map text name)))
 
-codegenPackage :: CompiledPackage -> Doc
-codegenPackage (CompiledPackage name imports is ms) =
+codegenPackage :: MonomorphedPackage -> Doc
+codegenPackage (MonomorphedPackage name imports is ms) =
   text "package" <+> text (last name)
   $+$ vcat (map codegenImport imports)
   $+$ vcat (map codegenInstance (Set.toList is))
@@ -203,6 +203,6 @@ toFilePath (GoBackend goPath) parts =
   in return (dir </> fileName)
 
 instance Backend GoBackend where
-  codegen backend pkg@(CompiledPackage name _ _ _) = do
+  codegen backend pkg@(MonomorphedPackage name _ _ _) = do
     path <- toFilePath backend name
     return [CompiledFile path (render (codegenPackage pkg))]
