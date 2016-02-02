@@ -4,5 +4,5 @@ import fmt
 
 result = {}
 
-main :: -> unit
+main :: -> {}
 main -> fmt.Println(result)

@@ -11,4 +11,3 @@ data CompilationError = MonomorphError MonomorphError
 
 compile :: Scope -> Core.Package -> Either CompilationError MonomorphedPackage
 compile scope' pkg = left MonomorphError (monomorphPackage scope' pkg)
-

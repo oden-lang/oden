@@ -6,29 +6,31 @@
 import           Oden.Backend
 import           Oden.Backend.Go
 import           Oden.Compiler
-import qualified Oden.Core               as Core
-import qualified Oden.Core.Untyped       as Untyped
-import qualified Oden.Env                as Env
+import           Oden.Compiler.Validation
+import qualified Oden.Core                       as Core
+import qualified Oden.Core.Untyped               as Untyped
+import qualified Oden.Env                        as Env
 import           Oden.Explode
-import qualified Oden.Go                 as Go
+import qualified Oden.Go                         as Go
 import           Oden.Infer
-import qualified Oden.Output             as Output
-import           Oden.Output.Backend     ()
-import           Oden.Output.Compiler    ()
-import           Oden.Output.Explode     ()
-import           Oden.Output.Go          ()
-import           Oden.Output.Infer       ()
-import           Oden.Output.Instantiate ()
-import           Oden.Output.Parser      ()
+import qualified Oden.Output                     as Output
+import           Oden.Output.Backend             ()
+import           Oden.Output.Compiler            ()
+import           Oden.Output.Compiler.Validation ()
+import           Oden.Output.Explode             ()
+import           Oden.Output.Go                  ()
+import           Oden.Output.Infer               ()
+import           Oden.Output.Instantiate         ()
+import           Oden.Output.Parser              ()
 import           Oden.Parser
 import           Oden.Predefined
 import           Oden.Scanner
-import qualified Oden.Scope              as Scope
-import qualified Oden.Syntax             as Syntax
+import qualified Oden.Scope                      as Scope
+import qualified Oden.Syntax                     as Syntax
 
 import           Data.List
 import           Data.Maybe
-import qualified Data.Text.Lazy.IO       as L
+import qualified Data.Text.Lazy.IO               as L
 
 import           Control.Monad.Except
 import           Control.Monad.Reader
@@ -41,7 +43,7 @@ import           System.FilePath
 import           System.IO
 
 -- versioning stuff
-import qualified Data.Version            as Version
+import qualified Data.Version                    as Version
 import           Paths_oden
 
 type Odenc = ReaderT Options (ExceptT String IO)
@@ -91,6 +93,11 @@ scanImports (Untyped.Package _ imports _) = foldM scanImport Scope.empty imports
             _ -> return ()
           return (Scope.merge scope' pkgScope)
 
+validate :: Core.Package -> Odenc ()
+validate pkg = do
+  warnings <- liftEither' (runAll pkg)
+  mapM_ logWarning warnings
+
 compileFile :: SourceFile -> Odenc [CompiledFile]
 compileFile (OdenSourceFile fname _) = do
   opts <- ask
@@ -101,6 +108,7 @@ compileFile (OdenSourceFile fname _) = do
   let scope' = Scope.merge predefined importsScope
       typeEnv = Env.fromScope scope'
   (inferredPkg, _) <- liftEither (inferPackage typeEnv corePkg)
+  validate inferredPkg
   logCompiling inferredPkg
   compiledPkg <- liftEither (compile scope' inferredPkg)
   files <- liftEither (codegen (GoBackend $ outPath opts) compiledPkg)
