@@ -12,6 +12,9 @@ import           Oden.Assertions
 canonical :: Expr Type -> CanonicalExpr
 canonical e = (Forall [] (typeOf e), e)
 
+unitExpr :: Expr Type
+unitExpr = Literal Unit TUnit
+
 strExpr :: Expr Type
 strExpr = Literal (String "hello") (TCon "string")
 
@@ -84,3 +87,30 @@ spec =
         ])
       `shouldFailWith`
       Redefinition "foo"
+
+    it "throws an error on definition of type {}" $
+      validate (Package ["mypkg"] [] [
+            Definition
+            "foo"
+            (canonical unitExpr)
+        ])
+      `shouldFailWith`
+      UnitDefinition (Definition "foo" (canonical unitExpr))
+
+    it "throws an error on binding of type {}" $
+      validate (Package ["mypkg"] [] [
+            Definition
+            "foo"
+            (canonical (letExpr "x" unitExpr strExpr))
+        ])
+      `shouldFailWith`
+      UnitBinding "x" (letExpr "x" unitExpr strExpr)
+
+    it "throws an error on fn arg shadowing other fn arg" $
+      validate (Package ["mypkg"] [] [
+            Definition
+            "foo"
+            (canonical (Fn "x" strExpr (TFn TUnit (TCon "string"))))
+        ])
+      `shouldFailWith`
+      UnitFnArg "x" (Fn "x" strExpr (TFn TUnit (TCon "string")))

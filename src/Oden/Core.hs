@@ -22,17 +22,17 @@ data Expr t = Symbol Identifier t
             deriving (Eq, Ord)
 
 instance Show t => Show (Expr t) where
-  show (Symbol i t) = "(" ++ show i ++ " : " ++ show t ++ ")"
-  show (Op o e1 e2 t) = "(" ++ show e1 ++ " " ++ show o ++ " " ++ show e2 ++ " :: " ++ show t ++ ")"
-  show (Application a b t) = "((" ++ show a  ++ " " ++ show b ++ ") : " ++ show t ++ ")"
-  show (NoArgApplication a t) = "((" ++ show a ++ ") : " ++ show t ++ ")"
-  show (UncurriedFnApplication f p t) = "((" ++ show f ++ " " ++ show p ++  ") : " ++ show t ++ ")"
-  show (Fn n b t) = "((fn (" ++ n ++ ") " ++ show b ++ ") : " ++ show t ++ ")"
-  show (NoArgFn b t) = "((fn () " ++ show b ++ ") : " ++ show t ++ ")"
-  show (Let n e b t) = "((let ((" ++ n ++ " " ++ show e ++ ")) " ++ show b ++ ") : " ++ show t ++ ")"
+  show (Symbol i _) = show i
+  show (Op o e1 e2 _) = "(" ++ show e1 ++ " " ++ show o ++ " " ++ show e2 ++ ")"
+  show (Application a b _) = show a  ++ "(" ++ show b ++ ")"
+  show (NoArgApplication a _) = show a ++ "()"
+  show (UncurriedFnApplication f p _) = show f ++ "(" ++ show p ++  ")"
+  show (Fn n b _) = "(fn " ++ n ++ " -> " ++ show b ++ ")"
+  show (NoArgFn b _) = "(fn -> " ++ show b ++ ")"
+  show (Let n e b _) = "let " ++ n ++ " = " ++ show e ++ " in " ++ show b
   show (Literal l _) = show l
-  show (If ce te ee _) = "(if " ++ show ce ++ " " ++ show te ++ "" ++ show ee ++ ")"
-  show (Slice exprs _) = "![" ++ concatMap show exprs ++ "]"
+  show (If ce te ee _) = "if " ++ show ce ++ " then " ++ show te ++ " else " ++ show ee
+  show (Slice exprs _) = "![" ++ intercalate ", " (map show exprs) ++ "]"
   show (Block exprs _) = "{" ++ intercalate "; " (map show exprs) ++ "}"
 
 typeOf :: Expr t -> t

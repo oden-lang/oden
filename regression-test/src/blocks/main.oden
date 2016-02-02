@@ -2,7 +2,10 @@ package blocks/main
 
 import fmt
 
-result = {}
+result = {
+  fmt.Println("Calculating...")
+  42
+}
 
 main :: -> {}
 main -> fmt.Println(result)
