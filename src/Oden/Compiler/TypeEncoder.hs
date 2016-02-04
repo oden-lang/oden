@@ -22,13 +22,22 @@ withIncreasedLevel e = do
   e
   modify pred
 
+padded :: String -> TypeEncoder ()
+padded s = pad >> tell s >> pad
+
 paddedTo :: TypeEncoder ()
-paddedTo = pad >> tell "to" >> pad
+paddedTo = padded "to"
 
 writeType :: Mono.Type -> TypeEncoder ()
 writeType Mono.TAny = tell "any"
 writeType Mono.TUnit = tell "unit"
 writeType (Mono.TCon s) = tell s
+writeType (Mono.TTuple f s r) = do
+  tell "tupleof"
+  pad
+  foldl writeElement (return ()) (f:s:r)
+  where
+  writeElement a t = a >> withIncreasedLevel (writeType t) >> pad
 writeType (Mono.TNoArgFn t') = do
   tell "to"
   pad

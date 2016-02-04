@@ -30,6 +30,8 @@ explodeExpr (Literal (String s)) =
   Untyped.Literal (Untyped.String s)
 explodeExpr (Literal Unit) =
   Untyped.Literal Untyped.Unit
+explodeExpr (Tuple f s r) =
+  Untyped.Tuple (explodeExpr f) (explodeExpr s) (map explodeExpr r)
 explodeExpr (If c t f) =
   Untyped.If (explodeExpr c) (explodeExpr t) (explodeExpr f)
 explodeExpr (Application f ps) =
@@ -60,6 +62,8 @@ explodeType (TEFn d []) = explodeType d
 explodeType (TEFn d (r:rs)) =
   TFn (explodeType d) (explodeType (TEFn r rs))
 explodeType (TENoArgFn r) = TNoArgFn (explodeType r)
+explodeType (TETuple f s r) =
+  TTuple (explodeType f) (explodeType s) (map explodeType r)
 explodeType (TESlice t) = TSlice (explodeType t)
 
 explodeScheme :: SchemeExpr -> Scheme

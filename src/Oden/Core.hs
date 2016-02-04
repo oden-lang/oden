@@ -16,8 +16,9 @@ data Expr t = Symbol Identifier t
             | NoArgFn (Expr t) t
             | Let Name (Expr t) (Expr t) t
             | Literal Literal t
-            | Slice [Expr t] t
+            | Tuple (Expr t) (Expr t) [Expr t] t
             | If (Expr t) (Expr t) (Expr t) t
+            | Slice [Expr t] t
             | Block [Expr t] t
             deriving (Eq, Ord)
 
@@ -33,6 +34,7 @@ instance Show t => Show (Expr t) where
   show (Literal l _) = show l
   show (If ce te ee _) = "if " ++ show ce ++ " then " ++ show te ++ " else " ++ show ee
   show (Slice exprs _) = "![" ++ intercalate ", " (map show exprs) ++ "]"
+  show (Tuple f s r _) = "(" ++ intercalate ", " (map show (f:s:r)) ++ ")"
   show (Block exprs _) = "{" ++ intercalate "; " (map show exprs) ++ "}"
 
 typeOf :: Expr t -> t
@@ -46,6 +48,7 @@ typeOf (NoArgFn _ t) = t
 typeOf (Let _ _ _ t) = t
 typeOf (Literal _ t) = t
 typeOf (If _ _ _ t) = t
+typeOf (Tuple _ _ _ t) = t
 typeOf (Slice _ t) = t
 typeOf (Block _ t) = t
 
@@ -60,7 +63,7 @@ instance Show Literal where
   show (Bool True) = "true"
   show (Bool False) = "false"
   show (String s) = show s
-  show Unit = "{}"
+  show Unit = "()"
 
 type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
 

@@ -26,12 +26,13 @@ class FTV a => Substitutable a where
 instance Substitutable Type where
   apply _ TAny                      = TAny
   apply _ TUnit                     = TUnit
+  apply s (TTuple f s' r)           = TTuple (apply s f) (apply s s') (apply s r)
   apply _ (TCon a)                  = TCon a
   apply (Subst s) t@(TVar a)        = Map.findWithDefault t a s
-  apply s (TNoArgFn t)            = TNoArgFn (apply s t)
-  apply s (t1 `TFn` t2)            = apply s t1 `TFn` apply s t2
-  apply s (TUncurriedFn as r)            = TUncurriedFn (map (apply s) as) (apply s r)
-  apply s (TVariadicFn as v r)  = TVariadicFn (map (apply s) as) (apply s v) (apply s r)
+  apply s (TNoArgFn t)              = TNoArgFn (apply s t)
+  apply s (t1 `TFn` t2)             = apply s t1 `TFn` apply s t2
+  apply s (TUncurriedFn as r)       = TUncurriedFn (map (apply s) as) (apply s r)
+  apply s (TVariadicFn as v r)      = TVariadicFn (map (apply s) as) (apply s v) (apply s r)
   apply s (TSlice t)                = TSlice (apply s t)
 
 
@@ -58,6 +59,7 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.NoArgFn b t)              = Core.NoArgFn (apply s b) (apply s t)
   apply s (Core.Let x e b t)              = Core.Let x (apply s e) (apply s b) (apply s t)
   apply s (Core.Literal l t)              = Core.Literal l (apply s t)
+  apply s (Core.Tuple fe se re t)         = Core.Tuple (apply s fe) (apply s se) (apply s re) (apply s t)
   apply s (Core.If c tb fb t)             = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
   apply s (Core.Slice es t)               = Core.Slice (apply s es) (apply s t)
   apply s (Core.Block es t)               = Core.Block (apply s es) (apply s t)

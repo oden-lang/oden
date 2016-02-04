@@ -11,9 +11,6 @@ import           Control.Monad.State
 import qualified Data.Set        as Set
 
 data ValidationError = Redefinition Name
-                     | UnitDefinition Definition
-                     | UnitBinding Name (Expr Type)
-                     | UnitFnArg Name (Expr Type)
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValueDiscarded (Expr Type)
@@ -46,19 +43,18 @@ validateExpr (NoArgApplication f _) =
 validateExpr (UncurriedFnApplication f args _) = do
   validateExpr f
   mapM_ validateExpr args
-validateExpr e@(Fn name _ (TFn TUnit _)) =
-  throwError (UnitFnArg name e)
 validateExpr (Fn name body _) =  do
   errorIfDefined name
   withName name (validateExpr body)
 validateExpr (NoArgFn body _) =
   validateExpr body
-validateExpr e@(Let name value body _)
-  | typeOf value == TUnit = throwError (UnitBinding name e)
-  | otherwise             = do errorIfDefined name
-                               validateExpr value
-                               withName name (validateExpr body)
+validateExpr (Let name value body _) = do
+  errorIfDefined name
+  validateExpr value
+  withName name (validateExpr body)
 validateExpr (Literal _ _) = return ()
+validateExpr (Tuple f s r _) =
+  mapM_ validateExpr (f:s:r)
 validateExpr (Slice exprs _) =
   mapM_ validateExpr exprs
 validateExpr (If c t e _) = do
@@ -72,8 +68,7 @@ validatePackage :: Package -> Validate ()
 validatePackage (Package _ _ definitions) = validateSeq definitions
   where
   validateSeq [] = return ()
-  validateSeq (d@(Definition name (_, expr)) : ds) = do
-    when (typeOf expr == TUnit) (throwError (UnitDefinition d))
+  validateSeq (Definition name (_, expr) : ds) = do
     errorIfDefined name
     withName name $ do
       validateExpr expr

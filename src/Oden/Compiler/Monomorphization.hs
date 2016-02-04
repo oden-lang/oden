@@ -175,6 +175,12 @@ monomorph e@(Core.Block es _) = do
 monomorph e@(Core.Literal l _) = do
   mt <- getMonoType e
   return (Core.Literal l mt)
+monomorph e@(Core.Tuple f s r _) = do
+  mt <- getMonoType e
+  mf <- monomorph f
+  ms <- monomorph s
+  mr <- mapM monomorph r
+  return (Core.Tuple mf ms mr mt)
 monomorph e@(Core.If cond then' else' _) = do
   mt <- getMonoType e
   mCond <- monomorph cond

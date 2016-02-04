@@ -21,6 +21,7 @@ type Instantiate a = StateT Substitutions (Except InstantiateError) a
 monoToPoly :: Mono.Type -> Poly.Type
 monoToPoly Mono.TAny = Poly.TAny
 monoToPoly Mono.TUnit = Poly.TUnit
+monoToPoly (Mono.TTuple f s r) = Poly.TTuple (monoToPoly f) (monoToPoly s) (map monoToPoly r)
 monoToPoly (Mono.TCon n) = Poly.TCon n
 monoToPoly (Mono.TNoArgFn f) = Poly.TNoArgFn (monoToPoly f)
 monoToPoly (Mono.TFn f p) = Poly.TFn (monoToPoly f) (monoToPoly p)
@@ -56,6 +57,9 @@ getSubstitutions poly mono = Left (TypeMismatch poly mono)
 replace :: Poly.Type -> Instantiate Poly.Type
 replace Poly.TAny = return Poly.TAny
 replace Poly.TUnit = return Poly.TUnit
+replace (Poly.TTuple f s r) = Poly.TTuple <$> replace f
+                                          <*> replace s
+                                          <*> mapM replace r
 replace (Poly.TVar v) = do
   s <- get
   case Map.lookup v s of
@@ -90,6 +94,8 @@ instantiateExpr (Core.Literal l t) =
   Core.Literal l <$> replace t
 instantiateExpr (Core.If c tb eb t) =
   Core.If <$> instantiateExpr c <*> instantiateExpr tb <*> instantiateExpr eb <*> replace t
+instantiateExpr (Core.Tuple fe se rs t) =
+  Core.Tuple <$> instantiateExpr fe <*> instantiateExpr se <*> mapM instantiateExpr rs <*> replace t
 instantiateExpr (Core.Slice es t) =
   Core.Slice <$> mapM instantiateExpr es <*> replace t
 instantiateExpr (Core.Block es t) =

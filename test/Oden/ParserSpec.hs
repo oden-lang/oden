@@ -81,9 +81,24 @@ spec = do
       If (Symbol (Unqualified "a")) (Symbol (Unqualified "b")) (Symbol (Unqualified "c"))
 
     it "parses empty block as unit literal" $
-      parseExpr "{}"
+      parseExpr "()"
       `shouldSucceedWith`
       Literal Unit
+
+    it "parses expression in parens" $
+      parseExpr "(())"
+      `shouldSucceedWith`
+      Literal Unit
+
+    it "parses tuple with two elements" $
+      parseExpr "(1, ())"
+      `shouldSucceedWith`
+      Tuple (Literal (Int 1)) (Literal Unit) []
+
+    it "parses tuple with three elements" $
+      parseExpr "(1, (), 2)"
+      `shouldSucceedWith`
+      Tuple (Literal (Int 1)) (Literal Unit) [Literal (Int 2)]
 
     it "parses block of symbols" $
       parseExpr "{ x\ny\nz }"
@@ -164,7 +179,7 @@ spec = do
       TypeSignature "x" (Implicit (TEFn typeInt [typeInt]))
 
     it "parses type signature with no-arg fn" $
-      parseTopLevel "x :: -> {}"
+      parseTopLevel "x :: -> ()"
       `shouldSucceedWith`
       TypeSignature "x" (Implicit (TENoArgFn TEUnit))
 

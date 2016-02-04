@@ -42,22 +42,21 @@ var :: Name -> Expr Mono.Type -> Doc
 var name expr = varWithType name (typeOf expr) expr
 
 return' :: Expr Mono.Type -> Doc
-return' e@(Application _ _ Mono.TUnit) =
-  codegenExpr e $+$ text "return"
-return' e@(NoArgApplication _ Mono.TUnit) =
-  codegenExpr e $+$ text "return"
-return' e@(UncurriedFnApplication _ _ Mono.TUnit) =
-  codegenExpr e $+$ text "return"
-return' e@(Let _ _ _ Mono.TUnit) =
-  codegenExpr e $+$ text "return"
-return' e@(If _ _ _ Mono.TUnit)  =
-  codegenExpr e $+$ text "return"
-return' e@(Block _ Mono.TUnit)  =
-  codegenExpr e $+$ text "return"
-return' (Literal Unit _) =
-  text "return"
-return' e@(Symbol _ t) | t == Mono.TUnit =
-  codegenExpr e $+$ text "return"
+return' e@(Application f _ Mono.TUnit) =
+  case typeOf f of
+    Mono.TUncurriedFn{} -> codegenExpr e $+$ text "return struct{}{}"
+    Mono.TVariadicFn{}  -> codegenExpr e $+$ text "return struct{}{}"
+    _                   -> text "return" <+> codegenExpr e
+return' e@(NoArgApplication f Mono.TUnit) =
+  case typeOf f of
+    Mono.TUncurriedFn{} -> codegenExpr e $+$ text "return struct{}{}"
+    Mono.TVariadicFn{}  -> codegenExpr e $+$ text "return struct{}{}"
+    _                   -> text "return" <+> codegenExpr e
+return' e@(UncurriedFnApplication f _ Mono.TUnit) =
+  case typeOf f of
+    Mono.TUncurriedFn{} -> codegenExpr e $+$ text "return struct{}{}"
+    Mono.TVariadicFn{}  -> codegenExpr e $+$ text "return struct{}{}"
+    _                   -> text "return" <+> codegenExpr e
 return' expr = text "return" <+> codegenExpr expr
 
 replaceIdentifierPart :: Char -> String
@@ -85,7 +84,13 @@ codegenIdentifier (Unqualified n) = safeName n
 codegenIdentifier (Qualified pn n) = safeName pn <> text "." <> safeName n
 
 codegenType :: Mono.Type -> Doc
-codegenType Mono.TUnit = empty
+codegenType Mono.TUnit = text "struct{}"
+codegenType (Mono.TTuple f s r) =
+  text "struct" <>
+  braces (hcat (punctuate (text "; ") (zipWith codegenTupleField [0..] (f:s:r))))
+  where
+  codegenTupleField :: Int -> Mono.Type -> Doc
+  codegenTupleField n t = text ("_" ++ show n) <+> codegenType t
 codegenType Mono.TAny = text "interface{}"
 codegenType (Mono.TCon n) = safeName n
 codegenType (Mono.TNoArgFn f) =
@@ -146,7 +151,9 @@ codegenExpr (Literal (Int n) _) = integer n
 codegenExpr (Literal (Bool True) _) = text "true"
 codegenExpr (Literal (Bool False) _) = text "false"
 codegenExpr (Literal (String s) _) = text (showGoString s)
-codegenExpr (Literal Unit _) = text "<invalid unit literal>"
+codegenExpr (Literal Unit _) = text "struct{}{}"
+codegenExpr (Tuple f s r t) =
+  codegenType t <> braces (hcat (punctuate (text ", ") (map codegenExpr (f:s:r))))
 codegenExpr (If condExpr thenExpr elseExpr t) =
   parens
   (func empty empty (codegenType t) (braces (text "if" <+> codegenExpr condExpr <+> block (return' thenExpr) <+> text "else" <+> block (return' elseExpr))))
@@ -163,6 +170,8 @@ codegenExpr (Block exprs t) =
   <> parens empty
 
 codegenTopLevel :: Name -> Mono.Type -> Expr Mono.Type -> Doc
+codegenTopLevel "main" (Mono.TNoArgFn Mono.TUnit) (NoArgFn body _) =
+  func (text "main") empty empty (braces (codegenExpr body))
 codegenTopLevel name (Mono.TNoArgFn r) (NoArgFn body _) =
   func (safeName name) empty (codegenType r) (braces (return' body))
 codegenTopLevel name _ (NoArgFn body (Mono.TNoArgFn r)) =

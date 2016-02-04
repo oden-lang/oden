@@ -137,6 +137,20 @@ spec = do
         inferExpr empty (Untyped.Slice [Untyped.Literal (Untyped.Int 1),
                                         Untyped.Literal (Untyped.String "foo")])
 
+    it "infers tuple" $
+      let tupleType = (TTuple typeInt (TCon "string") [TUnit])
+      in
+        inferExpr empty (Untyped.Tuple (Untyped.Literal (Untyped.Int 1))
+                                       (Untyped.Literal (Untyped.String "foo"))
+                                       [Untyped.Literal Untyped.Unit])
+        `shouldSucceedWith`
+        (Forall [] tupleType,
+        Core.Tuple
+        (Core.Literal (Core.Int 1) typeInt)
+        (Core.Literal (Core.String "foo") (TCon "string"))
+        [Core.Literal Core.Unit TUnit]
+        tupleType)
+
     it "infers identity fn" $
       inferExpr empty (Untyped.Fn "x" (Untyped.Symbol (Unqualified "x")))
       `shouldSucceedWith`

@@ -1,0 +1,21 @@
+package tuples/main
+
+import fmt
+
+nothing = ()
+
+stuff :: (int, (), string)
+stuff = (1, nothing, "yey")
+
+main :: -> ()
+main -> {
+  fmt.Println(stuff)
+
+  if (1, 2, 3) == (1, 2, 3) then {
+    fmt.Println("Equality works.")
+  } else {
+    fmt.Println("OMG no!")
+  }
+
+  nothing
+}

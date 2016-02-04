@@ -245,6 +245,13 @@ infer expr = case expr of
     uni (Core.typeOf ttr) (Core.typeOf tfl)
     return (Core.If tcond ttr tfl (Core.typeOf ttr))
 
+  Untyped.Tuple f s r -> do
+    tf <- infer f
+    ts <- infer s
+    tr <- mapM infer r
+    let t = TTuple (Core.typeOf tf) (Core.typeOf ts) (map Core.typeOf tr)
+    return (Core.Tuple tf ts tr t)
+
   Untyped.Slice es -> do
     tv <- fresh
     tes <- mapM infer es
@@ -294,18 +301,20 @@ normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
   where
     ord = zip (nub $ fv body) (map TV letters)
 
-    fv TAny           = []
-    fv TUnit          = []
-    fv (TVar a)       = [a]
-    fv (TNoArgFn a) = fv a
-    fv (TFn a b)     = fv a ++ fv b
-    fv (TUncurriedFn as r) = concatMap fv as ++ fv r
-    fv (TVariadicFn as v r) = concatMap fv as ++ fv v ++ fv r
-    fv (TCon _)       = []
-    fv (TSlice t)     = fv t
+    fv TAny                   = []
+    fv TUnit                  = []
+    fv (TTuple f s rs)        = fv f ++ fv s ++ concatMap fv rs
+    fv (TVar a)               = [a]
+    fv (TNoArgFn a)           = fv a
+    fv (TFn a b)              = fv a ++ fv b
+    fv (TUncurriedFn as r)    = concatMap fv as ++ fv r
+    fv (TVariadicFn as v r)   = concatMap fv as ++ fv v ++ fv r
+    fv (TCon _)               = []
+    fv (TSlice t)             = fv t
 
     normtype TAny           = TAny
     normtype TUnit          = TUnit
+    normtype (TTuple f s r) = TTuple (normtype f) (normtype s) (map normtype r)
     normtype (TNoArgFn a)   = TNoArgFn (normtype a)
     normtype (TFn a b)      = TFn (normtype a) (normtype b)
     normtype (TUncurriedFn as r) = TUncurriedFn (map normtype as) (normtype r)

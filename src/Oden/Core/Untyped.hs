@@ -11,6 +11,7 @@ data Expr = Symbol Identifier
           | NoArgFn Expr
           | Let Name Expr Expr
           | Literal Literal
+          | Tuple Expr Expr [Expr]
           | If Expr Expr Expr
           | Slice [Expr]
           | Block [Expr]

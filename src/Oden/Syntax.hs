@@ -13,6 +13,7 @@ data Expr = Symbol Identifier
           | Literal Literal
           | If Expr Expr Expr
           | Slice [Expr]
+          | Tuple Expr Expr [Expr]
           | Block [Expr]
           deriving (Show, Eq, Ord)
 
@@ -28,6 +29,7 @@ data TypeExpr = TEAny
               | TECon String
               | TEFn TypeExpr [TypeExpr]
               | TENoArgFn TypeExpr
+              | TETuple TypeExpr TypeExpr [TypeExpr]
               | TESlice TypeExpr
               deriving (Show, Eq, Ord)
 

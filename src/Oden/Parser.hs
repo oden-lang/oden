@@ -45,12 +45,7 @@ bool = (reserved "true" >> return (Literal (Bool True)))
     <|> (reserved "false" >> return (Literal (Bool False)))
 
 block :: Parser Expr
-block = try emptyBlock <|> nonEmptyBlock
-  where
-  emptyBlock = do
-    reserved "{}"
-    return (Literal Unit)
-  nonEmptyBlock = Block <$> braces (whitespace *> (expr `sepBy1` topSeparator) <* whitespace)
+block = Block <$> braces (whitespace *> (expr `sepBy1` topSeparator) <* whitespace)
 
 if' :: Parser Expr
 if' = do
@@ -93,6 +88,14 @@ application = do
 slice :: Parser Expr
 slice = Slice <$> (char '!' *> brackets (expr `sepBy` comma))
 
+unitExprOrTuple :: Parser Expr
+unitExprOrTuple = do
+  exprs <- parensList expr
+  case exprs of
+    []      -> return (Literal Unit)
+    [e]     -> return e
+    (f:s:r) -> return (Tuple f s r)
+
 term :: Parser Expr
 term =
   try fn
@@ -105,7 +108,7 @@ term =
   <|> try application
   <|> symbol
   <|> block
-  <|> parens expr
+  <|> unitExprOrTuple
 
 tvar :: Parser String
 tvar = char '#' *> identifier
@@ -121,15 +124,19 @@ type' = do
   simple = slice'
         <|> noArgFn
         <|> any'
-        <|> unit'
         <|> con
         <|> var
-        <|> parens type'
+        <|> unitExprOrTupleType
   var = TEVar <$> tvar
   any' = reserved "any" *> return TEAny
-  unit' = reserved "{}" *> return TEUnit
   con = TECon <$> identifier
   noArgFn = TENoArgFn <$> (rArrow *> type')
+  unitExprOrTupleType = do
+    ts <- parensList type'
+    case ts of
+      [] -> return TEUnit
+      [t] -> return t
+      (f:s:r) -> return (TETuple f s r)
   slice' = TESlice <$> (char '!' *> brackets type')
 
 expr :: Parser Expr
