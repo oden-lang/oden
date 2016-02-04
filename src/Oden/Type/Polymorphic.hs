@@ -70,7 +70,7 @@ data Scheme = Forall [TVar] Type
 
 instance Show Scheme where
   show (Forall [] t) = show t
-  show (Forall vs t) = "forall " ++ (unwords (map show vars)) ++ ". " ++ show t
+  show (Forall vs t) = "forall " ++ unwords (map show vars) ++ ". " ++ show t
     where vars = unwords (map show vs)
 
 toMonomorphic :: Type -> Either String Mono.Type

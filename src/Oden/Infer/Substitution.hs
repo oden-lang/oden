@@ -20,6 +20,10 @@ emptySubst = mempty
 compose :: Subst -> Subst -> Subst
 (Subst s1) `compose` (Subst s2) = Subst $ Map.map (apply (Subst s1)) s2 `Map.union` s1
 
+-- | Union of substitutions
+union :: Subst -> Subst -> Subst
+(Subst s1) `union` (Subst s2) = Subst (s1 `Map.union` s2)
+
 class FTV a => Substitutable a where
   apply :: Subst -> a -> a
 

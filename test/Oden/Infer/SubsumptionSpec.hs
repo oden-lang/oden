@@ -1,9 +1,11 @@
 module Oden.Infer.SubsumptionSpec where
 
+import           Data.Map
 import           Test.Hspec
 
 import           Oden.Infer.Subsumption
 import           Oden.Type.Polymorphic
+import           Oden.Infer.Substitution
 
 import           Oden.Assertions
 
@@ -14,8 +16,26 @@ tvarA = TVar (TV "a")
 tvarB :: Type
 tvarB = TVar (TV "b")
 
+tvarC :: Type
+tvarC = TVar (TV "c")
+
 spec :: Spec
-spec =
+spec = do
+
+  describe "getSubst" $ do
+    it "gets substitutions for tuple" $
+      getSubst
+      (TTuple tvarA tvarB [])
+      (TTuple tvarB tvarC [])
+      `shouldSucceedWith`
+      Subst (fromList [(TV "b", tvarA), (TV "c", tvarB)])
+    it "gets substitutions for fn of tuple" $
+      getSubst
+      (TFn tvarA (TFn tvarB (TTuple tvarA tvarB [])))
+      (TFn tvarB (TFn tvarC (TTuple tvarB tvarC [])))
+      `shouldSucceedWith`
+      Subst (fromList [(TV "b", tvarA), (TV "c", tvarB)])
+
   describe "subsume" $ do
     it "any subsume any" $
       TAny `subsume` TAny
@@ -51,3 +71,7 @@ spec =
       TFn tvarA tvarA
     it "TVar does not subsume TFn" $
       shouldFail (tvarA `subsume` TFn tvarB tvarB)
+    it "tuple of tvars subsumes tuple of same tvars" $
+      TTuple tvarA tvarA [] `subsume` TTuple tvarA tvarA []
+      `shouldSucceedWith`
+      TTuple tvarA tvarA []

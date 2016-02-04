@@ -361,6 +361,11 @@ unifies (TVariadicFn as1 v1 r1) (TVariadicFn as2 v2 r2) = do
   v <- unifies v1 v2
   r <- unifies r1 r2
   return (a `compose` v `compose` r)
+unifies (TTuple f1 s1 r1) (TTuple f2 s2 r2) = do
+  f <- unifies f1 f2
+  s <- unifies s1 s2
+  r <- unifyMany r1 r2
+  return (f `compose` s `compose` r)
 unifies (TSlice t1) (TSlice t2) = unifies t1 t2
 unifies t1 t2 = throwError $ UnificationFail t1 t2
 

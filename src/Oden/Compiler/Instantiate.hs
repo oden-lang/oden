@@ -50,6 +50,11 @@ getSubstitutions (Poly.TVariadicFn pas pv pr) (Mono.TVariadicFn mas mv mr) = do
   r <- getSubstitutions pr mr
   v <- getSubstitutions pv mv
   return (foldl mappend r (v:as))
+getSubstitutions (Poly.TTuple pf ps pr) (Mono.TTuple mf ms mr) = do
+  f <- getSubstitutions pf mf
+  s <- getSubstitutions ps ms
+  r <- zipWithM getSubstitutions pr mr
+  return (foldl mappend f (s:r))
 getSubstitutions (Poly.TSlice p) (Mono.TSlice m) =
   getSubstitutions p m
 getSubstitutions poly mono = Left (TypeMismatch poly mono)

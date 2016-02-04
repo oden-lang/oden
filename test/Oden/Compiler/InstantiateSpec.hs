@@ -37,6 +37,26 @@ lenInt = Core.Symbol
           (Unqualified "len")
           (Poly.TUncurriedFn [Poly.TSlice Poly.typeInt] Poly.typeInt)
 
+pairPoly :: Core.Expr Poly.Type
+pairPoly =
+  Core.Tuple
+  (Core.Symbol (Unqualified "x") (Poly.TVar (Poly.TV "a")))
+  (Core.Symbol (Unqualified "y") (Poly.TVar (Poly.TV "b")))
+  []
+  (Poly.TTuple (Poly.TVar (Poly.TV "a")) (Poly.TVar (Poly.TV "b")) [])
+
+
+pairIntStringType :: Mono.Type
+pairIntStringType = Mono.TTuple Mono.typeInt (Mono.TCon "string") []
+
+pairIntString :: Core.Expr Poly.Type
+pairIntString =
+  Core.Tuple
+  (Core.Symbol (Unqualified "x") Poly.typeInt)
+  (Core.Symbol (Unqualified "y") (Poly.TCon "string"))
+  []
+  (Poly.TTuple Poly.typeInt (Poly.TCon "string") [])
+
 spec :: Spec
 spec =
   describe "instantiate" $ do
@@ -46,3 +66,5 @@ spec =
       instantiate identityPoly identityIntType `shouldSucceedWith` identityInt
     it "instantiates len func" $
       instantiate lenPoly lenIntType `shouldSucceedWith` lenInt
+    it "instantiates polymorphic tuple" $
+      instantiate pairPoly pairIntStringType `shouldSucceedWith` pairIntString

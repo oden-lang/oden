@@ -7,6 +7,9 @@ nothing = ()
 stuff :: (int, (), string)
 stuff = (1, nothing, "yey")
 
+pair :: #a -> #b -> (#a, #b)
+pair x y -> (x, y)
+
 main :: -> ()
 main -> {
   fmt.Println(stuff)
@@ -16,6 +19,8 @@ main -> {
   } else {
     fmt.Println("OMG no!")
   }
+
+  fmt.Println(pair(2, "hello") == (2, "hello"))
 
   nothing
 }
