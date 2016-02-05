@@ -51,6 +51,7 @@ library
     Oden.Output,
     Oden.Output.Backend,
     Oden.Output.Compiler,
+    Oden.Output.Compiler.Validation,
     Oden.Output.Explode,
     Oden.Output.Go,
     Oden.Output.Infer,
