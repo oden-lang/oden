@@ -43,36 +43,36 @@ init-dev:
 	cabal install --enable-tests --only-dependencies
 	cabal configure --enable-tests
 
-dist/build-odenc/bin/odenc: build
-	rm -rf dist/build-odenc
-	cp -r dist/build dist/build-odenc
-	mkdir -p dist/build-odenc/bin
+dist/build-oden-cli/bin/oden: build
+	rm -rf dist/build-oden-cli
+	cp -r dist/build dist/build-oden-cli
+	mkdir -p dist/build-oden-cli/bin
 	ghc \
 		--make \
 		-package-db .cabal-sandbox/*-packages.conf.d \
-		-odir dist/build-odenc \
-		-hidir dist/build-odenc \
-		-iodenc \
+		-odir dist/build-oden-cli \
+		-hidir dist/build-oden-cli \
+		-ioden \
 		-isrc \
 		-fPIC \
 		-static \
 		-threaded \
-		-o dist/build-odenc/bin/odenc \
-		dist/build-odenc/libHSoden*.a \
-		dist/build-odenc/autogen/Paths_oden.hs \
+		-o dist/build-oden-cli/bin/oden \
+		dist/build-oden-cli/libHSoden*.a \
+		dist/build-oden-cli/autogen/Paths_oden.hs \
 		dist/go-lib/importer.a \
-		odenc/Main.hs
+		$(shell find cli -name '*.hs')
 
-.PHONY: odenc
-odenc: dist/build-odenc/bin/odenc
+.PHONY: cli
+cli: dist/build-oden-cli/bin/oden
 
-dist/oden: dist/build-odenc/bin/odenc
+dist/oden: dist/build-oden-cli/bin/oden
 	@mkdir -p dist/oden/bin
 	cp README.md dist/oden/README.txt
 	cp LICENSE.md dist/oden/LICENSE.txt
 	cp CREDITS.md dist/oden/CREDITS.txt
 	cp CHANGELOG.md dist/oden/CHANGELOG.txt
-	cp dist/build-odenc/bin/odenc dist/oden/bin/odenc
+	cp dist/build-oden-cli/bin/oden dist/oden/bin/oden
 
 $(DIST_ARCHIVE): dist/oden
 	(cd dist/oden && tar -czf ../$(DIST_NAME).tar.gz .)

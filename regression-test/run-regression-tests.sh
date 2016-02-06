@@ -8,7 +8,7 @@ if [ -z $command ]; then
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-ODENC=$DIR/../dist/oden/bin/odenc
+ODEN=$DIR/../dist/build/cli/cli
 
 cd $DIR
 tests=$(find src -name *.oden)
@@ -29,7 +29,7 @@ for test in $tests; do
   mkdir -p $(dirname $tmp_src_file)
 
   cp $test $tmp_src_file
-  oden_out=$($ODENC -p$tmp_oden_path -o$tmp_go_path 2>&1)
+  oden_out=$($ODEN -p$tmp_oden_path -o$tmp_go_path build 2>&1)
   oden_return=$?
 
   go_out_file=$()$(mktemp -t go_out)
