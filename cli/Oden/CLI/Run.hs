@@ -21,4 +21,10 @@ run path = do
   tmp <- liftIO (createTempDirectory tmpDir "oden-run.go")
   files <- liftEither (codegen (GoBackend tmp) pkg)
   mapM_ writeCompiledFile files
-  liftIO $ callCommand ("go run " ++ (tmp </> "src" </> "main.go"))
+  case filter isMainPackage files of
+    [] -> liftIO $ exitWithMessage "Not a main package!"
+    [CompiledFile name _] -> liftIO $ callCommand ("go run " ++ name)
+    _ -> liftIO $ exitWithMessage "Cannot run with multiple main packages!"
+  where
+  isMainPackage :: CompiledFile -> Bool
+  isMainPackage (CompiledFile name _) = takeBaseName name == "main"
