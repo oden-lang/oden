@@ -6,5 +6,6 @@ pair x y f -> f(x, y)
 
 first p -> p(fn x y -> x)
 
-main ->
+main -> {
   fmt.Println(let p = pair("a", 1) in first(p))
+}

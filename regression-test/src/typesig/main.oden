@@ -13,8 +13,7 @@ identityExplicit x -> x
 theMessage :: string
 theMessage = "Type signatures work!"
 
-main ->
-  fmt.Println(
-    identityExplicit(
-      identityImplicit(
-        identityNoTypeSig(theMessage))))
+main -> fmt.Println(
+  identityExplicit(
+    identityImplicit(
+      identityNoTypeSig(theMessage))))

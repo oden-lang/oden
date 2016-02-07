@@ -2,6 +2,4 @@ package logic/main
 
 import fmt
 
-main -> fmt.Println(if not(true && false) || false
-                    then "yey"
-                    else "ney")
+main -> fmt.Println(if not(true && false) || false then "yey" else "ney")
