@@ -1,20 +1,45 @@
 module Oden.Output.Parser where
 
+import qualified Data.Set as Set
+
 import Text.PrettyPrint
-import Text.Parsec
+import Text.Parsec hiding (unexpected)
 import Text.Parsec.Error
 
 import Oden.Output as Output
 
-formatErrorMessage :: Message -> Doc
-formatErrorMessage (SysUnExpect s) = text "Unexpected" <+> doubleQuotes (text s)
-formatErrorMessage (UnExpect s) = text "Unexpected" <+> doubleQuotes (text s)
-formatErrorMessage (Expect s) = text "Expected" <+> doubleQuotes (text s)
-formatErrorMessage (Message s) = text s
+type ExpectedParts = Set.Set String
+type UnexpectedPart = Maybe String
+data CondensedMessage = CondensedMessage ExpectedParts UnexpectedPart
+
+condense :: ParseError -> CondensedMessage
+condense e = foldl iter (CondensedMessage Set.empty Nothing) (errorMessages e)
+  where
+  iter (CondensedMessage ex _) (SysUnExpect s) =
+    CondensedMessage ex (Just s)
+  iter (CondensedMessage ex _) (UnExpect s) =
+    CondensedMessage ex (Just s)
+  iter c@(CondensedMessage ex u) (Expect s)
+    | s == "" = c
+    | otherwise = CondensedMessage (Set.insert s ex) u
+  iter c _ = c
+
+
+commaOr :: [String] -> Doc
+commaOr [] = empty
+commaOr [x] = text x
+commaOr xs = hcat (punctuate (text ", ") (map text (init xs)))
+             <+> text "or" <+> text (last xs)
 
 instance OdenOutput ParseError where
   outputType _ = Output.Error
   name _ = "Parser.ParseError"
   header _ _ = text "Parsing failed"
-  details e _ = vcat (map formatErrorMessage (errorMessages e))
+  details e _ =
+    case condense e of
+      (CondensedMessage ex Nothing) ->
+        text "Expected:" <+> hcat (punctuate (text ", ") (map text (Set.toList ex)))
+      (CondensedMessage ex (Just unEx)) ->
+        text "Unexpected:" <+> text unEx
+        $+$ text "Expected:" <+> commaOr (Set.toList ex)
 
