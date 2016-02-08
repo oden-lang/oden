@@ -7,6 +7,7 @@ import Text.Parsec hiding (unexpected)
 import Text.Parsec.Error
 
 import Oden.Output as Output
+import Oden.SourceInfo
 
 type ExpectedParts = Set.Set String
 type UnexpectedPart = Maybe String
@@ -31,15 +32,23 @@ commaOr [x] = text x
 commaOr xs = hcat (punctuate (text ", ") (map text (init xs)))
              <+> text "or" <+> text (last xs)
 
+errorSourceInfo :: ParseError -> SourceInfo
+errorSourceInfo e =
+   let pos = errorPos e
+   in SourceInfo (Position (sourceName pos)
+                           (sourceLine pos)
+                           (sourceColumn pos))
+
 instance OdenOutput ParseError where
   outputType _ = Output.Error
   name _ = "Parser.ParseError"
-  header _ _ = text "Parsing failed"
-  details e _ =
+  header e _ =
     case condense e of
       (CondensedMessage ex Nothing) ->
-        text "Expected:" <+> hcat (punctuate (text ", ") (map text (Set.toList ex)))
+        text "Expected" <+> hcat (punctuate (text ", ") (map text (Set.toList ex)))
       (CondensedMessage ex (Just unEx)) ->
-        text "Unexpected:" <+> text unEx
-        $+$ text "Expected:" <+> commaOr (Set.toList ex)
+        text "Expected" <+> commaOr (Set.toList ex)
+        <+> text "but got:" <+> text unEx
+  details _ _ = empty
+  sourceInfo e = Just (errorSourceInfo e)
 

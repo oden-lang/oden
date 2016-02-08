@@ -15,6 +15,8 @@ instance OdenOutput ValidationError where
 
   details (Redefinition _) _ = text "Shadowing is not allowed"
 
+  sourceInfo _ = Nothing
+
 instance OdenOutput ValidationWarning where
   outputType (ValueDiscarded _)   = Warning
 
@@ -26,3 +28,4 @@ instance OdenOutput ValidationWarning where
 
   details (ValueDiscarded _) _    = empty
 
+  sourceInfo _ = Nothing

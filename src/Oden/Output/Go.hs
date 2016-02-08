@@ -12,6 +12,7 @@ instance OdenOutput PackageImportError where
   header (PackageImportError n _) s    = text "Failed to import Go package:"
                                           <+> strCode s (intercalate "/" n)
   details (PackageImportError _ err) _    = text err
+  sourceInfo _ = Nothing
 
 instance OdenOutput UnsupportedTypesWarning where
   outputType _  = Warning
@@ -20,3 +21,4 @@ instance OdenOutput UnsupportedTypesWarning where
   details u s   = vcat (map formatMessage (messages u))
     where formatMessage (n, msg) = strCode s n
                                    <+> parens (text msg <+> text "are not supported")
+  sourceInfo _ = Nothing

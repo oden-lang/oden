@@ -10,4 +10,4 @@ instance OdenOutput CodegenError where
   name (UnexpectedError _)      = "Backend.UnexpectedError"
   header (UnexpectedError _) _  = text "Unexpected error in codegen"
   details (UnexpectedError s) _ = text s
-
+  sourceInfo _ = Nothing

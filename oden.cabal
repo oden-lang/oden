@@ -60,6 +60,7 @@ library
     Oden.Parser,
     Oden.Predefined,
     Oden.Scope,
+    Oden.SourceInfo,
     Oden.Syntax,
     Oden.Scanner,
     Oden.Type.Monomorphic,

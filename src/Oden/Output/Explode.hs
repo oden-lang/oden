@@ -21,3 +21,5 @@ instance OdenOutput ExplodeError where
   details (TypeSignatureWithoutDefinition n sc) s =
     text "Define the value" <+> strCode s n
     <+> text "with type" <+> code s sc
+
+  sourceInfo _ = Nothing

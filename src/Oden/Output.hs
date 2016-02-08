@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Oden.Output where
 
+import           Oden.SourceInfo
+
 import           Control.Monad.Reader
 import           Data.List
 import           Text.PrettyPrint
@@ -17,6 +19,7 @@ class OdenOutput e where
   name :: e -> String
   header :: e -> OutputSettings -> Doc
   details :: e -> OutputSettings -> Doc
+  sourceInfo :: e -> Maybe SourceInfo
 
 backtick :: Doc
 backtick = text "`"
@@ -33,12 +36,22 @@ strCode settings a =
 code :: Show a => OutputSettings -> a -> Doc
 code s = strCode s . show
 
+formatSourceInfo :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
+formatSourceInfo e =
+  case sourceInfo e of
+    Just (SourceInfo pos) ->
+      return $ text (fileName pos)
+               <> colon <> int (line pos)
+               <> colon <> int (column pos)
+               <> colon
+    Nothing               -> return empty
+
 formatOutputType :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 formatOutputType e = do
   s <- ask
   case outputType e of
-    Warning -> return $ escape s [1, 33] <> text "Warning:" <> escape s [0]
-    Error -> return $ escape s [1, 31] <> text "Error:" <> escape s [0]
+    Warning -> return $ escape s [1, 33] <> text "warning:" <> escape s [0]
+    Error -> return $ escape s [1, 31] <> text "error:" <> escape s [0]
 
 wikiLink :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 wikiLink e =
@@ -50,9 +63,10 @@ wikiLink e =
 format :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 format e = do
   s <- ask
+  pos <- formatSourceInfo e
   t <- formatOutputType e
   wl <- wikiLink e
-  return (t <+> header e s $+$ nest 2 (details e s) $+$ wl)
+  return (pos <+> t <+> header e s $+$ nest 2 (details e s) $+$ wl)
 
 print :: OdenOutput e => OutputSettings -> e -> String
 print settings e = render $ runReader (format e) settings

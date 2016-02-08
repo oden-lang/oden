@@ -16,3 +16,4 @@ instance OdenOutput InstantiateError where
   details (TypeMismatch pt mt) s        = text "Polymorphic type" <+> code s pt <+> text "cannot be instantiated to" <+> code s mt
   details (SubstitutionFailed _ vars) s = text "Type variables in context:" <+> hcat (map (code s) vars)
 
+  sourceInfo _ = Nothing

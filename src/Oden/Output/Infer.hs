@@ -43,3 +43,5 @@ instance OdenOutput TypeError where
     $+$ text "Actual:" <+> vcat (map (code s) as2)
   details (TypeSignatureSubsumptionError _ (SubsumptionError t1 t2)) s =
     text "Type" <+> code s t1 <+> text "does not subsume" <+> code s t2
+
+  sourceInfo _ = Nothing
