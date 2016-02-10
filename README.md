@@ -4,11 +4,11 @@
 
 **EXPERIMENTAL!**
 
-Oden is a LISP-inspired language with static typing that compiles
-to native code using Go. The current implementation is working draft
-and **should be considered highly experimental**. See [Motivations
-& Goals](http://oden-lang.org/about) for
-details.
+Oden is an **experimental**, statically typed, functional programming language,
+built for the Go ecosystem. It aims to leverage the great features of Go —
+static linking, cross-compilation, goroutines, channels and the great set
+of libraries and tools — and enable higher-level abstractions, generics
+and a safer yet more flexible type system.
 
 ## Documentation
 
