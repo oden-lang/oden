@@ -42,7 +42,7 @@ predef :: Env
 predef = fromScope predefined
 
 uSymbol                 = Untyped.Symbol Missing
-uOp                     = Untyped.Op Missing
+uOp                     = Untyped.BinaryOp Missing
 uApplication            = Untyped.Application Missing
 uFn                     = Untyped.Fn Missing
 uNoArgFn                = Untyped.NoArgFn Missing
@@ -62,7 +62,7 @@ uBinding = Untyped.Binding Missing
 uDefinition = Untyped.Definition Missing
 
 tSymbol                 = Core.Symbol Missing
-tOp                     = Core.Op Missing
+tOp                     = Core.BinaryOp Missing
 tApplication            = Core.Application Missing
 tNoArgApplication       = Core.NoArgApplication Missing
 tUncurriedFnApplication = Core.UncurriedFnApplication Missing

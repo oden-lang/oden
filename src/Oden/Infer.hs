@@ -156,7 +156,16 @@ infer expr = case expr of
   Untyped.Literal si (Untyped.String s) ->
     return (Core.Literal si (Core.String s) (TBasic si TString))
 
-  Untyped.Op si o e1 e2 -> do
+  Untyped.UnaryOp si o e -> do
+    rt <- case o of
+              Plus   -> return (TBasic si TInt)
+              Negate -> return (TBasic si TInt)
+              Not    -> return (TBasic si TBool)
+    te <- infer e
+    uni (getSourceInfo te) (Core.typeOf te) rt
+    return (Core.UnaryOp si o te rt)
+
+  Untyped.BinaryOp si o e1 e2 -> do
     (ot, rt) <- case o of
                     Add               -> return (TBasic si TInt, TBasic si TInt)
                     Subtract          -> return (TBasic si TInt, TBasic si TInt)
@@ -175,7 +184,7 @@ infer expr = case expr of
     te2 <- infer e2
     uni (getSourceInfo te1) (Core.typeOf te1) ot
     uni (getSourceInfo te2) (Core.typeOf te2) ot
-    return (Core.Op si o te1 te2 rt)
+    return (Core.BinaryOp si o te1 te2 rt)
 
   Untyped.Symbol si x -> do
     t <- lookupEnv si x

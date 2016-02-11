@@ -9,7 +9,8 @@ data Binding = Binding SourceInfo Name
              deriving (Show, Eq, Ord)
 
 data Expr = Symbol SourceInfo Identifier
-          | Op SourceInfo BinaryOperator Expr Expr
+          | UnaryOp SourceInfo UnaryOperator Expr
+          | BinaryOp SourceInfo BinaryOperator Expr Expr
           | Application SourceInfo Expr [Expr]
           | Fn SourceInfo Binding Expr
           | NoArgFn SourceInfo Expr
@@ -23,7 +24,8 @@ data Expr = Symbol SourceInfo Identifier
 
 instance HasSourceInfo Expr where
   getSourceInfo (Symbol si _)                   = si
-  getSourceInfo (Op si _ _ _)                   = si
+  getSourceInfo (UnaryOp si _ _)                = si
+  getSourceInfo (BinaryOp si _ _ _)             = si
   getSourceInfo (Application si _ _)            = si
   getSourceInfo (Fn si _ _)                     = si
   getSourceInfo (NoArgFn si _)                  = si
@@ -35,7 +37,8 @@ instance HasSourceInfo Expr where
   getSourceInfo (Block si _)                    = si
 
   setSourceInfo si (Symbol _ i)                   = Symbol si i
-  setSourceInfo si (Op _ p l r)                   = Op si p l r
+  setSourceInfo si (UnaryOp _ p r)                = UnaryOp si p r
+  setSourceInfo si (BinaryOp _ p l r)             = BinaryOp si p l r
   setSourceInfo si (Application _ f a)            = Application si f a
   setSourceInfo si (Fn _ n b)                     = Fn si n b
   setSourceInfo si (NoArgFn _ b)                  = NoArgFn si b

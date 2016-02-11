@@ -17,16 +17,6 @@ src l c = SourceInfo (Position "<stdin>" l c)
 spec :: Spec
 spec = do
   describe "parseExpr" $ do
-    it "parses + identifier" $
-      parseExpr "+"
-      `shouldSucceedWith`
-      Symbol (src 1 1) (Unqualified "+")
-
-    it "parses +foo identifier" $
-      parseExpr "+foo"
-      `shouldSucceedWith`
-      Symbol (src 1 1) (Unqualified "+foo")
-
     it "parses qualified identifier" $
       parseExpr "foo.bar"
       `shouldSucceedWith`
@@ -36,15 +26,6 @@ spec = do
       parseExpr "123"
       `shouldSucceedWith`
       Literal (src 1 1) (Int 123)
-
-    it "parses +123 integer literal" $
-      parseExpr "+123"
-      `shouldSucceedWith`
-      Literal (src 1 1) (Int 123)
-
-    it "parses + 123 as symbol and integer literal" $
-      shouldFail $
-        parseExpr "+ 123"
 
     it "parses false literal" $
       parseExpr "false"
@@ -154,10 +135,18 @@ spec = do
       [LetPair (src 1 5) (Binding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
       (Symbol (src 1 14) (Unqualified "z"))
 
+    it "parses unary operator application" $
+      parseExpr "+ x"
+      `shouldSucceedWith`
+      UnaryOp
+      (src 1 1)
+      Plus
+      (Symbol (src 1 3) (Unqualified "x"))
+
     it "parses binary operator application" $
       parseExpr "x + y"
       `shouldSucceedWith`
-      Op
+      BinaryOp
       (src 1 3)
       Add
       (Symbol (src 1 1) (Unqualified "x"))
@@ -166,7 +155,7 @@ spec = do
     it "parses string concat application" $
       parseExpr "x ++ y"
       `shouldSucceedWith`
-      Op
+      BinaryOp
       (src 1 3)
       Concat
       (Symbol (src 1 1) (Unqualified "x"))
@@ -207,12 +196,12 @@ spec = do
       Symbol (src 4 3) (Unqualified "x")
 
     it "parses slice literal" $
-      parseExpr "![x, y, z]"
+      parseExpr "[x, y, z]"
       `shouldSucceedWith`
       Slice (src 1 1) [
-          Symbol (src 1 3) (Unqualified "x"),
-          Symbol (src 1 6) (Unqualified "y"),
-          Symbol (src 1 9) (Unqualified "z")
+          Symbol (src 1 2) (Unqualified "x"),
+          Symbol (src 1 5) (Unqualified "y"),
+          Symbol (src 1 8) (Unqualified "z")
         ]
 
   describe "parseTopLevel" $ do
