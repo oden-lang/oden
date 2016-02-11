@@ -5,13 +5,14 @@ import           Test.Hspec
 
 import           Oden.Identifier
 import           Oden.Parser
+import           Oden.SourceInfo
 import           Oden.Syntax
 import           Oden.Core.Operator
 
 import           Oden.Assertions
 
-typeInt :: TypeExpr
-typeInt = TECon "int"
+src :: Line -> Column -> SourceInfo
+src l c = SourceInfo (Position "<stdin>" l c)
 
 spec :: Spec
 spec = do
@@ -19,27 +20,27 @@ spec = do
     it "parses + identifier" $
       parseExpr "+"
       `shouldSucceedWith`
-      Symbol (Unqualified "+")
+      Symbol (src 1 1) (Unqualified "+")
 
     it "parses +foo identifier" $
       parseExpr "+foo"
       `shouldSucceedWith`
-      Symbol (Unqualified "+foo")
+      Symbol (src 1 1) (Unqualified "+foo")
 
     it "parses qualified identifier" $
       parseExpr "foo.bar"
       `shouldSucceedWith`
-      Symbol (Qualified "foo" "bar")
+      Symbol (src 1 1) (Qualified "foo" "bar")
 
     it "parses integer literal" $
       parseExpr "123"
       `shouldSucceedWith`
-      Literal (Int 123)
+      Literal (src 1 1) (Int 123)
 
     it "parses +123 integer literal" $
       parseExpr "+123"
       `shouldSucceedWith`
-      Literal (Int 123)
+      Literal (src 1 1) (Int 123)
 
     it "parses + 123 as symbol and integer literal" $
       shouldFail $
@@ -48,76 +49,99 @@ spec = do
     it "parses false literal" $
       parseExpr "false"
       `shouldSucceedWith`
-      Literal (Bool False)
+      Literal (src 1 1) (Bool False)
 
     it "parses true literal" $
       parseExpr "true"
       `shouldSucceedWith`
-      Literal (Bool True)
+      Literal (src 1 1) (Bool True)
 
     it "parses string literal" $
       parseExpr "\"foo bar 123\""
       `shouldSucceedWith`
-      Literal (String "foo bar 123")
+      Literal (src 1 1) (String "foo bar 123")
 
     it "parses fn expression" $
       parseExpr "fn x -> x"
       `shouldSucceedWith`
-      Fn ["x"] (Symbol (Unqualified "x"))
+      Fn (src 1 1) [Binding (src 1 4) "x"] (Symbol (src 1 9) (Unqualified "x"))
 
     it "parses multi-arg fn expression" $
       parseExpr "fn x y z -> x"
       `shouldSucceedWith`
-      Fn ["x", "y", "z"] (Symbol (Unqualified "x"))
+      Fn
+      (src 1 1)
+      [Binding (src 1 4) "x", Binding (src 1 6) "y", Binding (src 1 8) "z"]
+      (Symbol (src 1 13) (Unqualified "x"))
 
     it "parses no-arg fn expression" $
       parseExpr "fn -> x"
       `shouldSucceedWith`
-      Fn [] (Symbol (Unqualified "x"))
+      Fn (src 1 1) [] (Symbol (src 1 7) (Unqualified "x"))
 
     it "parses if expression" $
       parseExpr "if a then b else c"
       `shouldSucceedWith`
-      If (Symbol (Unqualified "a")) (Symbol (Unqualified "b")) (Symbol (Unqualified "c"))
+      If
+      (src 1 1)
+      (Symbol (src 1 4) (Unqualified "a"))
+      (Symbol (src 1 11) (Unqualified "b"))
+      (Symbol (src 1 18) (Unqualified "c"))
 
     it "parses empty block as unit literal" $
       parseExpr "()"
       `shouldSucceedWith`
-      Literal Unit
+      Literal (src 1 1) Unit
 
     it "parses expression in parens" $
       parseExpr "(())"
       `shouldSucceedWith`
-      Literal Unit
+      Literal (src 1 2) Unit
 
     it "parses tuple with two elements" $
       parseExpr "(1, ())"
       `shouldSucceedWith`
-      Tuple (Literal (Int 1)) (Literal Unit) []
+      Tuple
+      (src 1 1)
+      (Literal (src 1 2) (Int 1))
+      (Literal (src 1 5) Unit)
+      []
 
     it "parses tuple with three elements" $
       parseExpr "(1, (), 2)"
       `shouldSucceedWith`
-      Tuple (Literal (Int 1)) (Literal Unit) [Literal (Int 2)]
+      Tuple
+      (src 1 1)
+      (Literal (src 1 2) (Int 1))
+      (Literal (src 1 5) Unit)
+      [Literal (src 1 9) (Int 2)]
 
     it "parses block of symbols" $
-      parseExpr "{ x\ny\nz }"
+      parseExpr "{\n  x\n  y\n  z\n}"
       `shouldSucceedWith`
-      Block [
-          Symbol (Unqualified "x"),
-          Symbol (Unqualified "y"),
-          Symbol (Unqualified "z")
+      Block (src 1 1) [
+          Symbol (src 2 3) (Unqualified "x"),
+          Symbol (src 3 3) (Unqualified "y"),
+          Symbol (src 4 3) (Unqualified "z")
         ]
 
     it "parses let binding and block of symbol" $
       parseExpr "let x = y in { x }"
       `shouldSucceedWith`
-      Let [("x", Symbol (Unqualified "y"))] (Block [Symbol (Unqualified "x")])
+      Let
+      (src 1 1)
+      [LetPair (src 1 5) (Binding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
+      (Block (src 1 14) [Symbol (src 1 16) (Unqualified "x")])
 
     it "parses block with let binding and block of symbol" $
-      parseExpr "{\nlet x = y in {\nx\n}\n}"
+      parseExpr "{\n  let x = y in {\n    x\n  }\n}"
       `shouldSucceedWith`
-      Block [Let [("x", Symbol (Unqualified "y"))] (Block [Symbol (Unqualified "x")])]
+      Block (src 1 1) [
+          Let
+          (src 2 3)
+          [LetPair (src 2 7) (Binding (src 2 7) "x") (Symbol (src 2 11) (Unqualified "y"))]
+          (Block (src 2 16) [Symbol (src 3 5) (Unqualified "x")])
+        ]
 
     it "fails on if expression with newlines" pending
     it "fails on let expression with newlines" pending
@@ -125,126 +149,166 @@ spec = do
     it "parses let expression" $
       parseExpr "let x = y in z"
       `shouldSucceedWith`
-      Let [("x", Symbol (Unqualified "y"))] (Symbol (Unqualified "z"))
+      Let
+      (src 1 1)
+      [LetPair (src 1 5) (Binding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
+      (Symbol (src 1 14) (Unqualified "z"))
 
     it "parses binary operator application" $
       parseExpr "x + y"
       `shouldSucceedWith`
-      Op Add (Symbol (Unqualified "x")) (Symbol (Unqualified "y"))
+      Op
+      (src 1 3)
+      Add
+      (Symbol (src 1 1) (Unqualified "x"))
+      (Symbol (src 1 5) (Unqualified "y"))
 
     it "parses string concat application" $
       parseExpr "x ++ y"
       `shouldSucceedWith`
-      Op Concat (Symbol (Unqualified "x")) (Symbol (Unqualified "y"))
+      Op
+      (src 1 3)
+      Concat
+      (Symbol (src 1 1) (Unqualified "x"))
+      (Symbol (src 1 6) (Unqualified "y"))
 
     it "parses single-arg fn application" $
       parseExpr "x(y)"
       `shouldSucceedWith`
-      Application (Symbol (Unqualified "x")) [Symbol (Unqualified "y")]
+      Application
+      (src 1 1)
+      (Symbol (src 1 1) (Unqualified "x"))
+      [Symbol (src 1 3) (Unqualified "y")]
 
     it "parses single-arg fn application" $
       parseExpr "(fn x -> x)(y)"
       `shouldSucceedWith`
-      Application (Fn ["x"] (Symbol (Unqualified "x"))) [Symbol (Unqualified "y")]
+      Application
+      (src 1 1)
+      (Fn (src 1 2) [Binding (src 1 5) "x"] (Symbol (src 1 10) (Unqualified "x")))
+      [Symbol (src 1 13) (Unqualified "y")]
 
     it "ignores whitespace" $
       parseExpr "x(   \n\n y \r\n\t   )"
       `shouldSucceedWith`
-      Application (Symbol (Unqualified "x")) [Symbol (Unqualified "y")]
+      Application
+      (src 1 1)
+      (Symbol (src 1 1) (Unqualified "x"))
+      [Symbol (src 3 2) (Unqualified "y")]
 
     it "ignores comments" $
       parseExpr "\n// foobar\nx"
       `shouldSucceedWith`
-      Symbol (Unqualified "x")
+      Symbol (src 3 1) (Unqualified "x")
 
     it "ignores multi-line comments" $
       parseExpr "/*\n\n foo //whatever\tbar\n*/x"
       `shouldSucceedWith`
-      Symbol (Unqualified "x")
+      Symbol (src 4 3) (Unqualified "x")
 
     it "parses slice literal" $
       parseExpr "![x, y, z]"
       `shouldSucceedWith`
-      Slice [Symbol (Unqualified "x"), Symbol (Unqualified "y"), Symbol (Unqualified "z")]
+      Slice (src 1 1) [
+          Symbol (src 1 3) (Unqualified "x"),
+          Symbol (src 1 6) (Unqualified "y"),
+          Symbol (src 1 9) (Unqualified "z")
+        ]
 
   describe "parseTopLevel" $ do
     it "parses type signature" $
       parseTopLevel "x :: int"
       `shouldSucceedWith`
-      TypeSignature "x" (Implicit typeInt)
+      TypeSignature (src 1 1) "x" (Implicit (src 1 6) (TEBasic (src 1 6) TEInt))
 
     it "parses type signature without explicit forall" $
       parseTopLevel "x :: int -> int"
       `shouldSucceedWith`
-      TypeSignature "x" (Implicit (TEFn typeInt [typeInt]))
+      TypeSignature
+      (src 1 1)
+      "x"
+      (Implicit (src 1 6) (TEFn (src 1 6) (TEBasic (src 1 6) TEInt) [(TEBasic (src 1 13) TEInt)]))
 
     it "parses type signature with no-arg fn" $
       parseTopLevel "x :: -> ()"
       `shouldSucceedWith`
-      TypeSignature "x" (Implicit (TENoArgFn TEUnit))
+      TypeSignature
+      (src 1 1)
+      "x"
+      (Implicit (src 1 6) (TENoArgFn (src 1 6) (TEUnit (src 1 9))))
 
     it "parses type signature with slice" $
       parseTopLevel "x :: ![int]"
       `shouldSucceedWith`
-      TypeSignature "x" (Implicit (TESlice typeInt))
+      TypeSignature
+      (src 1 1)
+      "x"
+      (Implicit (src 1 6) (TESlice (src 1 6) (TEBasic (src 1 8) TEInt)))
 
     it "parses polymorphic type signature with implicit forall" $
       parseTopLevel "x :: #a -> #a"
       `shouldSucceedWith`
-      TypeSignature "x" (Implicit (TEFn (TEVar "a") [TEVar "a"]))
+      TypeSignature (src 1 1) "x" (Implicit (src 1 6) (TEFn (src 1 6) (TEVar (src 1 6) "a") [TEVar (src 1 12) "a"]))
 
     it "parses polymorphic type signature with explicit forall" $
       parseTopLevel "x :: forall #a. #a -> #a"
       `shouldSucceedWith`
-      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar "a") [TEVar "a"]))
-
-    it "parses polymorphic type signature" $
-      parseTopLevel "x :: forall #a. #a -> #a"
-      `shouldSucceedWith`
-      TypeSignature "x" (Explicit ["a"] (TEFn (TEVar "a") [TEVar "a"]))
+      TypeSignature
+      (src 1 1)
+      "x"
+      (Explicit
+       (src 1 6)
+       [TVarBindingExpr (src 1 13) "a"]
+       (TEFn (src 1 17) (TEVar (src 1 17) "a") [TEVar (src 1 23) "a"]))
 
     it "parses value definition" $
       parseTopLevel "x = y"
       `shouldSucceedWith`
-      ValueDefinition "x" (Symbol (Unqualified "y"))
+      ValueDefinition (src 1 1) "x" (Symbol (src 1 5) (Unqualified "y"))
 
     it "parses fn definition" $
       parseTopLevel "f = fn x -> x"
       `shouldSucceedWith`
-      ValueDefinition "f" (Fn ["x"] (Symbol (Unqualified "x")))
+      ValueDefinition (src 1 1) "f" (Fn (src 1 5) [Binding (src 1 8) "x"] (Symbol (src 1 13) (Unqualified "x")))
 
     it "parses short-hand fn definition" $
       parseTopLevel "f x -> x"
       `shouldSucceedWith`
-      FnDefinition "f" ["x"] (Symbol (Unqualified "x"))
+      FnDefinition (src 1 1) "f" [Binding (src 1 3) "x"] (Symbol (src 1 8) (Unqualified "x"))
 
     it "parses short-hand no-arg fn definition" $
       parseTopLevel "side-effect -> x"
       `shouldSucceedWith`
-      FnDefinition "side-effect" [] (Symbol (Unqualified "x"))
+      FnDefinition (src 1 1) "side-effect" [] (Symbol (src 1 16) (Unqualified "x"))
 
     it "parses short-hand multi-arg fn definition" $
       parseTopLevel "f x y z -> x"
       `shouldSucceedWith`
-      FnDefinition "f" ["x", "y", "z"] (Symbol (Unqualified "x"))
+      FnDefinition (src 1 1) "f"
+      [Binding (src 1 3) "x", Binding (src 1 5) "y", Binding (src 1 7) "z"]
+      (Symbol (src 1 12) (Unqualified "x"))
 
   describe "parsePackage" $ do
     it "parses package declaration" $
-      parsePackage "bar.oden" "package foo/bar"
+      parsePackage "<stdin>" "package foo/bar"
       `shouldSucceedWith`
-      Package ["foo", "bar"] []
+      Package (PackageDeclaration (src 1 1) ["foo", "bar"]) []
 
     it "parses imports" $
-      parsePackage "bar.oden" "package foo/bar\nimport bar/baz\nimport foo\nimport github.com/foo/bar"
+      parsePackage "<stdin>" "package foo/bar\nimport bar/baz\nimport foo\nimport github.com/foo/bar"
       `shouldSucceedWith`
-      Package ["foo", "bar"] [ImportDeclaration ["bar", "baz"], ImportDeclaration ["foo"], ImportDeclaration ["github.com", "foo", "bar"]]
+      Package (PackageDeclaration (src 1 1) ["foo", "bar"]) [
+          ImportDeclaration (src 2 1) ["bar", "baz"],
+          ImportDeclaration (src 3 1) ["foo"],
+          ImportDeclaration (src 4 1) ["github.com", "foo", "bar"]
+        ]
 
     it "parses github.com import" $
-      parsePackage "bar.oden" "package foo/bar\nimport github.com/foo/bar"
+      parsePackage "<stdin>" "package foo/bar\nimport github.com/foo/bar"
       `shouldSucceedWith`
-      Package ["foo", "bar"] [ImportDeclaration ["github.com", "foo", "bar"]]
+      Package (PackageDeclaration (src 1 1) ["foo", "bar"]) [ImportDeclaration (src 2 1) ["github.com", "foo", "bar"]]
 
     it "parses definitions" $
-      parsePackage "bar.oden" "package foo/bar\nimport bar/baz"
+      parsePackage "<stdin>" "package foo/bar\nimport bar/baz"
       `shouldSucceedWith`
-      Package ["foo", "bar"] [ImportDeclaration ["bar", "baz"]]
+      Package (PackageDeclaration (src 1 1) ["foo", "bar"]) [ImportDeclaration (src 2 1) ["bar", "baz"]]

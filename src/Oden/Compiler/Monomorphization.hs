@@ -10,17 +10,18 @@ import           Oden.Compiler.TypeEncoder
 import qualified Oden.Core                 as Core
 import           Oden.Identifier
 import           Oden.Scope                as Scope
+import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
-data MonomorphedDefinition = MonomorphedDefinition Name Mono.Type (Core.Expr Mono.Type)
+data MonomorphedDefinition = MonomorphedDefinition SourceInfo Name Mono.Type (Core.Expr Mono.Type)
                            deriving (Show, Eq, Ord)
 
 data InstantiatedDefinition =
   InstantiatedDefinition Name (Core.Expr Mono.Type)
   deriving (Show, Eq, Ord)
 
-data MonomorphedPackage = MonomorphedPackage Core.PackageName [Core.Import] (Set InstantiatedDefinition) (Set MonomorphedDefinition)
+data MonomorphedPackage = MonomorphedPackage Core.PackageDeclaration [Core.Import] (Set InstantiatedDefinition) (Set MonomorphedDefinition)
                      deriving (Show, Eq, Ord)
 
 data MonomorphError   = NotInScope Identifier
@@ -29,15 +30,15 @@ data MonomorphError   = NotInScope Identifier
                       | MonomorphInstantiateError InstantiateError
                       deriving (Show, Eq, Ord)
 
-data LocalBinding = LetBinding Name (Core.Expr Poly.Type)
-                  | FunctionArgument Name
+data LocalBinding = LetBinding Core.Binding (Core.Expr Poly.Type)
+                  | FunctionArgument Core.Binding
 
 type LocalBindings = Map Name LocalBinding
 
 data LetReference = LetReference Name Mono.Type Name
                  deriving (Show, Eq, Ord)
 
-data LetInstance = LetInstance Name (Core.Expr Mono.Type)
+data LetInstance = LetInstance SourceInfo Core.Binding (Core.Expr Mono.Type)
 
 data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type) InstantiatedDefinition
                                      , monomorphed :: Map Identifier MonomorphedDefinition
@@ -59,13 +60,13 @@ getInScope i = do
     found -> throwError (AmbigiousReference i found)
 
 addToScope :: Core.Definition -> Monomorph ()
-addToScope (Core.Definition name (sc, expr))= do
+addToScope (Core.Definition si name (sc, expr))= do
   scope' <- gets scope
-  modify (\s -> s { scope = Scope.insert Scope.Definitions (Unqualified name) (Scope.OdenDefinition (Unqualified name) sc expr) scope' })
+  modify (\s -> s { scope = Scope.insert Scope.Definitions (Unqualified name) (Scope.OdenDefinition (Unqualified name) sc expr si) scope' })
 
 withBinding :: LocalBinding -> Monomorph a -> Monomorph a
-withBinding b@(LetBinding name _) = local $ Map.insert name b
-withBinding b@(FunctionArgument name) = local $ Map.insert name b
+withBinding b@(LetBinding (Core.Binding _ name) _) = local $ Map.insert name b
+withBinding b@(FunctionArgument (Core.Binding _ name)) = local $ Map.insert name b
 
 addInstance :: (Identifier, Mono.Type) -> InstantiatedDefinition -> Monomorph ()
 addInstance key inst =
@@ -93,13 +94,13 @@ getMonomorphicDefinition ident t = do
   def <- getInScope ident
   case def of
     ForeignDefinition gn _ -> return gn
-    OdenDefinition _ sc pe | Poly.isPolymorphic sc -> do
+    OdenDefinition _ sc pe _ | Poly.isPolymorphic sc -> do
       let key = (ident, t)
       is <- gets instances
       case Map.lookup key is of
         Just (InstantiatedDefinition name _) -> return (Unqualified name)
         Nothing -> instantiateDefinition key sc pe
-    OdenDefinition pn _ _ -> return pn
+    OdenDefinition pn _ _ _ -> return pn
 
 getMonomorphicLetBinding :: Name
                          -> Mono.Type
@@ -119,9 +120,9 @@ getMonomorphic i@(Qualified _ _) t =
 getMonomorphic i@(Unqualified n) t = do
   binding <- Map.lookup n <$> ask
   case binding of
-    Just (FunctionArgument a) ->
+    Just (FunctionArgument (Core.Binding _ a)) ->
       return (Unqualified a)
-    Just (LetBinding n' e) ->
+    Just (LetBinding (Core.Binding _ n') e) ->
       getMonomorphicLetBinding n' t (Core.typeOf e)
     Nothing ->
       local (const Map.empty) (getMonomorphicDefinition i t)
@@ -133,96 +134,101 @@ getMonoType e =
          (Poly.toMonomorphic (Core.typeOf e))
 
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
-monomorph e@(Core.Symbol ident _) = do
+monomorph e@(Core.Symbol si ident _) = do
   mt <- getMonoType e
   m <- getMonomorphic ident mt
-  return (Core.Symbol m mt)
-monomorph e@(Core.Op o e1 e2 _) = do
+  return (Core.Symbol si m mt)
+monomorph e@(Core.Op si o e1 e2 _) = do
   mt <- getMonoType e
   me1 <- monomorph e1
   me2 <- monomorph e2
-  return (Core.Op o me1 me2 mt)
-monomorph e@(Core.Application f p _) = do
+  return (Core.Op si o me1 me2 mt)
+monomorph e@(Core.Application si f p _) = do
   mt <- getMonoType e
   mf <- monomorph f
   mp <- monomorph p
-  return (Core.Application mf mp mt)
-monomorph e@(Core.NoArgApplication f _) = do
+  return (Core.Application si mf mp mt)
+monomorph e@(Core.NoArgApplication si f _) = do
   mt <- getMonoType e
   mf <- monomorph f
-  return (Core.NoArgApplication mf mt)
-monomorph e@(Core.UncurriedFnApplication f ps _) = do
+  return (Core.NoArgApplication si mf mt)
+monomorph e@(Core.UncurriedFnApplication si f ps _) = do
   mt <- getMonoType e
   mf <- monomorph f
   mps <- mapM monomorph ps
-  return (Core.UncurriedFnApplication mf mps mt)
-monomorph e@(Core.Fn a b _) = do
+  return (Core.UncurriedFnApplication si mf mps mt)
+monomorph e@(Core.Fn si a b _) = do
   mt <- getMonoType e
   mb <- withBinding (FunctionArgument a) (monomorph b)
-  return (Core.Fn a mb mt)
-monomorph e@(Core.NoArgFn b _) = do
+  return (Core.Fn si a mb mt)
+monomorph e@(Core.NoArgFn si b _) = do
   mt <- getMonoType e
   mb <- monomorph b
-  return (Core.NoArgFn mb mt)
-monomorph e@(Core.Slice es _) = do
+  return (Core.NoArgFn si mb mt)
+monomorph e@(Core.Slice si es _) = do
   mt <- getMonoType e
   mes <- mapM monomorph es
-  return (Core.Slice mes mt)
-monomorph e@(Core.Block es _) = do
+  return (Core.Slice si mes mt)
+monomorph e@(Core.Block si es _) = do
   mt <- getMonoType e
   mes <- mapM monomorph es
-  return (Core.Block mes mt)
-monomorph e@(Core.Literal l _) = do
+  return (Core.Block si mes mt)
+monomorph e@(Core.Literal si l _) = do
   mt <- getMonoType e
-  return (Core.Literal l mt)
-monomorph e@(Core.Tuple f s r _) = do
+  return (Core.Literal si l mt)
+monomorph e@(Core.Tuple si f s r _) = do
   mt <- getMonoType e
   mf <- monomorph f
   ms <- monomorph s
   mr <- mapM monomorph r
-  return (Core.Tuple mf ms mr mt)
-monomorph e@(Core.If cond then' else' _) = do
+  return (Core.Tuple si mf ms mr mt)
+monomorph e@(Core.If si cond then' else' _) = do
   mt <- getMonoType e
   mCond <- monomorph cond
   mThen <- monomorph then'
   mElse <- monomorph else'
-  return (Core.If mCond mThen mElse mt)
-monomorph (Core.Let name expr body _) = do
-  (mBody, allRefs) <- listen (withBinding (LetBinding name expr) (monomorph body))
-  let (refs, other) = Set.partition (isReferenceTo name) allRefs
+  return (Core.If si mCond mThen mElse mt)
+monomorph (Core.Let si b@(Core.Binding bsi _) expr body _) = do
+  (mBody, allRefs) <- listen (withBinding (LetBinding b expr) (monomorph body))
+  let (refs, other) = Set.partition (isReferenceTo b) allRefs
   tell other
-  insts <- mapM (monomorphReference expr) (Set.toList refs)
+  insts <- mapM (monomorphReference expr si bsi) (Set.toList refs)
   return (unwrapLetInstances insts mBody)
   where
-  isReferenceTo :: Name -> LetReference -> Bool
-  isReferenceTo n (LetReference ln _ _) = n == ln
+  isReferenceTo :: Core.Binding -> LetReference -> Bool
+  isReferenceTo (Core.Binding _ n) (LetReference ln _ _) = n == ln
 
-monomorphReference :: Core.Expr Poly.Type -> LetReference -> Monomorph LetInstance
-monomorphReference e (LetReference n _ _) | not (Poly.isPolymorphicType (Core.typeOf e)) = do
+monomorphReference :: Core.Expr Poly.Type
+                   -> SourceInfo
+                   -> SourceInfo
+                   -> LetReference
+                   -> Monomorph LetInstance
+monomorphReference e si bsi (LetReference n _ _) | not (Poly.isPolymorphicType (Core.typeOf e)) = do
   me <- monomorph e
-  return (LetInstance n me)
-monomorphReference e (LetReference _ mt mn) =
+  return (LetInstance si (Core.Binding bsi n) me)
+monomorphReference e si bsi (LetReference _ mt mn) =
   case instantiate e mt of
     Left err -> throwError (MonomorphInstantiateError err)
     Right expr -> do
       me <- monomorph expr
-      return (LetInstance mn me)
+      return (LetInstance si (Core.Binding bsi mn) me)
 
 unwrapLetInstances :: [LetInstance] -> Core.Expr Mono.Type -> Core.Expr Mono.Type
 unwrapLetInstances [] body = body
-unwrapLetInstances (LetInstance mn me:is) body = Core.Let mn me (unwrapLetInstances is body) (Core.typeOf body)
+unwrapLetInstances (LetInstance si mn me:is) body =
+  Core.Let si mn me (unwrapLetInstances is body) (Core.typeOf body)
 
 monomorphDefinition :: Core.Definition -> Monomorph ()
-monomorphDefinition d@(Core.Definition name (Poly.Forall _ st, expr)) = do
+monomorphDefinition d@(Core.Definition si name (Poly.Forall _ _ st, expr)) = do
   addToScope d
   case Poly.toMonomorphic st of
     Left _ -> return ()
     Right mt -> do
       mExpr <- monomorph expr
-      addMonomorphed name (MonomorphedDefinition name mt mExpr)
+      addMonomorphed name (MonomorphedDefinition si name mt mExpr)
 
 monomorphPackage :: Scope -> Core.Package -> Either MonomorphError MonomorphedPackage
-monomorphPackage scope' (Core.Package name imports definitions) = do
+monomorphPackage scope' (Core.Package pkgDecl imports definitions) = do
   let st = MonomorphState { instances = Map.empty
                           , monomorphed = Map.empty
                           , scope = scope'
@@ -230,7 +236,7 @@ monomorphPackage scope' (Core.Package name imports definitions) = do
   (_, s, _) <- runExcept $ runRWST (mapM_ monomorphDefinition definitions) Map.empty st
   let is = Set.fromList (Map.elems (instances s))
       ms = Set.fromList (Map.elems (monomorphed s))
-  return (MonomorphedPackage name imports is ms)
+  return (MonomorphedPackage pkgDecl imports is ms)
 
 compile :: Scope -> Core.Package -> Either MonomorphError MonomorphedPackage
 compile = monomorphPackage

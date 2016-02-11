@@ -2,19 +2,24 @@ module Oden.Syntax where
 
 import           Oden.Identifier
 import           Oden.Core.Operator
+import           Oden.SourceInfo
 
-type Binding = (Name, Expr)
+data Binding = Binding SourceInfo Name
+                 deriving (Show, Eq, Ord)
 
-data Expr = Symbol Identifier
-          | Op BinaryOperator Expr Expr
-          | Application Expr [Expr]
-          | Fn [Name] Expr
-          | Let [Binding] Expr
-          | Literal Literal
-          | If Expr Expr Expr
-          | Slice [Expr]
-          | Tuple Expr Expr [Expr]
-          | Block [Expr]
+data LetPair = LetPair SourceInfo Binding Expr
+             deriving (Show, Eq, Ord)
+
+data Expr = Symbol SourceInfo Identifier
+          | Op SourceInfo BinaryOperator Expr Expr
+          | Application SourceInfo Expr [Expr]
+          | Fn SourceInfo [Binding] Expr
+          | Let SourceInfo [LetPair] Expr
+          | Literal SourceInfo Literal
+          | If SourceInfo Expr Expr Expr
+          | Slice SourceInfo [Expr]
+          | Tuple SourceInfo Expr Expr [Expr]
+          | Block SourceInfo [Expr]
           deriving (Show, Eq, Ord)
 
 data Literal = Int Integer
@@ -23,27 +28,44 @@ data Literal = Int Integer
              | Unit
              deriving (Show, Eq, Ord)
 
-data TypeExpr = TEAny
-              | TEUnit
-              | TEVar String
-              | TECon String
-              | TEFn TypeExpr [TypeExpr]
-              | TENoArgFn TypeExpr
-              | TETuple TypeExpr TypeExpr [TypeExpr]
-              | TESlice TypeExpr
+data BasicTypeExpr = TEInt
+                   | TEBool
+                   | TEString
+                   deriving (Eq, Ord)
+
+instance Show BasicTypeExpr where
+  show TEInt = "int"
+  show TEBool = "bool"
+  show TEString = "string"
+
+data TypeExpr = TEAny SourceInfo
+              | TEBasic SourceInfo BasicTypeExpr
+              | TEUnit SourceInfo
+              | TEVar SourceInfo String
+              | TECon SourceInfo String
+              | TEFn SourceInfo TypeExpr [TypeExpr]
+              | TENoArgFn SourceInfo TypeExpr
+              | TETuple SourceInfo TypeExpr TypeExpr [TypeExpr]
+              | TESlice SourceInfo TypeExpr
               deriving (Show, Eq, Ord)
 
-data SchemeExpr = Explicit [String] TypeExpr
-                | Implicit TypeExpr
+data TVarBindingExpr = TVarBindingExpr SourceInfo String
+                     deriving (Show, Eq, Ord)
+
+data SchemeExpr = Explicit SourceInfo [TVarBindingExpr] TypeExpr
+                | Implicit SourceInfo TypeExpr
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]
 
-data TopLevel = ImportDeclaration PackageName
-                | TypeSignature Name SchemeExpr
-                | ValueDefinition Name Expr
-                | FnDefinition Name [Name] Expr
+data PackageDeclaration = PackageDeclaration SourceInfo PackageName
+                          deriving (Show, Eq, Ord)
+
+data TopLevel = ImportDeclaration SourceInfo PackageName
+                | TypeSignature SourceInfo Name SchemeExpr
+                | ValueDefinition SourceInfo Name Expr
+                | FnDefinition SourceInfo Name [Binding] Expr
                 deriving (Show, Eq, Ord)
 
-data Package = Package PackageName [TopLevel]
+data Package = Package PackageDeclaration [TopLevel]
              deriving (Show, Eq, Ord)

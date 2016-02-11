@@ -9,13 +9,13 @@ import           Oden.Output
 instance OdenOutput ValidationError where
   outputType _ = Error
 
-  name (Redefinition _)     = "Compiler.Validation.Redefinition"
+  name (Redefinition _ _)     = "Compiler.Validation.Redefinition"
 
-  header (Redefinition i) s = strCode s i <+> text "is already defined"
+  header (Redefinition _ i) s = strCode s i <+> text "is already defined"
 
-  details (Redefinition _) _ = text "Shadowing is not allowed"
+  details (Redefinition _ _) _ = text "Shadowing is not allowed"
 
-  sourceInfo _ = Nothing
+  sourceInfo (Redefinition si _) = Just si
 
 instance OdenOutput ValidationWarning where
   outputType (ValueDiscarded _)   = Warning

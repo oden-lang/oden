@@ -28,6 +28,8 @@ import           Oden.Env               as Env
 import           Oden.Identifier
 import           Oden.Infer.Substitution
 import           Oden.Infer.Subsumption
+import           Oden.SourceInfo
+import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
 
 -------------------------------------------------------------------------------
@@ -76,7 +78,7 @@ data TypeError
   | NotInScope Identifier
   | Ambigious [Constraint]
   | UnificationMismatch [Type] [Type]
-  | ArgumentCountMismatch [Type] [Type]
+  | ArgumentCountMismatch (Core.Expr Type) [Type] [Type]
   | TypeSignatureSubsumptionError Name SubsumptionError
   deriving (Show, Eq)
 
@@ -128,203 +130,209 @@ lookupEnv x = do
 letters :: [String]
 letters = [1..] >>= flip replicateM ['a'..'z']
 
-fresh :: Infer Type
-fresh = do
+fresh :: SourceInfo -> Infer Type
+fresh si = do
     s <- get
     put s{count = count s + 1}
-    return $ TVar $ TV (letters !! count s)
+    return $ TVar si (TV (letters !! count s))
 
-instantiate ::  Scheme -> Infer Type
-instantiate (Forall as t) = do
-    as' <- mapM (const fresh) as
-    let s = Subst $ Map.fromList $ zip as as'
+instantiate :: Scheme -> Infer Type
+instantiate (Forall _ as t) = do
+    as' <- mapM (fresh . getSourceInfo) as
+    let s = Subst $ Map.fromList $ zip (map getBindingVar as) as'
     return $ apply s t
 
 generalize :: Env -> Core.Expr Type -> (Scheme, Core.Expr Type)
-generalize env t  = (Forall as (Core.typeOf t), t)
-    where as = Set.toList $ ftv t `Set.difference` ftv env
+generalize env t  = (Forall (getSourceInfo t) as (Core.typeOf t), t)
+    where as = map (TVarBinding Missing) (Set.toList $ ftv t `Set.difference` ftv env)
 
 infer :: Untyped.Expr -> Infer (Core.Expr Type)
 infer expr = case expr of
-  Untyped.Literal Untyped.Unit  ->
-    return (Core.Literal Core.Unit TUnit)
-  Untyped.Literal (Untyped.Int n)  ->
-    return (Core.Literal (Core.Int n) typeInt)
-  Untyped.Literal (Untyped.Bool b) ->
-    return (Core.Literal (Core.Bool b) typeBool)
-  Untyped.Literal (Untyped.String s) ->
-    return (Core.Literal (Core.String s) typeString)
+  Untyped.Literal si Untyped.Unit ->
+    return (Core.Literal si Core.Unit (TUnit si))
+  Untyped.Literal si (Untyped.Int n) ->
+    return (Core.Literal si (Core.Int n) (TBasic si TInt))
+  Untyped.Literal si (Untyped.Bool b) ->
+    return (Core.Literal si (Core.Bool b) (TBasic si TBool))
+  Untyped.Literal si (Untyped.String s) ->
+    return (Core.Literal si (Core.String s) (TBasic si TString))
 
-  Untyped.Op o e1 e2 -> do
+  Untyped.Op si o e1 e2 -> do
     (ot, rt) <- case o of
-                    Add               -> return (typeInt, typeInt)
-                    Subtract          -> return (typeInt, typeInt)
-                    Multiply          -> return (typeInt, typeInt)
-                    Divide            -> return (typeInt, typeInt)
-                    Equals            -> do tv <- fresh
-                                            return (tv, typeBool)
-                    Concat            -> return (typeString, typeString)
-                    LessThan          -> return (typeInt, typeBool)
-                    GreaterThan       -> return (typeInt, typeBool)
-                    LessThanEqual     -> return (typeInt, typeBool)
-                    GreaterThanEqual  -> return (typeInt, typeBool)
-                    And               -> return (typeBool, typeBool)
-                    Or                -> return (typeBool, typeBool)
+                    Add               -> return (TBasic si TInt, TBasic si TInt)
+                    Subtract          -> return (TBasic si TInt, TBasic si TInt)
+                    Multiply          -> return (TBasic si TInt, TBasic si TInt)
+                    Divide            -> return (TBasic si TInt, TBasic si TInt)
+                    Equals            -> do tv <- fresh si
+                                            return (tv, TBasic si TBool)
+                    Concat            -> return (TBasic si TString, TBasic si TString)
+                    LessThan          -> return (TBasic si TInt, TBasic si TBool)
+                    GreaterThan       -> return (TBasic si TInt, TBasic si TBool)
+                    LessThanEqual     -> return (TBasic si TInt, TBasic si TBool)
+                    GreaterThanEqual  -> return (TBasic si TInt, TBasic si TBool)
+                    And               -> return (TBasic si TBool, TBasic si TBool)
+                    Or                -> return (TBasic si TBool, TBasic si TBool)
     te1 <- infer e1
     te2 <- infer e2
     uni (Core.typeOf te1) ot
     uni (Core.typeOf te2) ot
-    return (Core.Op o te1 te2 rt)
+    return (Core.Op si o te1 te2 rt)
 
-  Untyped.Symbol x -> do
+  Untyped.Symbol si x -> do
     t <- lookupEnv x
-    return $ Core.Symbol x t
+    return $ Core.Symbol si x t
 
-  Untyped.Fn a b -> do
-    tv <- fresh
-    tb <- inEnv (Unqualified a, Forall [] tv) (infer b)
-    return (Core.Fn a tb (tv `TFn` Core.typeOf tb))
+  Untyped.Fn si (Untyped.Binding bsi a) b -> do
+    tv <- fresh bsi
+    tb <- inEnv (Unqualified a, Forall bsi [] tv) (infer b)
+    return (Core.Fn si (Core.Binding bsi a) tb (TFn si tv (Core.typeOf tb)))
 
-  Untyped.NoArgFn f -> do
+  Untyped.NoArgFn si f -> do
     tf <- infer f
-    return (Core.NoArgFn tf (TNoArgFn (Core.typeOf tf)))
+    return (Core.NoArgFn si tf (TNoArgFn si (Core.typeOf tf)))
 
-  Untyped.Application f [] -> do
+  Untyped.Application si f [] -> do
+    tv <- fresh si
     tf <- infer f
-    tv <- fresh
     case Core.typeOf tf of
-      t@(TUncurriedFn _ _) -> do
-        uni t (TUncurriedFn [] tv)
-        return (Core.UncurriedFnApplication tf [] tv)
+      t@(TUncurriedFn _ rt _) -> do
+        uni t (TUncurriedFn (getSourceInfo tf) [] tv)
+        return (Core.UncurriedFnApplication si tf [] tv)
       -- No-param application of variadic function is automatically transformed
       -- to application of empty slice.
-      t@(TVariadicFn [] variadicArg _) -> do
-        uni t (TVariadicFn [] variadicArg tv)
-        return (Core.UncurriedFnApplication tf [Core.Slice [] variadicArg] tv)
-      (TVariadicFn nonVariadicArgs _ _) ->
-        throwError (ArgumentCountMismatch nonVariadicArgs [])
+      t@(TVariadicFn _ [] variadicArg rt) -> do
+        uni t (TVariadicFn (getSourceInfo tf) [] variadicArg tv)
+        return (Core.UncurriedFnApplication si tf [Core.Slice (getSourceInfo variadicArg) [] variadicArg] tv)
+      TVariadicFn _ nonVariadicArgs _ _ ->
+        throwError (ArgumentCountMismatch tf nonVariadicArgs [])
       t -> do
-        uni t (TNoArgFn tv)
-        return (Core.NoArgApplication tf tv)
+        uni t (TNoArgFn (getSourceInfo tf) tv)
+        return (Core.NoArgApplication si tf tv)
 
-  Untyped.Application f ps -> do
+  Untyped.Application si f ps -> do
     tf <- infer f
     case Core.typeOf tf of
-      t@(TUncurriedFn _ _) -> do
-        tv <- fresh
+      t@(TUncurriedFn _ _ _) -> do
+        tv <- fresh (getSourceInfo t)
         tps <- mapM infer ps
-        uni t (TUncurriedFn (map Core.typeOf tps) tv)
-        return (Core.UncurriedFnApplication tf tps tv)
-      t@(TVariadicFn nonVariadicTypes variadicType _) -> do
-        tv <- fresh
+        uni t (TUncurriedFn si (map Core.typeOf tps) tv)
+        return (Core.UncurriedFnApplication si tf tps tv)
+      t@(TVariadicFn _ nonVariadicTypes variadicType _) -> do
+        tv <- fresh (getSourceInfo t)
         nonVariadicParams <- mapM infer (take (length nonVariadicTypes) ps)
         variadicParams <- mapM infer (drop (length nonVariadicTypes) ps)
-        let allParams = nonVariadicParams ++ [Core.Slice variadicParams variadicType]
-        uni t (TVariadicFn (map Core.typeOf nonVariadicParams) variadicType tv)
-        return (Core.UncurriedFnApplication tf allParams tv)
-      _ ->
+        let sliceSi = if null variadicParams then Missing else getSourceInfo (head variadicParams)
+        let allParams = nonVariadicParams ++ [Core.Slice sliceSi variadicParams variadicType]
+        uni t (TVariadicFn (getSourceInfo tf) (map Core.typeOf nonVariadicParams) variadicType tv)
+        return (Core.UncurriedFnApplication si tf allParams tv)
+      t ->
         foldM app tf ps
         where
         app :: Core.Expr Type -> Untyped.Expr -> Infer (Core.Expr Type)
         app tf' p = do
-          tv <- fresh
+          tv <- fresh (getSourceInfo t)
           tp <- infer p
-          uni (Core.typeOf tf') (Core.typeOf tp `TFn` tv)
-          return (Core.Application tf' tp tv)
+          uni (Core.typeOf tf') (TFn (getSourceInfo tf) (Core.typeOf tp) tv)
+          return (Core.Application si tf' tp tv)
 
-  Untyped.Let n e b -> do
+  Untyped.Let si (Untyped.Binding bsi n) e b -> do
     te <- infer e
-    tb <- inEnv (Unqualified n, Forall [] (Core.typeOf te)) (infer b)
-    return (Core.Let n te tb (Core.typeOf tb))
+    tb <- inEnv (Unqualified n, Forall si [] (Core.typeOf te)) (infer b)
+    return (Core.Let si (Core.Binding bsi n) te tb (Core.typeOf tb))
 
-  Untyped.If cond tr fl -> do
+  Untyped.If si cond tr fl -> do
     tcond <- infer cond
     ttr <- infer tr
     tfl <- infer fl
-    uni (Core.typeOf tcond) typeBool
+    uni (Core.typeOf tcond) (TBasic si TBool)
     uni (Core.typeOf ttr) (Core.typeOf tfl)
-    return (Core.If tcond ttr tfl (Core.typeOf ttr))
+    return (Core.If si tcond ttr tfl (Core.typeOf ttr))
 
-  Untyped.Tuple f s r -> do
+  Untyped.Tuple si f s r -> do
     tf <- infer f
     ts <- infer s
     tr <- mapM infer r
-    let t = TTuple (Core.typeOf tf) (Core.typeOf ts) (map Core.typeOf tr)
-    return (Core.Tuple tf ts tr t)
+    let t = TTuple si (Core.typeOf tf) (Core.typeOf ts) (map Core.typeOf tr)
+    return (Core.Tuple si tf ts tr t)
 
-  Untyped.Slice es -> do
-    tv <- fresh
+  Untyped.Slice si es -> do
+    tv <- fresh si
     tes <- mapM infer es
     mapM_ (uni tv . Core.typeOf) tes
-    return (Core.Slice tes (TSlice tv))
+    return (Core.Slice si tes (TSlice si tv))
 
-  Untyped.Block es -> do
-    tv <- fresh
+  Untyped.Block si es -> do
+    tv <- fresh si
     tes <- mapM infer es
     case tes of
-      [] -> uni tv TUnit
+      [] -> uni tv (TUnit si)
       _ -> uni tv (Core.typeOf (last tes))
-    return (Core.Block tes tv)
+    return (Core.Block si tes tv)
 
 inferDef :: Untyped.Definition -> Infer Core.Definition
-inferDef (Untyped.Definition name s expr) = do
-  tv <- fresh
+inferDef (Untyped.Definition si name s expr) = do
+  tv <- fresh si
   env <- ask
-  let recType = fromMaybe (Forall [] tv) s
+  let recType = fromMaybe (Forall si [] tv) s
   te <- inEnv (Unqualified name, recType) (infer expr)
-  return (Core.Definition name (generalize env te))
+  return (Core.Definition si name (generalize env te))
 
 inferDefinition :: Env -> Untyped.Definition -> Either TypeError Core.Definition
-inferDefinition env def@(Untyped.Definition _ Nothing _) = do
-  (Core.Definition name (_, te), cs) <- runInfer env (inferDef def)
+inferDefinition env def@(Untyped.Definition _ _ Nothing _) = do
+  (Core.Definition si name (_, te), cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
-  return $ Core.Definition name (closeOver (apply subst te))
-inferDefinition env def@(Untyped.Definition _ (Just st) _) = do
-  (Core.Definition name ce, cs) <- runInfer env (inferDef def)
+  return $ Core.Definition si name (closeOver (apply subst te))
+inferDefinition env def@(Untyped.Definition _ _ (Just st) _) = do
+  (Core.Definition _ name ce, cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
-  let (Forall _ _, substExpr) = apply subst ce
+  let (Forall si _ _, substExpr) = apply subst ce
   ce' <- left (TypeSignatureSubsumptionError name) $ subsumeTypeSignature st substExpr
-  return $ Core.Definition name ce'
+  return $ Core.Definition si name ce'
 
 inferPackage :: Env -> Untyped.Package -> Either TypeError (Core.Package, Env)
-inferPackage env (Untyped.Package name imports defs) = do
+inferPackage env (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
   (env', inferred) <- foldM iter (env, []) defs
-  return (Core.Package name (map convertImport imports) inferred, env')
+  return (Core.Package (Core.PackageDeclaration psi name) (map convertImport imports) inferred, env')
   where
   iter (e, inferred) d@Untyped.Definition{} = do
-      td@(Core.Definition n (sc, _)) <- inferDefinition e d
+      td@(Core.Definition _ n (sc, _)) <- inferDefinition e d
       return (extend e (Unqualified n, sc), inferred ++ [td])
-  convertImport (Untyped.Import n) = Core.Import n
+  convertImport (Untyped.Import si n) = Core.Import si n
 
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)
-normalize (Forall _ body, te) = (Forall (map snd ord) (normtype body), te)
+normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
   where
     ord = zip (nub $ fv body) (map TV letters)
 
-    fv TAny                   = []
-    fv TUnit                  = []
-    fv (TTuple f s rs)        = fv f ++ fv s ++ concatMap fv rs
-    fv (TVar a)               = [a]
-    fv (TNoArgFn a)           = fv a
-    fv (TFn a b)              = fv a ++ fv b
-    fv (TUncurriedFn as r)    = concatMap fv as ++ fv r
-    fv (TVariadicFn as v r)   = concatMap fv as ++ fv v ++ fv r
-    fv (TCon _)               = []
-    fv (TSlice t)             = fv t
+    fv :: Type -> [TVar]
+    fv TAny{}                 = []
+    fv TUnit{}                = []
+    fv TBasic{}               = []
+    fv (TTuple _ f s rs)      = fv f ++ fv s ++ concatMap fv rs
+    fv (TVar _ a)             = [a]
+    fv (TNoArgFn _ a)         = fv a
+    fv (TFn _ a b)            = fv a ++ fv b
+    fv (TUncurriedFn _ as r)  = concatMap fv as ++ fv r
+    fv (TVariadicFn _ as v r) = concatMap fv as ++ fv v ++ fv r
+    fv (TCon _ _)             = []
+    fv (TSlice _ t)           = fv t
 
-    normtype TAny           = TAny
-    normtype TUnit          = TUnit
-    normtype (TTuple f s r) = TTuple (normtype f) (normtype s) (map normtype r)
-    normtype (TNoArgFn a)   = TNoArgFn (normtype a)
-    normtype (TFn a b)      = TFn (normtype a) (normtype b)
-    normtype (TUncurriedFn as r) = TUncurriedFn (map normtype as) (normtype r)
-    normtype (TVariadicFn as v r) = TVariadicFn (map normtype as) (normtype v) (normtype r)
-    normtype (TCon a)       = TCon a
-    normtype (TSlice a)     = TSlice (normtype a)
-    normtype (TVar a)       =
+    normtype t@TAny{}                = t
+    normtype t@TUnit{}               = t
+    normtype t@TBasic{}              = t
+    normtype (TTuple si' f s r)       = TTuple si' (normtype f) (normtype s) (map normtype r)
+    normtype (TNoArgFn si' a)         = TNoArgFn si' (normtype a)
+    normtype (TFn si' a b)            = TFn si' (normtype a) (normtype b)
+    normtype (TUncurriedFn si' as r)  = TUncurriedFn si' (map normtype as) (normtype r)
+    normtype (TVariadicFn si' as v r) = TVariadicFn si' (map normtype as) (normtype v) (normtype r)
+    normtype (TCon si' a)             = TCon si' a
+    normtype (TSlice si' a)           = TSlice si' (normtype a)
+    normtype (TVar si' a)             =
       case Prelude.lookup a ord of
-        Just x -> TVar x
+        Just x -> TVar si' x
         Nothing -> error "type variable not in signature"
+
+    tvarBindings = map ((TVarBinding Missing) . snd) ord
 
 -------------------------------------------------------------------------------
 -- Constraint Solver
@@ -344,29 +352,33 @@ unifyMany (t1 : ts1) (t2 : ts2) =
 unifyMany t1 t2 = throwError $ UnificationMismatch t1 t2
 
 unifies :: Type -> Type -> Solve Subst
-unifies t1 t2 | t1 == t2 = return emptySubst
-unifies TAny (TVar v) = v `bind` TAny
-unifies (TVar v) TAny = v `bind` TAny
-unifies TAny _ = return emptySubst
-unifies (TVar v) t = v `bind` t
-unifies t (TVar v) = v `bind` t
-unifies (TFn t1 t2) (TFn t3 t4) = unifyMany [t1, t2] [t3, t4]
-unifies (TNoArgFn t1) (TNoArgFn t2) = unifies t1 t2
-unifies (TUncurriedFn as1 r1) (TUncurriedFn as2 r2) = do
+unifies (TVar _ v) t = v `bind` t
+unifies t (TVar _ v) = v `bind` t
+unifies TAny{} _ = return emptySubst
+unifies t1@(TBasic si b1) t2@(TBasic _ b2)
+  | b1 == b2 = return emptySubst
+  | otherwise = throwError $ UnificationFail t1 t2
+unifies TUnit{} TUnit{} = return emptySubst
+unifies t1@(TCon si s1) t2@(TCon _ s2)
+  | s1 == s2 = return emptySubst
+  | otherwise = throwError $ UnificationFail t1 t2
+unifies (TFn _ t1 t2) (TFn _ t3 t4) = unifyMany [t1, t2] [t3, t4]
+unifies (TNoArgFn _ t1) (TNoArgFn _ t2) = unifies t1 t2
+unifies (TUncurriedFn _ as1 r1) (TUncurriedFn _ as2 r2) = do
   a <- unifyMany as1 as2
   r <- unifies r1 r2
   return (a `compose` r)
-unifies (TVariadicFn as1 v1 r1) (TVariadicFn as2 v2 r2) = do
+unifies (TVariadicFn _ as1 v1 r1) (TVariadicFn _ as2 v2 r2) = do
   a <- unifyMany as1 as2
   v <- unifies v1 v2
   r <- unifies r1 r2
   return (a `compose` v `compose` r)
-unifies (TTuple f1 s1 r1) (TTuple f2 s2 r2) = do
+unifies (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   f <- unifies f1 f2
   s <- unifies s1 s2
   r <- unifyMany r1 r2
   return (f `compose` s `compose` r)
-unifies (TSlice t1) (TSlice t2) = unifies t1 t2
+unifies (TSlice _ t1) (TSlice _ t2) = unifies t1 t2
 unifies t1 t2 = throwError $ UnificationFail t1 t2
 
 -- Unification solver
@@ -379,9 +391,10 @@ solver (su, cs) =
       solver (su1 `compose` su, apply su1 cs0)
 
 bind ::  TVar -> Type -> Solve Subst
-bind a t | t == TVar a     = return emptySubst
-         | occursCheck a t = throwError $ InfiniteType a t
-         | otherwise       = return (Subst $ Map.singleton a t)
+bind a (TVar _ v) | v == a = return emptySubst
+bind a t
+  | occursCheck a t = throwError $ InfiniteType a t
+  | otherwise       = return (Subst $ Map.singleton a t)
 
 occursCheck ::  Substitutable a => TVar -> a -> Bool
 occursCheck a t = a `Set.member` ftv t

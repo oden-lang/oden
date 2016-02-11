@@ -28,21 +28,22 @@ class FTV a => Substitutable a where
   apply :: Subst -> a -> a
 
 instance Substitutable Type where
-  apply _ TAny                      = TAny
-  apply _ TUnit                     = TUnit
-  apply s (TTuple f s' r)           = TTuple (apply s f) (apply s s') (apply s r)
-  apply _ (TCon a)                  = TCon a
-  apply (Subst s) t@(TVar a)        = Map.findWithDefault t a s
-  apply s (TNoArgFn t)              = TNoArgFn (apply s t)
-  apply s (t1 `TFn` t2)             = apply s t1 `TFn` apply s t2
-  apply s (TUncurriedFn as r)       = TUncurriedFn (map (apply s) as) (apply s r)
-  apply s (TVariadicFn as v r)      = TVariadicFn (map (apply s) as) (apply s v) (apply s r)
-  apply s (TSlice t)                = TSlice (apply s t)
-
+  apply _ (TAny si)               = TAny si
+  apply _ (TUnit si)              = TUnit si
+  apply s (TTuple si f s' r)      = TTuple si (apply s f) (apply s s') (apply s r)
+  apply _ (TBasic b si)           = TBasic b si
+  apply _ (TCon a si)             = TCon a si
+  apply (Subst s) t@(TVar _ a)    = Map.findWithDefault t a s
+  apply s (TNoArgFn si t)         = TNoArgFn si (apply s t)
+  apply s (TFn si t1 t2)          = TFn si (apply s t1) (apply s t2)
+  apply s (TUncurriedFn si as r)  = TUncurriedFn si (map (apply s) as) (apply s r)
+  apply s (TVariadicFn si as v r) = TVariadicFn si (map (apply s) as) (apply s v) (apply s r)
+  apply s (TSlice si t)           = TSlice si (apply s t)
 
 instance Substitutable Scheme where
-  apply (Subst s) (Forall as t)   = Forall as $ apply s' t
-                            where s' = Subst $ foldr Map.delete s as
+  apply (Subst s) (Forall si as t) =
+    Forall si as (apply s' t)
+    where s' = Subst $ foldr (Map.delete . getBindingVar) s as
 
 instance FTV Core.CanonicalExpr where
   ftv (sc, expr) = ftv sc `Set.union` ftv expr
@@ -54,19 +55,19 @@ instance FTV (Core.Expr Type) where
   ftv = ftv . Core.typeOf
 
 instance Substitutable (Core.Expr Type) where
-  apply s (Core.Symbol x t)               = Core.Symbol x (apply s t)
-  apply s (Core.Op o e1 e2 t)             = Core.Op o (apply s e1) (apply s e2) (apply s t)
-  apply s (Core.Application f p t)        = Core.Application (apply s f) (apply s p) (apply s t)
-  apply s (Core.NoArgApplication f t)     = Core.NoArgApplication (apply s f) (apply s t)
-  apply s (Core.UncurriedFnApplication f p t)  = Core.UncurriedFnApplication (apply s f) (apply s p) (apply s t)
-  apply s (Core.Fn x b t)                 = Core.Fn x (apply s b) (apply s t)
-  apply s (Core.NoArgFn b t)              = Core.NoArgFn (apply s b) (apply s t)
-  apply s (Core.Let x e b t)              = Core.Let x (apply s e) (apply s b) (apply s t)
-  apply s (Core.Literal l t)              = Core.Literal l (apply s t)
-  apply s (Core.Tuple fe se re t)         = Core.Tuple (apply s fe) (apply s se) (apply s re) (apply s t)
-  apply s (Core.If c tb fb t)             = Core.If (apply s c) (apply s tb) (apply s fb) (apply s t)
-  apply s (Core.Slice es t)               = Core.Slice (apply s es) (apply s t)
-  apply s (Core.Block es t)               = Core.Block (apply s es) (apply s t)
+  apply s (Core.Symbol si x t)                   = Core.Symbol si x (apply s t)
+  apply s (Core.Op si o e1 e2 t)                 = Core.Op si o (apply s e1) (apply s e2) (apply s t)
+  apply s (Core.Application si f p t)            = Core.Application si (apply s f) (apply s p) (apply s t)
+  apply s (Core.NoArgApplication si f t)         = Core.NoArgApplication si (apply s f) (apply s t)
+  apply s (Core.UncurriedFnApplication si f p t) = Core.UncurriedFnApplication si (apply s f) (apply s p) (apply s t)
+  apply s (Core.Fn si x b t)                     = Core.Fn si x (apply s b) (apply s t)
+  apply s (Core.NoArgFn si b t)                  = Core.NoArgFn si (apply s b) (apply s t)
+  apply s (Core.Let si x e b t)                  = Core.Let si x (apply s e) (apply s b) (apply s t)
+  apply s (Core.Literal si l t)                  = Core.Literal si l (apply s t)
+  apply s (Core.Tuple si fe se re t)             = Core.Tuple si (apply s fe) (apply s se) (apply s re) (apply s t)
+  apply s (Core.If si c tb fb t)                 = Core.If si (apply s c) (apply s tb) (apply s fb) (apply s t)
+  apply s (Core.Slice si es t)                   = Core.Slice si (apply s es) (apply s t)
+  apply s (Core.Block si es t)                   = Core.Block si (apply s es) (apply s t)
 
 instance Substitutable a => Substitutable [a] where
   apply = map . apply

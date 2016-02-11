@@ -70,5 +70,5 @@ instance Monoid Env where
 fromScope :: Scope.Scope -> Env
 fromScope scope = fromList as
   where toEnvAssoc (_, i, Scope.ForeignDefinition _ s) = (i, s)
-        toEnvAssoc (_, i, Scope.OdenDefinition _ s _) = (i, s)
+        toEnvAssoc (_, i, Scope.OdenDefinition _ s _ _) = (i, s)
         as = map toEnvAssoc (Scope.assocs scope)
