@@ -9,11 +9,12 @@ module Oden.Infer.Subsumption (
 import Oden.Type.Polymorphic
 import Oden.Core as Core
 import Oden.Infer.Substitution
+import Oden.SourceInfo
 
 import           Control.Monad
 import qualified Data.Map               as Map
 
-data SubsumptionError = SubsumptionError Type Type
+data SubsumptionError = SubsumptionError SourceInfo Type Type
                       deriving (Show, Eq)
 
 class Subsuming s where
@@ -43,7 +44,7 @@ getSubst (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
 getSubst TAny{} _ = return emptySubst
 getSubst t1 t2
   | t1 == t2  = return emptySubst
-  | otherwise = Left (SubsumptionError t1 t2)
+  | otherwise = Left (SubsumptionError (getSourceInfo t2) t1 t2)
 
 subsumeTypeSignature :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr
 subsumeTypeSignature s@(Forall _ _ st) expr = do
@@ -52,7 +53,7 @@ subsumeTypeSignature s@(Forall _ _ st) expr = do
 
 instance Subsuming Type where
   t1@TAny{} `subsume` TAny{} = Right t1
-  t1 `subsume` t2@TAny{} = Left (SubsumptionError t1 t2)
+  t1 `subsume` t2@TAny{} = Left (SubsumptionError (getSourceInfo t2) t1 t2)
   t1@TAny{} `subsume` _ = Right t1
   t1@(TVar _ v1) `subsume` (TVar _ v2)
     | v1 == v2 = Right t1
@@ -85,4 +86,4 @@ instance Subsuming Type where
     _ <- vt1 `subsume` vt2
     _ <- rt1 `subsume` rt2
     return t1
-  t1 `subsume` t2 = Left (SubsumptionError t1 t2)
+  t1 `subsume` t2 = Left (SubsumptionError (getSourceInfo t2) t1 t2)

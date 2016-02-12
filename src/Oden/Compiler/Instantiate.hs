@@ -12,8 +12,8 @@ import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
-data InstantiateError = TypeMismatch Poly.Type Mono.Type
-                      | SubstitutionFailed Poly.TVar [Poly.TVar]
+data InstantiateError = TypeMismatch SourceInfo Poly.Type Mono.Type
+                      | SubstitutionFailed SourceInfo Poly.TVar [Poly.TVar]
                       deriving (Show, Eq, Ord)
 
 type Substitutions = Map Poly.TVar Poly.Type
@@ -35,11 +35,11 @@ getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substituti
 getSubstitutions p@(Poly.TBasic _ pb) m@(Mono.TBasic _ mb) =
   if pb == mb
   then Right Map.empty
-  else Left (TypeMismatch p m)
+  else Left (TypeMismatch (getSourceInfo m) p m)
 getSubstitutions p@(Poly.TCon _ pn) m@(Mono.TCon _ mn) =
   if pn == mn
   then Right Map.empty
-  else Left (TypeMismatch p m)
+  else Left (TypeMismatch (getSourceInfo m) p m)
 getSubstitutions (Poly.TNoArgFn _ pf) (Mono.TNoArgFn _ mf) =
   getSubstitutions pf mf
 getSubstitutions (Poly.TFn _ pf pp) (Mono.TFn _ mf mp) = do
@@ -63,7 +63,7 @@ getSubstitutions (Poly.TTuple _ pf ps pr) (Mono.TTuple _ mf ms mr) = do
   return (foldl mappend f (s:r))
 getSubstitutions (Poly.TSlice _ p) (Mono.TSlice _ m) =
   getSubstitutions p m
-getSubstitutions poly mono = Left (TypeMismatch poly mono)
+getSubstitutions poly mono = Left (TypeMismatch (getSourceInfo mono) poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
 replace (Poly.TAny si) = return (Poly.TAny si)
@@ -75,7 +75,7 @@ replace (Poly.TVar si v) = do
   s <- get
   case Map.lookup v s of
     Just mono -> return (setSourceInfo si mono)
-    Nothing -> throwError (SubstitutionFailed v (Map.keys s))
+    Nothing -> throwError (SubstitutionFailed si v (Map.keys s))
 replace (Poly.TCon si n) = return (Poly.TCon si n)
 replace (Poly.TNoArgFn si t) = Poly.TNoArgFn si <$> replace t
 replace (Poly.TFn si ft pt) = Poly.TFn si <$> replace ft <*> replace pt

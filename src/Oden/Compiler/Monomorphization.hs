@@ -25,8 +25,10 @@ data MonomorphedPackage = MonomorphedPackage Core.PackageDeclaration [Core.Impor
                      deriving (Show, Eq, Ord)
 
 data MonomorphError   = NotInScope Identifier
+                      -- TODO: Shadowing is not supported so this error should
+                      -- not be needed.
                       | AmbigiousReference Identifier [(Scope.Source, Scope.Definition)]
-                      | UnexpectedPolyType (Core.Expr Poly.Type)
+                      | UnexpectedPolyType SourceInfo (Core.Expr Poly.Type)
                       | MonomorphInstantiateError InstantiateError
                       deriving (Show, Eq, Ord)
 
@@ -129,7 +131,7 @@ getMonomorphic i@(Unqualified n) t = do
 
 getMonoType :: Core.Expr Poly.Type -> Monomorph Mono.Type
 getMonoType e =
-  either (const $ throwError (UnexpectedPolyType e))
+  either (const $ throwError (UnexpectedPolyType (getSourceInfo e) e))
          return
          (Poly.toMonomorphic (Core.typeOf e))
 
