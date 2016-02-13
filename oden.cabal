@@ -59,10 +59,12 @@ library
     Oden.Output.Parser,
     Oden.Parser,
     Oden.Predefined,
+    Oden.Pretty,
     Oden.Scope,
     Oden.SourceInfo,
     Oden.Syntax,
     Oden.Scanner,
+    Oden.Type.Basic,
     Oden.Type.Monomorphic,
     Oden.Type.Polymorphic
   default-language:    Haskell2010

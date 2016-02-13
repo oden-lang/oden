@@ -7,10 +7,11 @@ import           Prelude               hiding (lookup)
 
 import qualified Oden.Core             as Core
 import           Oden.Identifier
+import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic as Poly
 
 data Definition = ForeignDefinition Identifier Poly.Scheme
-                | OdenDefinition Identifier Poly.Scheme (Core.Expr Poly.Type)
+                | OdenDefinition Identifier Poly.Scheme (Core.Expr Poly.Type) SourceInfo
                 deriving (Show, Eq, Ord)
 
 data Source = Predefined

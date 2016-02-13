@@ -47,7 +47,7 @@ logCompiledFiles files = liftIO $ putStrLn $ "Compiled " ++ show (length files) 
 
 scanImports :: Untyped.Package -> CLI Scope.Scope
 scanImports (Untyped.Package _ imports _) = foldM scanImport Scope.empty imports
-  where scanImport scope' (Untyped.Import pn) = do
+  where scanImport scope' (Untyped.Import _ pn) = do
           (pkgScope, warning) <- liftIO (Go.getPackageScope pn) >>= liftEither
           case warning of
             Just w -> logWarning w

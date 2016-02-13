@@ -3,16 +3,18 @@ module Oden.Predefined (
 ) where
 
 import Oden.Identifier
+import Oden.Type.Basic
 import Oden.Type.Polymorphic
+import qualified Oden.SourceInfo as SI
 import Oden.Scope
 
 pairs :: [(Identifier, Scheme)]
 pairs = [
-  (Unqualified "unit", Forall [] TUnit),
+  (Unqualified "unit", Forall SI.Predefined [] (TUnit SI.Predefined)),
 
-  (Unqualified "not", Forall [] (TFn typeBool typeBool)),
+  (Unqualified "not", Forall SI.Predefined [] (TFn SI.Predefined (TBasic SI.Predefined TBool) (TBasic SI.Predefined TBool))),
 
-  (Unqualified "len", Forall [TV "a"] (TUncurriedFn [TSlice (TVar (TV "a"))] typeInt))
+  (Unqualified "len", Forall SI.Predefined [TVarBinding SI.Predefined (TV "a")] (TUncurriedFn SI.Predefined [TSlice SI.Predefined (TVar SI.Predefined (TV "a"))] (TBasic SI.Predefined TInt)))
   ]
 
 predefined :: Scope

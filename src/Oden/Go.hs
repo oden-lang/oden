@@ -12,7 +12,9 @@ import qualified Oden.Core                  as Core
 import           Oden.Go.Types              as G
 import           Oden.Identifier
 import           Oden.Scope                 as Scope
+import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
+import           Oden.Type.Basic
 
 import           Control.Applicative        hiding (Const)
 import           Data.Aeson
@@ -97,46 +99,46 @@ data UnsupportedTypesWarning = UnsupportedTypesWarning { pkg      :: Core.Packag
                                                        } deriving (Show, Eq)
 
 convertType :: G.Type -> Either String Poly.Type
-convertType (Basic n False) = return (Poly.TCon n)
 -- TODO: Add "Untyped constant" concept in Oden type system
 -- and/or consider how macros would relate to this.
-convertType (Basic "bool" True) = return Poly.typeBool
-convertType (Basic "int" True) = return Poly.typeInt
-convertType (Basic "rune" True) = return Poly.typeInt
-convertType (Basic "float" True) = return (Poly.TCon "float64")
-convertType (Basic "complex" True) = return (Poly.TCon "complex64")
-convertType (Basic "string" True) = return (Poly.TCon "string")
-convertType (Basic "nil" True) = Left "nil constants"
-convertType (Basic n True) = Left ("Untyped " ++ n ++ "s")
+convertType (Basic "bool" False) = return (Poly.TBasic Missing TBool)
+convertType (Basic "int" False) = return (Poly.TBasic Missing TInt)
+convertType (Basic "rune" False) = return (Poly.TBasic Missing TInt)
+convertType (Basic "string" False) = return (Poly.TBasic Missing TString)
+convertType (Basic "float" False) = return (Poly.TCon Missing "float64")
+convertType (Basic "complex" False) = return (Poly.TCon Missing "complex64")
+convertType (Basic "nil" False) = Left "nil constants"
+convertType (Basic n False) = Left ("Basic type: " ++ n)
+convertType (Basic n True) = Left ("Basic untyped: " ++ n)
 convertType (Pointer _) = Left "Pointers"
 convertType (G.Array _ _) = Left "Arrays"
-convertType (Slice t) = Poly.TSlice <$> convertType t
-convertType Interface{} = Right Poly.TAny
+convertType (Slice t) = Poly.TSlice Missing <$> convertType t
+convertType Interface{} = Right $ Poly.TAny Missing
 convertType (Signature _ (Just _) _ _) = Left "Methods (functions with receivers)"
 convertType (Signature False Nothing args []) = do
   as <- mapM convertType args
-  Right (Poly.TUncurriedFn as Poly.TUnit)
+  Right (Poly.TUncurriedFn Missing as (Poly.TUnit Missing))
 convertType (Signature False Nothing args [ret]) = do
   as <- mapM convertType args
   r <- convertType ret
-  Right (Poly.TUncurriedFn as r)
+  Right (Poly.TUncurriedFn Missing as r)
 convertType (Signature False Nothing args _) = do
   as <- mapM convertType args
-  Right (Poly.TUncurriedFn as Poly.TUnit)
+  Right (Poly.TUncurriedFn Missing as (Poly.TUnit Missing))
 convertType (Signature True Nothing [] []) = Left "Variadic functions with no arguments"
 convertType (Signature True Nothing args []) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
-  Right (Poly.TVariadicFn as v Poly.TUnit)
+  Right (Poly.TVariadicFn Missing as v (Poly.TUnit Missing))
 convertType (Signature True Nothing args [ret]) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
   r <- convertType ret
-  Right (Poly.TVariadicFn as v r)
+  Right (Poly.TVariadicFn Missing as v r)
 convertType (Signature True Nothing args _) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
-  Right (Poly.TVariadicFn as v Poly.TUnit)
+  Right (Poly.TVariadicFn Missing as v (Poly.TUnit Missing))
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
 -- TODO: Add "Named" concept in Oden type system
 convertType (Named _ _ t) = convertType t
@@ -155,7 +157,7 @@ objectsToScope pkgName objs =
          Left u -> (scope, (n, u) : us)
          Right ct ->
            let i = Qualified (last pkgName) n
-               sc = Poly.Forall [] ct
+               sc = Poly.Forall Missing [] ct
            in (Scope.insert (Scope.Import pkgName) i (ForeignDefinition i sc) scope,
                us)
 

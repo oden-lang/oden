@@ -4,20 +4,22 @@ import           Data.Map
 import           Test.Hspec
 
 import           Oden.Infer.Subsumption
-import           Oden.Type.Polymorphic
 import           Oden.Infer.Substitution
+import           Oden.SourceInfo
+import           Oden.Type.Basic
+import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
 
 
 tvarA :: Type
-tvarA = TVar (TV "a")
+tvarA = TVar Predefined (TV "a")
 
 tvarB :: Type
-tvarB = TVar (TV "b")
+tvarB = TVar Predefined (TV "b")
 
 tvarC :: Type
-tvarC = TVar (TV "c")
+tvarC = TVar Predefined (TV "c")
 
 spec :: Spec
 spec = do
@@ -25,53 +27,61 @@ spec = do
   describe "getSubst" $ do
     it "gets substitutions for tuple" $
       getSubst
-      (TTuple tvarA tvarB [])
-      (TTuple tvarB tvarC [])
+      (TTuple Predefined tvarA tvarB [])
+      (TTuple Predefined tvarB tvarC [])
       `shouldSucceedWith`
       Subst (fromList [(TV "b", tvarA), (TV "c", tvarB)])
     it "gets substitutions for fn of tuple" $
       getSubst
-      (TFn tvarA (TFn tvarB (TTuple tvarA tvarB [])))
-      (TFn tvarB (TFn tvarC (TTuple tvarB tvarC [])))
+      (TFn Predefined tvarA (TFn Predefined tvarB (TTuple Predefined tvarA tvarB [])))
+      (TFn Predefined tvarB (TFn Predefined tvarC (TTuple Predefined tvarB tvarC [])))
       `shouldSucceedWith`
       Subst (fromList [(TV "b", tvarA), (TV "c", tvarB)])
 
   describe "subsume" $ do
     it "any subsume any" $
-      TAny `subsume` TAny
+      TAny Predefined `subsume` TAny Predefined
       `shouldSucceedWith`
-      TAny
+      TAny Predefined
     it "any subsume int" $
-      TAny `subsume` typeInt
+      TAny Predefined `subsume` TBasic Predefined TInt
       `shouldSucceedWith`
-      TAny
+      TAny Predefined
     it "int does not subsume any" $
-      shouldFail (typeInt `subsume` TAny)
+      shouldFail (TBasic Predefined TInt `subsume` TAny Predefined)
     it "tvar does not subsume any" $
-      shouldFail (tvarA `subsume` TAny)
+      shouldFail (tvarA `subsume` TAny Predefined)
     it "any subsume tvar" $
-      TAny `subsume` tvarA
+      TAny Predefined `subsume` tvarA
       `shouldSucceedWith`
-      TAny
+      TAny Predefined
     it "tvar subsume same tvar" $
       tvarA `subsume` tvarA
       `shouldSucceedWith`
       tvarA
     it "tvar does not subsume other tvars" $
       shouldFail (tvarA `subsume` tvarB)
+    it "int subsume same int" $
+      TBasic Predefined TInt `subsume` TBasic Predefined TInt
+      `shouldSucceedWith`
+      TBasic Predefined TInt
+    it "string subsume same string" $
+      TBasic Predefined TString `subsume` TBasic Predefined TString
+      `shouldSucceedWith`
+      TBasic Predefined TString
     it "tcon subsume same tcon" $
-      typeInt `subsume` typeInt
+      TCon Missing "foo" `subsume` TCon Missing "foo"
       `shouldSucceedWith`
-      typeInt
+      TCon Missing "foo"
     it "tcon does not subsume other tcons" $
-      shouldFail (typeInt `subsume` typeBool)
+      shouldFail (TBasic Predefined TInt `subsume` TBasic Predefined TBool)
     it "TFn of TVars subsume same TFn" $
-      TFn tvarA tvarA `subsume` TFn tvarA tvarA
+      TFn Predefined tvarA tvarA `subsume` TFn Predefined tvarA tvarA
       `shouldSucceedWith`
-      TFn tvarA tvarA
+      TFn Predefined tvarA tvarA
     it "TVar does not subsume TFn" $
-      shouldFail (tvarA `subsume` TFn tvarB tvarB)
+      shouldFail (tvarA `subsume` TFn Predefined tvarB tvarB)
     it "tuple of tvars subsumes tuple of same tvars" $
-      TTuple tvarA tvarA [] `subsume` TTuple tvarA tvarA []
+      TTuple Predefined tvarA tvarA [] `subsume` TTuple Predefined tvarA tvarA []
       `shouldSucceedWith`
-      TTuple tvarA tvarA []
+      TTuple Predefined tvarA tvarA []

@@ -8,162 +8,205 @@ import qualified Oden.Core             as Core
 import           Oden.Identifier
 import           Oden.Predefined
 import qualified Oden.Scope            as Scope
+import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
+import           Oden.Type.Basic
 
 import           Oden.Assertions
 
-myPkg :: Core.PackageName
-myPkg = ["my", "pkg"]
+myPkg :: Core.PackageDeclaration
+myPkg = Core.PackageDeclaration Missing ["my", "pkg"]
 
 tvA :: Poly.TVar
 tvA = Poly.TV "a"
 
 a :: Poly.Type
-a = Poly.TVar tvA
+a = Poly.TVar Missing tvA
+
+typeInt = Poly.TBasic Missing TInt
+typeBool = Poly.TBasic Missing TBool
+
+monoInt = Mono.TBasic Missing TInt
+monoBool = Mono.TBasic Missing TBool
 
 identityDef :: Core.Definition
 identityDef =
   Core.Definition
+    Missing
     "identity"
-    (Poly.Forall [tvA] (Poly.TFn a a),
-     Core.Fn "x" (Core.Symbol (Unqualified "x") a)
-                 (Poly.TFn a a))
+    (Poly.Forall Missing [Poly.TVarBinding Missing tvA] (Poly.TFn Missing a a),
+     Core.Fn Missing (Core.Binding Missing "x") (Core.Symbol Missing (Unqualified "x") a)
+                 (Poly.TFn Missing a a))
 
 identity2Def :: Core.Definition
 identity2Def =
   Core.Definition
+    Missing
     "identity2"
-    (Poly.Forall [tvA] (Poly.TFn a a),
-     Core.Fn "x" (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TFn a a))
-                                   (Core.Symbol (Unqualified "x") a)
+    (Poly.Forall Missing [Poly.TVarBinding Missing tvA] (Poly.TFn Missing a a),
+     Core.Fn Missing (Core.Binding Missing "x") (Core.Application Missing (Core.Symbol Missing (Unqualified "identity") (Poly.TFn Missing a a))
+                                   (Core.Symbol Missing (Unqualified "x") a)
                                    a)
-                 (Poly.TFn a a))
+                 (Poly.TFn Missing a a))
 
 usingIdentityDef :: Core.Definition
 usingIdentityDef =
   Core.Definition
+    Missing
     "using-identity"
-    (Poly.Forall [] Poly.typeInt,
-     Core.Application (Core.Symbol (Unqualified "identity") (Poly.TFn Poly.typeInt Poly.typeInt))
-                      (Core.Literal (Core.Int 1) Poly.typeInt)
-                      Poly.typeInt)
+    (Poly.Forall Missing [] typeInt,
+     Core.Application Missing
+                      (Core.Symbol Missing (Unqualified "identity") (Poly.TFn Missing typeInt typeInt))
+                      (Core.Literal Missing (Core.Int 1) typeInt)
+                      typeInt)
 
 usingIdentity2Def :: Core.Definition
 usingIdentity2Def =
   Core.Definition
+    Missing
     "using-identity2"
-    (Poly.Forall [] Poly.typeInt,
-     Core.Application (Core.Symbol (Unqualified "identity2") (Poly.TFn Poly.typeInt Poly.typeInt))
-                      (Core.Literal (Core.Int 1) Poly.typeInt)
-                      Poly.typeInt)
+    (Poly.Forall Missing [] typeInt,
+     Core.Application Missing
+                      (Core.Symbol Missing (Unqualified "identity2") (Poly.TFn Missing typeInt typeInt))
+                      (Core.Literal Missing (Core.Int 1) typeInt)
+                      typeInt)
 
 usingIdentityMonomorphed :: MonomorphedDefinition
 usingIdentityMonomorphed =
   MonomorphedDefinition
+    Missing
     "using-identity"
-    Mono.typeInt
-    (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
-                      (Core.Literal (Core.Int 1) Mono.typeInt)
-                      Mono.typeInt)
+    monoInt
+    (Core.Application Missing
+                      (Core.Symbol Missing (Unqualified "identity_inst_int_to_int") (Mono.TFn Missing monoInt monoInt))
+                      (Core.Literal Missing (Core.Int 1) monoInt)
+                      monoInt)
 
 letBoundIdentity :: Core.Definition
 letBoundIdentity =
   Core.Definition
+    Missing
     "let-bound-identity"
-    (Poly.Forall [] Poly.typeInt,
-     Core.Let "identity" (Core.Fn "x" (Core.Symbol (Unqualified "x") a) (Poly.TFn a a))
-                         (Core.Application (Core.Symbol (Unqualified "identity") (Poly.TFn Poly.typeInt Poly.typeInt))
-                                           (Core.Literal (Core.Int 1) Poly.typeInt)
-                                           Poly.typeInt)
-                      Poly.typeInt)
+    (Poly.Forall Missing [] typeInt,
+     Core.Let Missing (Core.Binding Missing "identity") (Core.Fn Missing (Core.Binding Missing "x") (Core.Symbol Missing (Unqualified "x") a) (Poly.TFn Missing a a))
+                         (Core.Application
+                          Missing
+                          (Core.Symbol Missing (Unqualified "identity") (Poly.TFn Missing typeInt typeInt))
+                          (Core.Literal Missing (Core.Int 1) typeInt)
+                          typeInt)
+                      typeInt)
 
 usingIdentity2Monomorphed :: MonomorphedDefinition
 usingIdentity2Monomorphed =
   MonomorphedDefinition
+    Missing
     "using-identity2"
-    Mono.typeInt
-    (Core.Application (Core.Symbol (Unqualified "identity2_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
-                      (Core.Literal (Core.Int 1) Mono.typeInt)
-                      Mono.typeInt)
+    monoInt
+    (Core.Application
+     Missing
+     (Core.Symbol Missing (Unqualified "identity2_inst_int_to_int") (Mono.TFn Missing monoInt monoInt))
+     (Core.Literal Missing (Core.Int 1) monoInt)
+     monoInt)
 
 letBoundIdentityMonomorphed :: MonomorphedDefinition
 letBoundIdentityMonomorphed =
   MonomorphedDefinition
+    Missing
     "let-bound-identity"
-    Mono.typeInt
-    (Core.Let "identity_inst_int_to_int" (Core.Fn "x" (Core.Symbol (Unqualified "x") Mono.typeInt) (Mono.TFn Mono.typeInt Mono.typeInt))
-                                         (Core.Application (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
-                                                           (Core.Literal (Core.Int 1) Mono.typeInt)
-                                                           Mono.typeInt)
-                      Mono.typeInt)
+    monoInt
+    (Core.Let
+     Missing
+     (Core.Binding Missing "identity_inst_int_to_int")
+     (Core.Fn Missing (Core.Binding Missing "x") (Core.Symbol Missing (Unqualified "x") monoInt) (Mono.TFn Missing monoInt monoInt))
+     (Core.Application Missing (Core.Symbol Missing (Unqualified "identity_inst_int_to_int") (Mono.TFn Missing monoInt monoInt))
+      (Core.Literal Missing (Core.Int 1) monoInt)
+      monoInt)
+     monoInt)
 
 identityInstIntToInt :: InstantiatedDefinition
 identityInstIntToInt =
   InstantiatedDefinition
     "identity_inst_int_to_int"
-    (Core.Fn "x" (Core.Symbol (Unqualified "x") Mono.typeInt)
-                 (Mono.TFn Mono.typeInt Mono.typeInt))
+    (Core.Fn
+     Missing
+     (Core.Binding Missing "x")
+     (Core.Symbol Missing (Unqualified "x") monoInt)
+     (Mono.TFn Missing monoInt monoInt))
 
 identity2InstIntToInt :: InstantiatedDefinition
 identity2InstIntToInt =
   InstantiatedDefinition
     "identity2_inst_int_to_int"
-    (Core.Fn "x" (Core.Application
-                    (Core.Symbol (Unqualified "identity_inst_int_to_int") (Mono.TFn Mono.typeInt Mono.typeInt))
-                    (Core.Symbol (Unqualified "x") Mono.typeInt)
-                    Mono.typeInt)
-                 (Mono.TFn Mono.typeInt Mono.typeInt))
+    (Core.Fn
+     Missing
+     (Core.Binding Missing "x")
+     (Core.Application
+      Missing
+      (Core.Symbol Missing (Unqualified "identity_inst_int_to_int") (Mono.TFn Missing monoInt monoInt))
+      (Core.Symbol Missing (Unqualified "x") monoInt)
+      monoInt)
+     (Mono.TFn Missing monoInt monoInt))
 
 sliceLenDef :: Core.Definition
 sliceLenDef =
   Core.Definition
+    Missing
     "slice-len"
-    (Poly.Forall [] Poly.typeInt,
+    (Poly.Forall Missing [] typeInt,
      Core.UncurriedFnApplication
-      (Core.Symbol (Unqualified "len") (Poly.TUncurriedFn [Poly.TSlice Poly.typeBool] Poly.typeInt))
-      [Core.Slice [Core.Literal (Core.Bool True) Poly.typeBool] (Poly.TSlice Poly.typeBool)]
-      Poly.typeInt)
+      Missing
+      (Core.Symbol Missing (Unqualified "len") (Poly.TUncurriedFn Missing [Poly.TSlice Missing typeBool] typeInt))
+      [Core.Slice Missing [Core.Literal Missing (Core.Bool True) typeBool] (Poly.TSlice Missing typeBool)]
+      typeInt)
 
 sliceLenMonomorphed :: MonomorphedDefinition
 sliceLenMonomorphed =
   MonomorphedDefinition
+    Missing
     "slice-len"
-    Mono.typeInt
+    monoInt
     (Core.UncurriedFnApplication
-      (Core.Symbol (Unqualified "len") (Mono.TUncurriedFn [Mono.TSlice Mono.typeBool] Mono.typeInt))
-      [Core.Slice [Core.Literal (Core.Bool True) Mono.typeBool] (Mono.TSlice Mono.typeBool)]
-      Mono.typeInt)
+     Missing
+     (Core.Symbol Missing (Unqualified "len") (Mono.TUncurriedFn Missing [Mono.TSlice Missing monoBool] monoInt))
+     [Core.Slice Missing [Core.Literal Missing (Core.Bool True) monoBool] (Mono.TSlice Missing (Mono.TBasic Missing TBool))]
+     monoInt)
 
 letWithShadowing :: Core.Definition
 letWithShadowing =
   Core.Definition
+    Missing
     "let-with-shadowing"
-    (Poly.Forall [] Poly.typeInt,
+    (Poly.Forall Missing [] typeInt,
      Core.Let
-     "x"
-     (Core.Literal (Core.Int 1) Poly.typeInt)
+     Missing
+     (Core.Binding Missing "x")
+     (Core.Literal Missing (Core.Int 1) typeInt)
      (Core.Let
-      "x"
-      (Core.Symbol (Unqualified "x") Poly.typeInt)
-      (Core.Symbol (Unqualified "x") Poly.typeInt)
-      Poly.typeInt)
-     Poly.typeInt)
+      Missing
+      (Core.Binding Missing "x")
+      (Core.Symbol Missing (Unqualified "x") typeInt)
+      (Core.Symbol Missing (Unqualified "x") typeInt)
+      typeInt)
+     typeInt)
 
 letWithShadowingMonomorphed :: MonomorphedDefinition
 letWithShadowingMonomorphed =
   MonomorphedDefinition
+    Missing
     "let-with-shadowing"
-    Mono.typeInt
+    monoInt
     (Core.Let
-     "x"
-     (Core.Literal (Core.Int 1) Mono.typeInt)
+     Missing
+     (Core.Binding Missing "x")
+     (Core.Literal Missing (Core.Int 1) monoInt)
      (Core.Let
-      "x"
-      (Core.Symbol (Unqualified "x") Mono.typeInt)
-      (Core.Symbol (Unqualified "x") Mono.typeInt)
-      Mono.typeInt)
-                      Mono.typeInt)
+      Missing
+      (Core.Binding Missing "x")
+      (Core.Symbol Missing (Unqualified "x") monoInt)
+      (Core.Symbol Missing (Unqualified "x") monoInt)
+      monoInt)
+     monoInt)
 
 spec :: Spec
 spec =

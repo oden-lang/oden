@@ -1,39 +1,40 @@
 module Oden.Type.Monomorphic where
 
-import Data.List
+import           Oden.SourceInfo
+import           Oden.Type.Basic
 
 data Type
-  = TAny
-  | TUnit
-  | TTuple Type Type [Type]
-  | TCon String
-  | TNoArgFn Type
-  | TFn Type Type
-  | TUncurriedFn [Type] Type
-  | TVariadicFn [Type] Type Type
-  | TSlice Type
-  deriving (Eq, Ord)
+  = TAny SourceInfo
+  | TBasic SourceInfo BasicType
+  | TUnit SourceInfo
+  | TTuple SourceInfo Type Type [Type]
+  | TCon SourceInfo String
+  | TNoArgFn SourceInfo Type
+  | TFn SourceInfo Type Type
+  | TUncurriedFn SourceInfo [Type] Type
+  | TVariadicFn SourceInfo [Type] Type Type
+  | TSlice SourceInfo Type
+  deriving (Show, Eq, Ord)
 
-parensIf :: Bool -> String -> String
-parensIf True s = "(" ++ s ++ ")"
-parensIf False s = s
+instance HasSourceInfo Type where
+  getSourceInfo (TAny si)              = si
+  getSourceInfo (TBasic si _)          = si
+  getSourceInfo (TUnit si)             = si
+  getSourceInfo (TTuple si _ _ _)      = si
+  getSourceInfo (TFn si _ _)           = si
+  getSourceInfo (TNoArgFn si _)        = si
+  getSourceInfo (TCon si _)            = si
+  getSourceInfo (TUncurriedFn si _ _)  = si
+  getSourceInfo (TVariadicFn si _ _ _) = si
+  getSourceInfo (TSlice si _)          = si
 
-instance Show Type where
-  show TAny = "any"
-  show TUnit = "()"
-  show (TFn a b) = parensIf (isArrow a) (show a) ++ " -> " ++ show b
-    where
-      isArrow TFn{} = True
-      isArrow _ = False
-  show (TNoArgFn a) = "(-> " ++ show a ++ ")"
-  show (TCon a) = a
-  show (TUncurriedFn as rs) = "(uncurried-fn (" ++ intercalate ", " (map show as) ++ ") " ++ show rs ++ ")"
-  show (TVariadicFn as v rs) =
-    "(variadic-fn (" ++ unwords (map show as) ++ " (* " ++ show v ++ ")) " ++ show rs ++ ")"
-  show (TTuple f s r) = "(" ++ intercalate ", " (map show (f:s:r)) ++ ")"
-  show (TSlice t) = "!(" ++ show t ++ ")"
-
-typeInt, typeBool, typeString :: Type
-typeInt  = TCon "int"
-typeBool = TCon "bool"
-typeString = TCon "string"
+  setSourceInfo si (TAny _)              = TAny si
+  setSourceInfo si (TBasic _ b)          = TBasic si b
+  setSourceInfo si (TUnit _)             = TUnit si
+  setSourceInfo si (TTuple _ f s r)      = TTuple si f s r
+  setSourceInfo si (TFn _ a r)           = TFn si a r
+  setSourceInfo si (TNoArgFn _ r)        = TNoArgFn si r
+  setSourceInfo si (TCon _ s)            = TCon si s
+  setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn si a r
+  setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn si a v r
+  setSourceInfo si (TSlice _ t)          = TSlice si t
