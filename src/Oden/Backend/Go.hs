@@ -120,8 +120,18 @@ showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)
       | otherwise      = s'
 
 codegenOperator :: BinaryOperator -> Doc
+codegenOperator Add = text "+"
+codegenOperator Subtract = text "-"
+codegenOperator Multiply = text "*"
+codegenOperator Divide = text "/"
+codegenOperator Equals = text "=="
 codegenOperator Concat = text "+"
-codegenOperator o = text (show o)
+codegenOperator LessThan = text "<"
+codegenOperator GreaterThan = text ">"
+codegenOperator LessThanEqual = text "<="
+codegenOperator GreaterThanEqual = text ">="
+codegenOperator And = text "&&"
+codegenOperator Or = text "||"
 
 codegenExpr :: Expr Mono.Type -> Doc
 codegenExpr (Symbol _ i _) =

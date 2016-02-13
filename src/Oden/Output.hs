@@ -13,7 +13,6 @@ data OutputType = Warning | Error deriving (Show, Eq)
 
 data Output a = Reader OutputSettings a
 
--- TODO: Add source info
 class OdenOutput e where
   outputType :: e -> OutputType
   name :: e -> String
@@ -29,12 +28,12 @@ escape OutputSettings{monochrome = True} _ = empty
 escape OutputSettings{monochrome = False} ns = text ("\ESC[" ++ intercalate ";" (map show ns)) <> text "m"
 
 strCode :: OutputSettings -> String -> Doc
-strCode settings a =
-  escape settings [1, 34] <> contents <> escape settings [0]
-  where contents = backtick <> text a <> backtick
+strCode settings a = code settings (text a)
 
-code :: Show a => OutputSettings -> a -> Doc
-code s = strCode s . show
+code :: OutputSettings -> Doc -> Doc
+code settings d =
+  escape settings [1, 34] <> contents <> escape settings [0]
+  where contents = backtick <> d <> backtick
 
 formatSourceInfo :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 formatSourceInfo e =
@@ -44,7 +43,9 @@ formatSourceInfo e =
                <> colon <> int (line pos)
                <> colon <> int (column pos)
                <> colon
-    Nothing               -> return empty
+    Just Predefined                         -> return empty
+    Just Missing                            -> return empty
+    Nothing                                 -> return empty
 
 formatOutputType :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 formatOutputType e = do

@@ -5,6 +5,7 @@ import           Text.PrettyPrint
 import           Oden.Compiler.Validation
 import           Oden.Core
 import           Oden.Output
+import           Oden.Pretty
 
 instance OdenOutput ValidationError where
   outputType _ = Error
@@ -23,7 +24,7 @@ instance OdenOutput ValidationWarning where
   name (ValueDiscarded _)         = "Compiler.Validation.ValueDiscarded"
 
   header (ValueDiscarded e) s     = text "Value of type"
-                                    <+> code s (typeOf e)
+                                    <+> code s (pp (typeOf e))
                                     <+> text "discarded"
 
   details (ValueDiscarded _) _    = empty

@@ -6,6 +6,7 @@ import           Oden.Compiler
 import           Oden.Compiler.Monomorphization
 import           Oden.Output
 import           Oden.Output.Instantiate ()
+import           Oden.Pretty
 
 instance OdenOutput MonomorphError where
   outputType _ = Error
@@ -14,9 +15,9 @@ instance OdenOutput MonomorphError where
   name (UnexpectedPolyType _ _)         = "Compiler.Monomorph.UnexpectedPolyType"
   name (MonomorphInstantiateError err)  = name err
 
-  header (NotInScope i) s                   = code s i <+> text "is not in scope"
-  header (AmbigiousReference i _) s         = text "Ambigious reference" <+> code s i
-  header (UnexpectedPolyType _ e) s         = text "Unexpected polymorphic type" <+> code s e
+  header (NotInScope i) s                   = code s (pp i) <+> text "is not in scope"
+  header (AmbigiousReference i _) s         = text "Ambigious reference" <+> code s (pp i)
+  header (UnexpectedPolyType _ e) s         = text "Unexpected polymorphic type" <+> code s (pp e)
   header (MonomorphInstantiateError err) s  = header err s
 
   details (NotInScope _) _           = empty
