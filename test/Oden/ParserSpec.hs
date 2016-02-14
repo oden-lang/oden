@@ -136,6 +136,14 @@ spec = do
       (Symbol (src 1 14) (Unqualified "z"))
 
     it "parses unary operator application" $
+      parseExpr "-x"
+      `shouldSucceedWith`
+      UnaryOp
+      (src 1 1)
+      Negate
+      (Symbol (src 1 2) (Unqualified "x"))
+
+    it "parses unary operator application" $
       parseExpr "+ x"
       `shouldSucceedWith`
       UnaryOp
