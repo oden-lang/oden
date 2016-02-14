@@ -1,7 +1,0 @@
-package slices/main
-
-import oden/prelude
-
-printGreeting -> prelude.Printf("%s from %s %s.\n")
-
-main -> printGreeting(!["Hello", "Oden", "Slices"])
