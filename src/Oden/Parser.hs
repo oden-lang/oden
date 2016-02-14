@@ -120,7 +120,9 @@ application = do
 slice :: Parser Expr
 slice = do
   si <- currentSourceInfo
-  exprs <- brackets (expr `sepBy` comma)
+  _ <- char '['
+  _ <- char ']'
+  exprs <- braces (expr `sepBy` comma)
   return (Slice si exprs)
 
 unitExprOrTuple :: Parser Expr

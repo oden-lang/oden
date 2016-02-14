@@ -64,7 +64,7 @@ instance Pretty (Expr t) where
   pp (If _ c t e _) =
     text "if" <+> pp c <+> text "then" <+> pp t <+> text "else" <+> pp e
   pp (Slice _ es _) =
-    text "!" <> brackets (hcat (punctuate (text ", ") (map pp es)))
+    text "[]" <> braces (hcat (punctuate (text ", ") (map pp es)))
   pp (Block _ es _) =
     braces (vcat (map pp es))
 

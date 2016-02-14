@@ -204,12 +204,12 @@ spec = do
       Symbol (src 4 3) (Unqualified "x")
 
     it "parses slice literal" $
-      parseExpr "[x, y, z]"
+      parseExpr "[]{x, y, z}"
       `shouldSucceedWith`
       Slice (src 1 1) [
-          Symbol (src 1 2) (Unqualified "x"),
-          Symbol (src 1 5) (Unqualified "y"),
-          Symbol (src 1 8) (Unqualified "z")
+          Symbol (src 1 4) (Unqualified "x"),
+          Symbol (src 1 7) (Unqualified "y"),
+          Symbol (src 1 10) (Unqualified "z")
         ]
 
   describe "parseTopLevel" $ do
@@ -224,7 +224,7 @@ spec = do
       TypeSignature
       (src 1 1)
       "x"
-      (Implicit (src 1 6) (TEFn (src 1 6) (TEBasic (src 1 6) TEInt) [(TEBasic (src 1 13) TEInt)]))
+      (Implicit (src 1 6) (TEFn (src 1 6) (TEBasic (src 1 6) TEInt) [TEBasic (src 1 13) TEInt]))
 
     it "parses type signature with no-arg fn" $
       parseTopLevel "x :: -> ()"
