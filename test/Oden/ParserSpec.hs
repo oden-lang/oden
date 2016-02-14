@@ -135,20 +135,20 @@ spec = do
       [LetPair (src 1 5) (Binding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
       (Symbol (src 1 14) (Unqualified "z"))
 
-    it "parses unary operator application" $
+    it "parses unary negative operator application" $
       parseExpr "-x"
       `shouldSucceedWith`
       UnaryOp
       (src 1 1)
-      Negate
+      Negative
       (Symbol (src 1 2) (Unqualified "x"))
 
-    it "parses unary operator application" $
+    it "parses unary positve operator application" $
       parseExpr "+ x"
       `shouldSucceedWith`
       UnaryOp
       (src 1 1)
-      Plus
+      Positive
       (Symbol (src 1 3) (Unqualified "x"))
 
     it "parses binary operator application" $

@@ -22,9 +22,9 @@ instance Pretty Binding where
   pp (Binding _ name) = text name
 
 instance Pretty UnaryOperator where
-  pp Plus   = text "+"
-  pp Negate = text "-"
-  pp Not    = text "!"
+  pp Positive = text "+"
+  pp Negative = text "-"
+  pp Not      = text "!"
 
 instance Pretty BinaryOperator where
   pp Add = text "+"

@@ -158,8 +158,8 @@ infer expr = case expr of
 
   Untyped.UnaryOp si o e -> do
     rt <- case o of
-              Plus   -> return (TBasic si TInt)
-              Negate -> return (TBasic si TInt)
+              Positive   -> return (TBasic si TInt)
+              Negative -> return (TBasic si TInt)
               Not    -> return (TBasic si TBool)
     te <- infer e
     uni (getSourceInfo te) (Core.typeOf te) rt

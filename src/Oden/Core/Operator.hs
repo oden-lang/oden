@@ -14,8 +14,8 @@ data BinaryOperator = Add
                     | Or
                     deriving (Eq, Ord)
 
-data UnaryOperator = Negate
-                   | Plus
+data UnaryOperator = Negative
+                   | Positive
                    | Not
                    deriving (Eq, Ord)
 
@@ -34,6 +34,6 @@ instance Show BinaryOperator where
   show Or = "||"
 
 instance Show UnaryOperator where
-  show Negate = "-"
-  show Plus = "+"
+  show Negative = "-"
+  show Positive = "+"
   show Not = "!"
