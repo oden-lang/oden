@@ -89,7 +89,7 @@ instance Pretty Poly.Type where
   pp (Poly.TUncurriedFn _ as r) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
   pp (Poly.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Poly.TSlice _ t) =
-    text "!" <> braces (pp t)
+    text "[]" <> braces (pp t)
 
 instance Pretty Poly.Scheme where
   pp (Poly.Forall _ vs t) = text "forall" <+> hsep (map pp vs) <> text "." <+> pp t

@@ -36,6 +36,7 @@ getSubst (TUncurriedFn _ a1 r1) (TUncurriedFn _ a2 r2) = do
 getSubst (TVariadicFn _ a1 v1 r1) (TVariadicFn _ a2 v2 r2) = do
   as <- mapM (uncurry getSubst) ((r1, r2) : (v1, v2) : zip a1 a2)
   return (foldl union emptySubst as)
+getSubst (TSlice _ t1) (TSlice _ t2) = getSubst t1 t2
 getSubst (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   f <- getSubst f1 f2
   s <- getSubst s1 s2

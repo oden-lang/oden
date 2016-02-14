@@ -32,12 +32,7 @@ data Literal = Int Integer
 data BasicTypeExpr = TEInt
                    | TEBool
                    | TEString
-                   deriving (Eq, Ord)
-
-instance Show BasicTypeExpr where
-  show TEInt = "int"
-  show TEBool = "bool"
-  show TEString = "string"
+                   deriving (Show, Eq, Ord)
 
 data TypeExpr = TEAny SourceInfo
               | TEBasic SourceInfo BasicTypeExpr

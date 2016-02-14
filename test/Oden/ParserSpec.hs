@@ -234,13 +234,22 @@ spec = do
       "x"
       (Implicit (src 1 6) (TENoArgFn (src 1 6) (TEUnit (src 1 9))))
 
-    it "parses type signature with slice" $
-      parseTopLevel "x :: ![int]"
+    it "parses type signature with int slice" $
+      parseTopLevel "x :: []{int}"
       `shouldSucceedWith`
       TypeSignature
       (src 1 1)
       "x"
-      (Implicit (src 1 6) (TESlice (src 1 6) (TEBasic (src 1 8) TEInt)))
+      (Implicit (src 1 6) (TESlice (src 1 6) (TEBasic (src 1 9) TEInt)))
+
+    it "parses type signature with string slice" $
+      parseTopLevel "x :: []{string}"
+      `shouldSucceedWith`
+      TypeSignature
+      (src 1 1)
+      "x"
+      (Implicit (src 1 6) (TESlice (src 1 6) (TEBasic (src 1 9) TEString)))
+
 
     it "parses polymorphic type signature with implicit forall" $
       parseTopLevel "x :: #a -> #a"

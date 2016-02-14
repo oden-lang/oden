@@ -117,11 +117,16 @@ application = do
   args <- parensList expr
   return (Application si f args)
 
+emptyBrackets :: Parser ()
+emptyBrackets = do
+  _ <- char '['
+  _ <- char ']'
+  return ()
+
 slice :: Parser Expr
 slice = do
   si <- currentSourceInfo
-  _ <- char '['
-  _ <- char ']'
+  emptyBrackets
   exprs <- braces (expr `sepBy` comma)
   return (Slice si exprs)
 
@@ -188,7 +193,8 @@ type' = do
       [] -> return (TEUnit si)
       [t] -> return t
       (f:s:r) -> return (TETuple si f s r)
-  slice' = TESlice <$> currentSourceInfo <*> (char '!' *> brackets type')
+  slice' = TESlice <$> currentSourceInfo
+                   <*> (emptyBrackets *> braces type')
 
 expr :: Parser Expr
 expr = Ex.buildExpressionParser table term
