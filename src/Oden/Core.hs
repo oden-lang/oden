@@ -10,7 +10,8 @@ data Binding = Binding SourceInfo Name
               deriving (Show, Eq, Ord)
 
 data Expr t = Symbol SourceInfo Identifier t
-            | Op SourceInfo BinaryOperator (Expr t) (Expr t) t
+            | UnaryOp SourceInfo UnaryOperator (Expr t) t
+            | BinaryOp SourceInfo BinaryOperator (Expr t) (Expr t) t
             | Application SourceInfo (Expr t) (Expr t) t
             | NoArgApplication SourceInfo (Expr t) t
             | UncurriedFnApplication SourceInfo (Expr t) [Expr t] t
@@ -26,7 +27,8 @@ data Expr t = Symbol SourceInfo Identifier t
 
 instance HasSourceInfo (Expr t) where
   getSourceInfo (Symbol si _ _)                   = si
-  getSourceInfo (Op si _ _ _ _)                   = si
+  getSourceInfo (UnaryOp si _ _ _)                = si
+  getSourceInfo (BinaryOp si _ _ _ _)             = si
   getSourceInfo (Application si _ _ _)            = si
   getSourceInfo (NoArgApplication si _ _)         = si
   getSourceInfo (UncurriedFnApplication si _ _ _) = si
@@ -40,7 +42,8 @@ instance HasSourceInfo (Expr t) where
   getSourceInfo (Block si _ _)                    = si
 
   setSourceInfo si (Symbol _ i t)                   = Symbol si i t
-  setSourceInfo si (Op _ p l r t)                   = Op si p l r t
+  setSourceInfo si (UnaryOp _ o r t)                = UnaryOp si o r t
+  setSourceInfo si (BinaryOp _ p l r t)             = BinaryOp si p l r t
   setSourceInfo si (Application _ f a t)            = Application si f a t
   setSourceInfo si (NoArgApplication _ f t)         = NoArgApplication si f t
   setSourceInfo si (UncurriedFnApplication _ f a t) = UncurriedFnApplication si f a t
@@ -55,7 +58,8 @@ instance HasSourceInfo (Expr t) where
 
 typeOf :: Expr t -> t
 typeOf (Symbol _ _ t) = t
-typeOf (Op _ _ _ _ t) = t
+typeOf (UnaryOp _ _ _ t) = t
+typeOf (BinaryOp _ _ _ _ t) = t
 typeOf (Application _ _ _ t) = t
 typeOf (NoArgApplication _ _ t) = t
 typeOf (UncurriedFnApplication _ _ _ t) = t

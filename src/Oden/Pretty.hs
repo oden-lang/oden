@@ -21,6 +21,11 @@ rArr = text "->"
 instance Pretty Binding where
   pp (Binding _ name) = text name
 
+instance Pretty UnaryOperator where
+  pp Positive = text "+"
+  pp Negative = text "-"
+  pp Not      = text "!"
+
 instance Pretty BinaryOperator where
   pp Add = text "+"
   pp Subtract = text "-"
@@ -41,7 +46,8 @@ instance Pretty Identifier where
 
 instance Pretty (Expr t) where
   pp (Symbol _ i _) = pp i
-  pp (Op _ op e1 e2 _) = pp e1 <+> pp op <+> pp e2
+  pp (UnaryOp _ op e _) = pp op <+> pp e
+  pp (BinaryOp _ op e1 e2 _) = pp e1 <+> pp op <+> pp e2
   pp (Application _ f a _) = pp f <> text "(" <> pp a <> text ")"
   pp (NoArgApplication _ f _) = pp f <> text "()"
   pp (UncurriedFnApplication _ f as _) = pp f <> commaSepParens as
@@ -58,7 +64,7 @@ instance Pretty (Expr t) where
   pp (If _ c t e _) =
     text "if" <+> pp c <+> text "then" <+> pp t <+> text "else" <+> pp e
   pp (Slice _ es _) =
-    text "!" <> brackets (hcat (punctuate (text ", ") (map pp es)))
+    text "[]" <> braces (hcat (punctuate (text ", ") (map pp es)))
   pp (Block _ es _) =
     braces (vcat (map pp es))
 

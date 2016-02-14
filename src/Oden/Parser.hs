@@ -120,7 +120,9 @@ application = do
 slice :: Parser Expr
 slice = do
   si <- currentSourceInfo
-  exprs <- char '!' *> brackets (expr `sepBy` comma)
+  _ <- char '['
+  _ <- char ']'
+  exprs <- braces (expr `sepBy` comma)
   return (Slice si exprs)
 
 unitExprOrTuple :: Parser Expr
@@ -195,10 +197,21 @@ infixOp :: String -> BinaryOperator -> Ex.Assoc -> Op Expr
 infixOp x o = Ex.Infix $ do
   si <- currentSourceInfo
   reservedOp x
-  return (Op si o)
+  return (BinaryOp si o)
+
+prefixOp :: String -> UnaryOperator -> Op Expr
+prefixOp x o = Ex.Prefix $ do
+  si <- currentSourceInfo
+  reservedOp x
+  return (UnaryOp si o)
 
 table :: Operators Expr
 table = [
+    [
+      prefixOp "+" Positive,
+      prefixOp "-" Negative,
+      prefixOp "!" Not
+    ],
     [
       infixOp "*" Multiply Ex.AssocLeft,
       infixOp "/" Divide Ex.AssocLeft

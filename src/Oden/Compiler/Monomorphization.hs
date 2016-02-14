@@ -140,11 +140,15 @@ monomorph e@(Core.Symbol si ident _) = do
   mt <- getMonoType e
   m <- getMonomorphic ident mt
   return (Core.Symbol si m mt)
-monomorph e@(Core.Op si o e1 e2 _) = do
+monomorph e@(Core.UnaryOp si o e1 _) = do
+  mt <- getMonoType e
+  me <- monomorph e1
+  return (Core.UnaryOp si o me mt)
+monomorph e@(Core.BinaryOp si o e1 e2 _) = do
   mt <- getMonoType e
   me1 <- monomorph e1
   me2 <- monomorph e2
-  return (Core.Op si o me1 me2 mt)
+  return (Core.BinaryOp si o me1 me2 mt)
 monomorph e@(Core.Application si f p _) = do
   mt <- getMonoType e
   mf <- monomorph f

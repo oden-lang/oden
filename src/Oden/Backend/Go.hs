@@ -119,25 +119,30 @@ showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)
       | length s' < n  = replicate (n - length s') '0' ++ s'
       | otherwise      = s'
 
-codegenOperator :: BinaryOperator -> Doc
-codegenOperator Add = text "+"
-codegenOperator Subtract = text "-"
-codegenOperator Multiply = text "*"
-codegenOperator Divide = text "/"
-codegenOperator Equals = text "=="
-codegenOperator Concat = text "+"
-codegenOperator LessThan = text "<"
-codegenOperator GreaterThan = text ">"
-codegenOperator LessThanEqual = text "<="
-codegenOperator GreaterThanEqual = text ">="
-codegenOperator And = text "&&"
-codegenOperator Or = text "||"
+codegenBinaryOperator :: BinaryOperator -> Doc
+codegenBinaryOperator Add = text "+"
+codegenBinaryOperator Subtract = text "-"
+codegenBinaryOperator Multiply = text "*"
+codegenBinaryOperator Divide = text "/"
+codegenBinaryOperator Equals = text "=="
+codegenBinaryOperator Concat = text "+"
+codegenBinaryOperator LessThan = text "<"
+codegenBinaryOperator GreaterThan = text ">"
+codegenBinaryOperator LessThanEqual = text "<="
+codegenBinaryOperator GreaterThanEqual = text ">="
+codegenBinaryOperator And = text "&&"
+codegenBinaryOperator Or = text "||"
+
+codegenUnaryOperator :: UnaryOperator -> Doc
+codegenUnaryOperator o = text (show o)
 
 codegenExpr :: Expr Mono.Type -> Doc
 codegenExpr (Symbol _ i _) =
   codegenIdentifier i
-codegenExpr (Op _ o e1 e2 _) =
-  parens (codegenExpr e1 <+> codegenOperator o <+> codegenExpr e2)
+codegenExpr (UnaryOp _ o e _) =
+  parens (codegenUnaryOperator o <+> codegenExpr e)
+codegenExpr (BinaryOp _ o e1 e2 _) =
+  parens (codegenExpr e1 <+> codegenBinaryOperator o <+> codegenExpr e2)
 codegenExpr (Application _ (Symbol _ (Unqualified "not") _) e _) =
   text "!" <> codegenExpr e
 codegenExpr (Application _ f p _) =

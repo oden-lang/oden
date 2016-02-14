@@ -56,7 +56,8 @@ instance FTV (Core.Expr Type) where
 
 instance Substitutable (Core.Expr Type) where
   apply s (Core.Symbol si x t)                   = Core.Symbol si x (apply s t)
-  apply s (Core.Op si o e1 e2 t)                 = Core.Op si o (apply s e1) (apply s e2) (apply s t)
+  apply s (Core.UnaryOp si o e t)                = Core.UnaryOp si o (apply s e) (apply s t)
+  apply s (Core.BinaryOp si o e1 e2 t)           = Core.BinaryOp si o (apply s e1) (apply s e2) (apply s t)
   apply s (Core.Application si f p t)            = Core.Application si (apply s f) (apply s p) (apply s t)
   apply s (Core.NoArgApplication si f t)         = Core.NoArgApplication si (apply s f) (apply s t)
   apply s (Core.UncurriedFnApplication si f p t) = Core.UncurriedFnApplication si (apply s f) (apply s p) (apply s t)

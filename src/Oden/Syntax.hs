@@ -11,7 +11,8 @@ data LetPair = LetPair SourceInfo Binding Expr
              deriving (Show, Eq, Ord)
 
 data Expr = Symbol SourceInfo Identifier
-          | Op SourceInfo BinaryOperator Expr Expr
+          | UnaryOp SourceInfo UnaryOperator Expr
+          | BinaryOp SourceInfo BinaryOperator Expr Expr
           | Application SourceInfo Expr [Expr]
           | Fn SourceInfo [Binding] Expr
           | Let SourceInfo [LetPair] Expr
