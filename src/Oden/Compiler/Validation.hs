@@ -12,9 +12,10 @@ import           Control.Monad.State
 import qualified Data.Set        as Set
 
 data ValidationError = Redefinition SourceInfo Name
+                     | ValueDiscarded (Expr Type)
                      deriving (Show, Eq, Ord)
 
-data ValidationWarning = ValueDiscarded (Expr Type)
+data ValidationWarning = ValidationWarning -- There's no warnings defined yet.
                        deriving (Show, Eq, Ord)
 
 type Validate = ReaderT
@@ -62,8 +63,14 @@ validateExpr (If _ c t e _) = do
   validateExpr c
   validateExpr t
   validateExpr e
-validateExpr (Block _ exprs _) =
+validateExpr (Block _ exprs _) = do
+  mapM_ warnOnDiscarded (init exprs)
   mapM_ validateExpr exprs
+  where
+  warnOnDiscarded :: Expr Type -> Validate ()
+  warnOnDiscarded expr = case typeOf expr of
+    TUnit{} -> return ()
+    _ -> throwError (ValueDiscarded expr)
 
 validatePackage :: Package -> Validate ()
 validatePackage (Package _ _ definitions) = validateSeq definitions

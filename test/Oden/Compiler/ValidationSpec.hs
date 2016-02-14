@@ -18,7 +18,7 @@ unitExpr :: Expr Type
 unitExpr = Literal Missing Unit (TUnit Missing)
 
 strExpr :: Expr Type
-strExpr = Literal Missing (String "hello") (TCon Missing "string")
+strExpr = Literal Missing (String "hello") (TBasic Missing TString)
 
 letExpr :: Name -> Expr Type -> Expr Type -> Expr Type
 letExpr n value body = Let Missing (Binding Missing n) value body (typeOf body)
@@ -26,9 +26,26 @@ letExpr n value body = Let Missing (Binding Missing n) value body (typeOf body)
 fnExpr :: Name -> Expr Type -> Expr Type
 fnExpr n body = Fn Missing (Binding Missing n) body (TFn Missing (TBasic Missing TString) (typeOf body))
 
+block :: [Expr Type] -> Expr Type
+block exprs = Block Missing exprs (typeOf (last exprs))
+
 spec :: Spec
 spec =
   describe "validate" $ do
+
+    it "warns on discarded value in block" $
+      validate (Package (PackageDeclaration Missing ["mypkg"]) [] [
+            Definition Missing "foo" $ canonical (block [strExpr, unitExpr])
+        ])
+      `shouldFailWith`
+      ValueDiscarded strExpr
+
+    it "does not warn on discarded unit value in block" $
+      validate (Package (PackageDeclaration Missing ["mypkg"]) [] [
+            Definition Missing "foo" $ canonical (block [unitExpr, strExpr])
+        ])
+      `shouldSucceedWith`
+      []
 
     it "accepts uniquely named definitions" $
       validate (Package (PackageDeclaration Missing ["mypkg"]) [] [
