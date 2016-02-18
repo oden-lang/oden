@@ -6,6 +6,8 @@ import           Test.Hspec
 import           Oden.Infer.Subsumption
 import           Oden.Infer.Substitution
 import           Oden.SourceInfo
+import           Oden.Core
+import           Oden.Identifier
 import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
 
@@ -21,88 +23,104 @@ tvarB = TVar Predefined (TV "b")
 tvarC :: Type
 tvarC = TVar Predefined (TV "c")
 
+scheme:: Type -> Scheme
+scheme= Forall Predefined []
+
+typeUnit, typeAny, typeInt, typeString :: Type
+typeUnit = TUnit Predefined
+typeAny = TAny Predefined
+typeInt = TBasic Predefined TInt
+typeString = TBasic Predefined TString
+
+typeFn :: Type -> Type -> Type
+typeFn = TFn Missing
+
 spec :: Spec
 spec = do
-
-  describe "getSubst" $ do
-
-    it "gets substitutions for tuple" $
-      getSubst
-      (TTuple Predefined tvarA tvarB [])
-      (TTuple Predefined tvarB tvarC [])
-      `shouldSucceedWith`
-      Subst (fromList [(TV "b", tvarA), (TV "c", tvarB)])
-
-    it "gets substitutions for fn of tuple" $
-      getSubst
-      (TFn Predefined tvarA (TFn Predefined tvarB (TTuple Predefined tvarA tvarB [])))
-      (TFn Predefined tvarB (TFn Predefined tvarC (TTuple Predefined tvarB tvarC [])))
-      `shouldSucceedWith`
-      Subst (fromList [(TV "b", tvarA), (TV "c", tvarB)])
 
   describe "subsume" $ do
 
     it "any subsume any" $
-      TAny Predefined `subsume` TAny Predefined
+      scheme typeAny `subsume` Literal Predefined Unit typeAny
       `shouldSucceedWith`
-      TAny Predefined
+      (scheme typeAny, Literal Predefined Unit typeAny)
 
     it "any subsume int" $
-      TAny Predefined `subsume` TBasic Predefined TInt
+      scheme typeAny `subsume` Literal Predefined Unit typeUnit
       `shouldSucceedWith`
-      TAny Predefined
+      (scheme typeAny, Literal Predefined Unit typeUnit)
 
     it "int does not subsume any" $
-      shouldFail (TBasic Predefined TInt `subsume` TAny Predefined)
+      shouldFail (scheme typeInt `subsume` Literal Predefined Unit typeAny)
 
     it "tvar does not subsume any" $
-      shouldFail (tvarA `subsume` TAny Predefined)
+      shouldFail (scheme tvarA `subsume` Literal Predefined Unit typeAny)
 
     it "any subsume tvar" $
-      TAny Predefined `subsume` tvarA
+      scheme typeAny `subsume` Literal Predefined Unit tvarA
       `shouldSucceedWith`
-      TAny Predefined
+      (scheme typeAny, Literal Predefined Unit typeAny)
 
     it "tvar subsume same tvar" $
-      tvarA `subsume` tvarA
+      scheme tvarA `subsume` Literal Predefined Unit tvarA
       `shouldSucceedWith`
-      tvarA
+      (scheme tvarA, Literal Predefined Unit tvarA)
 
-    it "tvar does not subsume other tvars" $
-      shouldFail (tvarA `subsume` tvarB)
-
-    it "int subsume same int" $
-      TBasic Predefined TInt `subsume` TBasic Predefined TInt
+    it "tvar subsumes and substitutes other tvars" $
+      scheme tvarB `subsume` Literal Predefined Unit tvarA
       `shouldSucceedWith`
-      TBasic Predefined TInt
+      (scheme tvarB, Literal Predefined Unit tvarB)
 
-    it "string subsume same string" $
-      TBasic Predefined TString `subsume` TBasic Predefined TString
+    it "int subsumes same int" $
+      scheme typeInt `subsume` Literal Predefined (Int 1) typeInt
       `shouldSucceedWith`
-      TBasic Predefined TString
+      (scheme typeInt, Literal Predefined (Int 1) typeInt)
+
+    it "string subsumes same string" $
+      scheme typeString `subsume` Literal Predefined (String "foo") typeString
+      `shouldSucceedWith`
+      (scheme typeString, Literal Predefined (String "foo") typeString)
+
+    it "string does not subsume int" $
+      shouldFail (scheme typeString `subsume` Literal Predefined (Int 1) typeInt)
+
+    it "int does not subsume string" $
+      shouldFail (scheme typeInt `subsume` Literal Predefined (String "foo") typeString)
 
     it "tcon subsume same tcon" $
-      TCon Missing "foo" `subsume` TCon Missing "foo"
-      `shouldSucceedWith`
-      TCon Missing "foo"
+      let foo = TCon Missing "foo" in do
+        scheme foo `subsume` Literal Predefined (String "foo") foo
+        `shouldSucceedWith`
+        (scheme foo, Literal Predefined (String "foo") foo)
 
     it "tcon does not subsume other tcons" $
-      shouldFail (TBasic Predefined TInt `subsume` TBasic Predefined TBool)
+      let foo = TCon Missing "foo"
+          bar = TCon Missing "bar"
+      in shouldFail (scheme foo `subsume` Literal Predefined Unit bar)
 
     it "TFn of TVars subsume same TFn" $
-      TFn Predefined tvarA tvarA `subsume` TFn Predefined tvarA tvarA
-      `shouldSucceedWith`
-      TFn Predefined tvarA tvarA
+      let expr tv = Fn Predefined
+                    (Binding Missing "x")
+                    (Symbol Missing (Unqualified "x") tv) (typeFn tv tv) in do
+        scheme (typeFn tvarA tvarA) `subsume` expr tvarB
+        `shouldSucceedWith`
+        (scheme (typeFn tvarA tvarA), expr tvarA)
 
-    it "TVar does not subsume TFn" $
-      shouldFail (tvarA `subsume` TFn Predefined tvarB tvarB)
+    it "TFn of different types does not subsume" $
+      let expr = Fn Predefined
+                    (Binding Missing "x")
+                    (Symbol Missing (Unqualified "x") tvarA) (typeFn tvarA tvarA)
+      in shouldFail (scheme (typeFn typeString typeInt) `subsume` expr)
 
-    it "tuple of tvars subsumes tuple of same tvars" $
-      TTuple Predefined tvarA tvarA [] `subsume` TTuple Predefined tvarA tvarA []
-      `shouldSucceedWith`
-      TTuple Predefined tvarA tvarA []
+    {-it "TVar does not subsume TFn" $-}
+      {-shouldFail (tvarA `subsume` TFn Predefined tvarB tvarB)-}
 
-    it "tvar slice subsumes same tvar slice" $
-      TSlice Predefined tvarA `subsume` TSlice Predefined tvarA
-      `shouldSucceedWith`
-      TSlice Predefined tvarA
+    {-it "tuple of tvars subsumes tuple of same tvars" $-}
+      {-TTuple Predefined tvarA tvarA [] `subsume` TTuple Predefined tvarA tvarA []-}
+      {-`shouldSucceedWith`-}
+      {-TTuple Predefined tvarA tvarA []-}
+
+    {-it "tvar slice subsumes same tvar slice" $-}
+      {-TSlice Predefined tvarA `subsume` TSlice Predefined tvarA-}
+      {-`shouldSucceedWith`-}
+      {-TSlice Predefined tvarA-}

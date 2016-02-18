@@ -1,9 +1,7 @@
 module Oden.Infer.Subsumption (
-  Subsuming,
   SubsumptionError(..),
   subsume,
-  subsumeTypeSignature,
-  getSubst
+  collectSubstitutions
 ) where
 
 import Oden.Type.Polymorphic
@@ -12,79 +10,45 @@ import Oden.Infer.Substitution
 import Oden.SourceInfo
 
 import           Control.Monad
+import           Control.Monad.State
+import           Control.Monad.Except
 import qualified Data.Map               as Map
 
 data SubsumptionError = SubsumptionError SourceInfo Type Type
                       deriving (Show, Eq)
 
-class Subsuming s where
-  subsume :: s -> s -> Either SubsumptionError s
+type Subsume a = StateT (Map.Map TVar Type) (Except SubsumptionError) a
 
-getSubst :: Type -> Type -> Either SubsumptionError Subst
-getSubst TUnit{} TUnit{} = return emptySubst
-getSubst (TBasic _ b1) (TBasic _ b2)
-  | b1 == b2 = return emptySubst
-getSubst t (TVar _ tv) = return (Subst (Map.singleton tv t))
-getSubst (TFn _ a1 r1) (TFn _ a2 r2) = do
-  a <- getSubst a1 a2
-  r <- getSubst r1 r2
-  return (a `union` r)
-getSubst (TNoArgFn _ r1) (TNoArgFn _ r2) = getSubst r1 r2
-getSubst (TUncurriedFn _ a1 r1) (TUncurriedFn _ a2 r2) = do
-  as <- mapM (uncurry getSubst) ((r1, r2) : zip a1 a2)
-  return (foldl union emptySubst as)
-getSubst (TVariadicFn _ a1 v1 r1) (TVariadicFn _ a2 v2 r2) = do
-  as <- mapM (uncurry getSubst) ((r1, r2) : (v1, v2) : zip a1 a2)
-  return (foldl union emptySubst as)
-getSubst (TSlice _ t1) (TSlice _ t2) = getSubst t1 t2
-getSubst (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
-  f <- getSubst f1 f2
-  s <- getSubst s1 s2
-  r <- zipWithM getSubst r1 r2
-  return (foldl union (f `union` s) r)
-getSubst TAny{} _ = return emptySubst
-getSubst t1 t2
-  | t1 == t2  = return emptySubst
-  | otherwise = Left (SubsumptionError (getSourceInfo t2) t1 t2)
 
-subsumeTypeSignature :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr
-subsumeTypeSignature s@(Forall _ _ st) expr = do
-  subst <- getSubst st (Core.typeOf expr)
-  return (s, apply subst expr)
+collectSubstitutions :: Type -> Type -> Subsume ()
+collectSubstitutions TUnit{} TUnit{} = return ()
+collectSubstitutions (TBasic _ b1) (TBasic _ b2)
+  | b1 == b2 = return ()
+collectSubstitutions (TCon _ s1) (TCon _ s2)
+  | s1 == s2 = return ()
+collectSubstitutions t (TVar si tv) = do
+  st <- gets (Map.lookup tv)
+  case st of
+    Just t' | t `equalsT` t'   -> return ()
+            | otherwise -> throwError (SubsumptionError si t t')
+    Nothing -> modify (Map.insert tv t)
+collectSubstitutions (TFn _ a1 r1) (TFn _ a2 r2) = do
+  collectSubstitutions a1 a2
+  collectSubstitutions r1 r2
+collectSubstitutions (TNoArgFn _ r1) (TNoArgFn _ r2) = collectSubstitutions r1 r2
+collectSubstitutions (TUncurriedFn _ a1 r1) (TUncurriedFn _ a2 r2) =
+  mapM_ (uncurry collectSubstitutions) ((r1, r2) : zip a1 a2)
+collectSubstitutions (TVariadicFn _ a1 v1 r1) (TVariadicFn _ a2 v2 r2) =
+  mapM_ (uncurry collectSubstitutions) ((r1, r2) : (v1, v2) : zip a1 a2)
+collectSubstitutions (TSlice _ t1) (TSlice _ t2) = collectSubstitutions t1 t2
+collectSubstitutions (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
+  collectSubstitutions f1 f2
+  collectSubstitutions s1 s2
+  zipWithM_ collectSubstitutions r1 r2
+collectSubstitutions TAny{} _ = return ()
+collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 t2)
 
-instance Subsuming Type where
-  t1@TAny{} `subsume` TAny{} = Right t1
-  t1 `subsume` t2@TAny{} = Left (SubsumptionError (getSourceInfo t2) t1 t2)
-  t1@TAny{} `subsume` _ = Right t1
-  t1@(TVar _ v1) `subsume` (TVar _ v2)
-    | v1 == v2 = Right t1
-  t1@(TBasic _ b1) `subsume` (TBasic _ b2)
-    | b1 == b2 = return t1
-  t1@TUnit{} `subsume` TUnit{} = return t1
-  t1@(TTuple _ f1 s1 r1) `subsume` (TTuple _ f2 s2 r2) = do
-    _ <- f1 `subsume` f2
-    _ <- s1 `subsume` s2
-    mapM_ (uncurry subsume) (zip r1 r2)
-    return t1
-  t1@(TCon _ s1) `subsume` (TCon _ s2)
-    | s1 == s2 = return t1
-  t1@(TNoArgFn _ at1) `subsume` (TNoArgFn _ at2) = do
-    _ <- at1 `subsume` at2
-    return t1
-  t1@(TFn _ at1 rt1) `subsume` (TFn _ at2 rt2) = do
-    _ <- at1 `subsume` at2
-    _ <- rt1 `subsume` rt2
-    return t1
-  t1@(TSlice _ st1) `subsume` (TSlice _ st2) = do
-    _ <- st1 `subsume` st2
-    return t1
-  t1@(TUncurriedFn _ ats1 rt1) `subsume` (TUncurriedFn _ ats2 rt2) = do
-    mapM_ (uncurry subsume) (zip ats1 ats2)
-    _ <- rt1 `subsume` rt2
-    return t1
-  t1@(TVariadicFn _ ats1 vt1 rt1) `subsume` (TVariadicFn _ ats2 vt2 rt2) = do
-    mapM_ (uncurry subsume) (zip ats1 ats2)
-    _ <- vt1 `subsume` vt2
-    _ <- rt1 `subsume` rt2
-    return t1
-  t1 `subsume` t2 = Left (SubsumptionError (getSourceInfo t2) t1 t2)
+subsume :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr
+subsume s@(Forall _ _ st) expr = do
+  subst <- snd <$> runExcept (runStateT (collectSubstitutions st (Core.typeOf expr)) Map.empty)
+  return (s, apply (Subst subst) expr)

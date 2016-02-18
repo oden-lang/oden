@@ -8,7 +8,8 @@ module Oden.Type.Polymorphic (
   isPolymorphicType,
   FTV,
   ftv,
-  getBindingVar
+  getBindingVar,
+  equalsT
 ) where
 
 import           Oden.Type.Basic
@@ -128,6 +129,25 @@ isPolymorphicType (TUncurriedFn _ a r) =
 isPolymorphicType (TVariadicFn _ a v r) =
   any isPolymorphicType a || isPolymorphicType v || isPolymorphicType r
 isPolymorphicType (TSlice _ a) = isPolymorphicType a
+
+equalsAllT :: [Type] -> [Type] -> Bool
+equalsAllT t1 t2 =  all id (zipWith equalsT t1 t2)
+
+equalsT :: Type -> Type -> Bool
+equalsT TAny{} TAny{} = True
+equalsT TUnit{} TUnit{} = True
+equalsT (TBasic _ b1) (TBasic _ b2) = b1 == b2
+equalsT (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) =
+  f1 `equalsT` f2 && s1 `equalsT` s2 && r1 `equalsAllT` r2
+equalsT (TVar _ v1) (TVar _ v2) = v1 == v2
+equalsT (TCon _ c1) (TCon _ c2) = c1 == c2
+equalsT (TNoArgFn _ a1) (TNoArgFn _ a2) = a1 `equalsT` a2
+equalsT (TFn _ a1 b1) (TFn _ a2 b2) = a1 `equalsT` a2 && b1 `equalsT` b2
+equalsT (TUncurriedFn _ a1 r1) (TUncurriedFn _ a2 r2) =
+  a1 `equalsAllT` a2 && r1 `equalsT` r2
+equalsT (TVariadicFn _ a1 v1 r1) (TVariadicFn _ a2 v2 r2)=
+  a1 `equalsAllT` a2 && v1 `equalsT` v2 && r1 `equalsT` r2
+equalsT (TSlice _ e1) (TSlice _ e2) = e1 `equalsT` e2
 
 class FTV a where
   ftv :: a -> Set.Set TVar
