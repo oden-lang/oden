@@ -156,13 +156,13 @@ infer expr = case expr of
   Untyped.Literal si (Untyped.String s) ->
     return (Core.Literal si (Core.String s) (TBasic si TString))
 
-  Untyped.Subscript si a i -> do
-    at <- infer a
-    ti <- infer i
-    tv <- (fresh . getSourceInfo) i
-    uni si (Core.typeOf at) (TSlice si tv)
-    uni (getSourceInfo ti) (Core.typeOf ti) (TBasic si TInt)
-    return (Core.Subscript si at ti tv)
+  Untyped.Subscript si s i -> do
+    st <- infer s
+    it <- infer i
+    tv <- fresh si
+    uni (getSourceInfo st) (Core.typeOf st) (TSlice (getSourceInfo s) tv)
+    uni (getSourceInfo it) (Core.typeOf it) (TBasic si TInt)
+    return (Core.Subscript si st it tv)
 
   Untyped.UnaryOp si o e -> do
     rt <- case o of
@@ -302,7 +302,7 @@ inferDefinition env def@(Untyped.Definition _ _ (Just st) _) = do
   (Core.Definition _ name ce, cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
   let (Forall si _ _, substExpr) = apply subst ce
-  ce' <- left (TypeSignatureSubsumptionError name) $ subsumeTypeSignature st substExpr
+  ce' <- left (TypeSignatureSubsumptionError name) $ subsume st substExpr
   return $ Core.Definition si name ce'
 
 inferPackage :: Env -> Untyped.Package -> Either TypeError (Core.Package, Env)
