@@ -35,6 +35,9 @@ typeString = TBasic Predefined TString
 typeFn :: Type -> Type -> Type
 typeFn = TFn Missing
 
+typeSlice :: Type -> Type
+typeSlice = TSlice Missing
+
 spec :: Spec
 spec = do
 
@@ -112,15 +115,19 @@ spec = do
                     (Symbol Missing (Unqualified "x") tvarA) (typeFn tvarA tvarA)
       in shouldFail (scheme (typeFn typeString typeInt) `subsume` expr)
 
-    {-it "TVar does not subsume TFn" $-}
-      {-shouldFail (tvarA `subsume` TFn Predefined tvarB tvarB)-}
+    it "TVar does not subsume TFn" $
+      let expr = Symbol Missing (Unqualified "x") (typeFn tvarB tvarB) in do
+        shouldFail (scheme tvarA `subsume` expr)
 
-    {-it "tuple of tvars subsumes tuple of same tvars" $-}
-      {-TTuple Predefined tvarA tvarA [] `subsume` TTuple Predefined tvarA tvarA []-}
-      {-`shouldSucceedWith`-}
-      {-TTuple Predefined tvarA tvarA []-}
+    it "tuple of tvars subsumes tuple of same tvars" $
+      let tupleType = (TTuple Predefined tvarA tvarA [])
+          expr = Symbol Missing (Unqualified "x") tupleType in do
+        scheme tupleType `subsume` expr
+        `shouldSucceedWith`
+        (scheme tupleType, expr)
 
-    {-it "tvar slice subsumes same tvar slice" $-}
-      {-TSlice Predefined tvarA `subsume` TSlice Predefined tvarA-}
-      {-`shouldSucceedWith`-}
-      {-TSlice Predefined tvarA-}
+    it "tvar slice subsumes same tvar slice" $
+      let expr tv = Slice Predefined [Symbol Missing (Unqualified "x") tv] (typeSlice tv) in do
+        scheme (typeSlice tvarA) `subsume` expr tvarA
+        `shouldSucceedWith`
+        (scheme (typeSlice tvarA), expr tvarA)
