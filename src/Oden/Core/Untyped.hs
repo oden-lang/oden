@@ -10,6 +10,7 @@ data Binding = Binding SourceInfo Name
 
 data Expr = Symbol SourceInfo Identifier
           | Subscript SourceInfo Expr Expr
+          | Subslice SourceInfo Expr Expr Expr
           | UnaryOp SourceInfo UnaryOperator Expr
           | BinaryOp SourceInfo BinaryOperator Expr Expr
           | Application SourceInfo Expr [Expr]
@@ -26,6 +27,7 @@ data Expr = Symbol SourceInfo Identifier
 instance HasSourceInfo Expr where
   getSourceInfo (Symbol si _)                   = si
   getSourceInfo (Subscript si _ _)              = si
+  getSourceInfo (Subslice si _ _ _)             = si
   getSourceInfo (UnaryOp si _ _)                = si
   getSourceInfo (BinaryOp si _ _ _)             = si
   getSourceInfo (Application si _ _)            = si
@@ -39,7 +41,8 @@ instance HasSourceInfo Expr where
   getSourceInfo (Block si _)                    = si
 
   setSourceInfo si (Symbol _ i)                   = Symbol si i
-  setSourceInfo si (Subscript _ a is)             = Subscript si a is
+  setSourceInfo si (Subscript _ s i)              = Subscript si s i
+  setSourceInfo si (Subslice _ s i1 i2)           = Subslice si s i1 i2
   setSourceInfo si (UnaryOp _ p r)                = UnaryOp si p r
   setSourceInfo si (BinaryOp _ p l r)             = BinaryOp si p l r
   setSourceInfo si (Application _ f a)            = Application si f a
@@ -47,7 +50,7 @@ instance HasSourceInfo Expr where
   setSourceInfo si (NoArgFn _ b)                  = NoArgFn si b
   setSourceInfo si (Let _ n v b)                  = Let si n v b
   setSourceInfo si (Literal _ l)                  = Literal si l
-  setSourceInfo si (If _ c t e)                  = If si c t e
+  setSourceInfo si (If _ c t e)                   = If si c t e
   setSourceInfo si (Slice _ e)                    = Slice si e
   setSourceInfo si (Tuple _ f s r)                = Tuple si f s r
   setSourceInfo si (Block _ e)                    = Block si e
