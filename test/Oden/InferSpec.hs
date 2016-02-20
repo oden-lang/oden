@@ -5,9 +5,10 @@ import           Test.Hspec
 import qualified Oden.Core             as Core
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Operator
-import           Oden.Env
+import           Oden.Environment
 import           Oden.Identifier
 import           Oden.Infer
+import           Oden.Infer.Environment
 import           Oden.Predefined
 import           Oden.SourceInfo
 import           Oden.Type.Basic
@@ -38,9 +39,6 @@ typeVariadic = TVariadicFn Missing
 forall = Forall Missing
 tvarBinding = TVarBinding Missing
 
-predef :: Env
-predef = fromScope predefined
-
 uSymbol                 = Untyped.Symbol Missing
 uOp                     = Untyped.BinaryOp Missing
 uApplication            = Untyped.Application Missing
@@ -58,7 +56,7 @@ uString = Untyped.String
 uBool   = Untyped.Bool
 uUnit   = Untyped.Unit
 
-uBinding = Untyped.Binding Missing
+uNameBinding = Untyped.NameBinding Missing
 uDefinition = Untyped.Definition Missing
 
 tSymbol                 = Core.Symbol Missing
@@ -81,19 +79,22 @@ tString = Core.String
 tBool   = Core.Bool
 
 tDefinition = Core.Definition Missing
-tBinding = Core.Binding Missing
+tNameBinding = Core.NameBinding Missing
 
-predefAndMax :: Env
-predefAndMax = predef `extend` (Unqualified "max",
-                                forall [] (typeUncurried [typeInt, typeInt] typeInt))
+predef :: TypingEnvironment
+predef = fromDefinitions predefined
 
-predefAndMaxVariadic :: Env
-predefAndMaxVariadic = predef `extend` (Unqualified "max",
-                                        forall [] (typeVariadic [] typeInt typeInt))
+predefAndMax :: TypingEnvironment
+predefAndMax =  predef `extend` ("max",
+                                     Local Predefined "max" $ forall [] (typeUncurried [typeInt, typeInt] typeInt))
 
-predefAndIdentityAny :: Env
-predefAndIdentityAny = predef `extend` (Unqualified "identity",
-                                        forall [] (typeUncurried [typeAny] (typeAny)))
+predefAndMaxVariadic :: TypingEnvironment
+predefAndMaxVariadic = predef `extend` ("max",
+                                            Local Predefined "max" $ forall [] (typeVariadic [] typeInt typeInt))
+
+predefAndIdentityAny :: TypingEnvironment
+predefAndIdentityAny = predef `extend` ("identity",
+                                            Local Predefined "identity" $ forall [] (typeUncurried [typeAny] (typeAny)))
 
 booleanOp :: Type
 booleanOp = typeFn typeBool (typeFn typeBool typeBool)
@@ -101,7 +102,7 @@ booleanOp = typeFn typeBool (typeFn typeBool typeBool)
 countToZero :: Untyped.Expr
 countToZero =
   uFn
-  (uBinding "x")
+  (uNameBinding "x")
   (uIf
    (uOp
     Equals
@@ -127,7 +128,7 @@ countToZeroTyped =
    "f"
    (forall [] (typeFn typeInt typeInt),
     tFn
-    (tBinding "x")
+    (tNameBinding "x")
     (tIf
      (tOp
       Equals
@@ -149,9 +150,9 @@ countToZeroTyped =
 twiceUntyped :: Untyped.Expr
 twiceUntyped =
   uFn
-  (uBinding "f")
+  (uNameBinding "f")
   (uFn
-   (uBinding "x")
+   (uNameBinding "x")
    (uApplication
      (uSymbol (Unqualified "f"))
      [uApplication
@@ -162,9 +163,9 @@ twiceTyped :: Core.Definition
 twiceTyped =
   tDefinition "twice" (forall [tvarBinding tvA] (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
                            tFn
-                           (tBinding "f")
+                           (tNameBinding "f")
                            (tFn
-                           (tBinding "x")
+                           (tNameBinding "x")
                            (tApplication
                              (tSymbol (Unqualified "f") (typeFn tvarA tvarA))
                              (tApplication
@@ -210,10 +211,10 @@ spec = do
         tupleType)
 
     it "infers identity fn" $
-      inferExpr empty (uFn (uBinding "x") (uSymbol (Unqualified "x")))
+      inferExpr empty (uFn (uNameBinding "x") (uSymbol (Unqualified "x")))
       `shouldSucceedWith`
       (forall [tvarBinding tvA] (typeFn tvarA tvarA),
-       tFn (tBinding "x") (tSymbol (Unqualified "x") tvarA) (typeFn tvarA tvarA))
+       tFn (tNameBinding "x") (tSymbol (Unqualified "x") tvarA) (typeFn tvarA tvarA))
 
     it "infers no-arg fn" $
       inferExpr empty (uNoArgFn (uLiteral (uBool True)))
@@ -229,14 +230,14 @@ spec = do
 
     it "infers multi-arg fn application" $
       inferExpr empty (uApplication
-                       (uFn (uBinding "x") (uFn (uBinding "y") (uLiteral (uInt 1))))
+                       (uFn (uNameBinding "x") (uFn (uNameBinding "y") (uLiteral (uInt 1))))
                        [uLiteral (uBool False), uLiteral (uBool False)])
       `shouldSucceedWith`
       (forall [] typeInt,
        (tApplication
         (tApplication
-         (tFn (tBinding "x")
-          (tFn (tBinding "y") (tLiteral (tInt 1) typeInt) (typeBool `typeFn` typeInt))
+         (tFn (tNameBinding "x")
+          (tFn (tNameBinding "y") (tLiteral (tInt 1) typeInt) (typeBool `typeFn` typeInt))
           (typeBool `typeFn` (typeBool `typeFn` typeInt)))
          (tLiteral (tBool False) typeBool)
          (typeBool `typeFn` typeInt))
@@ -312,36 +313,36 @@ spec = do
         typeAny)
 
     it "infers let" $
-      inferExpr empty (uLet (uBinding "x") (uLiteral (uInt 1)) (uSymbol (Unqualified "x")))
+      inferExpr empty (uLet (uNameBinding "x") (uLiteral (uInt 1)) (uSymbol (Unqualified "x")))
       `shouldSucceedWith`
       (forall [] typeInt,
-       tLet (tBinding "x") (tLiteral (tInt 1) typeInt) (tSymbol (Unqualified "x") typeInt) typeInt)
+       tLet (tNameBinding "x") (tLiteral (tInt 1) typeInt) (tSymbol (Unqualified "x") typeInt) typeInt)
 
     it "infers let with shadowing" $
       inferExpr empty (uLet
-                       (uBinding "x")
+                       (uNameBinding "x")
                        (uLiteral (uInt 1))
                        (uLet
-                        (uBinding "x")
+                        (uNameBinding "x")
                         (uSymbol (Unqualified "x"))
                         (uSymbol (Unqualified "x"))))
       `shouldSucceedWith`
       (forall [] typeInt,
        tLet
-        (tBinding "x")
+        (tNameBinding "x")
         (tLiteral (tInt 1) typeInt)
         (tLet
-         (tBinding "x")
+         (tNameBinding "x")
          (tSymbol (Unqualified "x") typeInt)
          (tSymbol (Unqualified "x") typeInt)
          typeInt)
         typeInt)
 
     it "infers polymorphic if" $
-      inferExpr empty (uFn (uBinding "x") (uIf (uLiteral (uBool True)) (uSymbol (Unqualified "x")) (uSymbol (Unqualified "x"))))
+      inferExpr empty (uFn (uNameBinding "x") (uIf (uLiteral (uBool True)) (uSymbol (Unqualified "x")) (uSymbol (Unqualified "x"))))
       `shouldSucceedWith`
       (forall [tvarBinding tvA] (typeFn tvarA tvarA),
-       tFn (tBinding "x") (tIf (tLiteral (tBool True) typeBool)
+       tFn (tNameBinding "x") (tIf (tLiteral (tBool True) typeBool)
                             (tSymbol (Unqualified "x") tvarA)
                             (tSymbol (Unqualified "x") tvarA)
                             tvarA) (typeFn tvarA tvarA))
@@ -412,7 +413,7 @@ spec = do
           empty
           (uDefinition "id"
                               Nothing
-                              (uFn (uBinding "x") (uSymbol (Unqualified "x"))))
+                              (uFn (uNameBinding "x") (uSymbol (Unqualified "x"))))
 
     it "infers definition with type signature" $
       inferDefinition empty (uDefinition "x" (Just $ forall [] typeAny) (uLiteral (uInt 1)))
@@ -422,10 +423,10 @@ spec = do
     it "infers polymorphic definition with type signature" $
       inferDefinition empty (uDefinition "id"
                                                 (Just $ forall [tvarBinding tvA] (typeFn tvarA tvarA))
-                                                (uFn (uBinding "x") (uSymbol (Unqualified "x"))))
+                                                (uFn (uNameBinding "x") (uSymbol (Unqualified "x"))))
       `shouldSucceedWith`
       tDefinition "id" (forall [tvarBinding tvA] (typeFn tvarA tvarA),
-                            tFn (tBinding "x") (tSymbol (Unqualified "x") tvarA) (typeFn tvarA tvarA))
+                            tFn (tNameBinding "x") (tSymbol (Unqualified "x") tvarA) (typeFn tvarA tvarA))
 
     it "fails when specified type signature does not unify" $
       shouldFail $
@@ -467,3 +468,8 @@ spec = do
     it "fails on recursive with incorrect signature" $
       shouldFail $
         inferDefinition predef (uDefinition "f" (Just $ forall [] (typeFn typeInt typeAny)) countToZero)
+
+    it "infers definition based on type alias" $
+      inferDefinition predef (uDefinition "f" (Just $ forall [] intToInt) countToZero)
+      `shouldSucceedWith`
+      countToZeroTyped

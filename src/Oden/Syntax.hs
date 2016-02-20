@@ -4,10 +4,10 @@ import           Oden.Identifier
 import           Oden.Core.Operator
 import           Oden.SourceInfo
 
-data Binding = Binding SourceInfo Name
+data NameBinding = NameBinding SourceInfo Name
                  deriving (Show, Eq, Ord)
 
-data LetPair = LetPair SourceInfo Binding Expr
+data LetPair = LetPair SourceInfo NameBinding Expr
              deriving (Show, Eq, Ord)
 
 data Expr = Symbol SourceInfo Identifier
@@ -15,7 +15,7 @@ data Expr = Symbol SourceInfo Identifier
           | UnaryOp SourceInfo UnaryOperator Expr
           | BinaryOp SourceInfo BinaryOperator Expr Expr
           | Application SourceInfo Expr [Expr]
-          | Fn SourceInfo [Binding] Expr
+          | Fn SourceInfo [NameBinding] Expr
           | Let SourceInfo [LetPair] Expr
           | Literal SourceInfo Literal
           | If SourceInfo Expr Expr Expr
@@ -43,7 +43,7 @@ data TypeExpr = TEAny SourceInfo
               | TEBasic SourceInfo BasicTypeExpr
               | TEUnit SourceInfo
               | TEVar SourceInfo String
-              | TECon SourceInfo String
+              | TECon SourceInfo String [TypeExpr]
               | TEFn SourceInfo TypeExpr [TypeExpr]
               | TENoArgFn SourceInfo TypeExpr
               | TETuple SourceInfo TypeExpr TypeExpr [TypeExpr]
@@ -63,10 +63,10 @@ data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                           deriving (Show, Eq, Ord)
 
 data TopLevel = ImportDeclaration SourceInfo PackageName
-                | TypeSignature SourceInfo Name SchemeExpr
-                | ValueDefinition SourceInfo Name Expr
-                | FnDefinition SourceInfo Name [Binding] Expr
-                deriving (Show, Eq, Ord)
+              | TypeSignature SourceInfo Name SchemeExpr
+              | ValueDefinition SourceInfo Name Expr
+              | FnDefinition SourceInfo Name [NameBinding] Expr
+              deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]
              deriving (Show, Eq, Ord)

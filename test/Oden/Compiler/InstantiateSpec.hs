@@ -28,7 +28,7 @@ identityPoly :: Core.Expr Poly.Type
 identityPoly =
   Core.Fn
   Missing
-  (Core.Binding Missing "x")
+  (Core.NameBinding Missing "x")
   (Core.Symbol Missing (Unqualified "x") tvarA)
   (Poly.TFn Missing tvarA tvarA)
 
@@ -39,7 +39,7 @@ identityInt :: Core.Expr Poly.Type
 identityInt =
   Core.Fn
   Missing
-  (Core.Binding Missing "x")
+  (Core.NameBinding Missing "x")
   (Core.Symbol Missing (Unqualified "x") typeInt)
   (Poly.TFn Missing typeInt typeInt)
 

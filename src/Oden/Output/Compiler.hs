@@ -11,12 +11,10 @@ import           Oden.Pretty
 instance OdenOutput MonomorphError where
   outputType _ = Error
   name (NotInScope _)                   = "Compiler.Monomorph.NotInScope"
-  name (AmbigiousReference _ _)         = "Compiler.Monomorph.AmbigiousReference"
   name (UnexpectedPolyType _ _)         = "Compiler.Monomorph.UnexpectedPolyType"
   name (MonomorphInstantiateError err)  = name err
 
   header (NotInScope i) s                   = code s (pp i) <+> text "is not in scope"
-  header (AmbigiousReference i _) s         = text "Ambigious reference" <+> code s (pp i)
   header (UnexpectedPolyType _ e) s         = text "Unexpected polymorphic type" <+> code s (pp e)
   header (MonomorphInstantiateError err) s  = header err s
 

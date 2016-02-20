@@ -24,8 +24,9 @@ collectSubstitutions :: Type -> Type -> Subsume ()
 collectSubstitutions TUnit{} TUnit{} = return ()
 collectSubstitutions (TBasic _ b1) (TBasic _ b2)
   | b1 == b2 = return ()
-collectSubstitutions (TCon _ s1) (TCon _ s2)
-  | s1 == s2 = return ()
+collectSubstitutions (TCon _ s1 t1) (TCon _ s2 t2)
+  | s1 == s2 = do
+  mapM_ (uncurry collectSubstitutions) (zip t1 t2)
 collectSubstitutions t (TVar si tv) = do
   st <- gets (Map.lookup tv)
   case st of

@@ -6,8 +6,8 @@ import           Oden.Identifier
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic as Poly
 
-data Binding = Binding SourceInfo Name
-              deriving (Show, Eq, Ord)
+data NameBinding = NameBinding SourceInfo Name
+                 deriving (Show, Eq, Ord)
 
 data Expr t = Symbol SourceInfo Identifier t
             | Subscript SourceInfo (Expr t) (Expr t) t
@@ -17,9 +17,9 @@ data Expr t = Symbol SourceInfo Identifier t
             | Application SourceInfo (Expr t) (Expr t) t
             | NoArgApplication SourceInfo (Expr t) t
             | UncurriedFnApplication SourceInfo (Expr t) [Expr t] t
-            | Fn SourceInfo Binding (Expr t) t
+            | Fn SourceInfo NameBinding (Expr t) t
             | NoArgFn SourceInfo (Expr t) t
-            | Let SourceInfo Binding (Expr t) (Expr t) t
+            | Let SourceInfo NameBinding (Expr t) (Expr t) t
             | Literal SourceInfo Literal t
             | Tuple SourceInfo (Expr t) (Expr t) [Expr t] t
             | If SourceInfo (Expr t) (Expr t) (Expr t) t
@@ -89,6 +89,7 @@ data Literal = Int Integer
 type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
 
 data Definition = Definition SourceInfo Name CanonicalExpr
+                | ForeignDefinition SourceInfo Name Poly.Scheme
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]

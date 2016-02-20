@@ -5,19 +5,17 @@ module Oden.Predefined (
 import Oden.Identifier
 import Oden.Type.Basic
 import Oden.Type.Polymorphic
-import qualified Oden.SourceInfo as SI
-import Oden.Scope
+import Oden.SourceInfo
+import qualified Oden.Core as Core
 
-pairs :: [(Identifier, Scheme)]
+import qualified Data.Map as Map
+
+pairs :: [(Name, Scheme)]
 pairs = [
-  (Unqualified "unit", Forall SI.Predefined [] (TUnit SI.Predefined)),
-
-  (Unqualified "not", Forall SI.Predefined [] (TFn SI.Predefined (TBasic SI.Predefined TBool) (TBasic SI.Predefined TBool))),
-
-  (Unqualified "len", Forall SI.Predefined [TVarBinding SI.Predefined (TV "a")] (TUncurriedFn SI.Predefined [TSlice SI.Predefined (TVar SI.Predefined (TV "a"))] (TBasic SI.Predefined TInt)))
+  ("len", Forall Predefined [TVarBinding Predefined (TV "a")] (TUncurriedFn Predefined [TSlice Predefined (TVar Predefined (TV "a"))] (TBasic Predefined TInt)))
   ]
 
-predefined :: Scope
-predefined = fromList (map toScopeAssoc pairs)
+predefined :: Map.Map Name Core.Definition
+predefined = Map.fromList (map toAssoc pairs)
   where
-  toScopeAssoc (i, s) = (Predefined, i, ForeignDefinition i s)
+  toAssoc (i, s) = (i, Core.ForeignDefinition Predefined i s)

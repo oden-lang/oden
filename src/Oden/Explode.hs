@@ -19,8 +19,8 @@ import qualified Data.Set              as Set
 data ExplodeError = TypeSignatureWithoutDefinition SourceInfo Name Scheme
                   deriving (Show, Eq)
 
-explodeBinding :: Binding -> Untyped.Binding
-explodeBinding (Binding si name) = Untyped.Binding si name
+explodeNameBinding :: NameBinding -> Untyped.NameBinding
+explodeNameBinding (NameBinding si name) = Untyped.NameBinding si name
 
 explodeExpr :: Expr -> Untyped.Expr
 explodeExpr (Subscript si es [Singular e]) =
@@ -53,17 +53,17 @@ explodeExpr (Application si f ps) =
 explodeExpr (Fn si [] b) =
   Untyped.NoArgFn si (explodeExpr b)
 explodeExpr (Fn si [arg] b) =
-  Untyped.Fn si (explodeBinding arg) (explodeExpr b)
+  Untyped.Fn si (explodeNameBinding arg) (explodeExpr b)
 explodeExpr (Fn si (arg:args) b) =
-  Untyped.Fn si (explodeBinding arg) (explodeExpr (Fn si args b))
+  Untyped.Fn si (explodeNameBinding arg) (explodeExpr (Fn si args b))
 
 -- invalid, but can be handled anyway
 explodeExpr (Subscript _ a []) = explodeExpr a
 explodeExpr (Let _ [] b) = explodeExpr b
 explodeExpr (Let _ [LetPair si n e] b) =
-  Untyped.Let si (explodeBinding n) (explodeExpr e) (explodeExpr b)
+  Untyped.Let si (explodeNameBinding n) (explodeExpr e) (explodeExpr b)
 explodeExpr (Let si (LetPair _ n e:bs) b) =
-  Untyped.Let si (explodeBinding n) (explodeExpr e) (explodeExpr (Let si bs b)) 
+  Untyped.Let si (explodeNameBinding n) (explodeExpr e) (explodeExpr (Let si bs b)) 
 explodeExpr (Slice si es) =
   Untyped.Slice si (map explodeExpr es)
 explodeExpr (Block si es) =
@@ -76,7 +76,7 @@ explodeType (TEBasic si TEInt) = TBasic si TInt
 explodeType (TEBasic si TEBool) = TBasic si TBool
 explodeType (TEBasic si TEString) = TBasic si TString
 explodeType (TEVar si s) = TVar si (TV s)
-explodeType (TECon si s) = TCon si s
+explodeType (TECon si s ts) = TCon si s (map explodeType ts)
 explodeType (TEFn _ d []) = explodeType d
 explodeType (TEFn si d (r:rs)) =
   TFn si (explodeType d) (explodeType (TEFn si r rs))

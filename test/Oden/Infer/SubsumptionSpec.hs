@@ -88,19 +88,19 @@ spec = do
       shouldFail (scheme typeInt `subsume` Literal Predefined (String "foo") typeString)
 
     it "tcon subsume same tcon" $
-      let foo = TCon Missing "foo" in do
+      let foo = TCon Missing "foo" [] in do
         scheme foo `subsume` Literal Predefined (String "foo") foo
         `shouldSucceedWith`
         (scheme foo, Literal Predefined (String "foo") foo)
 
     it "tcon does not subsume other tcons" $
-      let foo = TCon Missing "foo"
-          bar = TCon Missing "bar"
+      let foo = TCon Missing "foo" []
+          bar = TCon Missing "bar" []
       in shouldFail (scheme foo `subsume` Literal Predefined Unit bar)
 
     it "TFn of TVars subsume same TFn" $
       let expr tv = Fn Predefined
-                    (Binding Missing "x")
+                    (NameBinding Missing "x")
                     (Symbol Missing (Unqualified "x") tv) (typeFn tv tv) in do
         scheme (typeFn tvarA tvarA) `subsume` expr tvarB
         `shouldSucceedWith`
@@ -108,7 +108,7 @@ spec = do
 
     it "TFn of different types does not subsume" $
       let expr = Fn Predefined
-                    (Binding Missing "x")
+                    (NameBinding Missing "x")
                     (Symbol Missing (Unqualified "x") tvarA) (typeFn tvarA tvarA)
       in shouldFail (scheme (typeFn typeString typeInt) `subsume` expr)
 

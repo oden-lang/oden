@@ -96,7 +96,7 @@ codegenType (Mono.TTuple _ f s r) =
   codegenTupleField :: Int -> Mono.Type -> Doc
   codegenTupleField n t = text ("_" ++ show n) <+> codegenType t
 codegenType Mono.TAny{} = text "interface{}"
-codegenType (Mono.TCon _ n) = safeName n
+codegenType (Mono.TCon _ n _) = safeName n
 codegenType (Mono.TNoArgFn _ f) =
   func empty empty (codegenType f) empty
 codegenType (Mono.TFn _ d r) =
@@ -161,13 +161,13 @@ codegenExpr (UncurriedFnApplication _ f ps _) =
       codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr ps)))
 codegenExpr (NoArgApplication _ f _) =
   codegenExpr f <> parens empty
-codegenExpr (Fn _ (Binding _ a) body (Mono.TFn _ d r)) =
+codegenExpr (Fn _ (NameBinding _ a) body (Mono.TFn _ d r)) =
   func empty (funcArg a d) (codegenType r) (braces (return' body))
 codegenExpr Fn{} = text "<invalid fn type>"
 codegenExpr (NoArgFn _ body (Mono.TNoArgFn _ r)) =
   func empty empty (codegenType r) (braces (return' body))
 codegenExpr (NoArgFn _ _ _) = text "<invalid no-arg fn type>"
-codegenExpr (Let _ (Binding _ n) expr body t) =
+codegenExpr (Let _ (NameBinding _ n) expr body t) =
   parens (func empty empty (codegenType t) (braces (text "var" <+> safeName n <+> codegenType (typeOf expr)<+> equals <+> codegenExpr expr $+$ return' body)))
   <> parens empty
 codegenExpr (Literal _ (Int n) _) = integer n
@@ -199,9 +199,9 @@ codegenTopLevel name (Mono.TNoArgFn _ r) (NoArgFn _ body _) =
   func (safeName name) empty (codegenType r) (braces (return' body))
 codegenTopLevel name _ (NoArgFn _ body (Mono.TNoArgFn _ r)) =
   func (safeName name) empty (codegenType r) (braces (return' body))
-codegenTopLevel name (Mono.TFn _ d r) (Fn _ (Binding _ a) body _) =
+codegenTopLevel name (Mono.TFn _ d r) (Fn _ (NameBinding _ a) body _) =
   func (safeName name) (funcArg a d) (codegenType r) (braces (return' body))
-codegenTopLevel name _ (Fn _ (Binding _ a) body (Mono.TFn _ d r)) =
+codegenTopLevel name _ (Fn _ (NameBinding _ a) body (Mono.TFn _ d r)) =
   func (safeName name) (funcArg a d) (codegenType r) (braces (return' body))
 codegenTopLevel name t expr =
   varWithType name t expr

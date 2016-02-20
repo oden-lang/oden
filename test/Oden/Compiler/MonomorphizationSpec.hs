@@ -3,11 +3,12 @@ module Oden.Compiler.MonomorphizationSpec where
 import           Data.Set              as Set
 import           Test.Hspec
 
+import           Oden.Compiler.Environment
 import           Oden.Compiler.Monomorphization
 import qualified Oden.Core             as Core
 import           Oden.Identifier
 import           Oden.Predefined
-import qualified Oden.Scope            as Scope
+import qualified Oden.Environment as Environment
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
@@ -36,7 +37,7 @@ identityDef =
     Missing
     "identity"
     (Poly.Forall Missing [Poly.TVarBinding Missing tvA] (Poly.TFn Missing a a),
-     Core.Fn Missing (Core.Binding Missing "x") (Core.Symbol Missing (Unqualified "x") a)
+     Core.Fn Missing (Core.NameBinding Missing "x") (Core.Symbol Missing (Unqualified "x") a)
                  (Poly.TFn Missing a a))
 
 identity2Def :: Core.Definition
@@ -45,7 +46,7 @@ identity2Def =
     Missing
     "identity2"
     (Poly.Forall Missing [Poly.TVarBinding Missing tvA] (Poly.TFn Missing a a),
-     Core.Fn Missing (Core.Binding Missing "x") (Core.Application Missing (Core.Symbol Missing (Unqualified "identity") (Poly.TFn Missing a a))
+     Core.Fn Missing (Core.NameBinding Missing "x") (Core.Application Missing (Core.Symbol Missing (Unqualified "identity") (Poly.TFn Missing a a))
                                    (Core.Symbol Missing (Unqualified "x") a)
                                    a)
                  (Poly.TFn Missing a a))
@@ -89,7 +90,7 @@ letBoundIdentity =
     Missing
     "let-bound-identity"
     (Poly.Forall Missing [] typeInt,
-     Core.Let Missing (Core.Binding Missing "identity") (Core.Fn Missing (Core.Binding Missing "x") (Core.Symbol Missing (Unqualified "x") a) (Poly.TFn Missing a a))
+     Core.Let Missing (Core.NameBinding Missing "identity") (Core.Fn Missing (Core.NameBinding Missing "x") (Core.Symbol Missing (Unqualified "x") a) (Poly.TFn Missing a a))
                          (Core.Application
                           Missing
                           (Core.Symbol Missing (Unqualified "identity") (Poly.TFn Missing typeInt typeInt))
@@ -117,8 +118,8 @@ letBoundIdentityMonomorphed =
     monoInt
     (Core.Let
      Missing
-     (Core.Binding Missing "identity_inst_int_to_int")
-     (Core.Fn Missing (Core.Binding Missing "x") (Core.Symbol Missing (Unqualified "x") monoInt) (Mono.TFn Missing monoInt monoInt))
+     (Core.NameBinding Missing "identity_inst_int_to_int")
+     (Core.Fn Missing (Core.NameBinding Missing "x") (Core.Symbol Missing (Unqualified "x") monoInt) (Mono.TFn Missing monoInt monoInt))
      (Core.Application Missing (Core.Symbol Missing (Unqualified "identity_inst_int_to_int") (Mono.TFn Missing monoInt monoInt))
       (Core.Literal Missing (Core.Int 1) monoInt)
       monoInt)
@@ -130,7 +131,7 @@ identityInstIntToInt =
     "identity_inst_int_to_int"
     (Core.Fn
      Missing
-     (Core.Binding Missing "x")
+     (Core.NameBinding Missing "x")
      (Core.Symbol Missing (Unqualified "x") monoInt)
      (Mono.TFn Missing monoInt monoInt))
 
@@ -140,7 +141,7 @@ identity2InstIntToInt =
     "identity2_inst_int_to_int"
     (Core.Fn
      Missing
-     (Core.Binding Missing "x")
+     (Core.NameBinding Missing "x")
      (Core.Application
       Missing
       (Core.Symbol Missing (Unqualified "identity_inst_int_to_int") (Mono.TFn Missing monoInt monoInt))
@@ -180,11 +181,11 @@ letWithShadowing =
     (Poly.Forall Missing [] typeInt,
      Core.Let
      Missing
-     (Core.Binding Missing "x")
+     (Core.NameBinding Missing "x")
      (Core.Literal Missing (Core.Int 1) typeInt)
      (Core.Let
       Missing
-      (Core.Binding Missing "x")
+      (Core.NameBinding Missing "x")
       (Core.Symbol Missing (Unqualified "x") typeInt)
       (Core.Symbol Missing (Unqualified "x") typeInt)
       typeInt)
@@ -198,11 +199,11 @@ letWithShadowingMonomorphed =
     monoInt
     (Core.Let
      Missing
-     (Core.Binding Missing "x")
+     (Core.NameBinding Missing "x")
      (Core.Literal Missing (Core.Int 1) monoInt)
      (Core.Let
       Missing
-      (Core.Binding Missing "x")
+      (Core.NameBinding Missing "x")
       (Core.Symbol Missing (Unqualified "x") monoInt)
       (Core.Symbol Missing (Unqualified "x") monoInt)
       monoInt)
@@ -212,7 +213,7 @@ spec :: Spec
 spec =
   describe "compile" $ do
     it "compiles empty package" $
-      compile Scope.empty (Core.Package myPkg [] [])
+      compile Environment.empty (Core.Package myPkg [] [])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -220,7 +221,7 @@ spec =
         Set.empty
         Set.empty
     it "excludes unused polymorphic definitions" $
-      compile Scope.empty (Core.Package myPkg [] [identityDef])
+      compile Environment.empty (Core.Package myPkg [] [identityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -228,7 +229,7 @@ spec =
         Set.empty
         Set.empty
     it "monomorphs polymorphic function usage" $
-      compile Scope.empty (Core.Package myPkg [] [identityDef, usingIdentityDef])
+      compile Environment.empty (Core.Package myPkg [] [identityDef, usingIdentityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -236,7 +237,7 @@ spec =
         (Set.singleton identityInstIntToInt)
         (Set.singleton usingIdentityMonomorphed)
     it "monomorphs polymorphic function usage recursively" $
-      compile Scope.empty (Core.Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
+      compile Environment.empty (Core.Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -244,7 +245,7 @@ spec =
         (Set.fromList [identityInstIntToInt, identity2InstIntToInt])
         (Set.singleton usingIdentity2Monomorphed)
     it "monomorphs let bound polymorphic function" $
-      compile Scope.empty (Core.Package myPkg [] [letBoundIdentity])
+      compile Environment.empty (Core.Package myPkg [] [letBoundIdentity])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -252,7 +253,7 @@ spec =
         Set.empty
         (Set.singleton letBoundIdentityMonomorphed)
     it "uses polymorphic predefined Go funcs" $
-      compile predefined (Core.Package myPkg [] [sliceLenDef])
+      compile (fromDefinitions predefined) (Core.Package myPkg [] [sliceLenDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -260,7 +261,7 @@ spec =
         Set.empty
         (Set.singleton sliceLenMonomorphed)
     it "monomorphs let with shadowing" $
-      compile Scope.empty (Core.Package myPkg [] [letWithShadowing])
+      compile Environment.empty (Core.Package myPkg [] [letWithShadowing])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg

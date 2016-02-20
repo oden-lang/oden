@@ -79,24 +79,24 @@ if' = do
   f <- expr
   return (If si cond t f)
 
-binding :: Parser Binding
-binding = do
+nameBinding :: Parser NameBinding
+nameBinding = do
   si <- currentSourceInfo
   n <- identifier
-  return (Binding si n)
+  return (NameBinding si n)
 
 fn :: Parser Expr
 fn = do
   si <- currentSourceInfo
   reserved "fn"
-  args <- many binding
+  args <- many nameBinding
   body <- spaces *> rArrow *> spaces *> expr
   return (Fn si args body)
 
 letPair :: Parser LetPair
 letPair = do
   si <- currentSourceInfo
-  i <- binding
+  i <- nameBinding
   reservedOp "="
   e <- expr
   return (LetPair si i e)
@@ -199,7 +199,7 @@ type' = do
     reserved "any"
     return (TEAny si)
   basic' = TEBasic <$> currentSourceInfo <*> basic
-  con = TECon <$> currentSourceInfo <*> identifier
+  con = TECon <$> currentSourceInfo <*> identifier <*> parensList type'
   noArgFn = TENoArgFn <$> currentSourceInfo <*> (rArrow *> type')
   unitExprOrTupleType = do
     si <- currentSourceInfo
@@ -293,7 +293,7 @@ topLevel = import' <|> try typeSignature <|> def
     ValueDefinition si i <$> expr
   fnDef = do
     si <- currentSourceInfo
-    FnDefinition si <$> identifier <*> many binding <*> (rArrow *> expr)
+    FnDefinition si <$> identifier <*> many nameBinding <*> (rArrow *> expr)
   def = try valueDef <|> fnDef
   import' = do
     si <- currentSourceInfo

@@ -18,8 +18,8 @@ commaSepParens ps = parens (hcat (punctuate (text ", ") (map pp ps)))
 rArr :: Doc
 rArr = text "->"
 
-instance Pretty Binding where
-  pp (Binding _ name) = text name
+instance Pretty NameBinding where
+  pp (NameBinding _ name) = text name
 
 instance Pretty UnaryOperator where
   pp Positive = text "+"
@@ -53,10 +53,10 @@ instance Pretty (Expr t) where
   pp (Application _ f a _) = pp f <> text "(" <> pp a <> text ")"
   pp (NoArgApplication _ f _) = pp f <> text "()"
   pp (UncurriedFnApplication _ f as _) = pp f <> commaSepParens as
-  pp (Fn _ (Binding _ n) b _) = text "fn" <+> text n <+> rArr <+> pp b
+  pp (Fn _ n b _) = text "fn" <+> pp n <+> rArr <+> pp b
   pp (NoArgFn _ b _) = text "fn" <+> rArr <+> pp b
-  pp (Let _ (Binding _ n) e b _) =
-    text "let" <+> text n <+> equals <+> pp e <+> text "in" <+> pp b
+  pp (Let _ n e b _) =
+    text "let" <+> pp n <+> equals <+> pp e <+> text "in" <+> pp b
   pp (Literal _ (Int n) _) = integer n
   pp (Literal _ (Bool True) _) = text "true"
   pp (Literal _ (Bool False) _) = text "false"
@@ -85,7 +85,7 @@ instance Pretty Poly.Type where
   pp (Poly.TTuple _ f s r) =
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
   pp (Poly.TVar _ v) = pp v
-  pp (Poly.TCon _ s) = text s
+  pp (Poly.TCon _ s ts) = text s <> commaSepParens ts
   pp (Poly.TNoArgFn _ t) = rArr <+> pp t
   pp (Poly.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
   pp (Poly.TUncurriedFn _ as r) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
@@ -104,7 +104,7 @@ instance Pretty Mono.Type where
   pp (Mono.TUnit _) = text "()"
   pp (Mono.TTuple _ f s r) =
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
-  pp (Mono.TCon _ s) = text s
+  pp (Mono.TCon _ s ts) = text s <> commaSepParens ts
   pp (Mono.TNoArgFn _ t) = rArr <+> pp t
   pp (Mono.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
   pp (Mono.TUncurriedFn _ as r) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r

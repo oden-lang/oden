@@ -31,8 +31,8 @@ instance Substitutable Type where
   apply _ (TAny si)               = TAny si
   apply _ (TUnit si)              = TUnit si
   apply s (TTuple si f s' r)      = TTuple si (apply s f) (apply s s') (apply s r)
-  apply _ (TBasic b si)           = TBasic b si
-  apply _ (TCon a si)             = TCon a si
+  apply _ (TBasic si b)           = TBasic si b
+  apply s (TCon si a ts)          = TCon si a (apply s ts)
   apply (Subst s) t@(TVar _ a)    = Map.findWithDefault t a s
   apply s (TNoArgFn si t)         = TNoArgFn si (apply s t)
   apply s (TFn si t1 t2)          = TFn si (apply s t1) (apply s t2)

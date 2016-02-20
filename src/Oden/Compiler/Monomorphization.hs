@@ -5,11 +5,12 @@ import           Control.Monad.RWS
 import           Data.Map                  as Map hiding (map)
 import           Data.Set                  as Set hiding (map)
 
+import           Oden.Compiler.Environment
 import           Oden.Compiler.Instantiate
 import           Oden.Compiler.TypeEncoder
 import qualified Oden.Core                 as Core
 import           Oden.Identifier
-import           Oden.Scope                as Scope
+import           Oden.Environment                as Environment
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
@@ -25,26 +26,23 @@ data MonomorphedPackage = MonomorphedPackage Core.PackageDeclaration [Core.Impor
                      deriving (Show, Eq, Ord)
 
 data MonomorphError   = NotInScope Identifier
-                      -- TODO: Shadowing is not supported so this error should
-                      -- not be needed.
-                      | AmbigiousReference Identifier [(Scope.Source, Scope.Definition)]
                       | UnexpectedPolyType SourceInfo (Core.Expr Poly.Type)
                       | MonomorphInstantiateError InstantiateError
                       deriving (Show, Eq, Ord)
 
-data LocalBinding = LetBinding Core.Binding (Core.Expr Poly.Type)
-                  | FunctionArgument Core.Binding
+data LocalBinding = LetBinding Core.NameBinding (Core.Expr Poly.Type)
+                  | FunctionArgument Core.NameBinding
 
 type LocalBindings = Map Name LocalBinding
 
 data LetReference = LetReference Name Mono.Type Name
                  deriving (Show, Eq, Ord)
 
-data LetInstance = LetInstance SourceInfo Core.Binding (Core.Expr Mono.Type)
+data LetInstance = LetInstance SourceInfo Core.NameBinding (Core.Expr Mono.Type)
 
 data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type) InstantiatedDefinition
                                      , monomorphed :: Map Identifier MonomorphedDefinition
-                                     , scope       :: Scope
+                                     , environment :: CompileEnvironment
                                      }
 
 type Monomorph a = RWST LocalBindings
@@ -53,22 +51,35 @@ type Monomorph a = RWST LocalBindings
                         (Except MonomorphError)
                         a
 
-getInScope :: Identifier -> Monomorph Definition
-getInScope i = do
-  s <- gets scope
-  case Scope.lookup i s of
-    [] -> throwError (NotInScope i)
-    [(_, d)] -> return d
-    found -> throwError (AmbigiousReference i found)
+lookupIn :: CompileEnvironment -> Name -> Monomorph Core.Definition
+lookupIn env name =
+  case Environment.lookup name env of
+      Nothing             -> throwError $ NotInScope (Unqualified name)
+      Just Package{}      -> throwError $ NotInScope (Unqualified name)
+      Just (Definition d) -> return d
 
-addToScope :: Core.Definition -> Monomorph ()
-addToScope (Core.Definition si name (sc, expr))= do
-  scope' <- gets scope
-  modify (\s -> s { scope = Scope.insert Scope.Definitions (Unqualified name) (Scope.OdenDefinition (Unqualified name) sc expr si) scope' })
+getInEnvironment :: Identifier -> Monomorph Core.Definition
+getInEnvironment q@(Qualified pkg n) = do
+  env <- gets environment
+  case Environment.lookup pkg env of
+    Just (Package _ _ env') -> (lookupIn env' n) `catchError` onError
+      where
+      onError :: MonomorphError -> Monomorph Core.Definition
+      onError NotInScope{} = throwError $ NotInScope q
+      onError e = throwError e
+    _ -> throwError (NotInScope q)
+getInEnvironment (Unqualified n) = do
+  env <- gets environment
+  lookupIn env n
+
+extendEnvironment :: Name -> Core.Definition -> Monomorph ()
+extendEnvironment name def = do
+  env <- gets environment
+  modify (\s -> s { environment = env `extend` (name, Definition def) })
 
 withBinding :: LocalBinding -> Monomorph a -> Monomorph a
-withBinding b@(LetBinding (Core.Binding _ name) _) = local $ Map.insert name b
-withBinding b@(FunctionArgument (Core.Binding _ name)) = local $ Map.insert name b
+withBinding b@(LetBinding (Core.NameBinding _ name) _) = local $ Map.insert name b
+withBinding b@(FunctionArgument (Core.NameBinding _ name)) = local $ Map.insert name b
 
 addInstance :: (Identifier, Mono.Type) -> InstantiatedDefinition -> Monomorph ()
 addInstance key inst =
@@ -93,16 +104,16 @@ instantiateDefinition key@(pn, t) _ pe = do
 
 getMonomorphicDefinition :: Identifier -> Mono.Type -> Monomorph Identifier
 getMonomorphicDefinition ident t = do
-  def <- getInScope ident
+  def <- getInEnvironment ident
   case def of
-    ForeignDefinition gn _ -> return gn
-    OdenDefinition _ sc pe _ | Poly.isPolymorphic sc -> do
+    Core.ForeignDefinition{} -> return ident
+    Core.Definition _ _ (sc, pe) | Poly.isPolymorphic sc -> do
       let key = (ident, t)
       is <- gets instances
       case Map.lookup key is of
         Just (InstantiatedDefinition name _) -> return (Unqualified name)
         Nothing -> instantiateDefinition key sc pe
-    OdenDefinition pn _ _ _ -> return pn
+    Core.Definition _ pn _ -> return (Unqualified pn)
 
 getMonomorphicLetBinding :: Name
                          -> Mono.Type
@@ -122,9 +133,9 @@ getMonomorphic i@(Qualified _ _) t =
 getMonomorphic i@(Unqualified n) t = do
   binding <- Map.lookup n <$> ask
   case binding of
-    Just (FunctionArgument (Core.Binding _ a)) ->
+    Just (FunctionArgument (Core.NameBinding _ a)) ->
       return (Unqualified a)
-    Just (LetBinding (Core.Binding _ n') e) ->
+    Just (LetBinding (Core.NameBinding _ n') e) ->
       getMonomorphicLetBinding n' t (Core.typeOf e)
     Nothing ->
       local (const Map.empty) (getMonomorphicDefinition i t)
@@ -205,15 +216,15 @@ monomorph e@(Core.If si cond then' else' _) = do
   mThen <- monomorph then'
   mElse <- monomorph else'
   return (Core.If si mCond mThen mElse mt)
-monomorph (Core.Let si b@(Core.Binding bsi _) expr body _) = do
+monomorph (Core.Let si b@(Core.NameBinding bsi _) expr body _) = do
   (mBody, allRefs) <- listen (withBinding (LetBinding b expr) (monomorph body))
   let (refs, other) = Set.partition (isReferenceTo b) allRefs
   tell other
   insts <- mapM (monomorphReference expr si bsi) (Set.toList refs)
   return (unwrapLetInstances insts mBody)
   where
-  isReferenceTo :: Core.Binding -> LetReference -> Bool
-  isReferenceTo (Core.Binding _ n) (LetReference ln _ _) = n == ln
+  isReferenceTo :: Core.NameBinding -> LetReference -> Bool
+  isReferenceTo (Core.NameBinding _ n) (LetReference ln _ _) = n == ln
 
 monomorphReference :: Core.Expr Poly.Type
                    -> SourceInfo
@@ -222,13 +233,13 @@ monomorphReference :: Core.Expr Poly.Type
                    -> Monomorph LetInstance
 monomorphReference e si bsi (LetReference n _ _) | not (Poly.isPolymorphicType (Core.typeOf e)) = do
   me <- monomorph e
-  return (LetInstance si (Core.Binding bsi n) me)
+  return (LetInstance si (Core.NameBinding bsi n) me)
 monomorphReference e si bsi (LetReference _ mt mn) =
   case instantiate e mt of
     Left err -> throwError (MonomorphInstantiateError err)
     Right expr -> do
       me <- monomorph expr
-      return (LetInstance si (Core.Binding bsi mn) me)
+      return (LetInstance si (Core.NameBinding bsi mn) me)
 
 unwrapLetInstances :: [LetInstance] -> Core.Expr Mono.Type -> Core.Expr Mono.Type
 unwrapLetInstances [] body = body
@@ -236,24 +247,25 @@ unwrapLetInstances (LetInstance si mn me:is) body =
   Core.Let si mn me (unwrapLetInstances is body) (Core.typeOf body)
 
 monomorphDefinition :: Core.Definition -> Monomorph ()
+monomorphDefinition Core.ForeignDefinition{} = return ()
 monomorphDefinition d@(Core.Definition si name (Poly.Forall _ _ st, expr)) = do
-  addToScope d
+  extendEnvironment name d
   case Poly.toMonomorphic st of
     Left _ -> return ()
     Right mt -> do
       mExpr <- monomorph expr
       addMonomorphed name (MonomorphedDefinition si name mt mExpr)
 
-monomorphPackage :: Scope -> Core.Package -> Either MonomorphError MonomorphedPackage
-monomorphPackage scope' (Core.Package pkgDecl imports definitions) = do
+monomorphPackage :: CompileEnvironment -> Core.Package -> Either MonomorphError MonomorphedPackage
+monomorphPackage environment' (Core.Package pkgDecl imports definitions) = do
   let st = MonomorphState { instances = Map.empty
                           , monomorphed = Map.empty
-                          , scope = scope'
+                          , environment = environment'
                           }
   (_, s, _) <- runExcept $ runRWST (mapM_ monomorphDefinition definitions) Map.empty st
   let is = Set.fromList (Map.elems (instances s))
       ms = Set.fromList (Map.elems (monomorphed s))
   return (MonomorphedPackage pkgDecl imports is ms)
 
-compile :: Scope -> Core.Package -> Either MonomorphError MonomorphedPackage
+compile :: CompileEnvironment -> Core.Package -> Either MonomorphError MonomorphedPackage
 compile = monomorphPackage

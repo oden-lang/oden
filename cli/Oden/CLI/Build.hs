@@ -5,16 +5,18 @@ import           Oden.Backend.Go
 import           Oden.Compiler
 import           Oden.Compiler.Monomorphization  (MonomorphedPackage(..))
 import           Oden.Compiler.Validation
+import           Oden.Compiler.Environment       as CE
 import qualified Oden.Core                       as Core
 import qualified Oden.Core.Untyped               as Untyped
-import qualified Oden.Env                        as Env
 import           Oden.Explode
 import qualified Oden.Go                         as Go
 import           Oden.Infer
+import qualified Oden.Infer.Environment          as IE
 import           Oden.Parser
 import           Oden.Predefined
 import           Oden.Scanner
-import qualified Oden.Scope                      as Scope
+import           Oden.SourceInfo
+import qualified Oden.Environment                as Environment
 import qualified Oden.Syntax                     as Syntax
 
 import           Control.Monad.Reader
@@ -44,27 +46,34 @@ logCompiledFiles :: [CompiledFile] -> CLI ()
 logCompiledFiles [_] = liftIO $ putStrLn "Compiled 1 Go source file."
 logCompiledFiles files = liftIO $ putStrLn $ "Compiled " ++ show (length files) ++ " Go source files."
 
+compileToTypeBinding :: CE.Binding -> IE.TypeBinding
+compileToTypeBinding (CE.Package si n p) = IE.Package si n (Environment.map compileToTypeBinding p)
+compileToTypeBinding (CE.Definition (Core.Definition si n (sc, _))) = Local si n sc
+compileToTypeBinding (CE.Definition (Core.ForeignDefinition si n sc)) = Local si n sc
 
-scanImports :: Untyped.Package -> CLI Scope.Scope
-scanImports (Untyped.Package _ imports _) = foldM scanImport Scope.empty imports
-  where scanImport scope' (Untyped.Import _ pn) = do
-          (pkgScope, warning) <- liftIO (Go.getPackageScope pn) >>= liftEither
-          case warning of
-            Just w -> logWarning w
-            _ -> return ()
-          return (Scope.merge scope' pkgScope)
+scanImports :: Untyped.Package -> CLI CompileEnvironment
+scanImports (Untyped.Package _ imports _) = foldM scanImport Environment.empty imports
+  where
+  scanImport :: CompileEnvironment -> Untyped.Import -> CLI CompileEnvironment
+  scanImport env (Untyped.Import _ pn) = do
+    (defs, warning) <- liftIO (Go.getPackageDefinitions pn) >>= liftEither
+    case warning of
+      Just w -> logWarning w
+      _ -> return ()
+    let n = last pn
+    return (env `Environment.extend` (n, CE.Package Missing n (CE.fromDefinitions defs)))
 
 compileFile :: SourceFile -> CLI MonomorphedPackage
 compileFile (OdenSourceFile fname _) = do
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
   corePkg <- liftEither' (explodePackage syntaxPkg)
-  importsScope <- scanImports corePkg
-  let scope' = Scope.merge predefined importsScope
-      typeEnv = Env.fromScope scope'
+  importsEnvironment <- scanImports corePkg
+  let env' = fromDefinitions predefined `Environment.merge` importsEnvironment
+      typeEnv = Environment.map compileToTypeBinding env'
   (inferredPkg, _) <- liftEither (inferPackage typeEnv corePkg)
   validatePkg inferredPkg
-  liftEither (compile scope' inferredPkg)
+  liftEither (compile env' inferredPkg)
 
 codegenPkg :: MonomorphedPackage -> CLI [CompiledFile]
 codegenPkg compiledPkg = do

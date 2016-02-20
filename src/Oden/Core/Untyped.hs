@@ -5,8 +5,8 @@ import           Oden.Core.Operator
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
-data Binding = Binding SourceInfo Name
-             deriving (Show, Eq, Ord)
+data NameBinding = NameBinding SourceInfo Name
+                 deriving (Show, Eq, Ord)
 
 data Expr = Symbol SourceInfo Identifier
           | Subscript SourceInfo Expr Expr
@@ -14,9 +14,9 @@ data Expr = Symbol SourceInfo Identifier
           | UnaryOp SourceInfo UnaryOperator Expr
           | BinaryOp SourceInfo BinaryOperator Expr Expr
           | Application SourceInfo Expr [Expr]
-          | Fn SourceInfo Binding Expr
+          | Fn SourceInfo NameBinding Expr
           | NoArgFn SourceInfo Expr
-          | Let SourceInfo Binding Expr Expr
+          | Let SourceInfo NameBinding Expr Expr
           | Literal SourceInfo Literal
           | Tuple SourceInfo Expr Expr [Expr]
           | If SourceInfo Expr Expr Expr

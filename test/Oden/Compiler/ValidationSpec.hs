@@ -21,10 +21,10 @@ strExpr :: Expr Type
 strExpr = Literal Missing (String "hello") (TBasic Missing TString)
 
 letExpr :: Name -> Expr Type -> Expr Type -> Expr Type
-letExpr n value body = Let Missing (Binding Missing n) value body (typeOf body)
+letExpr n value body = Let Missing (NameBinding Missing n) value body (typeOf body)
 
 fnExpr :: Name -> Expr Type -> Expr Type
-fnExpr n body = Fn Missing (Binding Missing n) body (TFn Missing (TBasic Missing TString) (typeOf body))
+fnExpr n body = Fn Missing (NameBinding Missing n) body (TFn Missing (TBasic Missing TString) (typeOf body))
 
 block :: [Expr Type] -> Expr Type
 block exprs = Block Missing exprs (typeOf (last exprs))

@@ -38,7 +38,14 @@ writeType :: Mono.Type -> TypeEncoder ()
 writeType (Mono.TAny _) = tell "any"
 writeType (Mono.TUnit _) = tell "unit"
 writeType (Mono.TBasic _ b) = writeBasic b
-writeType (Mono.TCon _ s) = tell s
+writeType (Mono.TCon _ s []) = tell s
+writeType (Mono.TCon _ s ts) = do
+  tell s
+  pad
+  tell "of"
+  foldl writeElement (return ()) ts
+  where
+  writeElement a t = a >> pad >> withIncreasedLevel (writeType t)
 writeType (Mono.TTuple _ f s r) = do
   tell "tupleof"
   pad

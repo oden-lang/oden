@@ -54,12 +54,12 @@ validateExpr (NoArgApplication _ f _) =
 validateExpr (UncurriedFnApplication _ f args _) = do
   validateExpr f
   mapM_ validateExpr args
-validateExpr (Fn _ (Binding si name) body _) =  do
+validateExpr (Fn _ (NameBinding si name) body _) =  do
   errorIfDefined name si
   withName name (validateExpr body)
 validateExpr (NoArgFn _ body _) =
   validateExpr body
-validateExpr (Let _ (Binding si name) value body _) = do
+validateExpr (Let _ (NameBinding si name) value body _) = do
   errorIfDefined name si
   validateExpr value
   withName name (validateExpr body)

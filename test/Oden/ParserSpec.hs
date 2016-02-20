@@ -45,14 +45,14 @@ spec = do
     it "parses fn expression" $
       parseExpr "fn x -> x"
       `shouldSucceedWith`
-      Fn (src 1 1) [Binding (src 1 4) "x"] (Symbol (src 1 9) (Unqualified "x"))
+      Fn (src 1 1) [NameBinding (src 1 4) "x"] (Symbol (src 1 9) (Unqualified "x"))
 
     it "parses multi-arg fn expression" $
       parseExpr "fn x y z -> x"
       `shouldSucceedWith`
       Fn
       (src 1 1)
-      [Binding (src 1 4) "x", Binding (src 1 6) "y", Binding (src 1 8) "z"]
+      [NameBinding (src 1 4) "x", NameBinding (src 1 6) "y", NameBinding (src 1 8) "z"]
       (Symbol (src 1 13) (Unqualified "x"))
 
     it "parses no-arg fn expression" $
@@ -111,7 +111,7 @@ spec = do
       `shouldSucceedWith`
       Let
       (src 1 1)
-      [LetPair (src 1 5) (Binding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
+      [LetPair (src 1 5) (NameBinding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
       (Block (src 1 14) [Symbol (src 1 16) (Unqualified "x")])
 
     it "parses block with let binding and block of symbol" $
@@ -120,7 +120,7 @@ spec = do
       Block (src 1 1) [
           Let
           (src 2 3)
-          [LetPair (src 2 7) (Binding (src 2 7) "x") (Symbol (src 2 11) (Unqualified "y"))]
+          [LetPair (src 2 7) (NameBinding (src 2 7) "x") (Symbol (src 2 11) (Unqualified "y"))]
           (Block (src 2 16) [Symbol (src 3 5) (Unqualified "x")])
         ]
 
@@ -132,7 +132,7 @@ spec = do
       `shouldSucceedWith`
       Let
       (src 1 1)
-      [LetPair (src 1 5) (Binding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
+      [LetPair (src 1 5) (NameBinding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
       (Symbol (src 1 14) (Unqualified "z"))
 
     it "parses unary negative operator application" $
@@ -182,7 +182,7 @@ spec = do
       `shouldSucceedWith`
       Application
       (src 1 1)
-      (Fn (src 1 2) [Binding (src 1 5) "x"] (Symbol (src 1 10) (Unqualified "x")))
+      (Fn (src 1 2) [NameBinding (src 1 5) "x"] (Symbol (src 1 10) (Unqualified "x")))
       [Symbol (src 1 13) (Unqualified "y")]
 
     it "ignores whitespace" $
@@ -284,6 +284,18 @@ spec = do
        [TVarBindingExpr (src 1 13) "a"]
        (TEFn (src 1 17) (TEVar (src 1 17) "a") [TEVar (src 1 23) "a"]))
 
+    -- TODO: would be nice...
+    --
+    -- it "parses type alias" $
+    --   parseTopLevel "type x(#a) = #a -> #a"
+    --   `shouldSucceedWith`
+    --   TypeAlias (src 1 1) "x" [TVarBindingExpr (src 1 8) "a"] (TEFn (src 1 14) (TEVar (src 1 14) "a") [TEVar (src 1 20) "a"])
+
+    -- it "parses type with nested type constructor" $
+    --   parseTopLevel "type x(#a) = f(#a, g(#a, #a))"
+    --   `shouldSucceedWith`
+    --   TypeAlias (src 1 1) "x" [TVarBindingExpr (src 1 8) "a"] (TECon (src 1 14) "f" [TEVar (src 1 16) "a", TECon (src 1 20) "g" [TEVar (src 1 22) "a", TEVar (src 1 26) "a"]])
+
     it "parses value definition" $
       parseTopLevel "x = y"
       `shouldSucceedWith`
@@ -292,12 +304,12 @@ spec = do
     it "parses fn definition" $
       parseTopLevel "f = fn x -> x"
       `shouldSucceedWith`
-      ValueDefinition (src 1 1) "f" (Fn (src 1 5) [Binding (src 1 8) "x"] (Symbol (src 1 13) (Unqualified "x")))
+      ValueDefinition (src 1 1) "f" (Fn (src 1 5) [NameBinding (src 1 8) "x"] (Symbol (src 1 13) (Unqualified "x")))
 
     it "parses short-hand fn definition" $
       parseTopLevel "f x -> x"
       `shouldSucceedWith`
-      FnDefinition (src 1 1) "f" [Binding (src 1 3) "x"] (Symbol (src 1 8) (Unqualified "x"))
+      FnDefinition (src 1 1) "f" [NameBinding (src 1 3) "x"] (Symbol (src 1 8) (Unqualified "x"))
 
     it "parses short-hand no-arg fn definition" $
       parseTopLevel "side-effect -> x"
@@ -308,7 +320,7 @@ spec = do
       parseTopLevel "f x y z -> x"
       `shouldSucceedWith`
       FnDefinition (src 1 1) "f"
-      [Binding (src 1 3) "x", Binding (src 1 5) "y", Binding (src 1 7) "z"]
+      [NameBinding (src 1 3) "x", NameBinding (src 1 5) "y", NameBinding (src 1 7) "z"]
       (Symbol (src 1 12) (Unqualified "x"))
 
   describe "parsePackage" $ do

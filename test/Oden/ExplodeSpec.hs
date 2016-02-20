@@ -46,8 +46,8 @@ spec = do
                    (src 1 1)
                    (Fn
                     (src 1 1)
-                    [Binding (src 1 2) "x",
-                     Binding (src 1 3) "y"]
+                    [NameBinding (src 1 2) "x",
+                     NameBinding (src 1 3) "y"]
                     (Symbol (src 1 4) (Unqualified "x")))
                    [Symbol (src 1 5) (Unqualified "x"),
                     Symbol (src 1 9) (Unqualified "y")])
@@ -56,10 +56,10 @@ spec = do
       (src 1 1)
       (U.Fn
        (src 1 1)
-       (U.Binding (src 1 2) "x")
+       (U.NameBinding (src 1 2) "x")
        (U.Fn
         (src 1 1)
-        (U.Binding (src 1 3) "y")
+        (U.NameBinding (src 1 3) "y")
         (U.Symbol (src 1 4) (Unqualified "x"))))
       [U.Symbol (src 1 5) (Unqualified "x"),
        U.Symbol (src 1 9) (Unqualified "y")]
@@ -74,7 +74,7 @@ spec = do
       (snd <$> explodeTopLevel [FnDefinition
                                 (src 1 1)
                                 "f"
-                                [Binding (src 1 2) "x"]
+                                [NameBinding (src 1 2) "x"]
                                 (Symbol (src 1 3) (Unqualified "x"))])
       `shouldSucceedWith`
       [U.Definition
@@ -83,14 +83,14 @@ spec = do
        Nothing
        (U.Fn
         (src 1 1)
-        (U.Binding (src 1 2) "x")
+        (U.NameBinding (src 1 2) "x")
         (U.Symbol (src 1 3) (Unqualified "x")))]
 
     it "converts fn definition with multiple arguments" $
       (snd <$> explodeTopLevel [FnDefinition
                                 (src 1 1)
                                 "f"
-                                [Binding (src 1 2) "x", Binding (src 1 3) "y"]
+                                [NameBinding (src 1 2) "x", NameBinding (src 1 3) "y"]
                                 (Symbol (src 1 4) (Unqualified "x"))])
       `shouldSucceedWith`
       [U.Definition
@@ -99,10 +99,10 @@ spec = do
        Nothing
        (U.Fn
         (src 1 1)
-        (U.Binding (src 1 2) "x")
+        (U.NameBinding (src 1 2) "x")
         (U.Fn
          (src 1 1)
-         (U.Binding (src 1 3) "y")
+         (U.NameBinding (src 1 3) "y")
          (U.Symbol (src 1 4) (Unqualified "x"))))]
 
     it "converts type signature with uncurried fn type expression" $
@@ -113,8 +113,8 @@ spec = do
                                  (src 1 2)
                                  (TEFn
                                   (src 1 2)
-                                  (TECon (src 1 2) "a")
-                                  [TECon (src 1 3) "a", TECon (src 1 4) "a"])),
+                                  (TECon (src 1 2) "a" [])
+                                  [TECon (src 1 3) "a" [], TECon (src 1 4) "a" []])),
                                 FnDefinition
                                 (src 2 1)
                                 "f"
@@ -124,26 +124,31 @@ spec = do
       [U.Definition
        (src 2 1)
        "f"
-       (Just $ Forall (src 1 2) [] (TFn (src 1 2) (TCon (src 1 2) "a") (TFn (src 1 2) (TCon (src 1 3) "a") (TCon (src 1 4) "a"))))
+       (Just $ Forall (src 1 2) [] (TFn (src 1 2) (TCon (src 1 2) "a" []) (TFn (src 1 2) (TCon (src 1 3) "a" []) (TCon (src 1 4) "a" []))))
        (U.NoArgFn (src 2 1) (U.Symbol (src 2 2) (Unqualified "x")))]
 
     it "converts type signature and definition" $
-      (snd <$> explodeTopLevel [TypeSignature (src 1 1) "f" (Implicit (src 1 2) (TECon (src 1 2) "a")),
+      (snd <$> explodeTopLevel [TypeSignature (src 1 1) "f" (Implicit (src 1 2) (TECon (src 1 2) "a" [])),
                                 FnDefinition (src 2 1) "f" [] (Symbol (src 2 2) (Unqualified "x"))])
       `shouldSucceedWith`
       [U.Definition
        (src 2 1)
        "f"
-       (Just $ Forall (src 1 2) [] (TCon (src 1 2) "a"))
+       (Just $ Forall (src 1 2) [] (TCon (src 1 2) "a" []))
        (U.NoArgFn (src 2 1) (U.Symbol (src 2 2) (Unqualified "x")))]
 
     it "returns error on type signature without definition" $
       explodeTopLevel [TypeSignature
                        (src 1 1)
                        "f"
-                       (Implicit (src 1 2) (TECon (src 1 2) "a"))]
+                       (Implicit (src 1 2) (TECon (src 1 2) "a" []))]
       `shouldFailWith`
       [TypeSignatureWithoutDefinition
        (src 1 1)
        "f"
-       (Forall (src 1 2) [] (TCon (src 1 2) "a"))]
+       (Forall (src 1 2) [] (TCon (src 1 2) "a" []))]
+
+    -- it "converts type alias definition" $
+    --   (snd <$> explodeTopLevel [TypeAlias (src 1 1) "T" [] (TECon (src 1 2) "U" [])])
+    --   `shouldSucceedWith`
+    --   [U.TypeAlias (src 1 1) "T" [] (TCon (src 1 2) "U" [])]

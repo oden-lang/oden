@@ -1,31 +1,34 @@
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Oden.Infer (
   Constraint,
   TypeError(..),
   Subst(..),
+  TypeBinding(..),
+  TypingEnvironment,
   inferExpr,
   inferDefinition,
   inferPackage,
   constraintsExpr
 ) where
 
-import           Control.Arrow          (left)
+import           Control.Arrow           (left)
 import           Control.Monad.Except
 import           Control.Monad.Identity
-import           Control.Monad.RWS      hiding ((<>))
+import           Control.Monad.RWS       hiding ((<>))
 
-import           Data.List              (nub)
-import qualified Data.Map               as Map
+import           Data.List               (nub)
+import qualified Data.Map                as Map
 import           Data.Maybe
-import qualified Data.Set               as Set
+import qualified Data.Set                as Set
 
-import qualified Oden.Core              as Core
+import qualified Oden.Core               as Core
 import           Oden.Core.Operator
-import qualified Oden.Core.Untyped      as Untyped
-import           Oden.Env               as Env
+import qualified Oden.Core.Untyped       as Untyped
+import           Oden.Environment        as Environment hiding (map)
 import           Oden.Identifier
+import           Oden.Infer.Environment
 import           Oden.Infer.Substitution
 import           Oden.Infer.Subsumption
 import           Oden.SourceInfo
@@ -38,12 +41,12 @@ import           Oden.Type.Polymorphic
 
 -- | Inference monad
 type Infer a = (RWST
-                  Env             -- Typing environment
-                  [Constraint]    -- Generated constraints
-                  InferState      -- Inference state
-                  (Except         -- Inference errors
+                  TypingEnvironment -- Typing environment
+                  [Constraint]              -- Generated constraints
+                  InferState                -- Inference state
+                  (Except                   -- Inference errors
                     TypeError)
-                  a)              -- Result
+                  a)                        -- Result
 
 -- | Inference state
 data InferState = InferState { count :: Int }
@@ -66,19 +69,30 @@ instance FTV Constraint where
 instance Substitutable Constraint where
   apply s (si, t1, t2) = (si, apply s t1, apply s t2)
 
-instance FTV Env where
-  ftv (TypeEnv env) = ftv $ Map.elems env
+instance FTV TypeBinding where
+  ftv (Package _ _ e) = ftv e
+  ftv (Local _ _ d)   = ftv d
 
-instance Substitutable Env where
-  apply s (TypeEnv env) = TypeEnv $ Map.map (apply s) env
+instance Substitutable TypeBinding where
+  apply s (Package si n e) = Package si n (apply s e)
+  apply s (Local si n d) = Local si n (apply s d)
+
+instance FTV TypingEnvironment where
+  ftv (Environment env) = ftv $ Map.elems env
+
+instance Substitutable TypingEnvironment where
+  apply s (Environment env) = Environment $ Map.map (apply s) env
 
 data TypeError
   = UnificationFail SourceInfo Type Type
   | InfiniteType SourceInfo TVar Type
+  | PackageNotInScope SourceInfo Name
   | NotInScope SourceInfo Identifier
+  | MemberNotInPackage SourceInfo Name Name
   | UnificationMismatch SourceInfo [Type] [Type]
   | ArgumentCountMismatch (Core.Expr Type) [Type] [Type]
   | TypeSignatureSubsumptionError Name SubsumptionError
+  | InvalidPackageReference SourceInfo Name
   deriving (Show, Eq)
 
 -------------------------------------------------------------------------------
@@ -86,18 +100,18 @@ data TypeError
 -------------------------------------------------------------------------------
 
 -- | Run the inference monad
-runInfer :: Env -> Infer a -> Either TypeError (a, [Constraint])
+runInfer :: Environment TypeBinding -> Infer a -> Either TypeError (a, [Constraint])
 runInfer env m = runExcept $ evalRWST m env initInfer
 
 -- | Solve for the toplevel type of an expression in a given environment
-inferExpr :: Env -> Untyped.Expr -> Either TypeError Core.CanonicalExpr
+inferExpr :: Environment TypeBinding -> Untyped.Expr -> Either TypeError Core.CanonicalExpr
 inferExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
   subst <- runSolve cs
   return $ closeOver (apply subst te)
 
 -- | Return the internal constraints used in solving for the type of an expression
-constraintsExpr :: Env -> Untyped.Expr -> Either TypeError ([Constraint], Subst, Core.Expr Type, Scheme)
+constraintsExpr :: Environment TypeBinding -> Untyped.Expr -> Either TypeError ([Constraint], Subst, Core.Expr Type, Scheme)
 constraintsExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
   subst <- runSolve cs
@@ -106,25 +120,38 @@ constraintsExpr env ex = do
 
 -- | Canonicalize and return the polymorphic toplevel type.
 closeOver :: Core.Expr Type -> Core.CanonicalExpr
-closeOver = normalize . generalize Env.empty
+closeOver = normalize . generalize empty
 
 -- | Unify two types
 uni :: SourceInfo -> Type -> Type -> Infer ()
 uni si t1 t2 = tell [(si, t1, t2)]
 
 -- | Extend type environment
-inEnv :: (Identifier, Scheme) -> Infer a -> Infer a
-inEnv (x, sc) m = do
-  let scope e = remove e x `extend` (x, sc)
-  local scope m
+inEnv :: (Name, TypeBinding) -> Infer a -> Infer a
+inEnv (x, sc) = local (`extend` (x, sc))
+
+lookupIn :: Environment TypeBinding -> SourceInfo -> Name -> Infer Type
+lookupIn env si name =
+  case Environment.lookup name env of
+      Nothing             -> throwError $ NotInScope si (Unqualified name)
+      Just Package{}      -> throwError $ InvalidPackageReference si name
+      Just (Local _ _ sc) -> instantiate sc
 
 -- | Lookup type in the environment
 lookupEnv :: SourceInfo -> Identifier -> Infer Type
-lookupEnv si x = do
-  (TypeEnv env) <- ask
-  case Map.lookup x env of
-      Nothing   ->  throwError $ NotInScope si x
-      Just s    ->  instantiate s
+lookupEnv si (Qualified pkg name) = do
+  env <- ask
+  case Environment.lookup pkg env of
+      Just (Package _ _ env') ->
+        lookupIn env' si name `catchError` onError
+        where
+        onError :: TypeError -> Infer Type
+        onError NotInScope{} = throwError $ MemberNotInPackage si pkg name
+        onError e = throwError e
+      _              -> throwError $ PackageNotInScope si pkg
+lookupEnv si (Unqualified name) = do
+  env <- ask
+  lookupIn env si name
 
 letters :: [String]
 letters = [1..] >>= flip replicateM ['a'..'z']
@@ -141,7 +168,7 @@ instantiate (Forall _ as t) = do
     let s = Subst $ Map.fromList $ zip (map getBindingVar as) as'
     return $ apply s t
 
-generalize :: Env -> Core.Expr Type -> (Scheme, Core.Expr Type)
+generalize :: Environment TypeBinding -> Core.Expr Type -> (Scheme, Core.Expr Type)
 generalize env t  = (Forall (getSourceInfo t) as (Core.typeOf t), t)
     where as = map (TVarBinding Missing) (Set.toList $ ftv t `Set.difference` ftv env)
 
@@ -208,10 +235,10 @@ infer expr = case expr of
     t <- lookupEnv si x
     return $ Core.Symbol si x t
 
-  Untyped.Fn si (Untyped.Binding bsi a) b -> do
+  Untyped.Fn si (Untyped.NameBinding bsi a) b -> do
     tv <- fresh bsi
-    tb <- inEnv (Unqualified a, Forall bsi [] tv) (infer b)
-    return (Core.Fn si (Core.Binding bsi a) tb (TFn si tv (Core.typeOf tb)))
+    tb <- inEnv (a, Local bsi a (Forall bsi [] tv)) (infer b)
+    return (Core.Fn si (Core.NameBinding bsi a) tb (TFn si tv (Core.typeOf tb)))
 
   Untyped.NoArgFn si f -> do
     tf <- infer f
@@ -261,10 +288,10 @@ infer expr = case expr of
           uni (getSourceInfo tf) (Core.typeOf tf') (TFn (getSourceInfo tf) (Core.typeOf tp) tv)
           return (Core.Application si tf' tp tv)
 
-  Untyped.Let si (Untyped.Binding bsi n) e b -> do
+  Untyped.Let si (Untyped.NameBinding bsi n) e b -> do
     te <- infer e
-    tb <- inEnv (Unqualified n, Forall si [] (Core.typeOf te)) (infer b)
-    return (Core.Let si (Core.Binding bsi n) te tb (Core.typeOf tb))
+    tb <- inEnv (n, Local bsi n (Forall si [] (Core.typeOf te))) (infer b)
+    return (Core.Let si (Core.NameBinding bsi n) te tb (Core.typeOf tb))
 
   Untyped.If si cond tr fl -> do
     tcond <- infer cond
@@ -300,10 +327,10 @@ inferDef (Untyped.Definition si name s expr) = do
   tv <- fresh si
   env <- ask
   let recType = fromMaybe (Forall si [] tv) s
-  te <- inEnv (Unqualified name, recType) (infer expr)
+  te <- inEnv (name, Local si name recType) (infer expr)
   return (Core.Definition si name (generalize env te))
 
-inferDefinition :: Env -> Untyped.Definition -> Either TypeError Core.Definition
+inferDefinition :: Environment TypeBinding -> Untyped.Definition -> Either TypeError Core.Definition
 inferDefinition env def@(Untyped.Definition _ _ Nothing _) = do
   (Core.Definition si name (_, te), cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
@@ -315,14 +342,14 @@ inferDefinition env def@(Untyped.Definition _ _ (Just st) _) = do
   ce' <- left (TypeSignatureSubsumptionError name) $ subsume st substExpr
   return $ Core.Definition si name ce'
 
-inferPackage :: Env -> Untyped.Package -> Either TypeError (Core.Package, Env)
+inferPackage :: Environment TypeBinding -> Untyped.Package -> Either TypeError (Core.Package, Environment TypeBinding)
 inferPackage env (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
   (env', inferred) <- foldM iter (env, []) defs
   return (Core.Package (Core.PackageDeclaration psi name) (map convertImport imports) inferred, env')
   where
   iter (e, inferred) d@Untyped.Definition{} = do
-      td@(Core.Definition _ n (sc, _)) <- inferDefinition e d
-      return (extend e (Unqualified n, sc), inferred ++ [td])
+      td@(Core.Definition si n (sc, _)) <- inferDefinition e d
+      return (extend e (n, Local si n sc), inferred ++ [td])
   convertImport (Untyped.Import si n) = Core.Import si n
 
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)
@@ -340,7 +367,7 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     fv (TFn _ a b)            = fv a ++ fv b
     fv (TUncurriedFn _ as r)  = concatMap fv as ++ fv r
     fv (TVariadicFn _ as v r) = concatMap fv as ++ fv v ++ fv r
-    fv (TCon _ _)             = []
+    fv (TCon _ _ ts)          = concatMap fv ts
     fv (TSlice _ t)           = fv t
 
     normtype t@TAny{}                = t
@@ -351,7 +378,7 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     normtype (TFn si' a b)            = TFn si' (normtype a) (normtype b)
     normtype (TUncurriedFn si' as r)  = TUncurriedFn si' (map normtype as) (normtype r)
     normtype (TVariadicFn si' as v r) = TVariadicFn si' (map normtype as) (normtype v) (normtype r)
-    normtype (TCon si' a)             = TCon si' a
+    normtype (TCon si' a ts)          = TCon si' a (map normtype ts)
     normtype (TSlice si' a)           = TSlice si' (normtype a)
     normtype (TVar si' a)             =
       case Prelude.lookup a ord of
@@ -385,9 +412,9 @@ unifies si t1@(TBasic _ b1) t2@(TBasic _ b2)
   | b1 == b2 = return emptySubst
   | otherwise = throwError $ UnificationFail si t1 t2
 unifies _ TUnit{} TUnit{} = return emptySubst
-unifies _ t1@(TCon si s1) t2@(TCon _ s2)
-  | s1 == s2 = return emptySubst
-  | otherwise = throwError $ UnificationFail si t1 t2
+unifies _ t1@TCon{} t2@TCon{}
+  | t1 `equalsT` t2 = return emptySubst
+  | otherwise = throwError $ UnificationFail (getSourceInfo t1) t1 t2
 unifies si (TFn _ t1 t2) (TFn _ t3 t4) = unifyMany si [t1, t2] [t3, t4]
 unifies si (TNoArgFn _ t1) (TNoArgFn _ t2) = unifies si t1 t2
 unifies si (TUncurriedFn _ as1 r1) (TUncurriedFn _ as2 r2) = do

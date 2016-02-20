@@ -4,14 +4,13 @@
 module Oden.Go (
   PackageImportError(..),
   UnsupportedTypesWarning(..),
-  getPackageScope
+  getPackageDefinitions
 ) where
 
 
 import qualified Oden.Core                  as Core
 import           Oden.Go.Types              as G
 import           Oden.Identifier
-import           Oden.Scope                 as Scope
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
 import           Oden.Type.Basic
@@ -21,6 +20,7 @@ import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.ByteString.Lazy.Char8 (pack)
 import qualified Data.HashMap.Strict        as HM
+import qualified Data.Map                   as Map
 import           Data.List                  (intercalate)
 import qualified Data.Text                  as T
 
@@ -105,8 +105,8 @@ convertType (Basic "bool" False) = return (Poly.TBasic Missing TBool)
 convertType (Basic "int" False) = return (Poly.TBasic Missing TInt)
 convertType (Basic "rune" False) = return (Poly.TBasic Missing TInt)
 convertType (Basic "string" False) = return (Poly.TBasic Missing TString)
-convertType (Basic "float" False) = return (Poly.TCon Missing "float64")
-convertType (Basic "complex" False) = return (Poly.TCon Missing "complex64")
+convertType (Basic "float" False) = return (Poly.TCon Missing "float64" [])
+convertType (Basic "complex" False) = return (Poly.TCon Missing "complex64" [])
 convertType (Basic "nil" False) = Left "nil constants"
 convertType (Basic n False) = Left ("Basic type: " ++ n)
 convertType (Basic n True) = Left ("Basic untyped: " ++ n)
@@ -144,25 +144,23 @@ convertType (Signature True Nothing args _) = do
 convertType (Named _ _ t) = convertType t
 convertType (Unsupported n) = Left n
 
-objectsToScope :: Core.PackageName -> [PackageObject] -> (Scope, Maybe UnsupportedTypesWarning)
+objectsToScope :: Core.PackageName -> [PackageObject] -> (Map.Map Name Core.Definition, Maybe UnsupportedTypesWarning)
 objectsToScope pkgName objs =
-  case foldl addObject (Scope.empty, []) objs of
-    (s, []) -> (s, Nothing)
-    (s, msgs) -> (s, Just (UnsupportedTypesWarning pkgName msgs))
+  case foldl addObject ([], []) objs of
+    (s, []) -> (Map.fromList s, Nothing)
+    (s, msgs) -> (Map.fromList s, Just (UnsupportedTypesWarning pkgName msgs))
   where
-  addObject (scope, us) o =
+  addObject (assocs, us) o =
     let n = nameOf o
         t = typeOf o
     in case convertType t of
-         Left u -> (scope, (n, u) : us)
+         Left u -> (assocs, (n, u) : us)
          Right ct ->
-           let i = Qualified (last pkgName) n
-               sc = Poly.Forall Missing [] ct
-           in (Scope.insert (Scope.Import pkgName) i (ForeignDefinition i sc) scope,
-               us)
+           let sc = Poly.Forall Missing [] ct
+           in ((n, Core.ForeignDefinition Missing n sc) : assocs, us)
 
-getPackageScope :: Core.PackageName -> IO (Either PackageImportError (Scope, Maybe UnsupportedTypesWarning))
-getPackageScope pkgName = do
+getPackageDefinitions :: Core.PackageName -> IO (Either PackageImportError (Map.Map Name Core.Definition, Maybe UnsupportedTypesWarning))
+getPackageDefinitions pkgName = do
   cs <- newCString (intercalate "/" pkgName)
   objs <- decodeResponse pkgName <$> (c_GetPackageObjects cs >>= peekCString)
   return (objectsToScope pkgName <$> objs)
