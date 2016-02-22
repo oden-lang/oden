@@ -3,7 +3,7 @@ module Oden.Core.Untyped where
 import           Oden.Identifier
 import           Oden.Core.Operator
 import           Oden.SourceInfo
-import           Oden.Type.Polymorphic
+import           Oden.Type.Signature
 
 data NameBinding = NameBinding SourceInfo Name
                  deriving (Show, Eq, Ord)
@@ -61,7 +61,7 @@ data Literal = Int Integer
              | Unit
              deriving (Show, Eq, Ord)
 
-data Definition = Definition SourceInfo Name (Maybe Scheme) Expr
+data Definition = Definition SourceInfo Name (Maybe TypeSignature) Expr
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]

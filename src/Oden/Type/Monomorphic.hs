@@ -8,7 +8,7 @@ data Type
   | TBasic SourceInfo BasicType
   | TUnit SourceInfo
   | TTuple SourceInfo Type Type [Type]
-  | TCon SourceInfo String [Type]
+  | TCon SourceInfo Type Type
   | TNoArgFn SourceInfo Type
   | TFn SourceInfo Type Type
   | TUncurriedFn SourceInfo [Type] Type
@@ -34,7 +34,7 @@ instance HasSourceInfo Type where
   setSourceInfo si (TTuple _ f s r)      = TTuple si f s r
   setSourceInfo si (TFn _ a r)           = TFn si a r
   setSourceInfo si (TNoArgFn _ r)        = TNoArgFn si r
-  setSourceInfo si (TCon _ s ts)         = TCon si s ts
+  setSourceInfo si (TCon _ d r)          = TCon si d r
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn si a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn si a v r
   setSourceInfo si (TSlice _ t)          = TSlice si t

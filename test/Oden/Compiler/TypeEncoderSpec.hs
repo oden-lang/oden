@@ -6,27 +6,22 @@ import           Oden.Compiler.TypeEncoder
 import           Oden.Identifier
 import           Oden.SourceInfo
 import           Oden.Type.Monomorphic
+import           Oden.Type.Basic
 
 spec :: Spec
 spec =
   describe "encodeTypeInstance" $ do
-    it "encodes simple type constructor" $
-      encodeTypeInstance (Unqualified "foo") (TCon Missing "Bar" []) `shouldBe` "foo_inst_Bar"
-    it "encodes nested type constructor" $
-      encodeTypeInstance (Unqualified "foo") (TCon Missing "Bar" [TCon Missing "Baz" []]) `shouldBe` "foo_inst_Bar_of_Baz"
-    it "encodes qualified type constructor" $
-      encodeTypeInstance (Qualified "foo" "bar") (TCon Missing "Baz" []) `shouldBe` "foo_bar_inst_Baz"
     it "encodes arrow" $
-      encodeTypeInstance (Unqualified "foo") (TFn Missing (TCon Missing "Bar" []) (TCon Missing "Baz" [])) `shouldBe` "foo_inst_Bar_to_Baz"
+      encodeTypeInstance (Unqualified "foo") (TFn Missing (TBasic Missing TInt) (TBasic Missing TString)) `shouldBe` "foo_inst_int_to_string"
     it "encodes nested arrows" $
-      encodeTypeInstance (Unqualified "foo") (TFn Missing (TCon Missing "Foo" []) (TFn Missing (TCon Missing "Bar" []) (TCon Missing "Baz" []))) `shouldBe` "foo_inst_Foo_to_Bar__to__Baz"
+      encodeTypeInstance (Unqualified "foo") (TFn Missing (TBasic Missing TBool) (TFn Missing (TBasic Missing TInt) (TBasic Missing TString))) `shouldBe` "foo_inst_bool_to_int__to__string"
     it "encodes single arrow" $
-      encodeTypeInstance (Unqualified "foo") (TNoArgFn Missing (TCon Missing "Bar" [])) `shouldBe` "foo_inst_to_Bar"
+      encodeTypeInstance (Unqualified "foo") (TNoArgFn Missing (TBasic Missing TInt)) `shouldBe` "foo_inst_to_int"
     it "encodes nested single arrows" $
-      encodeTypeInstance (Unqualified "foo") (TNoArgFn Missing (TNoArgFn Missing (TCon Missing "Bar" []))) `shouldBe` "foo_inst_to_to__Bar"
+      encodeTypeInstance (Unqualified "foo") (TNoArgFn Missing (TNoArgFn Missing (TBasic Missing TInt))) `shouldBe` "foo_inst_to_to__int"
     it "encodes uncurried func" $
-      encodeTypeInstance (Unqualified "foo") (TUncurriedFn Missing [TCon Missing "Foo" [], TCon Missing "Bar" []] (TCon Missing "Baz" [])) `shouldBe` "foo_inst_Foo_to_Bar_to_Baz"
+      encodeTypeInstance (Unqualified "foo") (TUncurriedFn Missing [TBasic Missing TBool, TBasic Missing TInt] (TBasic Missing TString)) `shouldBe` "foo_inst_bool_to_int_to_string"
     it "encodes variadic func" $
-      encodeTypeInstance (Unqualified "foo") (TVariadicFn Missing [TCon Missing "Foo" []] (TCon Missing "Bar" []) (TCon Missing "Baz" [])) `shouldBe` "foo_inst_Foo_to_variadic_Bar_to_Baz"
+      encodeTypeInstance (Unqualified "foo") (TVariadicFn Missing [TBasic Missing TBool] (TBasic Missing TInt) (TBasic Missing TString)) `shouldBe` "foo_inst_bool_to_variadic_int_to_string"
     it "encodes slice" $
-      encodeTypeInstance (Unqualified "foo") (TFn Missing (TSlice Missing (TCon Missing "Foo" [])) (TSlice Missing (TCon Missing "Bar" []))) `shouldBe` "foo_inst_sliceof__Foo_to_sliceof__Bar"
+      encodeTypeInstance (Unqualified "foo") (TFn Missing (TSlice Missing (TBasic Missing TBool)) (TSlice Missing (TBasic Missing TInt))) `shouldBe` "foo_inst_sliceof__bool_to_sliceof__int"

@@ -20,7 +20,6 @@ import           Control.Monad.RWS       hiding ((<>))
 
 import           Data.List               (nub)
 import qualified Data.Map                as Map
-import           Data.Maybe
 import qualified Data.Set                as Set
 
 import qualified Oden.Core               as Core
@@ -34,6 +33,7 @@ import           Oden.Infer.Subsumption
 import           Oden.SourceInfo
 import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
+import           Oden.Type.Signature
 
 -------------------------------------------------------------------------------
 -- Classes
@@ -70,12 +70,14 @@ instance Substitutable Constraint where
   apply s (si, t1, t2) = (si, apply s t1, apply s t2)
 
 instance FTV TypeBinding where
-  ftv (Package _ _ e) = ftv e
-  ftv (Local _ _ d)   = ftv d
+  ftv (Package _ _ e)      = ftv e
+  ftv (Local _ _ d)        = ftv d
+  ftv (TypeAlias _ _ ps t) = foldl Set.union (ftv t) (map ftv ps)
 
 instance Substitutable TypeBinding where
-  apply s (Package si n e) = Package si n (apply s e)
+  apply _ (Package si n e) = Package si n e
   apply s (Local si n d) = Local si n (apply s d)
+  apply _ (TypeAlias si n ps t) = TypeAlias si n ps t
 
 instance FTV TypingEnvironment where
   ftv (Environment env) = ftv $ Map.elems env
@@ -93,6 +95,7 @@ data TypeError
   | ArgumentCountMismatch (Core.Expr Type) [Type] [Type]
   | TypeSignatureSubsumptionError Name SubsumptionError
   | InvalidPackageReference SourceInfo Name
+  | ValueUsedAsType SourceInfo Name
   deriving (Show, Eq)
 
 -------------------------------------------------------------------------------
@@ -130,28 +133,56 @@ uni si t1 t2 = tell [(si, t1, t2)]
 inEnv :: (Name, TypeBinding) -> Infer a -> Infer a
 inEnv (x, sc) = local (`extend` (x, sc))
 
-lookupIn :: Environment TypeBinding -> SourceInfo -> Name -> Infer Type
-lookupIn env si name =
+lookupTypeIn :: TypingEnvironment -> SourceInfo -> Name -> Infer Type
+lookupTypeIn _ si "any" = return (TAny si)
+lookupTypeIn _ si "int" = return (TBasic si TInt)
+lookupTypeIn _ si "bool" = return (TBasic si TBool)
+lookupTypeIn _ si "string" = return (TBasic si TString)
+lookupTypeIn env si name =
   case Environment.lookup name env of
       Nothing             -> throwError $ NotInScope si (Unqualified name)
       Just Package{}      -> throwError $ InvalidPackageReference si name
-      Just (Local _ _ sc) -> instantiate sc
+      Just (Local _ _ _)  -> throwError $ ValueUsedAsType si name
+      Just (TypeAlias _ _ _ t) -> return t
 
 -- | Lookup type in the environment
-lookupEnv :: SourceInfo -> Identifier -> Infer Type
-lookupEnv si (Qualified pkg name) = do
+lookupType :: SourceInfo -> Identifier -> Infer Type
+lookupType si (Qualified pkg name) = do
   env <- ask
   case Environment.lookup pkg env of
       Just (Package _ _ env') ->
-        lookupIn env' si name `catchError` onError
+        lookupValueIn env' si name `catchError` onError
         where
         onError :: TypeError -> Infer Type
         onError NotInScope{} = throwError $ MemberNotInPackage si pkg name
         onError e = throwError e
       _              -> throwError $ PackageNotInScope si pkg
-lookupEnv si (Unqualified name) = do
+lookupType si (Unqualified name) = do
   env <- ask
-  lookupIn env si name
+  lookupTypeIn env si name
+
+lookupValueIn :: TypingEnvironment -> SourceInfo -> Name -> Infer Type
+lookupValueIn env si name =
+  case Environment.lookup name env of
+      Nothing             -> throwError $ NotInScope si (Unqualified name)
+      Just Package{}      -> throwError $ InvalidPackageReference si name
+      Just (Local _ _ sc) -> instantiate sc
+
+-- | Lookup type of a value in the environment
+lookupValue :: SourceInfo -> Identifier -> Infer Type
+lookupValue si (Qualified pkg name) = do
+  env <- ask
+  case Environment.lookup pkg env of
+      Just (Package _ _ env') ->
+        lookupValueIn env' si name `catchError` onError
+        where
+        onError :: TypeError -> Infer Type
+        onError NotInScope{} = throwError $ MemberNotInPackage si pkg name
+        onError e = throwError e
+      _              -> throwError $ PackageNotInScope si pkg
+lookupValue si (Unqualified name) = do
+  env <- ask
+  lookupValueIn env si name
 
 letters :: [String]
 letters = [1..] >>= flip replicateM ['a'..'z']
@@ -232,7 +263,7 @@ infer expr = case expr of
     return (Core.BinaryOp si o te1 te2 rt)
 
   Untyped.Symbol si x -> do
-    t <- lookupEnv si x
+    t <- lookupValue si x
     return $ Core.Symbol si x t
 
   Untyped.Fn si (Untyped.NameBinding bsi a) b -> do
@@ -322,11 +353,35 @@ infer expr = case expr of
       _ -> uni si tv (Core.typeOf (last tes))
     return (Core.Block si tes tv)
 
+resolveType :: SignatureExpr -> Infer Type
+resolveType (TSUnit si) = return (TUnit si)
+resolveType (TSVar si s) = return (TVar si (TV s))
+resolveType (TSSymbol si i) = lookupType si i
+resolveType (TSApp _si _e1 _e2) = error "Type constructor application not implemented yet."
+resolveType (TSFn si de re) = TFn si <$> resolveType de <*> resolveType re
+resolveType (TSNoArgFn si e) = TNoArgFn si <$> resolveType e
+resolveType (TSTuple si fe se re) = TTuple si <$> resolveType fe
+                                              <*> resolveType se
+                                              <*> mapM resolveType re
+resolveType (TSSlice si e) = TSlice si <$> resolveType e
+
+resolveTypeSignature :: TypeSignature -> Infer Scheme
+resolveTypeSignature (Explicit si bindings expr) = do
+  t <- resolveType expr
+  return (Forall si (map toVarBinding bindings) t)
+  where
+  toVarBinding (SignatureVarBinding si' s) = TVarBinding si' (TV s)
+resolveTypeSignature (Implicit si expr) = do
+  t <- resolveType expr
+  return (Forall si (map (TVarBinding si) (Set.toList (ftv t))) t)
+
 inferDef :: Untyped.Definition -> Infer Core.Definition
 inferDef (Untyped.Definition si name s expr) = do
   tv <- fresh si
   env <- ask
-  let recType = fromMaybe (Forall si [] tv) s
+  recType <- case s of
+    Nothing -> return (Forall si [] tv)
+    Just ts -> resolveTypeSignature ts
   te <- inEnv (name, Local si name recType) (infer expr)
   return (Core.Definition si name (generalize env te))
 
@@ -335,11 +390,12 @@ inferDefinition env def@(Untyped.Definition _ _ Nothing _) = do
   (Core.Definition si name (_, te), cs) <- runInfer env (inferDef def)
   subst <- runSolve cs
   return $ Core.Definition si name (closeOver (apply subst te))
-inferDefinition env def@(Untyped.Definition _ _ (Just st) _) = do
-  (Core.Definition _ name ce, cs) <- runInfer env (inferDef def)
-  subst <- runSolve cs
+inferDefinition env def@(Untyped.Definition _ _ (Just ts) _) = do
+  (resolvedType, tsConstrains) <- runInfer env (resolveTypeSignature ts)
+  (Core.Definition _ name ce, defConstraints) <- runInfer env (inferDef def)
+  subst <- runSolve (tsConstrains ++ defConstraints)
   let (Forall si _ _, substExpr) = apply subst ce
-  ce' <- left (TypeSignatureSubsumptionError name) $ subsume st substExpr
+  ce' <- left (TypeSignatureSubsumptionError name) $ subsume resolvedType substExpr
   return $ Core.Definition si name ce'
 
 inferPackage :: Environment TypeBinding -> Untyped.Package -> Either TypeError (Core.Package, Environment TypeBinding)
@@ -367,7 +423,7 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     fv (TFn _ a b)            = fv a ++ fv b
     fv (TUncurriedFn _ as r)  = concatMap fv as ++ fv r
     fv (TVariadicFn _ as v r) = concatMap fv as ++ fv v ++ fv r
-    fv (TCon _ _ ts)          = concatMap fv ts
+    fv (TCon _ d r)           = fv d ++ fv r
     fv (TSlice _ t)           = fv t
 
     normtype t@TAny{}                = t
@@ -378,7 +434,7 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     normtype (TFn si' a b)            = TFn si' (normtype a) (normtype b)
     normtype (TUncurriedFn si' as r)  = TUncurriedFn si' (map normtype as) (normtype r)
     normtype (TVariadicFn si' as v r) = TVariadicFn si' (map normtype as) (normtype v) (normtype r)
-    normtype (TCon si' a ts)          = TCon si' a (map normtype ts)
+    normtype (TCon si' d r)           = TCon si' (normtype d) (normtype r)
     normtype (TSlice si' a)           = TSlice si' (normtype a)
     normtype (TVar si' a)             =
       case Prelude.lookup a ord of

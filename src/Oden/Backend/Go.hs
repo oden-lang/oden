@@ -96,7 +96,7 @@ codegenType (Mono.TTuple _ f s r) =
   codegenTupleField :: Int -> Mono.Type -> Doc
   codegenTupleField n t = text ("_" ++ show n) <+> codegenType t
 codegenType Mono.TAny{} = text "interface{}"
-codegenType (Mono.TCon _ n _) = safeName n
+codegenType (Mono.TCon _ _d _r) = error "Type constructors not implemented yet."
 codegenType (Mono.TNoArgFn _ f) =
   func empty empty (codegenType f) empty
 codegenType (Mono.TFn _ d r) =

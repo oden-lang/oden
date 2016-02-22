@@ -6,6 +6,7 @@ import           Oden.Identifier
 import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
+import           Oden.Type.Signature
 
 import           Text.PrettyPrint
 
@@ -85,7 +86,7 @@ instance Pretty Poly.Type where
   pp (Poly.TTuple _ f s r) =
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
   pp (Poly.TVar _ v) = pp v
-  pp (Poly.TCon _ s ts) = text s <> commaSepParens ts
+  pp (Poly.TCon _ d r) = pp d <> parens (pp r)
   pp (Poly.TNoArgFn _ t) = rArr <+> pp t
   pp (Poly.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
   pp (Poly.TUncurriedFn _ as r) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
@@ -104,10 +105,30 @@ instance Pretty Mono.Type where
   pp (Mono.TUnit _) = text "()"
   pp (Mono.TTuple _ f s r) =
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
-  pp (Mono.TCon _ s ts) = text s <> commaSepParens ts
+  pp (Mono.TCon _ d r) = pp d <> parens (pp r)
   pp (Mono.TNoArgFn _ t) = rArr <+> pp t
   pp (Mono.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
   pp (Mono.TUncurriedFn _ as r) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
   pp (Mono.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Mono.TSlice _ t) =
     text "!" <> braces (pp t)
+
+instance Pretty SignatureVarBinding where
+  pp (SignatureVarBinding _ s) = text ("#" ++ s)
+
+instance Pretty SignatureExpr where
+  pp (TSUnit _) = text "()"
+  pp (TSVar _ v) = text ("#" ++ v)
+  pp (TSSymbol _ i) = pp i
+  pp (TSApp _ d r) = pp d <> parens (pp r)
+  pp (TSNoArgFn _ t) = rArr <+> pp t
+  pp (TSFn _ tf ta) = pp tf <+> rArr <+> pp ta
+  pp (TSTuple _ f s r) =
+    brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
+  pp (TSSlice _ t) =
+    text "!" <> braces (pp t)
+
+instance Pretty TypeSignature where
+  pp (Explicit _ vars expr) =
+    text "forall" <+> hsep (map pp vars) <> text "." <+> pp expr
+  pp (Implicit _ expr) = pp expr

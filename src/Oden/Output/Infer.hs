@@ -20,6 +20,7 @@ instance OdenOutput TypeError where
   name (UnificationMismatch _ _ _)                          = "Infer.UnificationMismatch"
   name (ArgumentCountMismatch _ _ _)                        = "Infer.ArgumentCountMismatch"
   name (TypeSignatureSubsumptionError _ SubsumptionError{}) = "Infer.TypeSignatureSubsumptionError"
+  name (ValueUsedAsType _ _)                                = "Infer.ValueUsedAsType"
 
   header (UnificationFail _ t1 t2) s = text "Cannot unify types"
     <+> code s (pp t1) <+> text "and" <+> code s (pp t2)
@@ -36,6 +37,9 @@ instance OdenOutput TypeError where
   header (TypeSignatureSubsumptionError n SubsumptionError{}) s =
     text "Type signature for" <+> strCode s n
     <+> text "does not subsume the type of the definition"
+  header (ValueUsedAsType _ n) s =
+    text "The value" <+> strCode s n
+    <+> text "cannot be used as a type"
 
   details (UnificationFail _ _ _) _ = empty
   details (InfiniteType _ v t) s = code s (pp v) <+> equals <+> code s (pp t)
@@ -52,6 +56,7 @@ instance OdenOutput TypeError where
     -- TODO: Print something like "In the expression: ..."
   details (TypeSignatureSubsumptionError _ (SubsumptionError _ t1 t2)) s =
     text "Type" <+> code s (pp t1) <+> text "does not subsume" <+> code s (pp t2)
+  details ValueUsedAsType{} _ = empty
 
   sourceInfo (ArgumentCountMismatch e _ _)                               = Just (getSourceInfo e)
   sourceInfo (UnificationFail si _ _)                                    = Just si
@@ -62,3 +67,4 @@ instance OdenOutput TypeError where
   sourceInfo (InfiniteType si _ _)                                       = Just si
   sourceInfo (InvalidPackageReference si _)                              = Just si
   sourceInfo (TypeSignatureSubsumptionError _ (SubsumptionError si _ _)) = Just si
+  sourceInfo (ValueUsedAsType si _)                                      = Just si

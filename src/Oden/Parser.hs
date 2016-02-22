@@ -11,6 +11,7 @@ import qualified Text.Parsec.Expr      as Ex
 import           Oden.Identifier
 import           Oden.Lexer            as Lexer
 import           Oden.Syntax           as Syntax
+import           Oden.Type.Signature
 import           Oden.SourceInfo
 import           Oden.Core.Operator
 
@@ -31,15 +32,17 @@ currentSourceInfo = do
   return (SourceInfo (Position (sourceName pos)
                                (sourceLine pos)
                                (sourceColumn pos)))
-
-symbol :: Parser Expr
-symbol = do
+identifier :: (SourceInfo -> Identifier ->  e) -> Parser e
+identifier f = do
   si <- currentSourceInfo
   i <- try qualified <|> unqualified
-  return (Symbol si i)
+  return (f si i)
   where
-  qualified = Qualified <$> identifier <*> (char '.' *> identifier)
-  unqualified = Unqualified <$> identifier
+  qualified = Qualified <$> name <*> (char '.' *> name)
+  unqualified = Unqualified <$> name
+
+symbol :: Parser Expr
+symbol = identifier Symbol
 
 number :: Parser Expr
 number = do
@@ -82,7 +85,7 @@ if' = do
 nameBinding :: Parser NameBinding
 nameBinding = do
   si <- currentSourceInfo
-  n <- identifier
+  n <- name
   return (NameBinding si n)
 
 fn :: Parser Expr
@@ -149,7 +152,7 @@ term :: Parser Expr
 term = do
   si <- currentSourceInfo
   basicTerm <- termNoSlice
-  indices <- many $ (brackets subscript >>= return)
+  indices <- many (brackets subscript)
   case indices of
     [] -> return basicTerm
     is -> return (Subscript si basicTerm is)
@@ -169,46 +172,30 @@ termNoSlice =
   <|> unitExprOrTuple
 
 tvar :: Parser String
-tvar = char '#' *> identifier
+tvar = char '#' *> name
 
-basic :: Parser BasicTypeExpr
-basic = (return TEInt <* reserved "int")
-    <|> (return TEString <* reserved "string")
-    <|> (return TEBool <* reserved "bool")
-
-type' :: Parser TypeExpr
+type' :: Parser SignatureExpr
 type' = do
   si <- currentSourceInfo
   ts <- simple `sepBy1` rArrow
-  case ts of
-    [t] -> return t
-    (d:r) -> return (TEFn si d r)
-    [] -> fail ""
+  return (foldr1 (TSFn si) ts)
   where
-  simple :: Parser TypeExpr
+  simple :: Parser SignatureExpr
   simple = slice'
         <|> noArgFn
-        <|> any'
-        <|> basic'
-        <|> con
         <|> var
+        <|> identifier TSSymbol
         <|> unitExprOrTupleType
-  var = TEVar <$> currentSourceInfo <*> tvar
-  any' = do
-    si <- currentSourceInfo
-    reserved "any"
-    return (TEAny si)
-  basic' = TEBasic <$> currentSourceInfo <*> basic
-  con = TECon <$> currentSourceInfo <*> identifier <*> parensList type'
-  noArgFn = TENoArgFn <$> currentSourceInfo <*> (rArrow *> type')
+  var = TSVar <$> currentSourceInfo <*> tvar
+  noArgFn = TSNoArgFn <$> currentSourceInfo <*> (rArrow *> type')
   unitExprOrTupleType = do
     si <- currentSourceInfo
     ts <- parensList type'
     case ts of
-      [] -> return (TEUnit si)
+      [] -> return (TSUnit si)
       [t] -> return t
-      (f:s:r) -> return (TETuple si f s r)
-  slice' = TESlice <$> currentSourceInfo
+      (f:s:r) -> return (TSTuple si f s r)
+  slice' = TSSlice <$> currentSourceInfo
                    <*> (emptyBrackets *> braces type')
 
 expr :: Parser Expr
@@ -270,7 +257,7 @@ topLevel = import' <|> try typeSignature <|> def
   tvarBinding = do
     si <- currentSourceInfo
     v <- tvar
-    return (TVarBindingExpr si v)
+    return (SignatureVarBinding si v)
   explicitlyQuantifiedType = do
     si <- currentSourceInfo
     reservedOp "forall"
@@ -283,17 +270,17 @@ topLevel = import' <|> try typeSignature <|> def
   signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
   typeSignature = do
     si <- currentSourceInfo
-    i <- identifier
+    i <- name
     reservedOp "::"
-    TypeSignature si i <$> signature
+    TypeSignatureDeclaration si i <$> signature
   valueDef = do
     si <- currentSourceInfo
-    i <- identifier
+    i <- name
     reservedOp "="
     ValueDefinition si i <$> expr
   fnDef = do
     si <- currentSourceInfo
-    FnDefinition si <$> identifier <*> many nameBinding <*> (rArrow *> expr)
+    FnDefinition si <$> name <*> many nameBinding <*> (rArrow *> expr)
   def = try valueDef <|> fnDef
   import' = do
     si <- currentSourceInfo

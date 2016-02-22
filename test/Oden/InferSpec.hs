@@ -13,6 +13,7 @@ import           Oden.Predefined
 import           Oden.SourceInfo
 import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
+import           Oden.Type.Signature
 
 import           Oden.Assertions
 
@@ -35,6 +36,15 @@ typeFn = TFn Missing
 typeNoArgFn = TNoArgFn Missing
 typeUncurried = TUncurriedFn Missing
 typeVariadic = TVariadicFn Missing
+
+tsUnit = TSUnit Missing
+tsVar = TSVar Missing
+tsSymbol = TSSymbol Missing
+tsFn = TSFn Missing
+
+implicit = Implicit Missing
+explicit = Explicit Missing
+varBinding = SignatureVarBinding Missing
 
 forall = Forall Missing
 tvarBinding = TVarBinding Missing
@@ -86,15 +96,18 @@ predef = fromDefinitions predefined
 
 predefAndMax :: TypingEnvironment
 predefAndMax =  predef `extend` ("max",
-                                     Local Predefined "max" $ forall [] (typeUncurried [typeInt, typeInt] typeInt))
+                                 Local Predefined "max" $ forall [] (typeUncurried [typeInt, typeInt] typeInt))
 
 predefAndMaxVariadic :: TypingEnvironment
 predefAndMaxVariadic = predef `extend` ("max",
-                                            Local Predefined "max" $ forall [] (typeVariadic [] typeInt typeInt))
+                                        Local Predefined "max" $ forall [] (typeVariadic [] typeInt typeInt))
 
 predefAndIdentityAny :: TypingEnvironment
 predefAndIdentityAny = predef `extend` ("identity",
-                                            Local Predefined "identity" $ forall [] (typeUncurried [typeAny] (typeAny)))
+                                        Local Predefined "identity" $ forall [] (typeUncurried [typeAny] (typeAny)))
+
+predefAndNumberAlias :: TypingEnvironment
+predefAndNumberAlias = predef `extend` ("Number", TypeAlias Predefined "Number" [] typeInt)
 
 booleanOp :: Type
 booleanOp = typeFn typeBool (typeFn typeBool typeBool)
@@ -416,13 +429,13 @@ spec = do
                               (uFn (uNameBinding "x") (uSymbol (Unqualified "x"))))
 
     it "infers definition with type signature" $
-      inferDefinition empty (uDefinition "x" (Just $ forall [] typeAny) (uLiteral (uInt 1)))
+      inferDefinition empty (uDefinition "x" (Just $ implicit (tsSymbol (Unqualified "any"))) (uLiteral (uInt 1)))
       `shouldSucceedWith`
       tDefinition "x" (forall [] typeAny, tLiteral (tInt 1) typeInt)
 
     it "infers polymorphic definition with type signature" $
       inferDefinition empty (uDefinition "id"
-                                                (Just $ forall [tvarBinding tvA] (typeFn tvarA tvarA))
+                                                (Just $ explicit [varBinding "a"] (tsFn (tsVar "a") (tsVar "a")))
                                                 (uFn (uNameBinding "x") (uSymbol (Unqualified "x"))))
       `shouldSucceedWith`
       tDefinition "id" (forall [tvarBinding tvA] (typeFn tvarA tvarA),
@@ -431,12 +444,12 @@ spec = do
     it "fails when specified type signature does not unify" $
       shouldFail $
         inferDefinition empty (uDefinition "some-number"
-                                                  (Just $ forall [] typeBool)
+                                                  (Just $ implicit (tsSymbol (Unqualified "bool")))
                                                   (uLiteral (uInt 1)))
 
     it "subsumes int with any" $
         inferDefinition empty (uDefinition "some-number"
-                                                  (Just $ forall [] typeAny)
+                                                  (Just $ implicit (tsSymbol (Unqualified "any")))
                                                   (uLiteral (uInt 1)))
         `shouldSucceedWith`
         tDefinition "some-number" (forall [] typeAny, tLiteral (tInt 1) typeInt)
@@ -444,7 +457,7 @@ spec = do
 
     it "infers twice function with correct type signature" $
       inferDefinition empty (uDefinition "twice"
-                                                (Just $ forall [tvarBinding tvA] (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)))
+                                                (Just $ explicit [varBinding "a"] (tsFn (tsFn (tsVar "a") (tsVar "a")) (tsFn (tsVar "a") (tsVar "a"))))
                                                 twiceUntyped)
       `shouldSucceedWith`
       twiceTyped
@@ -452,11 +465,11 @@ spec = do
     it "fails on twice function with incorrect type signature" $
       shouldFail $
         inferDefinition empty (uDefinition "twice"
-                                                  (Just $ forall [tvarBinding tvA] (typeFn tvarA tvarA))
+                                                  (Just $ explicit [varBinding "a"] (tsFn (tsVar "a") (tsVar "a")))
                                                   twiceUntyped)
 
     it "infers recursive definition" $
-      inferDefinition predef (uDefinition "f" (Just $ forall [] intToInt) countToZero)
+      inferDefinition predef (uDefinition "f" (Just $ implicit (tsFn (tsSymbol (Unqualified "int")) (tsSymbol (Unqualified "int")))) countToZero)
       `shouldSucceedWith`
       countToZeroTyped
 
@@ -467,9 +480,4 @@ spec = do
 
     it "fails on recursive with incorrect signature" $
       shouldFail $
-        inferDefinition predef (uDefinition "f" (Just $ forall [] (typeFn typeInt typeAny)) countToZero)
-
-    it "infers definition based on type alias" $
-      inferDefinition predef (uDefinition "f" (Just $ forall [] intToInt) countToZero)
-      `shouldSucceedWith`
-      countToZeroTyped
+        inferDefinition predef (uDefinition "f" (Just $ implicit (tsFn (tsSymbol (Unqualified "int")) (tsSymbol (Unqualified "any")))) countToZero)

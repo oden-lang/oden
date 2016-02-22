@@ -10,13 +10,11 @@ import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Identifier
 import           Oden.Syntax
 import           Oden.SourceInfo
-import           Oden.Type.Basic
-import           Oden.Type.Polymorphic
+import           Oden.Type.Signature
 
 import qualified Data.Map              as Map
-import qualified Data.Set              as Set
 
-data ExplodeError = TypeSignatureWithoutDefinition SourceInfo Name Scheme
+data ExplodeError = TypeSignatureWithoutDefinition SourceInfo Name TypeSignature
                   deriving (Show, Eq)
 
 explodeNameBinding :: NameBinding -> Untyped.NameBinding
@@ -69,34 +67,6 @@ explodeExpr (Slice si es) =
 explodeExpr (Block si es) =
   Untyped.Block si (map explodeExpr es)
 
-explodeType :: TypeExpr -> Type
-explodeType (TEAny si) = TAny si
-explodeType (TEUnit si) = TUnit si
-explodeType (TEBasic si TEInt) = TBasic si TInt
-explodeType (TEBasic si TEBool) = TBasic si TBool
-explodeType (TEBasic si TEString) = TBasic si TString
-explodeType (TEVar si s) = TVar si (TV s)
-explodeType (TECon si s ts) = TCon si s (map explodeType ts)
-explodeType (TEFn _ d []) = explodeType d
-explodeType (TEFn si d (r:rs)) =
-  TFn si (explodeType d) (explodeType (TEFn si r rs))
-explodeType (TENoArgFn si r) = TNoArgFn si (explodeType r)
-explodeType (TETuple si f s r) =
-  TTuple si (explodeType f) (explodeType s) (map explodeType r)
-explodeType (TESlice si t) = TSlice si (explodeType t)
-
-explodeTVarBinding :: TVarBindingExpr -> TVarBinding
-explodeTVarBinding (TVarBindingExpr si n) = TVarBinding si (TV n)
-
-explodeScheme :: SchemeExpr -> Scheme
-explodeScheme (Implicit si t) =
-  let t' = explodeType t
-      bindings = map (TVarBinding Missing) (Set.toList (ftv t'))
-  in Forall si bindings t'
-explodeScheme (Explicit si vars t) =
-  let t' = explodeType t
-  in Forall si (map explodeTVarBinding vars) t'
-
 explodeTopLevel :: [TopLevel] -> Either [ExplodeError] ([Untyped.Import], [Untyped.Definition])
 explodeTopLevel top =
   let (is, scs, defs) = foldl iter ([], Map.empty, []) top
@@ -109,11 +79,11 @@ explodeTopLevel top =
         iter (is, ts, defs) (ValueDefinition si name expr) =
           let def = Untyped.Definition si name (snd <$> Map.lookup name ts) (explodeExpr expr)
           in (is, Map.delete name ts, defs ++ [def])
-        iter (is, ts, defs) (TypeSignature tsi name sc) =
-          (is, Map.insert name (tsi, explodeScheme sc) ts, defs)
+        iter (is, ts, defs) (TypeSignatureDeclaration tsi name sc) =
+          (is, Map.insert name (tsi, sc) ts, defs)
         iter (is, ts, defs) (ImportDeclaration si name) =
           (is ++ [Untyped.Import si name], ts, defs)
-        toSignatureError :: (Name, (SourceInfo, Scheme)) -> ExplodeError
+        toSignatureError :: (Name, (SourceInfo, TypeSignature)) -> ExplodeError
         toSignatureError (n, (si, sc)) = TypeSignatureWithoutDefinition si n sc
 
 explodePackage :: Package -> Either [ExplodeError] Untyped.Package

@@ -1,10 +1,10 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 module Oden.Core where
 
-import           Oden.Core.Operator
-import           Oden.Identifier
-import           Oden.SourceInfo
-import qualified Oden.Type.Polymorphic as Poly
+import Oden.Core.Operator
+import Oden.Identifier
+import Oden.SourceInfo
+import Oden.Type.Polymorphic
 
 data NameBinding = NameBinding SourceInfo Name
                  deriving (Show, Eq, Ord)
@@ -86,10 +86,10 @@ data Literal = Int Integer
              | Unit
              deriving (Show, Eq, Ord)
 
-type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
+type CanonicalExpr = (Scheme, Expr Type)
 
 data Definition = Definition SourceInfo Name CanonicalExpr
-                | ForeignDefinition SourceInfo Name Poly.Scheme
+                | ForeignDefinition SourceInfo Name Scheme
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]

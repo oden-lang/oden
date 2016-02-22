@@ -31,8 +31,8 @@ data Type
   | TUnit SourceInfo
   -- | A tuple, with at least two elements.
   | TTuple SourceInfo Type Type [Type]
-  -- | A type constructor with a name.
-  | TCon SourceInfo String [Type]
+  -- | A type constructor.
+  | TCon SourceInfo Type Type
   -- | Like a 'TFn' but with no argument, only a return type.
   | TNoArgFn SourceInfo Type
   -- | A curried function.
@@ -68,13 +68,16 @@ instance HasSourceInfo Type where
   setSourceInfo si (TTuple _ f s r)      = TTuple si f s r
   setSourceInfo si (TFn _ a r)           = TFn si a r
   setSourceInfo si (TNoArgFn _ r)        = TNoArgFn si r
-  setSourceInfo si (TCon _ s t)          = TCon si s t
+  setSourceInfo si (TCon _ d r)          = TCon si d r
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn si a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn si a v r
   setSourceInfo si (TSlice _ t)          = TSlice si t
 
 data TVarBinding = TVarBinding SourceInfo TVar
                  deriving (Show, Eq, Ord)
+
+instance FTV TVarBinding where
+  ftv (TVarBinding _ tv) = Set.singleton tv
 
 getBindingVar :: TVarBinding -> TVar
 getBindingVar (TVarBinding _ v)  = v
@@ -99,7 +102,7 @@ toMonomorphic (TTuple si f s r) =
                  <*> toMonomorphic s
                  <*> mapM toMonomorphic r
 toMonomorphic (TVar _ _) = Left "Cannot convert TVar to a monomorphic type"
-toMonomorphic (TCon si s ts) = Mono.TCon si s <$> mapM toMonomorphic ts
+toMonomorphic (TCon si d r) = Mono.TCon si <$> toMonomorphic d <*> toMonomorphic r
 toMonomorphic (TNoArgFn si t) = Mono.TNoArgFn si <$> toMonomorphic t
 toMonomorphic (TFn si tx ty) = Mono.TFn si <$> toMonomorphic tx
                                            <*> toMonomorphic ty
@@ -121,7 +124,7 @@ isPolymorphicType TUnit{} = False
 isPolymorphicType TBasic{} = False
 isPolymorphicType (TTuple _ f s r) = any isPolymorphicType (f:s:r)
 isPolymorphicType (TVar _ _) = True
-isPolymorphicType (TCon _ _ ts) = any isPolymorphicType ts
+isPolymorphicType (TCon _ d r) = isPolymorphicType d || isPolymorphicType r
 isPolymorphicType (TNoArgFn _ a) = isPolymorphicType a
 isPolymorphicType (TFn _ a b) = isPolymorphicType a || isPolymorphicType b
 isPolymorphicType (TUncurriedFn _ a r) =
@@ -140,7 +143,7 @@ equalsT (TBasic _ b1) (TBasic _ b2) = b1 == b2
 equalsT (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) =
   f1 `equalsT` f2 && s1 `equalsT` s2 && r1 `equalsAllT` r2
 equalsT (TVar _ v1) (TVar _ v2) = v1 == v2
-equalsT (TCon _ c1 t1) (TCon _ c2 t2) = c1 == c2 && t1 `equalsAllT` t2
+equalsT (TCon _ d1 r1) (TCon _ d2 r2) = d1 `equalsT` d2 && r1 `equalsT` r2
 equalsT (TNoArgFn _ a1) (TNoArgFn _ a2) = a1 `equalsT` a2
 equalsT (TFn _ a1 b1) (TFn _ a2 b2) = a1 `equalsT` a2 && b1 `equalsT` b2
 equalsT (TUncurriedFn _ a1 r1) (TUncurriedFn _ a2 r2) =
@@ -158,7 +161,7 @@ instance FTV Type where
   ftv TBasic{}                  = Set.empty
   ftv TUnit{}                   = Set.empty
   ftv (TTuple _ f s r)          = foldl Set.union (ftv f) (ftv s : map ftv r)
-  ftv TCon{}                    = Set.empty
+  ftv (TCon _ d r)              = ftv d `Set.union` ftv r
   ftv (TVar _ a)                = Set.singleton a
   ftv (TFn _ t1 t2)             = ftv t1 `Set.union` ftv t2
   ftv (TNoArgFn _ t)            = ftv t

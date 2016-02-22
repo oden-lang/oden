@@ -37,11 +37,11 @@ reservedOps = [
   "::"
   ]
 
-identifierLetter :: Parser Char
-identifierLetter = alphaNum <|> oneOf "_-'!$&*+<=>?^|~"
+nameLetter :: Parser Char
+nameLetter = alphaNum <|> oneOf "_-'!$&*+<=>?^|~"
 
 importLetter :: Parser Char
-importLetter = identifierLetter <|> oneOf "."
+importLetter = nameLetter <|> oneOf "."
 
 lexer :: Tok.GenTokenParser L.Text () Identity
 lexer = Tok.makeTokenParser Tok.LanguageDef
@@ -49,8 +49,8 @@ lexer = Tok.makeTokenParser Tok.LanguageDef
   , Tok.commentEnd      = "*/"
   , Tok.commentLine     = "//"
   , Tok.nestedComments  = True
-  , Tok.identStart      = identifierLetter
-  , Tok.identLetter     = identifierLetter
+  , Tok.identStart      = nameLetter
+  , Tok.identLetter     = nameLetter
   , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~"
   , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
   , Tok.reservedNames   = reservedNames
@@ -64,8 +64,8 @@ reserved = Tok.reserved lexer
 reservedOp :: String -> Parser ()
 reservedOp = Tok.reservedOp lexer
 
-identifier :: Parser String
-identifier = Tok.identifier lexer
+name :: Parser String
+name = Tok.identifier lexer
 
 string :: Parser String
 string = Tok.stringLiteral lexer
@@ -97,13 +97,13 @@ rArrow = reservedOp "->"
 packageName :: Parser [String]
 packageName = part `sepBy` char '/'
   where
-  part = many1 identifierLetter
+  part = many1 nameLetter
 
 importName :: Parser [String]
 importName = part `sepBy` char '/'
   where
   part = do
-    c <- identifierLetter
+    c <- nameLetter
     cs <- many1 importLetter
     return (c:cs)
 

@@ -24,7 +24,7 @@ monoToPoly (Mono.TAny si) = Poly.TAny si
 monoToPoly (Mono.TUnit si) = Poly.TUnit si
 monoToPoly (Mono.TBasic si b) = Poly.TBasic si b
 monoToPoly (Mono.TTuple si f s r) = Poly.TTuple si (monoToPoly f) (monoToPoly s) (map monoToPoly r)
-monoToPoly (Mono.TCon si n ts) = Poly.TCon si n (map monoToPoly ts)
+monoToPoly (Mono.TCon si d r) = Poly.TCon si (monoToPoly d) (monoToPoly r)
 monoToPoly (Mono.TNoArgFn si f) = Poly.TNoArgFn si (monoToPoly f)
 monoToPoly (Mono.TFn si f p) = Poly.TFn si (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TUncurriedFn si as r) = Poly.TUncurriedFn si (map monoToPoly as) (monoToPoly r)
@@ -36,10 +36,10 @@ getSubstitutions p@(Poly.TBasic _ pb) m@(Mono.TBasic _ mb) =
   if pb == mb
   then Right Map.empty
   else Left (TypeMismatch (getSourceInfo m) p m)
-getSubstitutions p@(Poly.TCon _ pn pts) m@(Mono.TCon _ mn mts) =
-  if pn == mn
-  then foldl mappend Map.empty <$> zipWithM getSubstitutions pts mts
-  else Left (TypeMismatch (getSourceInfo m) p m)
+getSubstitutions (Poly.TCon _ pd pr) (Mono.TCon _ md mr) = do
+  ds <- getSubstitutions pd md
+  rs <- getSubstitutions pr mr
+  return (ds `mappend` rs)
 getSubstitutions (Poly.TNoArgFn _ pf) (Mono.TNoArgFn _ mf) =
   getSubstitutions pf mf
 getSubstitutions (Poly.TFn _ pf pp) (Mono.TFn _ mf mp) = do
@@ -76,7 +76,7 @@ replace (Poly.TVar si v) = do
   case Map.lookup v s of
     Just mono -> return (setSourceInfo si mono)
     Nothing -> throwError (SubstitutionFailed si v (Map.keys s))
-replace (Poly.TCon si n ts) = Poly.TCon si n <$> mapM replace ts
+replace (Poly.TCon si d r) = Poly.TCon si <$> replace d <*> replace r
 replace (Poly.TNoArgFn si t) = Poly.TNoArgFn si <$> replace t
 replace (Poly.TFn si ft pt) = Poly.TFn si <$> replace ft <*> replace pt
 replace (Poly.TUncurriedFn si ft pt) =

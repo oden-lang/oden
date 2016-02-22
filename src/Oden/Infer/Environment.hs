@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 
 data TypeBinding = Package SourceInfo Name TypingEnvironment
                  | Local SourceInfo Name Scheme
+                 | TypeAlias SourceInfo Name [TVarBinding] Type
                  deriving (Show, Eq)
 
 type TypingEnvironment = Environment TypeBinding

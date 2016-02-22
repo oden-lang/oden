@@ -3,6 +3,7 @@ module Oden.Syntax where
 import           Oden.Identifier
 import           Oden.Core.Operator
 import           Oden.SourceInfo
+import           Oden.Type.Signature
 
 data NameBinding = NameBinding SourceInfo Name
                  deriving (Show, Eq, Ord)
@@ -34,36 +35,13 @@ data Literal = Int Integer
              | Unit
              deriving (Show, Eq, Ord)
 
-data BasicTypeExpr = TEInt
-                   | TEBool
-                   | TEString
-                   deriving (Show, Eq, Ord)
-
-data TypeExpr = TEAny SourceInfo
-              | TEBasic SourceInfo BasicTypeExpr
-              | TEUnit SourceInfo
-              | TEVar SourceInfo String
-              | TECon SourceInfo String [TypeExpr]
-              | TEFn SourceInfo TypeExpr [TypeExpr]
-              | TENoArgFn SourceInfo TypeExpr
-              | TETuple SourceInfo TypeExpr TypeExpr [TypeExpr]
-              | TESlice SourceInfo TypeExpr
-              deriving (Show, Eq, Ord)
-
-data TVarBindingExpr = TVarBindingExpr SourceInfo String
-                     deriving (Show, Eq, Ord)
-
-data SchemeExpr = Explicit SourceInfo [TVarBindingExpr] TypeExpr
-                | Implicit SourceInfo TypeExpr
-                deriving (Show, Eq, Ord)
-
 type PackageName = [Name]
 
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                           deriving (Show, Eq, Ord)
 
 data TopLevel = ImportDeclaration SourceInfo PackageName
-              | TypeSignature SourceInfo Name SchemeExpr
+              | TypeSignatureDeclaration SourceInfo Name TypeSignature
               | ValueDefinition SourceInfo Name Expr
               | FnDefinition SourceInfo Name [NameBinding] Expr
               deriving (Show, Eq, Ord)

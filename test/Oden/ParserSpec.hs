@@ -4,10 +4,11 @@ module Oden.ParserSpec where
 import           Test.Hspec
 
 import           Oden.Identifier
+import           Oden.Core.Operator
 import           Oden.Parser
 import           Oden.SourceInfo
 import           Oden.Syntax
-import           Oden.Core.Operator
+import           Oden.Type.Signature
 
 import           Oden.Assertions
 
@@ -217,15 +218,15 @@ spec = do
       `shouldSucceedWith`
       Subscript (src 1 1)
         (Symbol (src 1 1) (Unqualified "a"))
-        [(Singular (Symbol (src 1 3) (Unqualified "b")))]
+        [Singular (Symbol (src 1 3) (Unqualified "b"))]
 
     it "parses sublices" $
       parseExpr "a[b:c]"
       `shouldSucceedWith`
       Subscript (src 1 1)
         (Symbol (src 1 1) (Unqualified "a"))
-        [(Range (Symbol (src 1 3) (Unqualified "b"))
-                (Symbol (src 1 5) (Unqualified "c")))]
+        [Range (Symbol (src 1 3) (Unqualified "b"))
+               (Symbol (src 1 5) (Unqualified "c"))]
 
 
 
@@ -233,68 +234,76 @@ spec = do
     it "parses type signature" $
       parseTopLevel "x :: int"
       `shouldSucceedWith`
-      TypeSignature (src 1 1) "x" (Implicit (src 1 6) (TEBasic (src 1 6) TEInt))
+      TypeSignatureDeclaration (src 1 1) "x" (Implicit (src 1 6) (TSSymbol (src 1 6) (Unqualified "int")))
 
     it "parses type signature without explicit forall" $
       parseTopLevel "x :: int -> int"
       `shouldSucceedWith`
-      TypeSignature
+      TypeSignatureDeclaration
       (src 1 1)
       "x"
-      (Implicit (src 1 6) (TEFn (src 1 6) (TEBasic (src 1 6) TEInt) [TEBasic (src 1 13) TEInt]))
+      (Implicit (src 1 6) (TSFn (src 1 6) (TSSymbol (src 1 6) (Unqualified "int")) (TSSymbol (src 1 13) (Unqualified "int"))))
 
     it "parses type signature with no-arg fn" $
       parseTopLevel "x :: -> ()"
       `shouldSucceedWith`
-      TypeSignature
+      TypeSignatureDeclaration
       (src 1 1)
       "x"
-      (Implicit (src 1 6) (TENoArgFn (src 1 6) (TEUnit (src 1 9))))
+      (Implicit (src 1 6) (TSNoArgFn (src 1 6) (TSUnit (src 1 9))))
 
     it "parses type signature with int slice" $
       parseTopLevel "x :: []{int}"
       `shouldSucceedWith`
-      TypeSignature
+      TypeSignatureDeclaration
       (src 1 1)
       "x"
-      (Implicit (src 1 6) (TESlice (src 1 6) (TEBasic (src 1 9) TEInt)))
+      (Implicit (src 1 6) (TSSlice (src 1 6) (TSSymbol (src 1 9) (Unqualified "int"))))
 
     it "parses type signature with string slice" $
       parseTopLevel "x :: []{string}"
       `shouldSucceedWith`
-      TypeSignature
+      TypeSignatureDeclaration
       (src 1 1)
       "x"
-      (Implicit (src 1 6) (TESlice (src 1 6) (TEBasic (src 1 9) TEString)))
+      (Implicit (src 1 6) (TSSlice (src 1 6) (TSSymbol (src 1 9) (Unqualified "string"))))
 
 
     it "parses polymorphic type signature with implicit forall" $
       parseTopLevel "x :: #a -> #a"
       `shouldSucceedWith`
-      TypeSignature (src 1 1) "x" (Implicit (src 1 6) (TEFn (src 1 6) (TEVar (src 1 6) "a") [TEVar (src 1 12) "a"]))
+      TypeSignatureDeclaration (src 1 1) "x" (Implicit (src 1 6) (TSFn (src 1 6) (TSVar (src 1 6) "a") (TSVar (src 1 12) "a")))
 
     it "parses polymorphic type signature with explicit forall" $
       parseTopLevel "x :: forall #a. #a -> #a"
       `shouldSucceedWith`
-      TypeSignature
+      TypeSignatureDeclaration
       (src 1 1)
       "x"
       (Explicit
        (src 1 6)
-       [TVarBindingExpr (src 1 13) "a"]
-       (TEFn (src 1 17) (TEVar (src 1 17) "a") [TEVar (src 1 23) "a"]))
+       [SignatureVarBinding (src 1 13) "a"]
+       (TSFn (src 1 17) (TSVar (src 1 17) "a") (TSVar (src 1 23) "a")))
 
-    -- TODO: would be nice...
-    --
     -- it "parses type alias" $
     --   parseTopLevel "type x(#a) = #a -> #a"
     --   `shouldSucceedWith`
-    --   TypeAlias (src 1 1) "x" [TVarBindingExpr (src 1 8) "a"] (TEFn (src 1 14) (TEVar (src 1 14) "a") [TEVar (src 1 20) "a"])
+    --   TypeAlias (src 1 1) "x" [SignatureVarBinding (src 1 8) "a"] (TSFn (src 1 14) (TSVar (src 1 14) "a") (TSVar (src 1 20) "a"))
 
-    -- it "parses type with nested type constructor" $
-    --   parseTopLevel "type x(#a) = f(#a, g(#a, #a))"
+    -- it "parses type alias with nested type constructor" $
+    --   parseTopLevel "type T(#a) = U(#a, V)"
     --   `shouldSucceedWith`
-    --   TypeAlias (src 1 1) "x" [TVarBindingExpr (src 1 8) "a"] (TECon (src 1 14) "f" [TEVar (src 1 16) "a", TECon (src 1 20) "g" [TEVar (src 1 22) "a", TEVar (src 1 26) "a"]])
+    --   TypeAlias
+    --   (src 1 1)
+    --   "T"
+    --   [SignatureVarBinding (src 1 8) "a"]
+    --   (TSApp
+    --    (src 1 14)
+    --    (TSApp
+    --     (src 1 14)
+    --     (TSSymbol (src 1 10) "U")
+    --     (TSVar (src 1 16) "a"))
+    --    (TSSymbol (src 1 18) "V"))
 
     it "parses value definition" $
       parseTopLevel "x = y"

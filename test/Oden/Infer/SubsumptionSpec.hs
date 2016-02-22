@@ -90,17 +90,6 @@ spec = do
     it "int does not subsume string" $
       shouldFail (scheme typeInt `subsume` Literal Predefined (String "foo") typeString)
 
-    it "tcon subsume same tcon" $
-      let foo = TCon Missing "foo" [] in do
-        scheme foo `subsume` Literal Predefined (String "foo") foo
-        `shouldSucceedWith`
-        (scheme foo, Literal Predefined (String "foo") foo)
-
-    it "tcon does not subsume other tcons" $
-      let foo = TCon Missing "foo" []
-          bar = TCon Missing "bar" []
-      in shouldFail (scheme foo `subsume` Literal Predefined Unit bar)
-
     it "TFn of TVars subsume same TFn" $
       let expr tv = Fn Predefined
                     (NameBinding Missing "x")
