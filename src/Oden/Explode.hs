@@ -24,7 +24,11 @@ explodeExpr :: Expr -> Untyped.Expr
 explodeExpr (Subscript si es [Singular e]) =
   Untyped.Subscript si (explodeExpr es) (explodeExpr e)
 explodeExpr (Subscript si es [Range e1 e2]) =
-  Untyped.Subslice si (explodeExpr es) (explodeExpr e1) (explodeExpr e2)
+  Untyped.Subslice si (explodeExpr es) (Untyped.Range (explodeExpr e1) (explodeExpr e2))
+explodeExpr (Subscript si es [RangeTo e]) =
+  Untyped.Subslice si (explodeExpr es) (Untyped.RangeTo (explodeExpr e))
+explodeExpr (Subscript si es [RangeFrom e]) =
+  Untyped.Subslice si (explodeExpr es) (Untyped.RangeFrom (explodeExpr e))
 explodeExpr (Subscript si es (i:ir)) =
   explodeExpr (Subscript si (Subscript si es [i]) ir)
 

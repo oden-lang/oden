@@ -48,7 +48,7 @@ instance Pretty Identifier where
 instance Pretty (Expr t) where
   pp (Symbol _ i _) = pp i
   pp (Subscript _ s i _) = pp s <> text "[" <> pp i <> text "]"
-  pp (Subslice _ s i1 i2 _) = pp s <> text "[" <> pp i1 <> text ":" <> pp i2 <> text "]"
+  pp (Subslice _ s r _) = pp s <> pp r
   pp (UnaryOp _ op e _) = pp op <+> pp e
   pp (BinaryOp _ op e1 e2 _) = pp e1 <+> pp op <+> pp e2
   pp (Application _ f a _) = pp f <> text "(" <> pp a <> text ")"
@@ -70,6 +70,11 @@ instance Pretty (Expr t) where
     text "[]" <> braces (hcat (punctuate (text ", ") (map pp es)))
   pp (Block _ es _) =
     braces (vcat (map pp es))
+
+instance Pretty (Range r) where
+  pp (Range e1 e2) = brackets $ pp e1 <+> (text ":") <+> pp e2
+  pp (RangeTo e) = brackets $ (text ":") <+> pp e
+  pp (RangeFrom e) = brackets $ pp e <+> (text ":")
 
 instance Pretty Poly.TVar where
   pp (Poly.TV s) = text ('#' : s)

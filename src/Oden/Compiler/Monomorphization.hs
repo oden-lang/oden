@@ -156,12 +156,22 @@ monomorph e@(Core.Subscript si s i _) = do
   ms <- monomorph s
   mi <- monomorph i
   return (Core.Subscript si ms mi mt)
-monomorph e@(Core.Subslice si s i1 i2 _) = do
+monomorph e@(Core.Subslice si s (Core.Range e1 e2) _) = do
   mt <- getMonoType e
   ms <- monomorph s
-  mi1 <- monomorph i1
-  mi2 <- monomorph i2
-  return (Core.Subslice si ms mi1 mi2 mt)
+  me1 <- monomorph e1
+  me2 <- monomorph e2
+  return (Core.Subslice si ms (Core.Range me1 me2) mt)
+monomorph e@(Core.Subslice si s (Core.RangeTo i) _) = do
+  mt <- getMonoType e
+  ms <- monomorph s
+  mi <- monomorph i
+  return (Core.Subslice si ms (Core.RangeTo mi) mt)
+monomorph e@(Core.Subslice si s (Core.RangeFrom i) _) = do
+  mt <- getMonoType e
+  ms <- monomorph s
+  mi <- monomorph i
+  return (Core.Subslice si ms (Core.RangeFrom mi) mt)
 monomorph e@(Core.UnaryOp si o e1 _) = do
   mt <- getMonoType e
   me <- monomorph e1

@@ -222,15 +222,31 @@ infer expr = case expr of
     uni (getSourceInfo it) (Core.typeOf it) (TBasic si TInt)
     return (Core.Subscript si st it tv)
 
-  Untyped.Subslice si s i1 i2 -> do
+  Untyped.Subslice si s (Untyped.Range e1 e2) -> do
     st <- infer s
-    i1t <- infer i1
-    i2t <- infer i2
+    e1t <- infer e1
+    e2t <- infer e2
     tv <- fresh si
     uni (getSourceInfo st) (Core.typeOf st) (TSlice (getSourceInfo s) tv)
-    uni (getSourceInfo i1t) (Core.typeOf i1t) (TBasic si TInt)
-    uni (getSourceInfo i2t) (Core.typeOf i2t) (TBasic si TInt)
-    return (Core.Subslice si st i1t i2t (TSlice si tv))
+    uni (getSourceInfo e1t) (Core.typeOf e1t) (TBasic si TInt)
+    uni (getSourceInfo e2t) (Core.typeOf e2t) (TBasic si TInt)
+    return (Core.Subslice si st (Core.Range e1t e2t) (TSlice si tv))
+
+  Untyped.Subslice si s (Untyped.RangeTo e) -> do
+    st <- infer s
+    et <- infer e
+    tv <- fresh si
+    uni (getSourceInfo st) (Core.typeOf st) (TSlice (getSourceInfo s) tv)
+    uni (getSourceInfo et) (Core.typeOf et) (TBasic si TInt)
+    return (Core.Subslice si st (Core.RangeTo et) (TSlice si tv))
+
+  Untyped.Subslice si s (Untyped.RangeFrom e) -> do
+    st <- infer s
+    et <- infer e
+    tv <- fresh si
+    uni (getSourceInfo st) (Core.typeOf st) (TSlice (getSourceInfo s) tv)
+    uni (getSourceInfo et) (Core.typeOf et) (TBasic si TInt)
+    return (Core.Subslice si st (Core.RangeFrom et) (TSlice si tv))
 
   Untyped.UnaryOp si o e -> do
     rt <- case o of

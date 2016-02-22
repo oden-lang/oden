@@ -136,13 +136,21 @@ codegenBinaryOperator Or = text "||"
 codegenUnaryOperator :: UnaryOperator -> Doc
 codegenUnaryOperator o = text (show o)
 
+codegenRange :: Range Mono.Type -> Doc
+codegenRange (Range e1 e2) =
+  brackets $ hcat $ punctuate (text ":") $ map codegenExpr [e1, e2]
+codegenRange (RangeTo e) =
+  brackets $ text ":" <+> codegenExpr e
+codegenRange (RangeFrom e) =
+  brackets $ codegenExpr e <+> (text ":")
+
 codegenExpr :: Expr Mono.Type -> Doc
 codegenExpr (Symbol _ i _) =
   codegenIdentifier i
 codegenExpr (Subscript _ s i _) =
   codegenExpr s <> (brackets . codegenExpr) i
-codegenExpr (Subslice _ s i1 i2 _) =
-  codegenExpr s <> (brackets $ hcat $ punctuate (text ":") $ map codegenExpr [i1, i2])
+codegenExpr (Subslice _ s r _) =
+  codegenExpr s <> codegenRange r
 codegenExpr (UnaryOp _ o e _) =
   parens (codegenUnaryOperator o <+> codegenExpr e)
 codegenExpr (BinaryOp _ o e1 e2 _) =

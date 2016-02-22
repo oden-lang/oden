@@ -10,7 +10,7 @@ data NameBinding = NameBinding SourceInfo Name
 
 data Expr = Symbol SourceInfo Identifier
           | Subscript SourceInfo Expr Expr
-          | Subslice SourceInfo Expr Expr Expr
+          | Subslice SourceInfo Expr Range
           | UnaryOp SourceInfo UnaryOperator Expr
           | BinaryOp SourceInfo BinaryOperator Expr Expr
           | Application SourceInfo Expr [Expr]
@@ -27,7 +27,7 @@ data Expr = Symbol SourceInfo Identifier
 instance HasSourceInfo Expr where
   getSourceInfo (Symbol si _)                   = si
   getSourceInfo (Subscript si _ _)              = si
-  getSourceInfo (Subslice si _ _ _)             = si
+  getSourceInfo (Subslice si _ _)               = si
   getSourceInfo (UnaryOp si _ _)                = si
   getSourceInfo (BinaryOp si _ _ _)             = si
   getSourceInfo (Application si _ _)            = si
@@ -42,7 +42,7 @@ instance HasSourceInfo Expr where
 
   setSourceInfo si (Symbol _ i)                   = Symbol si i
   setSourceInfo si (Subscript _ s i)              = Subscript si s i
-  setSourceInfo si (Subslice _ s i1 i2)           = Subslice si s i1 i2
+  setSourceInfo si (Subslice _ s r)               = Subslice si s r
   setSourceInfo si (UnaryOp _ p r)                = UnaryOp si p r
   setSourceInfo si (BinaryOp _ p l r)             = BinaryOp si p l r
   setSourceInfo si (Application _ f a)            = Application si f a
@@ -61,8 +61,13 @@ data Literal = Int Integer
              | Unit
              deriving (Show, Eq, Ord)
 
+data Range = Range Expr Expr
+           | RangeTo Expr
+           | RangeFrom Expr
+           deriving (Show, Eq, Ord)
+
 data Definition = Definition SourceInfo Name (Maybe TypeSignature) Expr
-                deriving (Show, Eq, Ord)
+                  deriving (Show, Eq, Ord)
 
 type PackageName = [Name]
 

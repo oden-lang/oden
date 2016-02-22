@@ -213,14 +213,14 @@ spec = do
           Symbol (src 1 10) (Unqualified "z")
         ]
 
-    it "parses subscript" $
+    it "parses slice subscript" $
       parseExpr "a[b]"
       `shouldSucceedWith`
       Subscript (src 1 1)
         (Symbol (src 1 1) (Unqualified "a"))
         [Singular (Symbol (src 1 3) (Unqualified "b"))]
 
-    it "parses sublices" $
+    it "parses sublices with closed beginning and end" $
       parseExpr "a[b:c]"
       `shouldSucceedWith`
       Subscript (src 1 1)
@@ -228,7 +228,22 @@ spec = do
         [Range (Symbol (src 1 3) (Unqualified "b"))
                (Symbol (src 1 5) (Unqualified "c"))]
 
+    it "parses subslices with open start" $
+      parseExpr "a[:c]"
+      `shouldSucceedWith`
+      Subscript (src 1 1)
+        (Symbol (src 1 1) (Unqualified "a"))
+        [RangeTo (Symbol (src 1 4) (Unqualified "c"))]
 
+    it "parses subslices with open ending" $
+      parseExpr "a[b:]"
+      `shouldSucceedWith`
+      Subscript (src 1 1)
+        (Symbol (src 1 1) (Unqualified "a"))
+        [RangeFrom (Symbol (src 1 3) (Unqualified "b"))]
+
+    it "fails on subslices with open start and end" $
+      shouldFail $ parseExpr "a[:]"
 
   describe "parseTopLevel" $ do
     it "parses type signature" $

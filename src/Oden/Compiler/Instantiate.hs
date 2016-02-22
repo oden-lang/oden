@@ -93,11 +93,20 @@ instantiateExpr (Core.Subscript si s i t) =
   Core.Subscript si <$> instantiateExpr s
                     <*> instantiateExpr i
                     <*> replace t
-instantiateExpr (Core.Subslice si s i1 i2 t) =
+
+instantiateExpr (Core.Subslice si s (Core.Range e1 e2) t) =
   Core.Subslice si <$> instantiateExpr s
-                   <*> instantiateExpr i1
-                   <*> instantiateExpr i2
+                   <*> (Core.Range <$> (instantiateExpr e1) <*> (instantiateExpr e2))
                    <*> replace t
+instantiateExpr (Core.Subslice si s (Core.RangeTo e) t) =
+  Core.Subslice si <$> instantiateExpr s
+                   <*> (Core.RangeTo <$> (instantiateExpr e))
+                   <*> replace t
+instantiateExpr (Core.Subslice si s (Core.RangeFrom e) t) =
+  Core.Subslice si <$> instantiateExpr s
+                   <*> (Core.RangeFrom <$> (instantiateExpr e))
+                   <*> replace t
+
 instantiateExpr (Core.UnaryOp si o e t) = 
   Core.UnaryOp si o <$> instantiateExpr e <*> replace t
 instantiateExpr (Core.BinaryOp si o e1 e2 t) =
