@@ -26,6 +26,8 @@ data Expr = Symbol SourceInfo Identifier
           deriving (Show, Eq, Ord)
 
 data Subscript = Singular Expr
+               | RangeTo Expr
+               | RangeFrom Expr
                | Range Expr Expr
                deriving (Show, Eq, Ord)
 

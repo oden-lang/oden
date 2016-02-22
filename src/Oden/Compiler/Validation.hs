@@ -37,10 +37,9 @@ validateExpr Symbol{} = return ()
 validateExpr (Subscript _ s i _) = do
   validateExpr s
   validateExpr i
-validateExpr (Subslice _ s i1 i2 _) = do
+validateExpr (Subslice _ s r _) = do
   validateExpr s
-  validateExpr i1
-  validateExpr i2
+  validateRange r
 validateExpr (UnaryOp _ _ rhs _) =
   validateExpr rhs
 validateExpr (BinaryOp _ _ lhs rhs _) = do
@@ -80,6 +79,15 @@ validateExpr (Block _ exprs _) = do
   warnOnDiscarded expr = case typeOf expr of
     TUnit{} -> return ()
     _ -> throwError (ValueDiscarded expr)
+
+validateRange :: Range Type -> Validate()
+validateRange (Range e1 e2) = do
+  validateExpr e1
+  validateExpr e2
+validateRange (RangeTo e) =
+  validateExpr e
+validateRange (RangeFrom e) =
+  validateExpr e
 
 validatePackage :: Package -> Validate ()
 validatePackage (Package _ _ definitions) = validateSeq definitions

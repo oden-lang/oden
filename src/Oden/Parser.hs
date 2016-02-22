@@ -143,10 +143,12 @@ unitExprOrTuple = do
     (f:s:r) -> return (Tuple si f s r)
 
 subscript :: Parser Subscript
-subscript = try range <|> simple
-  where
-    range = Range <$> expr <*> (char ':' *> expr)
-    simple = Singular <$> expr
+subscript = try openStart <|> try range <|> try openEnd <|> simple
+   where
+     openStart = RangeTo <$> (char ':' *> expr)
+     openEnd = RangeFrom <$> (expr <* char ':')
+     range = Range <$> expr <*> (char ':' *> expr)
+     simple = Singular <$> expr
 
 term :: Parser Expr
 term = do
