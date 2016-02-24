@@ -11,11 +11,13 @@ import           Oden.Compiler.TypeEncoder
 import qualified Oden.Core                 as Core
 import           Oden.Identifier
 import           Oden.Environment                as Environment
+import           Oden.QualifiedName        (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
 data MonomorphedDefinition = MonomorphedDefinition SourceInfo Name Mono.Type (Core.Expr Mono.Type)
+                           | MonomorphedStructDefinition SourceInfo Name [Core.StructField Mono.Type]
                            deriving (Show, Eq, Ord)
 
 data InstantiatedDefinition =
@@ -26,7 +28,7 @@ data MonomorphedPackage = MonomorphedPackage Core.PackageDeclaration [Core.Impor
                      deriving (Show, Eq, Ord)
 
 data MonomorphError   = NotInScope Identifier
-                      | UnexpectedPolyType SourceInfo (Core.Expr Poly.Type)
+                      | UnexpectedPolyType SourceInfo Poly.Type
                       | MonomorphInstantiateError InstantiateError
                       deriving (Show, Eq, Ord)
 
@@ -114,6 +116,7 @@ getMonomorphicDefinition ident t = do
         Just (InstantiatedDefinition name _) -> return (Unqualified name)
         Nothing -> instantiateDefinition key sc pe
     Core.Definition _ pn _ -> return (Unqualified pn)
+    Core.StructDefinition _ (FQN _ n) _ _ -> return (Unqualified n)
 
 getMonomorphicLetBinding :: Name
                          -> Mono.Type
@@ -142,9 +145,10 @@ getMonomorphic i@(Unqualified n) t = do
 
 getMonoType :: Core.Expr Poly.Type -> Monomorph Mono.Type
 getMonoType e =
-  either (const $ throwError (UnexpectedPolyType (getSourceInfo e) e))
-         return
-         (Poly.toMonomorphic (Core.typeOf e))
+  let pt = Core.typeOf e
+  in either (const $ throwError (UnexpectedPolyType (getSourceInfo e) pt))
+            return
+            (Poly.toMonomorphic pt)
 
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
 monomorph e@(Core.Symbol si ident _) = do
@@ -265,6 +269,16 @@ monomorphDefinition d@(Core.Definition si name (Poly.Forall _ _ st, expr)) = do
     Right mt -> do
       mExpr <- monomorph expr
       addMonomorphed name (MonomorphedDefinition si name mt mExpr)
+monomorphDefinition d@(Core.StructDefinition si (FQN _ localName) _ fields) = do
+  extendEnvironment localName d
+  mFields <- mapM fieldMonoType fields
+  addMonomorphed localName (MonomorphedStructDefinition si localName mFields)
+  where
+  fieldMonoType :: Core.StructField Poly.Type -> Monomorph (Core.StructField Mono.Type)
+  fieldMonoType (Core.StructField si' name pt) =
+    case Poly.toMonomorphic pt of
+      Left _   -> throwError (UnexpectedPolyType si' pt)
+      Right mt -> return (Core.StructField si' name mt)
 
 monomorphPackage :: CompileEnvironment -> Core.Package -> Either MonomorphError MonomorphedPackage
 monomorphPackage environment' (Core.Package pkgDecl imports definitions) = do

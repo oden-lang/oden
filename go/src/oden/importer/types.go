@@ -31,6 +31,25 @@ func NewSlice(inner Type) Slice {
 	return Slice{"slice", inner}
 }
 
+type StructField struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+	Type Type   `json:"type"`
+}
+
+func NewStructField(name string, fieldType Type) StructField {
+	return StructField{"struct_field", name, fieldType}
+}
+
+type Struct struct {
+	Kind   string        `json:"kind"`
+	Fields []StructField `json:"fields"`
+}
+
+func NewStruct(fields []StructField) Struct {
+	return Struct{"struct", fields}
+}
+
 type Signature struct {
 	Kind      string `json:"kind"`
 	Variadic  bool   `json:"variadic"`
@@ -54,14 +73,14 @@ func NewBasic(name string, untyped bool) Basic {
 }
 
 type Named struct {
-	Kind       string `json:"kind"`
-	Pkg        string `json:"pkg"`
-	Name       string `json:"name"`
-	Underlying Type   `json:"underlying"`
+	Kind       string   `json:"kind"`
+	Pkg        []string `json:"pkg"`
+	Name       string   `json:"name"`
+	Underlying Type     `json:"underlying"`
 	// Methods []Func `json:"methods"`
 }
 
-func NewNamed(pkg string, name string, underlying Type) Named {
+func NewNamed(pkg []string, name string, underlying Type) Named {
 	return Named{"named", pkg, name, underlying}
 }
 

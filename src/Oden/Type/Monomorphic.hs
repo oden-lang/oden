@@ -1,7 +1,10 @@
 module Oden.Type.Monomorphic where
 
+import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Basic
+
+import qualified Data.Map as Map
 
 data Type
   = TAny SourceInfo
@@ -14,6 +17,7 @@ data Type
   | TUncurriedFn SourceInfo [Type] Type
   | TVariadicFn SourceInfo [Type] Type Type
   | TSlice SourceInfo Type
+  | TNamedStruct SourceInfo QualifiedName (Map.Map String Type)
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
@@ -27,6 +31,7 @@ instance HasSourceInfo Type where
   getSourceInfo (TUncurriedFn si _ _)  = si
   getSourceInfo (TVariadicFn si _ _ _) = si
   getSourceInfo (TSlice si _)          = si
+  getSourceInfo (TNamedStruct si _ _)  = si
 
   setSourceInfo si (TAny _)              = TAny si
   setSourceInfo si (TBasic _ b)          = TBasic si b
@@ -38,3 +43,4 @@ instance HasSourceInfo Type where
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn si a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn si a v r
   setSourceInfo si (TSlice _ t)          = TSlice si t
+  setSourceInfo si (TNamedStruct _ n fs) = TNamedStruct si n fs

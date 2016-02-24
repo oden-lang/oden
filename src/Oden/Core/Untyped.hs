@@ -2,6 +2,7 @@ module Oden.Core.Untyped where
 
 import           Oden.Identifier
 import           Oden.Core.Operator
+import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Signature
 
@@ -66,8 +67,12 @@ data Range = Range Expr Expr
            | RangeFrom Expr
            deriving (Show, Eq, Ord)
 
+data StructField = StructField SourceInfo Name SignatureExpr
+                 deriving (Show, Eq, Ord)
+
 data Definition = Definition SourceInfo Name (Maybe TypeSignature) Expr
-                  deriving (Show, Eq, Ord)
+                | StructDefinition SourceInfo QualifiedName [NameBinding] [StructField]
+                deriving (Show, Eq, Ord)
 
 type PackageName = [Name]
 

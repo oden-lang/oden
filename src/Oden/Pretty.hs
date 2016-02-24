@@ -3,6 +3,7 @@ module Oden.Pretty where
 import           Oden.Core
 import           Oden.Core.Operator
 import           Oden.Identifier
+import           Oden.QualifiedName    (QualifiedName(..))
 import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
@@ -82,6 +83,9 @@ instance Pretty Poly.TVar where
 instance Pretty Poly.TVarBinding where
   pp (Poly.TVarBinding _ v) = pp v
 
+instance Pretty QualifiedName where
+  pp (FQN pkg name) = hcat (punctuate (text ".") (map text (pkg ++ [name])))
+
 instance Pretty Poly.Type where
   pp (Poly.TAny _) = text "any"
   pp (Poly.TBasic _ TInt) = text "int"
@@ -98,6 +102,7 @@ instance Pretty Poly.Type where
   pp (Poly.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Poly.TSlice _ t) =
     text "[]" <> braces (pp t)
+  pp (Poly.TNamedStruct _ n _) = pp n
 
 instance Pretty Poly.Scheme where
   pp (Poly.Forall _ vs t) = text "forall" <+> hsep (map pp vs) <> text "." <+> pp t
@@ -117,6 +122,7 @@ instance Pretty Mono.Type where
   pp (Mono.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Mono.TSlice _ t) =
     text "!" <> braces (pp t)
+  pp (Mono.TNamedStruct _ n _) = pp n
 
 instance Pretty SignatureVarBinding where
   pp (SignatureVarBinding _ s) = text ("#" ++ s)

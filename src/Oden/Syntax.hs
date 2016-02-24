@@ -42,10 +42,14 @@ type PackageName = [Name]
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                           deriving (Show, Eq, Ord)
 
+data StructFieldExpr = StructFieldExpr SourceInfo Name SignatureExpr
+                     deriving (Show, Eq, Ord)
+
 data TopLevel = ImportDeclaration SourceInfo PackageName
               | TypeSignatureDeclaration SourceInfo Name TypeSignature
               | ValueDefinition SourceInfo Name Expr
               | FnDefinition SourceInfo Name [NameBinding] Expr
+              | StructDefinition SourceInfo Name [NameBinding] [StructFieldExpr]
               deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]

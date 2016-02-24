@@ -50,6 +50,7 @@ compileToTypeBinding :: CE.Binding -> IE.TypeBinding
 compileToTypeBinding (CE.Package si n p) = IE.Package si n (Environment.map compileToTypeBinding p)
 compileToTypeBinding (CE.Definition (Core.Definition si n (sc, _))) = Local si n sc
 compileToTypeBinding (CE.Definition (Core.ForeignDefinition si n sc)) = Local si n sc
+compileToTypeBinding (CE.Definition (Core.ForeignDefinition si n sc)) = Local si n sc
 
 scanImports :: Untyped.Package -> CLI CompileEnvironment
 scanImports (Untyped.Package _ imports _) = foldM scanImport Environment.empty imports

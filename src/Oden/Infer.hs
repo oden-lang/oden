@@ -30,6 +30,7 @@ import           Oden.Identifier
 import           Oden.Infer.Environment
 import           Oden.Infer.Substitution
 import           Oden.Infer.Subsumption
+import           Oden.QualifiedName      (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
@@ -69,15 +70,21 @@ instance FTV Constraint where
 instance Substitutable Constraint where
   apply s (si, t1, t2) = (si, apply s t1, apply s t2)
 
+instance FTV (Core.StructField Type) where
+  ftv (Core.StructField _ _ t) = ftv t
+
+instance Substitutable (Core.StructField Type) where
+  apply s (Core.StructField si n t) = Core.StructField si n (apply s t)
+
 instance FTV TypeBinding where
-  ftv (Package _ _ e)      = ftv e
-  ftv (Local _ _ d)        = ftv d
-  ftv (TypeAlias _ _ ps t) = foldl Set.union (ftv t) (map ftv ps)
+  ftv (Package _ _ e)        = ftv e
+  ftv (Local _ _ d)          = ftv d
+  ftv (NamedStruct _ _ _ fs) = ftv fs
 
 instance Substitutable TypeBinding where
   apply _ (Package si n e) = Package si n e
   apply s (Local si n d) = Local si n (apply s d)
-  apply _ (TypeAlias si n ps t) = TypeAlias si n ps t
+  apply s (NamedStruct si n bs fs) = NamedStruct si n bs (apply s fs)
 
 instance FTV TypingEnvironment where
   ftv (Environment env) = ftv $ Map.elems env
@@ -103,18 +110,18 @@ data TypeError
 -------------------------------------------------------------------------------
 
 -- | Run the inference monad
-runInfer :: Environment TypeBinding -> Infer a -> Either TypeError (a, [Constraint])
+runInfer :: TypingEnvironment -> Infer a -> Either TypeError (a, [Constraint])
 runInfer env m = runExcept $ evalRWST m env initInfer
 
 -- | Solve for the toplevel type of an expression in a given environment
-inferExpr :: Environment TypeBinding -> Untyped.Expr -> Either TypeError Core.CanonicalExpr
+inferExpr :: TypingEnvironment -> Untyped.Expr -> Either TypeError Core.CanonicalExpr
 inferExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
   subst <- runSolve cs
   return $ closeOver (apply subst te)
 
 -- | Return the internal constraints used in solving for the type of an expression
-constraintsExpr :: Environment TypeBinding -> Untyped.Expr -> Either TypeError ([Constraint], Subst, Core.Expr Type, Scheme)
+constraintsExpr :: TypingEnvironment -> Untyped.Expr -> Either TypeError ([Constraint], Subst, Core.Expr Type, Scheme)
 constraintsExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
   subst <- runSolve cs
@@ -140,10 +147,13 @@ lookupTypeIn _ si "bool" = return (TBasic si TBool)
 lookupTypeIn _ si "string" = return (TBasic si TString)
 lookupTypeIn env si name =
   case Environment.lookup name env of
-      Nothing             -> throwError $ NotInScope si (Unqualified name)
-      Just Package{}      -> throwError $ InvalidPackageReference si name
-      Just (Local _ _ _)  -> throwError $ ValueUsedAsType si name
-      Just (TypeAlias _ _ _ t) -> return t
+      Nothing                          -> throwError $ NotInScope si (Unqualified name)
+      Just Package{}                   -> throwError $ InvalidPackageReference si name
+      Just (Local _ _ _)               -> throwError $ ValueUsedAsType si name
+      Just (NamedStruct si' n _ fields) ->
+        return $ TNamedStruct si' n (Map.fromList (map fieldToAssoc fields))
+  where
+  fieldToAssoc (Core.StructField _ fn t) = (fn, t)
 
 -- | Lookup type in the environment
 lookupType :: SourceInfo -> Identifier -> Infer Type
@@ -164,9 +174,12 @@ lookupType si (Unqualified name) = do
 lookupValueIn :: TypingEnvironment -> SourceInfo -> Name -> Infer Type
 lookupValueIn env si name =
   case Environment.lookup name env of
-      Nothing             -> throwError $ NotInScope si (Unqualified name)
-      Just Package{}      -> throwError $ InvalidPackageReference si name
-      Just (Local _ _ sc) -> instantiate sc
+      Nothing                              -> throwError $ NotInScope si (Unqualified name)
+      Just Package{}                       -> throwError $ InvalidPackageReference si name
+      Just (Local _ _ sc)                  -> instantiate sc
+      Just (NamedStruct _ n _ fields) -> return (TNamedStruct si n (Map.fromList (map toAssoc fields)))
+  where
+  toAssoc (Core.StructField _ n t) = (n, t)
 
 -- | Lookup type of a value in the environment
 lookupValue :: SourceInfo -> Identifier -> Infer Type
@@ -199,7 +212,7 @@ instantiate (Forall _ as t) = do
     let s = Subst $ Map.fromList $ zip (map getBindingVar as) as'
     return $ apply s t
 
-generalize :: Environment TypeBinding -> Core.Expr Type -> (Scheme, Core.Expr Type)
+generalize :: TypingEnvironment -> Core.Expr Type -> (Scheme, Core.Expr Type)
 generalize env t  = (Forall (getSourceInfo t) as (Core.typeOf t), t)
     where as = map (TVarBinding Missing) (Set.toList $ ftv t `Set.difference` ftv env)
 
@@ -400,28 +413,52 @@ inferDef (Untyped.Definition si name s expr) = do
     Just ts -> resolveTypeSignature ts
   te <- inEnv (name, Local si name recType) (infer expr)
   return (Core.Definition si name (generalize env te))
+inferDef (Untyped.StructDefinition si name params fields) = do
+  fields' <- mapM resolveField fields
+  return (Core.StructDefinition si name (map convertParams params) fields')
+  where
+  convertParams (Untyped.NameBinding bsi bn) = Core.NameBinding bsi bn
+  resolveField (Untyped.StructField fsi fn tsExpr) = do
+    t <- resolveType tsExpr
+    return (Core.StructField fsi fn t)
 
-inferDefinition :: Environment TypeBinding -> Untyped.Definition -> Either TypeError Core.Definition
-inferDefinition env def@(Untyped.Definition _ _ Nothing _) = do
-  (Core.Definition si name (_, te), cs) <- runInfer env (inferDef def)
-  subst <- runSolve cs
-  return $ Core.Definition si name (closeOver (apply subst te))
-inferDefinition env def@(Untyped.Definition _ _ (Just ts) _) = do
-  (resolvedType, tsConstrains) <- runInfer env (resolveTypeSignature ts)
-  (Core.Definition _ name ce, defConstraints) <- runInfer env (inferDef def)
-  subst <- runSolve (tsConstrains ++ defConstraints)
-  let (Forall si _ _, substExpr) = apply subst ce
-  ce' <- left (TypeSignatureSubsumptionError name) $ subsume resolvedType substExpr
-  return $ Core.Definition si name ce'
+getTypeSignature :: Untyped.Definition -> Maybe TypeSignature
+getTypeSignature (Untyped.Definition _ _ ts _) = ts
+getTypeSignature _ = Nothing
 
-inferPackage :: Environment TypeBinding -> Untyped.Package -> Either TypeError (Core.Package, Environment TypeBinding)
+inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either TypeError (TypingEnvironment, Core.Definition)
+inferDefinition env def = do
+  (def', cs) <- runInfer env (inferDef def)
+  case (def', getTypeSignature def) of
+
+    (Core.Definition si name (_, te), Nothing) -> do
+      subst <- runSolve cs
+      let canonical = closeOver (apply subst te)
+          env' = env `extend` (name, Local si name (fst canonical))
+      return (env', Core.Definition si name canonical)
+
+    (Core.Definition _ name canonical, Just ts) ->  do
+      (resolvedType, typeCs) <- runInfer env (resolveTypeSignature ts)
+      subst <- runSolve (cs ++ typeCs)
+      let (Forall si _ _, substExpr) = apply subst canonical
+      canonical' <- left (TypeSignatureSubsumptionError name) $ subsume resolvedType substExpr
+      let env' = env `extend` (name, Local si name (fst canonical))
+      return (env', Core.Definition si name canonical')
+
+    (Core.StructDefinition si name@(FQN _ localName) params fields, _) ->
+      return (env `extend` (localName, NamedStruct si name params fields), def')
+
+    (Core.ForeignDefinition _ name _, _) ->
+      error ("unexpected foreign definition: " ++ name)
+
+inferPackage :: TypingEnvironment -> Untyped.Package -> Either TypeError (Core.Package, TypingEnvironment)
 inferPackage env (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
   (env', inferred) <- foldM iter (env, []) defs
   return (Core.Package (Core.PackageDeclaration psi name) (map convertImport imports) inferred, env')
   where
-  iter (e, inferred) d@Untyped.Definition{} = do
-      td@(Core.Definition si n (sc, _)) <- inferDefinition e d
-      return (extend e (n, Local si n sc), inferred ++ [td])
+  iter (e, inferred) def = do
+      (e', def') <- inferDefinition e def
+      return (e', inferred ++ [def'])
   convertImport (Untyped.Import si n) = Core.Import si n
 
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)
@@ -441,6 +478,7 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     fv (TVariadicFn _ as v r) = concatMap fv as ++ fv v ++ fv r
     fv (TCon _ d r)           = fv d ++ fv r
     fv (TSlice _ t)           = fv t
+    fv (TNamedStruct _ _ fs)  = concat (Map.map fv fs)
 
     normtype t@TAny{}                = t
     normtype t@TUnit{}               = t
@@ -452,6 +490,7 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     normtype (TVariadicFn si' as v r) = TVariadicFn si' (map normtype as) (normtype v) (normtype r)
     normtype (TCon si' d r)           = TCon si' (normtype d) (normtype r)
     normtype (TSlice si' a)           = TSlice si' (normtype a)
+    normtype (TNamedStruct si' n fs)  = TNamedStruct si' n (Map.map normtype fs)
     normtype (TVar si' a)             =
       case Prelude.lookup a ord of
         Just x -> TVar si' x
@@ -504,6 +543,10 @@ unifies si (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   r <- unifyMany si r1 r2
   return (f `compose` s `compose` r)
 unifies si (TSlice _ t1) (TSlice _ t2) = unifies si t1 t2
+unifies si s1@(TNamedStruct _ n1 _) s2@(TNamedStruct _ n2 _)
+  -- TODO: Unify polymorphic fields
+  | n1 == n2  = return emptySubst
+  | otherwise = throwError $ UnificationFail si s1 s2
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2
 
 -- Unification solver

@@ -3,6 +3,7 @@ package importer
 import (
 	"go/importer"
 	"go/types"
+	"strings"
 )
 
 func tupleToSlice(tu *types.Tuple) []Type {
@@ -79,8 +80,23 @@ func basicKindString(b *types.Basic) string {
 }
 
 func encodeType(t types.Type) Type {
-	t = t.Underlying()
-	switch t.(type) {
+	// First see if it's a Named type. If so, wrap in Named and recurse with the
+	// underlying type.
+	if n, isNamed := t.(*types.Named); isNamed {
+
+		// When n.Obj().Pkg() is nil the Named type is defined in the universe. We
+		// represent that with an empty package name slice.
+		var pkgSegments []string = []string{}
+		if n.Obj().Pkg() != nil {
+			pkgSegments = strings.Split(n.Obj().Pkg().Path(), "/")
+		}
+		return NewNamed(
+			pkgSegments,
+			n.Obj().Name(),
+			encodeType(n.Underlying()))
+	}
+
+	switch t.Underlying().(type) {
 	case *types.Basic:
 		b := t.(*types.Basic)
 		untyped := (b.Info() & types.IsUntyped) != 0
@@ -110,12 +126,6 @@ func encodeType(t types.Type) Type {
 			vt,
 			tupleToSlice(sig.Params()),
 			tupleToSlice(sig.Results()))
-	case *types.Named:
-		n := t.(*types.Named)
-		return NewNamed(
-			n.Obj().Pkg().Name(),
-			n.Obj().Name(),
-			n.Underlying())
 	case *types.Interface:
 		i := t.(*types.Interface)
 		if i.Empty() {
@@ -123,14 +133,20 @@ func encodeType(t types.Type) Type {
 		} else {
 			return NewUnsupported("Interfaces")
 		}
+	case *types.Struct:
+		s := t.(*types.Struct)
+		fields := []StructField{}
+		for i := 0; i < s.NumFields(); i++ {
+			f := s.Field(i)
+			fields = append(fields, NewStructField(f.Name(), encodeType(f.Type())))
+		}
+		return NewStruct(fields)
 	case *types.Tuple:
 		return NewUnsupported("Tuples")
 	case *types.Map:
 		return NewUnsupported("Maps")
 	case *types.Chan:
 		return NewUnsupported("Channels")
-	case *types.Struct:
-		return NewUnsupported("Structs")
 	default:
 		return NewUnsupported(t.String())
 	}
@@ -164,6 +180,13 @@ func GetPackageObjects(pkgName string) (objs []Object, err error) {
 				if err == nil {
 					objs = append(objs, Object{c.Name(), "const", t})
 				}
+			case *types.TypeName:
+				tn := obj.(*types.TypeName)
+				t := encodeType(tn.Type())
+				if err == nil {
+					objs = append(objs, Object{tn.Name(), "named_type", t})
+				}
+
 			}
 		}
 	}

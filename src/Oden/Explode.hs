@@ -8,6 +8,7 @@ module Oden.Explode
 
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Identifier
+import           Oden.QualifiedName    (QualifiedName(..))
 import           Oden.Syntax
 import           Oden.SourceInfo
 import           Oden.Type.Signature
@@ -65,14 +66,18 @@ explodeExpr (Let _ [] b) = explodeExpr b
 explodeExpr (Let _ [LetPair si n e] b) =
   Untyped.Let si (explodeNameBinding n) (explodeExpr e) (explodeExpr b)
 explodeExpr (Let si (LetPair _ n e:bs) b) =
-  Untyped.Let si (explodeNameBinding n) (explodeExpr e) (explodeExpr (Let si bs b)) 
+  Untyped.Let si (explodeNameBinding n) (explodeExpr e) (explodeExpr (Let si bs b))
 explodeExpr (Slice si es) =
   Untyped.Slice si (map explodeExpr es)
 explodeExpr (Block si es) =
   Untyped.Block si (map explodeExpr es)
 
-explodeTopLevel :: [TopLevel] -> Either [ExplodeError] ([Untyped.Import], [Untyped.Definition])
-explodeTopLevel top =
+explodeStructField :: StructFieldExpr -> Untyped.StructField
+explodeStructField (StructFieldExpr si name t) =
+  Untyped.StructField si name t
+
+explodeTopLevel :: PackageName -> [TopLevel] -> Either [ExplodeError] ([Untyped.Import], [Untyped.Definition])
+explodeTopLevel pkg top =
   let (is, scs, defs) = foldl iter ([], Map.empty, []) top
   in case Map.assocs scs of
     [] -> Right (is, defs)
@@ -87,10 +92,13 @@ explodeTopLevel top =
           (is, Map.insert name (tsi, sc) ts, defs)
         iter (is, ts, defs) (ImportDeclaration si name) =
           (is ++ [Untyped.Import si name], ts, defs)
+        iter (is, ts, defs) (StructDefinition si name params fields) =
+          let def = Untyped.StructDefinition si (FQN pkg name) (map explodeNameBinding params) (map explodeStructField fields)
+          in (is, Map.delete name ts, defs ++ [def])
         toSignatureError :: (Name, (SourceInfo, TypeSignature)) -> ExplodeError
         toSignatureError (n, (si, sc)) = TypeSignatureWithoutDefinition si n sc
 
 explodePackage :: Package -> Either [ExplodeError] Untyped.Package
 explodePackage (Package (PackageDeclaration si name) definitions) = do
-  (is, ds) <- explodeTopLevel definitions
+  (is, ds) <- explodeTopLevel name definitions
   return (Untyped.Package (Untyped.PackageDeclaration si name) is ds)

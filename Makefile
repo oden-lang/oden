@@ -36,7 +36,7 @@ watch-test: $(NODEMON)
 	$(NODEMON) --watch src --watch test -e hs --exec make test
 
 $(NODEMON):
-	npm install nodemon@1.2
+	npm install nodemon
 
 init-dev:
 	cabal sandbox init

@@ -39,6 +39,7 @@ instance Substitutable Type where
   apply s (TUncurriedFn si as r)  = TUncurriedFn si (map (apply s) as) (apply s r)
   apply s (TVariadicFn si as v r) = TVariadicFn si (map (apply s) as) (apply s v) (apply s r)
   apply s (TSlice si t)           = TSlice si (apply s t)
+  apply s (TNamedStruct si n fs)  = TNamedStruct si n (Map.map (apply s) fs)
 
 instance Substitutable Scheme where
   apply (Subst s) (Forall si as t) =

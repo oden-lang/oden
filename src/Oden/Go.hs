@@ -11,6 +11,7 @@ module Oden.Go (
 import qualified Oden.Core                  as Core
 import           Oden.Go.Types              as G
 import           Oden.Identifier
+import           Oden.QualifiedName         (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
 import           Oden.Type.Basic
@@ -33,6 +34,10 @@ o `optOrNull` k = case HM.lookup k o of
                     Just v -> parseJSON v
                     Nothing -> return Nothing
 
+instance FromJSON StructField where
+  parseJSON (Object o) = StructField <$> o .: "name" <*> o .: "type"
+  parseJSON v = fail ("Unexpected: " ++ show v)
+
 instance FromJSON Type where
   parseJSON (Object o) = do
     kind :: String <- o .: "kind"
@@ -47,6 +52,7 @@ instance FromJSON Type where
                                    <*> o `optOrNull` "recv"
                                    <*> o .: "arguments"
                                    <*> o .: "returns"
+      "struct"        -> Struct <$> o .: "fields"
       "named"         -> Named <$> o .: "pkg" <*> o .: "name" <*> o .: "underlying"
       "unsupported"   -> Unsupported <$> o .: "name"
       k -> fail ("Unknown kind: " ++ k)
@@ -55,25 +61,29 @@ instance FromJSON Type where
 data PackageObject = Func Name Type
                    | Var Name Type
                    | Const Name Type
+                   | NamedType Name Type
                    deriving (Show, Eq)
 
 nameOf :: PackageObject -> Name
 nameOf (Func n _) = n
 nameOf (Var n _) = n
 nameOf (Const n _) = n
+nameOf (NamedType n _ ) = n
 
 typeOf :: PackageObject -> Type
 typeOf (Func _ t) = t
 typeOf (Var _ t) = t
 typeOf (Const _ t) = t
+typeOf (NamedType _ t) = t
 
 instance FromJSON PackageObject where
   parseJSON (Object o) = do
     t :: String <- o .: "objectType"
     case t of
-      "func"  -> Func <$> o .: "name" <*> o .: "type"
-      "var"   -> Var <$> o .: "name" <*> o .: "type"
-      "const" -> Const <$> o .: "name" <*> o .: "type"
+      "func"       -> Func <$> o .: "name" <*> o .: "type"
+      "var"        -> Var <$> o .: "name" <*> o .: "type"
+      "const"      -> Const <$> o .: "name" <*> o .: "type"
+      "named_type" -> NamedType <$> o .: "name" <*> o .: "type"
       _ -> fail ("Unknown object type: " ++ t)
   parseJSON v = fail $ "Expected JSON object for PackageObject but got: " ++ show v
 
@@ -138,8 +148,13 @@ convertType (Signature True Nothing args _) = do
   v <- convertType (last args)
   Right (Poly.TVariadicFn Missing as v (Poly.TUnit Missing))
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
--- TODO: Add "Named" concept in Oden type system
+convertType (Named pkgName n (Struct fields)) = do
+  fields' <- Map.fromList <$> mapM fieldToAssoc fields
+  return (Poly.TNamedStruct Missing (FQN pkgName n) fields')
+  where
+  fieldToAssoc (StructField name goType) = (,) name <$> convertType goType
 convertType (Named _ _ t) = convertType t
+convertType Struct{} = Left "Anonymous structs"
 convertType (Unsupported n) = Left n
 
 objectsToScope :: Core.PackageName -> [PackageObject] -> (Map.Map Name Core.Definition, Maybe UnsupportedTypesWarning)
@@ -148,6 +163,12 @@ objectsToScope pkgName objs =
     (s, []) -> (Map.fromList s, Nothing)
     (s, msgs) -> (Map.fromList s, Just (UnsupportedTypesWarning pkgName msgs))
   where
+  addObject (assocs, us) (NamedType name (Struct fields)) =
+    let convertField (StructField fieldName goType) = Core.StructField Missing fieldName <$> convertType goType
+    in case mapM convertField fields of
+         Left u -> (assocs, (name, u) : us)
+         Right fields' ->
+           ((name, Core.StructDefinition Missing (FQN pkgName name) [] fields') : assocs, us)
   addObject (assocs, us) o =
     let n = nameOf o
         t = typeOf o

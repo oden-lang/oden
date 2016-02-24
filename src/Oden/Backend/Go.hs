@@ -12,6 +12,7 @@ import           Oden.Compiler.Monomorphization
 import           Oden.Core
 import           Oden.Core.Operator
 import           Oden.Identifier
+import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 
@@ -84,6 +85,9 @@ codegenIdentifier :: Identifier -> Doc
 codegenIdentifier (Unqualified n) = safeName n
 codegenIdentifier (Qualified pn n) = safeName pn <> text "." <> safeName n
 
+codegenQualifiedName :: QualifiedName -> Doc
+codegenQualifiedName (FQN _ name) = safeName name
+
 codegenType :: Mono.Type -> Doc
 codegenType Mono.TUnit{} = text "struct{}"
 codegenType (Mono.TBasic _ TInt) = text "int"
@@ -107,6 +111,7 @@ codegenType (Mono.TUncurriedFn _ as r) =
   func empty (hcat (punctuate (text ", ") (map codegenType as))) (codegenType r) empty
 codegenType (Mono.TVariadicFn _ as v r) =
   func empty (hcat (punctuate (text ", ") (map codegenType as ++ [codegenType v <> text "..."]))) (codegenType r) empty
+codegenType (Mono.TNamedStruct _ qn _) = codegenQualifiedName qn
 
 showGoString :: Show a => a -> String
 showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)
@@ -218,9 +223,16 @@ codegenInstance :: InstantiatedDefinition -> Doc
 codegenInstance (InstantiatedDefinition name expr) =
   codegenTopLevel name (typeOf expr) expr
 
+
+codegenStructField :: StructField Mono.Type -> Doc
+codegenStructField (StructField _ n t) =
+  text n <+> codegenType t
+
 codegenMonomorphed :: MonomorphedDefinition -> Doc
 codegenMonomorphed (MonomorphedDefinition _ name mt expr) =
   codegenTopLevel name mt expr
+codegenMonomorphed (MonomorphedStructDefinition _ name fields) =
+  text "type" <+> safeName name <+> text "struct" <+> block (vcat (map codegenStructField fields))
 
 codegenImport :: Import -> Doc
 codegenImport (Import _ name) =

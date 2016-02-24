@@ -15,8 +15,10 @@ module Oden.Type.Polymorphic (
 import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 import           Oden.SourceInfo
+import           Oden.QualifiedName
 
 import qualified Data.Set               as Set
+import qualified Data.Map               as Map
 
 newtype TVar = TV String
   deriving (Show, Eq, Ord)
@@ -39,6 +41,8 @@ data Type
   | TFn SourceInfo Type Type
   -- | A slice type.
   | TSlice SourceInfo Type
+  -- | Data structure type.
+  | TNamedStruct SourceInfo QualifiedName (Map.Map String Type)
 
   -- For foreign definitions:
 
@@ -60,6 +64,7 @@ instance HasSourceInfo Type where
   getSourceInfo (TUncurriedFn si _ _)  = si
   getSourceInfo (TVariadicFn si _ _ _) = si
   getSourceInfo (TSlice si _)          = si
+  getSourceInfo (TNamedStruct si _ _)  = si
 
   setSourceInfo si (TAny _)              = TAny si
   setSourceInfo si (TBasic _ b)          = TBasic si b
@@ -72,6 +77,7 @@ instance HasSourceInfo Type where
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn si a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn si a v r
   setSourceInfo si (TSlice _ t)          = TSlice si t
+  setSourceInfo si (TNamedStruct _ n fs) = TNamedStruct si n fs
 
 data TVarBinding = TVarBinding SourceInfo TVar
                  deriving (Show, Eq, Ord)
@@ -114,6 +120,7 @@ toMonomorphic (TVariadicFn si a v r) =
                       <*> toMonomorphic v
                       <*> toMonomorphic r
 toMonomorphic (TSlice si t) = Mono.TSlice si <$> toMonomorphic t
+toMonomorphic (TNamedStruct si n fs) = Mono.TNamedStruct si n <$> mapM toMonomorphic fs
 
 isPolymorphic :: Scheme -> Bool
 isPolymorphic (Forall _ tvars _) = not (null tvars)
@@ -132,6 +139,7 @@ isPolymorphicType (TUncurriedFn _ a r) =
 isPolymorphicType (TVariadicFn _ a v r) =
   any isPolymorphicType a || isPolymorphicType v || isPolymorphicType r
 isPolymorphicType (TSlice _ a) = isPolymorphicType a
+isPolymorphicType (TNamedStruct _ _ fs) = any isPolymorphicType (Map.elems fs)
 
 equalsAllT :: [Type] -> [Type] -> Bool
 equalsAllT t1 t2 = and (zipWith equalsT t1 t2)
@@ -151,6 +159,8 @@ equalsT (TUncurriedFn _ a1 r1) (TUncurriedFn _ a2 r2) =
 equalsT (TVariadicFn _ a1 v1 r1) (TVariadicFn _ a2 v2 r2)=
   a1 `equalsAllT` a2 && v1 `equalsT` v2 && r1 `equalsT` r2
 equalsT (TSlice _ e1) (TSlice _ e2) = e1 `equalsT` e2
+equalsT (TNamedStruct _ n1 fs1) (TNamedStruct _ n2 fs2) =
+  n1 == n2 && Map.elems fs1 `equalsAllT` Map.elems fs2
 equalsT _ _ = False
 
 class FTV a where
@@ -160,18 +170,19 @@ instance FTV Type where
   ftv TAny{}                    = Set.empty
   ftv TBasic{}                  = Set.empty
   ftv TUnit{}                   = Set.empty
-  ftv (TTuple _ f s r)          = foldl Set.union (ftv f) (ftv s : map ftv r)
+  ftv (TTuple _ f s r)          = ftv (f:s:r)
   ftv (TCon _ d r)              = ftv d `Set.union` ftv r
   ftv (TVar _ a)                = Set.singleton a
   ftv (TFn _ t1 t2)             = ftv t1 `Set.union` ftv t2
   ftv (TNoArgFn _ t)            = ftv t
-  ftv (TUncurriedFn _ as r)     = foldl Set.union (ftv r) (map ftv as)
-  ftv (TVariadicFn _ as v r)    = foldl Set.union (ftv r) (ftv v : map ftv as)
+  ftv (TUncurriedFn _ as r)     = ftv (r:as)
+  ftv (TVariadicFn _ as v r)    = ftv (v:r:as)
   ftv (TSlice _ t)              = ftv t
+  ftv (TNamedStruct _ _ fs)     = ftv (Map.elems fs)
 
 instance FTV Scheme where
   ftv (Forall _ as t) =
     ftv t `Set.difference` Set.fromList (map getBindingVar as)
 
 instance FTV a => FTV [a] where
-  ftv   = foldr (Set.union . ftv) Set.empty
+  ftv = foldr (Set.union . ftv) Set.empty

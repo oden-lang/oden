@@ -85,6 +85,12 @@ parens = Tok.parens lexer
 parensList :: Parser a -> Parser [a]
 parensList p = parens (Tok.commaSep lexer p)
 
+maybeList :: Parser [a] -> Parser [a]
+maybeList p = try p <|> return []
+
+maybeParensList :: Parser a -> Parser [a]
+maybeParensList = maybeList . parensList
+
 braces :: Parser a -> Parser a
 braces = Tok.braces lexer
 

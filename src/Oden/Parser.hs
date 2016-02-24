@@ -249,12 +249,12 @@ pkgDecl :: Parser PackageDeclaration
 pkgDecl = do
   si <- currentSourceInfo
   reserved "package"
-  name <- packageName
+  name' <- packageName
   topSeparator
-  return (PackageDeclaration si name)
+  return (PackageDeclaration si name')
 
 topLevel :: Parser TopLevel
-topLevel = import' <|> try typeSignature <|> def
+topLevel = import' <|> struct <|> try typeSignature <|> def
   where
   tvarBinding = do
     si <- currentSourceInfo
@@ -288,6 +288,17 @@ topLevel = import' <|> try typeSignature <|> def
     si <- currentSourceInfo
     reserved "import"
     ImportDeclaration si <$> importName
+  struct = do
+    si <- currentSourceInfo
+    reserved "struct"
+    StructDefinition si <$> name
+                        <*> maybeParensList nameBinding
+                        <*> braces (many structField)
+  structField = do
+    si <- currentSourceInfo
+    n <- name
+    reserved "::"
+    StructFieldExpr si n <$> type'
 
 package :: Parser Package
 package = Package <$> pkgDecl <*> topLevel `sepBy` topSeparator

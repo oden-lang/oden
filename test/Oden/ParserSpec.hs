@@ -300,25 +300,19 @@ spec = do
        [SignatureVarBinding (src 1 13) "a"]
        (TSFn (src 1 17) (TSVar (src 1 17) "a") (TSVar (src 1 23) "a")))
 
-    -- it "parses type alias" $
-    --   parseTopLevel "type x(#a) = #a -> #a"
-    --   `shouldSucceedWith`
-    --   TypeAlias (src 1 1) "x" [SignatureVarBinding (src 1 8) "a"] (TSFn (src 1 14) (TSVar (src 1 14) "a") (TSVar (src 1 20) "a"))
+    it "parses struct definition without type parameters" $
+      parseTopLevel "struct S {\n  x :: T\n}"
+      `shouldSucceedWith`
+      StructDefinition (src 1 1) "S" [] [
+          StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 8) (Unqualified "T"))
+        ]
 
-    -- it "parses type alias with nested type constructor" $
-    --   parseTopLevel "type T(#a) = U(#a, V)"
-    --   `shouldSucceedWith`
-    --   TypeAlias
-    --   (src 1 1)
-    --   "T"
-    --   [SignatureVarBinding (src 1 8) "a"]
-    --   (TSApp
-    --    (src 1 14)
-    --    (TSApp
-    --     (src 1 14)
-    --     (TSSymbol (src 1 10) "U")
-    --     (TSVar (src 1 16) "a"))
-    --    (TSSymbol (src 1 18) "V"))
+    it "parses struct definition with type parameters" $
+      parseTopLevel "struct S(t) {\n  x :: t\n}"
+      `shouldSucceedWith`
+      StructDefinition (src 1 1) "S" [NameBinding (src 1 10) "t"] [
+          StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 8) (Unqualified "t"))
+        ]
 
     it "parses value definition" $
       parseTopLevel "x = y"

@@ -1,17 +1,21 @@
 module Oden.ExplodeSpec where
 
 import qualified Oden.Core.Untyped     as U
-import           Oden.Explode
+import qualified Oden.Explode          as E
+import           Oden.Explode          hiding (explodeTopLevel)
 import           Oden.Identifier
+import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Syntax
-import           Oden.Type.Polymorphic
+import           Oden.Type.Signature
 import           Test.Hspec
 
 import           Oden.Assertions
 
 src :: Line -> Column -> SourceInfo
 src l c = SourceInfo (Position "<test>" l c)
+
+explodeTopLevel = E.explodeTopLevel ["pkg"]
 
 spec :: Spec
 spec = do
@@ -104,3 +108,16 @@ spec = do
          (src 1 1)
          (U.NameBinding (src 1 3) "y")
          (U.Symbol (src 1 4) (Unqualified "x"))))]
+
+    it "converts struct definition with type parameters" $
+      (snd <$> explodeTopLevel [StructDefinition
+                                (src 1 1)
+                                "S"
+                                [NameBinding (src 1 2) "t"]
+                                [StructFieldExpr (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))]])
+      `shouldSucceedWith`
+      [U.StructDefinition
+       (src 1 1)
+       (FQN ["pkg"] "S")
+       [U.NameBinding (src 1 2) "t"]
+       [U.StructField (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))]]

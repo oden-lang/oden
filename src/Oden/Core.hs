@@ -3,6 +3,7 @@ module Oden.Core where
 
 import Oden.Core.Operator
 import Oden.Identifier
+import Oden.QualifiedName (QualifiedName(..))
 import Oden.SourceInfo
 import Oden.Type.Polymorphic
 
@@ -93,8 +94,12 @@ data Range t = Range (Expr t) (Expr t)
 
 type CanonicalExpr = (Scheme, Expr Type)
 
+data StructField t = StructField SourceInfo Name t
+                   deriving (Show, Eq, Ord)
+
 data Definition = Definition SourceInfo Name CanonicalExpr
                 | ForeignDefinition SourceInfo Name Scheme
+                | StructDefinition SourceInfo QualifiedName [NameBinding] [StructField Type]
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]

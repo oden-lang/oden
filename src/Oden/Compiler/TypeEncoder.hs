@@ -2,10 +2,12 @@ module Oden.Compiler.TypeEncoder (
     encodeTypeInstance
 ) where
 
-import Control.Monad.State
-import Control.Monad.Writer
+import           Control.Monad.State
+import           Control.Monad.Writer
+import           Data.List             (intercalate)
 
-import Oden.Identifier
+import           Oden.Identifier
+import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Type.Monomorphic as Mono
 import           Oden.Type.Basic
 
@@ -76,6 +78,9 @@ writeType (Mono.TSlice _ t) = do
   tell "sliceof"
   pad
   withIncreasedLevel (writeType t)
+writeType (Mono.TNamedStruct _ (FQN ns name) _) = do
+  let parts = (ns ++ [name]) :: [String]
+  tell (intercalate "_" parts)
 
 writeTypeInstance :: Identifier -> Mono.Type -> TypeEncoder ()
 writeTypeInstance i t = do

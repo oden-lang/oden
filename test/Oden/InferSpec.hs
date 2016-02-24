@@ -7,7 +7,8 @@ import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Operator
 import           Oden.Environment
 import           Oden.Identifier
-import           Oden.Infer
+import qualified Oden.Infer            as Infer
+import           Oden.Infer            (inferExpr)
 import           Oden.Infer.Environment
 import           Oden.Predefined
 import           Oden.SourceInfo
@@ -16,6 +17,9 @@ import           Oden.Type.Polymorphic
 import           Oden.Type.Signature
 
 import           Oden.Assertions
+
+inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either Infer.TypeError Core.Definition
+inferDefinition env def = snd <$> Infer.inferDefinition env def
 
 typeAny = TAny Missing
 typeUnit = TUnit Missing
@@ -105,9 +109,6 @@ predefAndMaxVariadic = predef `extend` ("max",
 predefAndIdentityAny :: TypingEnvironment
 predefAndIdentityAny = predef `extend` ("identity",
                                         Local Predefined "identity" $ forall [] (typeUncurried [typeAny] (typeAny)))
-
-predefAndNumberAlias :: TypingEnvironment
-predefAndNumberAlias = predef `extend` ("Number", TypeAlias Predefined "Number" [] typeInt)
 
 booleanOp :: Type
 booleanOp = typeFn typeBool (typeFn typeBool typeBool)

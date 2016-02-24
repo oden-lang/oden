@@ -13,6 +13,7 @@ import qualified Data.Set        as Set
 
 data ValidationError = Redefinition SourceInfo Name
                      | ValueDiscarded (Expr Type)
+                     | DuplicatedStructFieldName SourceInfo Name
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValidationWarning -- There's no warnings defined yet.
@@ -90,14 +91,23 @@ validateRange (RangeFrom e) =
   validateExpr e
 
 validatePackage :: Package -> Validate ()
-validatePackage (Package _ _ definitions) = validateSeq definitions
+validatePackage (Package _ _ definitions) = mapM_ validateDef definitions
   where
-  validateSeq [] = return ()
-  validateSeq (Definition si name (_, expr) : ds) = do
+  validateDef (Definition si name (_, expr)) = do
     errorIfDefined name si
-    withName name $ do
-      validateExpr expr
-      validateSeq ds
+    withName name (validateExpr expr)
+  validateDef ForeignDefinition{} = return ()
+  validateDef (StructDefinition _ _ _ fs) =
+    case repeated fs of
+      [] -> return ()
+      (StructField si name _:_) -> throwError (DuplicatedStructFieldName si name)
+
+repeated :: [StructField Type] -> [StructField Type]
+repeated fields = snd (foldl check (Set.empty, []) fields)
+  where
+  check (names, fields') f@(StructField _ n _)
+    | n `Set.member` names = (names, fields'++ [f])
+    | otherwise            = (Set.insert n names, fields')
 
 validate :: Package -> Either ValidationError [ValidationWarning]
 validate pkg =

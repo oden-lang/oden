@@ -5,7 +5,7 @@ module Oden.Compiler.Instantiate (
 
 import           Control.Monad.Except
 import           Control.Monad.State
-import           Data.Map              as Map hiding (foldl, map)
+import qualified Data.Map              as Map hiding (foldl)
 
 import qualified Oden.Core             as Core
 import           Oden.SourceInfo
@@ -16,7 +16,7 @@ data InstantiateError = TypeMismatch SourceInfo Poly.Type Mono.Type
                       | SubstitutionFailed SourceInfo Poly.TVar [Poly.TVar]
                       deriving (Show, Eq, Ord)
 
-type Substitutions = Map Poly.TVar Poly.Type
+type Substitutions = Map.Map Poly.TVar Poly.Type
 type Instantiate a = StateT Substitutions (Except InstantiateError) a
 
 monoToPoly :: Mono.Type -> Poly.Type
@@ -30,6 +30,7 @@ monoToPoly (Mono.TFn si f p) = Poly.TFn si (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TUncurriedFn si as r) = Poly.TUncurriedFn si (map monoToPoly as) (monoToPoly r)
 monoToPoly (Mono.TVariadicFn si as v r) = Poly.TVariadicFn si (map monoToPoly as) (monoToPoly v) (monoToPoly r)
 monoToPoly (Mono.TSlice si t) = Poly.TSlice si (monoToPoly t)
+monoToPoly (Mono.TNamedStruct si n fs) = Poly.TNamedStruct si n (Map.map monoToPoly fs)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
 getSubstitutions p@(Poly.TBasic _ pb) m@(Mono.TBasic _ mb) =
@@ -84,6 +85,7 @@ replace (Poly.TUncurriedFn si ft pt) =
 replace (Poly.TVariadicFn si ft vt pt) =
   Poly.TVariadicFn si <$> mapM replace ft <*> replace vt <*> replace pt
 replace (Poly.TSlice si t) = Poly.TSlice si <$> replace t
+replace (Poly.TNamedStruct si n fs) = Poly.TNamedStruct si n <$> mapM replace fs
 
 instantiateExpr :: Core.Expr Poly.Type
                 -> Instantiate (Core.Expr Poly.Type)
@@ -96,18 +98,18 @@ instantiateExpr (Core.Subscript si s i t) =
 
 instantiateExpr (Core.Subslice si s (Core.Range e1 e2) t) =
   Core.Subslice si <$> instantiateExpr s
-                   <*> (Core.Range <$> (instantiateExpr e1) <*> (instantiateExpr e2))
+                   <*> (Core.Range <$> instantiateExpr e1 <*> instantiateExpr e2)
                    <*> replace t
 instantiateExpr (Core.Subslice si s (Core.RangeTo e) t) =
   Core.Subslice si <$> instantiateExpr s
-                   <*> (Core.RangeTo <$> (instantiateExpr e))
+                   <*> (Core.RangeTo <$> instantiateExpr e)
                    <*> replace t
 instantiateExpr (Core.Subslice si s (Core.RangeFrom e) t) =
   Core.Subslice si <$> instantiateExpr s
-                   <*> (Core.RangeFrom <$> (instantiateExpr e))
+                   <*> (Core.RangeFrom <$> instantiateExpr e)
                    <*> replace t
 
-instantiateExpr (Core.UnaryOp si o e t) = 
+instantiateExpr (Core.UnaryOp si o e t) =
   Core.UnaryOp si o <$> instantiateExpr e <*> replace t
 instantiateExpr (Core.BinaryOp si o e1 e2 t) =
   Core.BinaryOp si o <$> instantiateExpr e1

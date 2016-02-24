@@ -8,7 +8,6 @@ import           Oden.SourceInfo
 import qualified Data.Map as Map
 
 data Binding = Package SourceInfo Name (Environment Binding)
---             | Local SourceInfo Name Core.CanonicalExpr
              | Definition Core.Definition
              deriving (Show, Eq)
 
