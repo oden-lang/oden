@@ -30,7 +30,9 @@ monoToPoly (Mono.TFn si f p) = Poly.TFn si (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TUncurriedFn si as r) = Poly.TUncurriedFn si (map monoToPoly as) (monoToPoly r)
 monoToPoly (Mono.TVariadicFn si as v r) = Poly.TVariadicFn si (map monoToPoly as) (monoToPoly v) (monoToPoly r)
 monoToPoly (Mono.TSlice si t) = Poly.TSlice si (monoToPoly t)
-monoToPoly (Mono.TStruct si fs) = Poly.TStruct si (Map.map monoToPoly fs)
+monoToPoly (Mono.TStruct si fs) = Poly.TStruct si (map fieldMonoToPoly fs)
+  where fieldMonoToPoly (Mono.TStructField si' n mt) =
+          Poly.TStructField si' n (monoToPoly mt)
 monoToPoly (Mono.TNamed si n t) = Poly.TNamed si n (monoToPoly t)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
@@ -86,7 +88,9 @@ replace (Poly.TUncurriedFn si ft pt) =
 replace (Poly.TVariadicFn si ft vt pt) =
   Poly.TVariadicFn si <$> mapM replace ft <*> replace vt <*> replace pt
 replace (Poly.TSlice si t) = Poly.TSlice si <$> replace t
-replace (Poly.TStruct si fs) = Poly.TStruct si <$> mapM replace fs
+replace (Poly.TStruct si fs) = Poly.TStruct si <$> mapM replaceField fs
+  where replaceField (Poly.TStructField si' n t) =
+          Poly.TStructField si' n <$> replace t
 replace (Poly.TNamed si n t) = Poly.TNamed si n <$> replace t
 
 instantiateExpr :: Core.Expr Poly.Type

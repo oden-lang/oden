@@ -1,8 +1,8 @@
 module Oden.Compiler.Validation where
 
-import           Oden.Core
+import           Oden.Core             as Core
 import           Oden.Identifier
-import           Oden.QualifiedName (QualifiedName(..))
+import           Oden.QualifiedName    (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
@@ -102,12 +102,12 @@ validatePackage (Package _ _ definitions) = validateDefs definitions
   validateDefs (StructDefinition _ (FQN _ n) _ fs:defs) = do
     case repeated fs of
       [] -> return ()
-      (StructField si name _:_) -> throwError (DuplicatedStructFieldName si name)
+      (Core.StructField si name _:_) -> throwError (DuplicatedStructFieldName si name)
     withName n (validateDefs defs)
   validateDefs (_:defs) = validateDefs defs
   validateDefs [] = return ()
 
-repeated :: [StructField Type] -> [StructField Type]
+repeated :: [Core.StructField Type] -> [Core.StructField Type]
 repeated fields = snd (foldl check (Set.empty, []) fields)
   where
   check (names, fields') f@(StructField _ n _)

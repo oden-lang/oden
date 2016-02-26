@@ -1,5 +1,7 @@
 module Oden.Type.Polymorphic (
   TVar(..),
+  StructField(..),
+  getStructFieldType,
   Type(..),
   TVarBinding(..),
   Scheme(..),
@@ -18,10 +20,15 @@ import           Oden.SourceInfo
 import           Oden.QualifiedName
 
 import qualified Data.Set               as Set
-import qualified Data.Map               as Map
 
 newtype TVar = TV String
   deriving (Show, Eq, Ord)
+
+data StructField = TStructField SourceInfo String Type
+                 deriving (Show, Eq, Ord)
+
+getStructFieldType :: StructField -> Type
+getStructFieldType (TStructField _ _ t) = t
 
 data Type
   = TAny SourceInfo
@@ -42,7 +49,7 @@ data Type
   -- | A slice type.
   | TSlice SourceInfo Type
   -- | Data structure type.
-  | TStruct SourceInfo (Map.Map String Type)
+  | TStruct SourceInfo [StructField]
   -- | A name for a type, introduced by type definitions.
   | TNamed SourceInfo QualifiedName Type
 
@@ -124,7 +131,9 @@ toMonomorphic (TVariadicFn si a v r) =
                       <*> toMonomorphic v
                       <*> toMonomorphic r
 toMonomorphic (TSlice si t) = Mono.TSlice si <$> toMonomorphic t
-toMonomorphic (TStruct si fs) = Mono.TStruct si <$> mapM toMonomorphic fs
+toMonomorphic (TStruct si fs) = Mono.TStruct si <$> mapM toMonomorphicStructField fs
+  where toMonomorphicStructField (TStructField si' n pt) =
+          Mono.TStructField si' n <$> toMonomorphic pt
 toMonomorphic (TNamed si n t) = Mono.TNamed si n <$> toMonomorphic t
 
 isPolymorphic :: Scheme -> Bool
@@ -144,7 +153,7 @@ isPolymorphicType (TUncurriedFn _ a r) =
 isPolymorphicType (TVariadicFn _ a v r) =
   any isPolymorphicType a || isPolymorphicType v || isPolymorphicType r
 isPolymorphicType (TSlice _ a) = isPolymorphicType a
-isPolymorphicType (TStruct _ fs) = any isPolymorphicType (Map.elems fs)
+isPolymorphicType (TStruct _ fs) = any (isPolymorphicType . getStructFieldType) fs
 isPolymorphicType (TNamed _ _ t) = isPolymorphicType t
 
 equalsAllT :: [Type] -> [Type] -> Bool
@@ -166,7 +175,7 @@ equalsT (TVariadicFn _ a1 v1 r1) (TVariadicFn _ a2 v2 r2)=
   a1 `equalsAllT` a2 && v1 `equalsT` v2 && r1 `equalsT` r2
 equalsT (TSlice _ e1) (TSlice _ e2) = e1 `equalsT` e2
 equalsT (TStruct _ fs1) (TStruct _ fs2) =
-  Map.elems fs1 `equalsAllT` Map.elems fs2
+  map getStructFieldType fs1 `equalsAllT` map getStructFieldType fs2
 equalsT (TNamed _ n1 t1) (TNamed _ n2 t2) =
   n1 == n2 && t1 `equalsT` t2
 equalsT _ _ = False
@@ -186,7 +195,7 @@ instance FTV Type where
   ftv (TUncurriedFn _ as r)     = ftv (r:as)
   ftv (TVariadicFn _ as v r)    = ftv (v:r:as)
   ftv (TSlice _ t)              = ftv t
-  ftv (TStruct _ fs)            = ftv (Map.elems fs)
+  ftv (TStruct _ fs)            = ftv (map getStructFieldType fs)
   ftv (TNamed _ _ t)            = ftv t
 
 instance FTV Scheme where

@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 module Oden.Infer.Substitution where
 
-import Oden.Type.Polymorphic
+import Oden.Type.Polymorphic as Poly
 import Oden.Core as Core
 
 import qualified Data.Set               as Set
@@ -27,6 +27,12 @@ union :: Subst -> Subst -> Subst
 class FTV a => Substitutable a where
   apply :: Subst -> a -> a
 
+instance FTV Poly.StructField where
+  ftv (TStructField _ _ t) = ftv t
+
+instance Substitutable Poly.StructField where
+  apply s (TStructField si n t) = TStructField si n (apply s t)
+
 instance Substitutable Type where
   apply _ (TAny si)               = TAny si
   apply _ (TUnit si)              = TUnit si
@@ -39,7 +45,7 @@ instance Substitutable Type where
   apply s (TUncurriedFn si as r)  = TUncurriedFn si (map (apply s) as) (apply s r)
   apply s (TVariadicFn si as v r) = TVariadicFn si (map (apply s) as) (apply s v) (apply s r)
   apply s (TSlice si t)           = TSlice si (apply s t)
-  apply s (TStruct si fs)         = TStruct si (Map.map (apply s) fs)
+  apply s (TStruct si fs)         = TStruct si (map (apply s) fs)
   apply s (TNamed si n t)         = TNamed si n (apply s t)
 
 instance Substitutable Scheme where

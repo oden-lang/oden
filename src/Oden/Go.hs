@@ -149,13 +149,18 @@ convertType (Signature True Nothing args _) = do
   Right (Poly.TVariadicFn Missing as v (Poly.TUnit Missing))
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
 convertType (Named pkgName n (Struct fields)) = do
-  fields' <- Map.fromList <$> mapM fieldToAssoc fields
+  fields' <- mapM convertField fields
   return (Poly.TNamed Missing (FQN pkgName n) (Poly.TStruct Missing fields'))
   where
-  fieldToAssoc (StructField name goType) = (,) name <$> convertType goType
+  convertField (StructField name goType) = Poly.TStructField Missing name <$> convertType goType
 convertType (Named _ _ t) = convertType t
-convertType Struct{} = Left "Anonymous structs"
+convertType (Struct fields) = do
+  fields' <- mapM convertStructField fields
+  return (Poly.TStruct Missing fields')
+  where
+  convertStructField (StructField fieldName goType) = Poly.TStructField Missing fieldName <$> convertType goType
 convertType (Unsupported n) = Left n
+
 
 objectsToScope :: Core.PackageName -> [PackageObject] -> (Map.Map Name Core.Definition, Maybe UnsupportedTypesWarning)
 objectsToScope pkgName objs =
@@ -164,11 +169,11 @@ objectsToScope pkgName objs =
     (s, msgs) -> (Map.fromList s, Just (UnsupportedTypesWarning pkgName msgs))
   where
   addObject (assocs, us) (NamedType name (Struct fields)) =
-    let convertField (StructField fieldName goType) = Core.StructField Missing fieldName <$> convertType goType
-    in case mapM convertField fields of
+    case mapM convertStructField fields of
          Left u -> (assocs, (name, u) : us)
          Right fields' ->
            ((name, Core.StructDefinition Missing (FQN pkgName name) [] fields') : assocs, us)
+    where convertStructField (StructField fieldName goType) = Core.StructField Missing fieldName <$> convertType goType
   addObject (assocs, us) o =
     let n = nameOf o
         t = typeOf o

@@ -151,9 +151,7 @@ lookupTypeIn env si name =
       Just Package{}                   -> throwError $ InvalidPackageReference si name
       Just (Local _ _ _)               -> throwError $ ValueUsedAsType si name
       Just (Struct si' n _ fields) ->
-        return $ TNamed si' n (TStruct si' (Map.fromList (map fieldToAssoc fields)))
-  where
-  fieldToAssoc (Core.StructField _ fn t) = (fn, t)
+        return $ TNamed si' n (TStruct si' (map Core.fieldDefinitionToType fields))
 
 -- | Lookup type in the environment
 lookupType :: SourceInfo -> Identifier -> Infer Type
@@ -177,9 +175,7 @@ lookupValueIn env si name =
       Nothing                              -> throwError $ NotInScope si (Unqualified name)
       Just Package{}                       -> throwError $ InvalidPackageReference si name
       Just (Local _ _ sc)                  -> instantiate sc
-      Just (Struct _ n _ fields)           -> return (TNamed si n (TStruct si (Map.fromList (map toAssoc fields))))
-  where
-  toAssoc (Core.StructField _ n t) = (n, t)
+      Just (Struct _ n _ fields)           -> return (TNamed si n (TStruct si (map Core.fieldDefinitionToType fields)))
 
 -- | Lookup type of a value in the environment
 lookupValue :: SourceInfo -> Identifier -> Infer Type
@@ -478,7 +474,7 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     fv (TVariadicFn _ as v r) = concatMap fv as ++ fv v ++ fv r
     fv (TCon _ d r)           = fv d ++ fv r
     fv (TSlice _ t)           = fv t
-    fv (TStruct _ fs)         = concat (Map.map fv fs)
+    fv (TStruct _ fs)         = concatMap (fv . getStructFieldType) fs
     fv (TNamed _ _ t)         = fv t
 
     normtype t@TAny{}                = t
@@ -491,7 +487,8 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     normtype (TVariadicFn si' as v r) = TVariadicFn si' (map normtype as) (normtype v) (normtype r)
     normtype (TCon si' d r)           = TCon si' (normtype d) (normtype r)
     normtype (TSlice si' a)           = TSlice si' (normtype a)
-    normtype (TStruct si' fs)         = TStruct si' (Map.map normtype fs)
+    normtype (TStruct ssi fs)         = TStruct ssi (map normFieldType fs)
+      where normFieldType (TStructField fsi n ft) = TStructField fsi n (normtype ft)
     normtype (TNamed si' n t)         = TNamed si' n (normtype t)
     normtype (TVar si' a)             =
       case Prelude.lookup a ord of
@@ -547,9 +544,9 @@ unifies si (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
 unifies si (TSlice _ t1) (TSlice _ t2) = unifies si t1 t2
 unifies si (TNamed _ n1 t1) (TNamed _ n2 t2)
   | n1 == n2 = unifies si t1 t2
-unifies _ (TStruct _ fs1) (TStruct _ fs2)
-  -- TODO: Unify fields in order
-  | fs1 == fs2  = return emptySubst
+unifies si t1 (TNamed _ _ t2) = unifies si t1 t2
+unifies si (TStruct _ fs1) (TStruct _ fs2) =
+  unifyMany si (map getStructFieldType fs1) (map getStructFieldType fs2)
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2
 
 -- Unification solver

@@ -4,7 +4,8 @@ import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Basic
 
-import qualified Data.Map as Map
+data StructField = TStructField SourceInfo String Type
+                 deriving (Show, Eq, Ord)
 
 data Type
   = TAny SourceInfo
@@ -17,7 +18,7 @@ data Type
   | TUncurriedFn SourceInfo [Type] Type
   | TVariadicFn SourceInfo [Type] Type Type
   | TSlice SourceInfo Type
-  | TStruct SourceInfo (Map.Map String Type)
+  | TStruct SourceInfo [StructField]
   | TNamed SourceInfo QualifiedName Type
   deriving (Show, Eq, Ord)
 

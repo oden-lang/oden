@@ -1,11 +1,11 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 module Oden.Core where
 
-import Oden.Core.Operator
-import Oden.Identifier
-import Oden.QualifiedName (QualifiedName(..))
-import Oden.SourceInfo
-import Oden.Type.Polymorphic
+import           Oden.Core.Operator
+import           Oden.Identifier
+import           Oden.QualifiedName (QualifiedName(..))
+import           Oden.SourceInfo
+import qualified Oden.Type.Polymorphic as Poly
 
 data NameBinding = NameBinding SourceInfo Name
                  deriving (Show, Eq, Ord)
@@ -92,14 +92,17 @@ data Range t = Range (Expr t) (Expr t)
              | RangeFrom (Expr t)
              deriving (Show, Eq, Ord)
 
-type CanonicalExpr = (Scheme, Expr Type)
+type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
 
 data StructField t = StructField SourceInfo Name t
                    deriving (Show, Eq, Ord)
 
+fieldDefinitionToType :: StructField Poly.Type -> Poly.StructField
+fieldDefinitionToType (StructField fsi fn t) = Poly.TStructField fsi fn t
+
 data Definition = Definition SourceInfo Name CanonicalExpr
-                | ForeignDefinition SourceInfo Name Scheme
-                | StructDefinition SourceInfo QualifiedName [NameBinding] [StructField Type]
+                | ForeignDefinition SourceInfo Name Poly.Scheme
+                | StructDefinition SourceInfo QualifiedName [NameBinding] [StructField Poly.Type]
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]

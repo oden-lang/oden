@@ -4,7 +4,6 @@ module Oden.Backend.Go where
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import qualified Data.Set              as Set
-import qualified Data.Map              as Map
 import           Numeric
 import           System.FilePath
 import           Text.PrettyPrint
@@ -140,8 +139,8 @@ codegenType (Mono.TVariadicFn _ as v r) = do
   vc <- codegenType v
   rc <- codegenType r
   return $ func empty (hcat (punctuate (text ", ") (as' ++ [vc <> text "..."]))) rc empty
-codegenType (Mono.TStruct _ fs) = block <$> vcat <$> (mapM codegenField (Map.assocs fs))
-  where codegenField (name, t) = do
+codegenType (Mono.TStruct _ fs) = (text "struct" <>) . block . vcat <$> (mapM codegenField fs)
+  where codegenField (Mono.TStructField _ name t) = do
           tc <- codegenType t
           return $ safeName name <+> tc
 codegenType (Mono.TNamed _ n _) = codegenQualifiedName n
