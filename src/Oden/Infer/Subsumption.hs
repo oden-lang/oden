@@ -46,9 +46,11 @@ collectSubstitutions (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   collectSubstitutions s1 s2
   zipWithM_ collectSubstitutions r1 r2
 collectSubstitutions TAny{} _ = return ()
-collectSubstitutions (TNamedStruct _ n1 _) (TNamedStruct _ n2 _)
-  -- TODO: Polymorphic structs
-  | n1 == n2  = return ()
+collectSubstitutions (TStruct _ fs1) (TStruct _ fs2)
+  -- TODO:
+  -- * Polymorphic structs
+  -- * Don't compare by source info
+  | fs1 == fs2  = return ()
 collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 t2)
 
 subsume :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr

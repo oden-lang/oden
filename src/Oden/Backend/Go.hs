@@ -2,6 +2,7 @@
 module Oden.Backend.Go where
 
 import qualified Data.Set              as Set
+import qualified Data.Map              as Map
 import           Numeric
 import           System.FilePath
 import           Text.PrettyPrint
@@ -111,7 +112,9 @@ codegenType (Mono.TUncurriedFn _ as r) =
   func empty (hcat (punctuate (text ", ") (map codegenType as))) (codegenType r) empty
 codegenType (Mono.TVariadicFn _ as v r) =
   func empty (hcat (punctuate (text ", ") (map codegenType as ++ [codegenType v <> text "..."]))) (codegenType r) empty
-codegenType (Mono.TNamedStruct _ qn _) = codegenQualifiedName qn
+codegenType (Mono.TStruct _ fs) = block (vcat (map codegenField (Map.assocs fs)))
+  where codegenField (name, t) = safeName name <+> codegenType t
+codegenType (Mono.TNamed _ n _) = codegenQualifiedName n
 
 showGoString :: Show a => a -> String
 showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)

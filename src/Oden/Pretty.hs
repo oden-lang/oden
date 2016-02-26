@@ -1,5 +1,7 @@
 module Oden.Pretty where
 
+import qualified Data.Map as Map
+
 import           Oden.Core
 import           Oden.Core.Operator
 import           Oden.Identifier
@@ -102,7 +104,9 @@ instance Pretty Poly.Type where
   pp (Poly.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Poly.TSlice _ t) =
     text "[]" <> braces (pp t)
-  pp (Poly.TNamedStruct _ n _) = pp n
+  pp (Poly.TStruct _ fs) = braces (hcat (punctuate (text "; ") (map ppField (Map.assocs fs))))
+    where ppField (name, t) = text name <+> pp t
+  pp (Poly.TNamed _ n _) = pp n
 
 instance Pretty Poly.Scheme where
   pp (Poly.Forall _ vs t) = text "forall" <+> hsep (map pp vs) <> text "." <+> pp t
@@ -122,7 +126,9 @@ instance Pretty Mono.Type where
   pp (Mono.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Mono.TSlice _ t) =
     text "!" <> braces (pp t)
-  pp (Mono.TNamedStruct _ n _) = pp n
+  pp (Mono.TStruct _ fs) = braces (hcat (punctuate (text "; ") (map ppField (Map.assocs fs))))
+    where ppField (name, t) = text name <+> pp t
+  pp (Mono.TNamed _ n _) = pp n
 
 instance Pretty SignatureVarBinding where
   pp (SignatureVarBinding _ s) = text ("#" ++ s)

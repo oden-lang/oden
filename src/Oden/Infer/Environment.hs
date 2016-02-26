@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 
 data TypeBinding = Package SourceInfo Name TypingEnvironment
                  | Local SourceInfo Name Scheme
-                 | NamedStruct SourceInfo QualifiedName [Core.NameBinding] [Core.StructField Type]
+                 | Struct SourceInfo QualifiedName [Core.NameBinding] [Core.StructField Type]
                  deriving (Show, Eq)
 
 type TypingEnvironment = Environment TypeBinding
@@ -21,4 +21,4 @@ fromDefinitions defs = Environment (Map.map convert defs)
   where convert (Core.Definition si n (sc, _)) = Local si n sc
         convert (Core.ForeignDefinition si n sc) = Local si n sc
         convert (Core.StructDefinition si n bindings fields) =
-          NamedStruct si n bindings fields
+          Struct si n bindings fields

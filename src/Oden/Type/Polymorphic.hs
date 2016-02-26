@@ -42,7 +42,9 @@ data Type
   -- | A slice type.
   | TSlice SourceInfo Type
   -- | Data structure type.
-  | TNamedStruct SourceInfo QualifiedName (Map.Map String Type)
+  | TStruct SourceInfo (Map.Map String Type)
+  -- | A name for a type, introduced by type definitions.
+  | TNamed SourceInfo QualifiedName Type
 
   -- For foreign definitions:
 
@@ -64,7 +66,8 @@ instance HasSourceInfo Type where
   getSourceInfo (TUncurriedFn si _ _)  = si
   getSourceInfo (TVariadicFn si _ _ _) = si
   getSourceInfo (TSlice si _)          = si
-  getSourceInfo (TNamedStruct si _ _)  = si
+  getSourceInfo (TStruct si _)         = si
+  getSourceInfo (TNamed si _ _)        = si
 
   setSourceInfo si (TAny _)              = TAny si
   setSourceInfo si (TBasic _ b)          = TBasic si b
@@ -77,7 +80,8 @@ instance HasSourceInfo Type where
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn si a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn si a v r
   setSourceInfo si (TSlice _ t)          = TSlice si t
-  setSourceInfo si (TNamedStruct _ n fs) = TNamedStruct si n fs
+  setSourceInfo si (TStruct _ fs)        = TStruct si fs
+  setSourceInfo si (TNamed _ n t)        = TNamed si n t
 
 data TVarBinding = TVarBinding SourceInfo TVar
                  deriving (Show, Eq, Ord)
@@ -120,7 +124,8 @@ toMonomorphic (TVariadicFn si a v r) =
                       <*> toMonomorphic v
                       <*> toMonomorphic r
 toMonomorphic (TSlice si t) = Mono.TSlice si <$> toMonomorphic t
-toMonomorphic (TNamedStruct si n fs) = Mono.TNamedStruct si n <$> mapM toMonomorphic fs
+toMonomorphic (TStruct si fs) = Mono.TStruct si <$> mapM toMonomorphic fs
+toMonomorphic (TNamed si n t) = Mono.TNamed si n <$> toMonomorphic t
 
 isPolymorphic :: Scheme -> Bool
 isPolymorphic (Forall _ tvars _) = not (null tvars)
@@ -139,7 +144,8 @@ isPolymorphicType (TUncurriedFn _ a r) =
 isPolymorphicType (TVariadicFn _ a v r) =
   any isPolymorphicType a || isPolymorphicType v || isPolymorphicType r
 isPolymorphicType (TSlice _ a) = isPolymorphicType a
-isPolymorphicType (TNamedStruct _ _ fs) = any isPolymorphicType (Map.elems fs)
+isPolymorphicType (TStruct _ fs) = any isPolymorphicType (Map.elems fs)
+isPolymorphicType (TNamed _ _ t) = isPolymorphicType t
 
 equalsAllT :: [Type] -> [Type] -> Bool
 equalsAllT t1 t2 = and (zipWith equalsT t1 t2)
@@ -159,8 +165,10 @@ equalsT (TUncurriedFn _ a1 r1) (TUncurriedFn _ a2 r2) =
 equalsT (TVariadicFn _ a1 v1 r1) (TVariadicFn _ a2 v2 r2)=
   a1 `equalsAllT` a2 && v1 `equalsT` v2 && r1 `equalsT` r2
 equalsT (TSlice _ e1) (TSlice _ e2) = e1 `equalsT` e2
-equalsT (TNamedStruct _ n1 fs1) (TNamedStruct _ n2 fs2) =
-  n1 == n2 && Map.elems fs1 `equalsAllT` Map.elems fs2
+equalsT (TStruct _ fs1) (TStruct _ fs2) =
+  Map.elems fs1 `equalsAllT` Map.elems fs2
+equalsT (TNamed _ n1 t1) (TNamed _ n2 t2) =
+  n1 == n2 && t1 `equalsT` t2
 equalsT _ _ = False
 
 class FTV a where
@@ -178,7 +186,8 @@ instance FTV Type where
   ftv (TUncurriedFn _ as r)     = ftv (r:as)
   ftv (TVariadicFn _ as v r)    = ftv (v:r:as)
   ftv (TSlice _ t)              = ftv t
-  ftv (TNamedStruct _ _ fs)     = ftv (Map.elems fs)
+  ftv (TStruct _ fs)            = ftv (Map.elems fs)
+  ftv (TNamed _ _ t)            = ftv t
 
 instance FTV Scheme where
   ftv (Forall _ as t) =

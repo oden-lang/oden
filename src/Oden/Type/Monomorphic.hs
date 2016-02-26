@@ -17,7 +17,8 @@ data Type
   | TUncurriedFn SourceInfo [Type] Type
   | TVariadicFn SourceInfo [Type] Type Type
   | TSlice SourceInfo Type
-  | TNamedStruct SourceInfo QualifiedName (Map.Map String Type)
+  | TStruct SourceInfo (Map.Map String Type)
+  | TNamed SourceInfo QualifiedName Type
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
@@ -31,7 +32,8 @@ instance HasSourceInfo Type where
   getSourceInfo (TUncurriedFn si _ _)  = si
   getSourceInfo (TVariadicFn si _ _ _) = si
   getSourceInfo (TSlice si _)          = si
-  getSourceInfo (TNamedStruct si _ _)  = si
+  getSourceInfo (TStruct si _)         = si
+  getSourceInfo (TNamed si _ _)        = si
 
   setSourceInfo si (TAny _)              = TAny si
   setSourceInfo si (TBasic _ b)          = TBasic si b
@@ -43,4 +45,5 @@ instance HasSourceInfo Type where
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn si a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn si a v r
   setSourceInfo si (TSlice _ t)          = TSlice si t
-  setSourceInfo si (TNamedStruct _ n fs) = TNamedStruct si n fs
+  setSourceInfo si (TStruct _ fs)        = TStruct si fs
+  setSourceInfo si (TNamed _ n t)        = TNamed si n t

@@ -79,12 +79,12 @@ instance Substitutable (Core.StructField Type) where
 instance FTV TypeBinding where
   ftv (Package _ _ e)        = ftv e
   ftv (Local _ _ d)          = ftv d
-  ftv (NamedStruct _ _ _ fs) = ftv fs
+  ftv (Struct _ _ _ fs) = ftv fs
 
 instance Substitutable TypeBinding where
   apply _ (Package si n e) = Package si n e
   apply s (Local si n d) = Local si n (apply s d)
-  apply s (NamedStruct si n bs fs) = NamedStruct si n bs (apply s fs)
+  apply s (Struct si n bs fs) = Struct si n bs (apply s fs)
 
 instance FTV TypingEnvironment where
   ftv (Environment env) = ftv $ Map.elems env
@@ -150,8 +150,8 @@ lookupTypeIn env si name =
       Nothing                          -> throwError $ NotInScope si (Unqualified name)
       Just Package{}                   -> throwError $ InvalidPackageReference si name
       Just (Local _ _ _)               -> throwError $ ValueUsedAsType si name
-      Just (NamedStruct si' n _ fields) ->
-        return $ TNamedStruct si' n (Map.fromList (map fieldToAssoc fields))
+      Just (Struct si' n _ fields) ->
+        return $ TNamed si' n (TStruct si' (Map.fromList (map fieldToAssoc fields)))
   where
   fieldToAssoc (Core.StructField _ fn t) = (fn, t)
 
@@ -177,7 +177,7 @@ lookupValueIn env si name =
       Nothing                              -> throwError $ NotInScope si (Unqualified name)
       Just Package{}                       -> throwError $ InvalidPackageReference si name
       Just (Local _ _ sc)                  -> instantiate sc
-      Just (NamedStruct _ n _ fields) -> return (TNamedStruct si n (Map.fromList (map toAssoc fields)))
+      Just (Struct _ n _ fields)           -> return (TNamed si n (TStruct si (Map.fromList (map toAssoc fields))))
   where
   toAssoc (Core.StructField _ n t) = (n, t)
 
@@ -446,7 +446,7 @@ inferDefinition env def = do
       return (env', Core.Definition si name canonical')
 
     (Core.StructDefinition si name@(FQN _ localName) params fields, _) ->
-      return (env `extend` (localName, NamedStruct si name params fields), def')
+      return (env `extend` (localName, Struct si name params fields), def')
 
     (Core.ForeignDefinition _ name _, _) ->
       error ("unexpected foreign definition: " ++ name)
@@ -478,7 +478,8 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     fv (TVariadicFn _ as v r) = concatMap fv as ++ fv v ++ fv r
     fv (TCon _ d r)           = fv d ++ fv r
     fv (TSlice _ t)           = fv t
-    fv (TNamedStruct _ _ fs)  = concat (Map.map fv fs)
+    fv (TStruct _ fs)         = concat (Map.map fv fs)
+    fv (TNamed _ _ t)         = fv t
 
     normtype t@TAny{}                = t
     normtype t@TUnit{}               = t
@@ -490,7 +491,8 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     normtype (TVariadicFn si' as v r) = TVariadicFn si' (map normtype as) (normtype v) (normtype r)
     normtype (TCon si' d r)           = TCon si' (normtype d) (normtype r)
     normtype (TSlice si' a)           = TSlice si' (normtype a)
-    normtype (TNamedStruct si' n fs)  = TNamedStruct si' n (Map.map normtype fs)
+    normtype (TStruct si' fs)         = TStruct si' (Map.map normtype fs)
+    normtype (TNamed si' n t)         = TNamed si' n (normtype t)
     normtype (TVar si' a)             =
       case Prelude.lookup a ord of
         Just x -> TVar si' x
@@ -543,10 +545,11 @@ unifies si (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   r <- unifyMany si r1 r2
   return (f `compose` s `compose` r)
 unifies si (TSlice _ t1) (TSlice _ t2) = unifies si t1 t2
-unifies si s1@(TNamedStruct _ n1 _) s2@(TNamedStruct _ n2 _)
-  -- TODO: Unify polymorphic fields
-  | n1 == n2  = return emptySubst
-  | otherwise = throwError $ UnificationFail si s1 s2
+unifies si (TNamed _ n1 t1) (TNamed _ n2 t2)
+  | n1 == n2 = unifies si t1 t2
+unifies _ (TStruct _ fs1) (TStruct _ fs2)
+  -- TODO: Unify fields in order
+  | fs1 == fs2  = return emptySubst
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2
 
 -- Unification solver

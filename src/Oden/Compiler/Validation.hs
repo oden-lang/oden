@@ -2,6 +2,7 @@ module Oden.Compiler.Validation where
 
 import           Oden.Core
 import           Oden.Identifier
+import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
@@ -91,16 +92,20 @@ validateRange (RangeFrom e) =
   validateExpr e
 
 validatePackage :: Package -> Validate ()
-validatePackage (Package _ _ definitions) = mapM_ validateDef definitions
+validatePackage (Package _ _ definitions) = validateDefs definitions
   where
-  validateDef (Definition si name (_, expr)) = do
+  validateDefs (Definition si name (_, expr):defs) = do
     errorIfDefined name si
-    withName name (validateExpr expr)
-  validateDef ForeignDefinition{} = return ()
-  validateDef (StructDefinition _ _ _ fs) =
+    withName name $ do
+      validateExpr expr
+      validateDefs defs
+  validateDefs (StructDefinition _ (FQN _ n) _ fs:defs) = do
     case repeated fs of
       [] -> return ()
       (StructField si name _:_) -> throwError (DuplicatedStructFieldName si name)
+    withName n (validateDefs defs)
+  validateDefs (_:defs) = validateDefs defs
+  validateDefs [] = return ()
 
 repeated :: [StructField Type] -> [StructField Type]
 repeated fields = snd (foldl check (Set.empty, []) fields)

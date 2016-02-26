@@ -150,7 +150,7 @@ convertType (Signature True Nothing args _) = do
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
 convertType (Named pkgName n (Struct fields)) = do
   fields' <- Map.fromList <$> mapM fieldToAssoc fields
-  return (Poly.TNamedStruct Missing (FQN pkgName n) fields')
+  return (Poly.TNamed Missing (FQN pkgName n) (Poly.TStruct Missing fields'))
   where
   fieldToAssoc (StructField name goType) = (,) name <$> convertType goType
 convertType (Named _ _ t) = convertType t
