@@ -98,6 +98,10 @@ tNameBinding = Core.NameBinding Missing
 predef :: TypingEnvironment
 predef = fromDefinitions predefined
 
+predefAndStringLength :: TypingEnvironment
+predefAndStringLength =  predef `extend` ("stringLength",
+                                          Local Predefined "stringLength" $ forall [] (typeFn typeString typeInt))
+
 predefAndMax :: TypingEnvironment
 predefAndMax =  predef `extend` ("max",
                                  Local Predefined "max" $ forall [] (typeUncurried [typeInt, typeInt] typeInt))
@@ -257,6 +261,12 @@ spec = do
          (typeBool `typeFn` typeInt))
         (tLiteral (tBool False) typeBool)
         typeInt))
+
+    it "fails in fn application with type mismatch" $
+      shouldFail $
+        inferExpr predefAndStringLength (uApplication
+                                         (uSymbol (Unqualified "stringLength"))
+                                         [uLiteral (uInt 1)])
 
     it "infers nested fn application" $
       inferExpr

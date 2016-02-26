@@ -442,7 +442,7 @@ inferDefinition env def = do
       subst <- runSolve (cs ++ typeCs)
       let (Forall si _ _, substExpr) = apply subst canonical
       canonical' <- left (TypeSignatureSubsumptionError name) $ subsume resolvedType substExpr
-      let env' = env `extend` (name, Local si name (fst canonical))
+      let env' = env `extend` (name, Local si name (fst canonical'))
       return (env', Core.Definition si name canonical')
 
     (Core.StructDefinition si name@(FQN _ localName) params fields, _) ->

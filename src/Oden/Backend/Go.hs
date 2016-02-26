@@ -1,6 +1,8 @@
 {-# LANGUAGE QuasiQuotes, FlexibleContexts #-}
 module Oden.Backend.Go where
 
+import           Control.Monad.Except
+import           Control.Monad.Reader
 import qualified Data.Set              as Set
 import qualified Data.Map              as Map
 import           Numeric
@@ -17,13 +19,17 @@ import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 
+type Codegen = ReaderT MonomorphedPackage (Except CodegenError)
+
 newtype GoBackend = GoBackend FilePath
 
 block :: Doc -> Doc
 block d = lbrace $+$ nest 4 d $+$ rbrace
 
-funcArg :: Name -> Mono.Type -> Doc
-funcArg name t = safeName name <+> codegenType t
+funcArg :: Name -> Mono.Type -> Codegen Doc
+funcArg name t = do
+  tc <- codegenType t
+  return $ safeName name <+> tc
 
 func :: Doc -> Doc -> Doc -> Doc -> Doc
 func name arg returnType body =
@@ -33,34 +39,41 @@ func name arg returnType body =
   <+> returnType
   <+> body
 
-varWithType :: Name -> Mono.Type -> Expr Mono.Type -> Doc
-varWithType name mt expr =
-  text "var"
-  <+> safeName name
-  <+> codegenType mt
-  <+> equals
-  <+> codegenExpr expr
+varWithType :: Name -> Mono.Type -> Expr Mono.Type -> Codegen Doc
+varWithType name mt expr = do
+  mtc <- codegenType mt
+  ec <- codegenExpr expr
+  return $ text "var"
+           <+> safeName name
+           <+> mtc
+           <+> equals
+           <+> ec
 
-var :: Name -> Expr Mono.Type -> Doc
+var :: Name -> Expr Mono.Type -> Codegen Doc
 var name expr = varWithType name (typeOf expr) expr
 
-return' :: Expr Mono.Type -> Doc
-return' e@(Application _ f _ Mono.TUnit{}) =
-  case typeOf f of
-    Mono.TUncurriedFn{} -> codegenExpr e $+$ text "return struct{}{}"
-    Mono.TVariadicFn{}  -> codegenExpr e $+$ text "return struct{}{}"
-    _                   -> text "return" <+> codegenExpr e
-return' e@(NoArgApplication _ f Mono.TUnit{}) =
-  case typeOf f of
-    Mono.TUncurriedFn{} -> codegenExpr e $+$ text "return struct{}{}"
-    Mono.TVariadicFn{}  -> codegenExpr e $+$ text "return struct{}{}"
-    _                   -> text "return" <+> codegenExpr e
-return' e@(UncurriedFnApplication _ f _ Mono.TUnit{}) =
-  case typeOf f of
-    Mono.TUncurriedFn{} -> codegenExpr e $+$ text "return struct{}{}"
-    Mono.TVariadicFn{}  -> codegenExpr e $+$ text "return struct{}{}"
-    _                   -> text "return" <+> codegenExpr e
-return' expr = text "return" <+> codegenExpr expr
+return' :: Expr Mono.Type -> Codegen Doc
+return' e@(Application _ f _ Mono.TUnit{}) = do
+  ec <- codegenExpr e
+  return $ case typeOf f of
+    Mono.TUncurriedFn{} -> ec $+$ text "return struct{}{}"
+    Mono.TVariadicFn{}  -> ec $+$ text "return struct{}{}"
+    _                   -> text "return" <+> ec
+return' e@(NoArgApplication _ f Mono.TUnit{}) = do
+  ec <- codegenExpr e
+  return $ case typeOf f of
+    Mono.TUncurriedFn{} -> ec $+$ text "return struct{}{}"
+    Mono.TVariadicFn{}  -> ec $+$ text "return struct{}{}"
+    _                   -> text "return" <+> ec
+return' e@(UncurriedFnApplication _ f _ Mono.TUnit{}) = do
+  ec <- codegenExpr e
+  return $ case typeOf f of
+    Mono.TUncurriedFn{} -> ec $+$ text "return struct{}{}"
+    Mono.TVariadicFn{}  -> ec $+$ text "return struct{}{}"
+    _                   -> text "return" <+> ec
+return' expr = do
+  ec <- codegenExpr expr
+  return $ text "return" <+> ec
 
 replaceIdentifierPart :: Char -> String
 replaceIdentifierPart '-' = "_DASH_"
@@ -82,38 +95,55 @@ replaceIdentifierPart c = [c]
 safeName :: Name -> Doc
 safeName = text . concatMap replaceIdentifierPart
 
-codegenIdentifier :: Identifier -> Doc
-codegenIdentifier (Unqualified n) = safeName n
-codegenIdentifier (Qualified pn n) = safeName pn <> text "." <> safeName n
+codegenIdentifier :: Identifier -> Codegen Doc
+codegenIdentifier (Unqualified n) = return $ safeName n
+codegenIdentifier (Qualified pn n) = return $ safeName pn <> text "." <> safeName n
 
-codegenQualifiedName :: QualifiedName -> Doc
-codegenQualifiedName (FQN _ name) = safeName name
+codegenQualifiedName :: QualifiedName -> Codegen Doc
+codegenQualifiedName (FQN pkgName name) = do
+  (MonomorphedPackage (PackageDeclaration _ currentPkgName) _ _ _) <- ask
+  if pkgName == currentPkgName
+  then return $ safeName name
+  else return $ safeName (last pkgName) <> text "." <> safeName name
 
-codegenType :: Mono.Type -> Doc
-codegenType Mono.TUnit{} = text "struct{}"
-codegenType (Mono.TBasic _ TInt) = text "int"
-codegenType (Mono.TBasic _ TBool) = text "bool"
-codegenType (Mono.TBasic _ TString) = text "string"
-codegenType (Mono.TTuple _ f s r) =
-  text "struct" <>
-  braces (hcat (punctuate (text "; ") (zipWith codegenTupleField [0..] (f:s:r))))
+codegenType :: Mono.Type -> Codegen Doc
+codegenType Mono.TUnit{} = return $ text "struct{}"
+codegenType (Mono.TBasic _ TInt) = return $ text "int"
+codegenType (Mono.TBasic _ TBool) = return $ text "bool"
+codegenType (Mono.TBasic _ TString) = return $ text "string"
+codegenType (Mono.TTuple _ f s r) = do
+  fs <- zipWithM codegenTupleField [0..] (f:s:r)
+  return $ text "struct" <> braces (hcat (punctuate (text "; ") fs))
   where
-  codegenTupleField :: Int -> Mono.Type -> Doc
-  codegenTupleField n t = text ("_" ++ show n) <+> codegenType t
-codegenType Mono.TAny{} = text "interface{}"
-codegenType (Mono.TCon _ _d _r) = error "Type constructors not implemented yet."
-codegenType (Mono.TNoArgFn _ f) =
-  func empty empty (codegenType f) empty
-codegenType (Mono.TFn _ d r) =
-  func empty (codegenType d) (codegenType r) empty
-codegenType (Mono.TSlice _ t) =
-  text "[]" <> codegenType t
-codegenType (Mono.TUncurriedFn _ as r) =
-  func empty (hcat (punctuate (text ", ") (map codegenType as))) (codegenType r) empty
-codegenType (Mono.TVariadicFn _ as v r) =
-  func empty (hcat (punctuate (text ", ") (map codegenType as ++ [codegenType v <> text "..."]))) (codegenType r) empty
-codegenType (Mono.TStruct _ fs) = block (vcat (map codegenField (Map.assocs fs)))
-  where codegenField (name, t) = safeName name <+> codegenType t
+  codegenTupleField :: Int -> Mono.Type -> Codegen Doc
+  codegenTupleField n t = do
+    tc <- codegenType t
+    return $ text ("_" ++ show n) <+> tc
+codegenType Mono.TAny{} = return $ text "interface{}"
+codegenType (Mono.TCon _ _d _r) = throwError $ UnexpectedError "Type constructors not implemented yet."
+codegenType (Mono.TNoArgFn _ f) = do
+  fc <- codegenType f
+  return $func empty empty fc empty
+codegenType (Mono.TFn _ d r) = do
+  dc <- codegenType d
+  rc <- codegenType r
+  return $func empty dc rc empty
+codegenType (Mono.TSlice _ t) = do
+  tc <- codegenType t
+  return $ text "[]" <> tc
+codegenType (Mono.TUncurriedFn _ as r) = do
+  as' <- mapM codegenType as
+  rc <- codegenType r
+  return $ func empty (hcat (punctuate (text ", ") as')) rc empty
+codegenType (Mono.TVariadicFn _ as v r) = do
+  as' <- mapM codegenType as
+  vc <- codegenType v
+  rc <- codegenType r
+  return $ func empty (hcat (punctuate (text ", ") (as' ++ [vc <> text "..."]))) rc empty
+codegenType (Mono.TStruct _ fs) = block <$> vcat <$> (mapM codegenField (Map.assocs fs))
+  where codegenField (name, t) = do
+          tc <- codegenType t
+          return $ safeName name <+> tc
 codegenType (Mono.TNamed _ n _) = codegenQualifiedName n
 
 showGoString :: Show a => a -> String
@@ -144,112 +174,136 @@ codegenBinaryOperator Or = text "||"
 codegenUnaryOperator :: UnaryOperator -> Doc
 codegenUnaryOperator o = text (show o)
 
-codegenRange :: Range Mono.Type -> Doc
+codegenRange :: Range Mono.Type -> Codegen Doc
 codegenRange (Range e1 e2) =
-  brackets $ hcat $ punctuate (text ":") $ map codegenExpr [e1, e2]
-codegenRange (RangeTo e) =
-  brackets $ text ":" <+> codegenExpr e
-codegenRange (RangeFrom e) =
-  brackets $ codegenExpr e <+> (text ":")
+  brackets <$> hcat <$> punctuate (text ":") <$> mapM codegenExpr [e1, e2]
+codegenRange (RangeTo e) = do
+  ec <- codegenExpr e
+  return $ brackets $ text ":" <+> ec
+codegenRange (RangeFrom e) = do
+  ec <- codegenExpr e
+  return $ brackets $ ec <+> (text ":")
 
-codegenExpr :: Expr Mono.Type -> Doc
+codegenExpr :: Expr Mono.Type -> Codegen Doc
 codegenExpr (Symbol _ i _) =
   codegenIdentifier i
-codegenExpr (Subscript _ s i _) =
-  codegenExpr s <> (brackets . codegenExpr) i
+codegenExpr (Subscript _ s i _) = do
+  sc <- codegenExpr s
+  ic <- codegenExpr i
+  return $ sc <> brackets ic
 codegenExpr (Subslice _ s r _) =
-  codegenExpr s <> codegenRange r
+  (<>) <$> codegenExpr s <*> codegenRange r
 codegenExpr (UnaryOp _ o e _) =
-  parens (codegenUnaryOperator o <+> codegenExpr e)
-codegenExpr (BinaryOp _ o e1 e2 _) =
-  parens (codegenExpr e1 <+> codegenBinaryOperator o <+> codegenExpr e2)
+  parens <$> (codegenUnaryOperator o <+>) <$> codegenExpr e
+codegenExpr (BinaryOp _ o e1 e2 _) = do
+  ec1 <- codegenExpr e1
+  ec2 <- codegenExpr e2
+  return $ parens (ec1 <+> codegenBinaryOperator o <+> ec2)
 codegenExpr (Application _ (Symbol _ (Unqualified "not") _) e _) =
-  text "!" <> codegenExpr e
+  (text "!" <>) <$> codegenExpr e
 codegenExpr (Application _ f p _) =
-  codegenExpr f <> parens (codegenExpr p)
+  (<>) <$> codegenExpr f <*> (parens <$> codegenExpr p)
 codegenExpr (UncurriedFnApplication _ f ps _) =
   case typeOf f of
     Mono.TVariadicFn{} ->
       let nonVariadicParams = init ps
           slice = last ps
-      in codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr nonVariadicParams ++ [codegenExpr slice <> text "..."])))
-    _ ->
-      codegenExpr f <> parens (hcat (punctuate (text ", ") (map codegenExpr ps)))
+      in do fc <-codegenExpr f
+            pc <- mapM codegenExpr nonVariadicParams
+            sc <- codegenExpr slice
+            return $ fc <> parens (hcat (punctuate (text ", ") (pc ++ [sc <> text "..."])))
+    _ -> do
+      fc <- codegenExpr f
+      pc <- mapM codegenExpr ps
+      return $ fc <> parens (hcat (punctuate (text ", ") pc))
 codegenExpr (NoArgApplication _ f _) =
-  codegenExpr f <> parens empty
+  (<> parens empty) <$> codegenExpr f
 codegenExpr (Fn _ (NameBinding _ a) body (Mono.TFn _ d r)) =
-  func empty (funcArg a d) (codegenType r) (braces (return' body))
-codegenExpr Fn{} = text "<invalid fn type>"
+  func empty <$> funcArg a d <*> codegenType r <*> (braces <$> return' body)
+codegenExpr (Fn _ _ _ t) = throwError $ UnexpectedError $ "Invalid fn type: " ++ show t
 codegenExpr (NoArgFn _ body (Mono.TNoArgFn _ r)) =
-  func empty empty (codegenType r) (braces (return' body))
-codegenExpr (NoArgFn _ _ _) = text "<invalid no-arg fn type>"
-codegenExpr (Let _ (NameBinding _ n) expr body t) =
-  parens (func empty empty (codegenType t) (braces (text "var" <+> safeName n <+> codegenType (typeOf expr)<+> equals <+> codegenExpr expr $+$ return' body)))
-  <> parens empty
-codegenExpr (Literal _ (Int n) _) = integer n
-codegenExpr (Literal _ (Bool True) _) = text "true"
-codegenExpr (Literal _ (Bool False) _) = text "false"
-codegenExpr (Literal _ (String s) _) = text (showGoString s)
-codegenExpr (Literal _ Unit{} _) = text "struct{}{}"
+  func empty empty <$> codegenType r <*> (braces <$> return' body)
+codegenExpr (NoArgFn _ _ t) = throwError $ UnexpectedError $ "Invalid no-arg fn type: " ++ show t
+codegenExpr (Let _ (NameBinding _ n) expr body t) = do
+  tc <- codegenType t
+  etc <- codegenType (typeOf expr)
+  ec <- codegenExpr expr
+  bc <- return' body
+  return $ parens (func empty empty tc (braces (text "var" <+> safeName n <+> etc <+> equals <+> ec $+$ bc)))
+           <> parens empty
+codegenExpr (Literal _ (Int n) _) = return $ integer n
+codegenExpr (Literal _ (Bool True) _) = return $ text "true"
+codegenExpr (Literal _ (Bool False) _) = return $ text "false"
+codegenExpr (Literal _ (String s) _) = return $ text (showGoString s)
+codegenExpr (Literal _ Unit{} _) = return $ text "struct{}{}"
 codegenExpr (Tuple _ f s r t) =
-  codegenType t <> braces (hcat (punctuate (text ", ") (map codegenExpr (f:s:r))))
-codegenExpr (If _ condExpr thenExpr elseExpr t) =
-  parens
-  (func empty empty (codegenType t) (braces (text "if" <+> codegenExpr condExpr <+> block (return' thenExpr) <+> text "else" <+> block (return' elseExpr))))
-  <> parens empty
-codegenExpr (Slice _ exprs t) = codegenType t
-                            <> braces (hcat (punctuate (comma <+> space) (map codegenExpr exprs)))
-codegenExpr (Block _ [] t) =
-  parens
-  (func empty empty (codegenType t) (braces empty))
-  <> parens empty
-codegenExpr (Block _ exprs t) =
-  parens
-  (func empty empty (codegenType t) (braces (vcat (map codegenExpr (init exprs) ++ [return' (last exprs)]))))
-  <> parens empty
+  (<>) <$> codegenType t <*> (braces <$> hcat <$> punctuate (text ", ") <$> (mapM codegenExpr (f:s:r)))
+codegenExpr (If _ condExpr thenExpr elseExpr t) = do
+  tc <- codegenType t
+  condc <- codegenExpr condExpr
+  thenc <- block <$> return' thenExpr
+  elsec <- block <$> return' elseExpr
+  return $ parens (func empty empty tc (braces (text "if" <+> condc <+> thenc <+> text "else" <+> elsec)))
+           <> parens empty
+codegenExpr (Slice _ exprs t) =
+  (<>) <$> codegenType t <*> (braces <$> hcat <$> punctuate (comma <+> space) <$> (mapM codegenExpr exprs))
+codegenExpr (Block _ [] t) = do
+  tc <- codegenType t
+  return $ parens
+           (func empty empty tc (braces empty))
+           <> parens empty
+codegenExpr (Block _ exprs t) = do
+  tc <- codegenType t
+  ic <- mapM codegenExpr (init exprs)
+  rc <- return' (last exprs)
+  return $ parens
+           (func empty empty tc (braces (vcat (ic ++ [rc]))))
+           <> parens empty
 
-codegenTopLevel :: Name -> Mono.Type -> Expr Mono.Type -> Doc
+codegenTopLevel :: Name -> Mono.Type -> Expr Mono.Type -> Codegen Doc
 codegenTopLevel "main" (Mono.TNoArgFn _ Mono.TUnit{}) (NoArgFn _ body _) =
-  func (text "main") empty empty (braces (codegenExpr body))
+  func (text "main") empty empty <$> (braces <$> codegenExpr body)
 codegenTopLevel name (Mono.TNoArgFn _ r) (NoArgFn _ body _) =
-  func (safeName name) empty (codegenType r) (braces (return' body))
+  func (safeName name) empty <$> codegenType r <*> (braces <$> return' body)
 codegenTopLevel name _ (NoArgFn _ body (Mono.TNoArgFn _ r)) =
-  func (safeName name) empty (codegenType r) (braces (return' body))
+  func (safeName name) empty <$> codegenType r <*> (braces <$> return' body)
 codegenTopLevel name (Mono.TFn _ d r) (Fn _ (NameBinding _ a) body _) =
-  func (safeName name) (funcArg a d) (codegenType r) (braces (return' body))
+  func (safeName name) <$> funcArg a d <*> codegenType r <*> (braces <$> return' body)
 codegenTopLevel name _ (Fn _ (NameBinding _ a) body (Mono.TFn _ d r)) =
-  func (safeName name) (funcArg a d) (codegenType r) (braces (return' body))
+  func (safeName name) <$> funcArg a d <*> codegenType r <*> (braces <$> return' body)
 codegenTopLevel name t expr =
   varWithType name t expr
 
-codegenInstance :: InstantiatedDefinition -> Doc
+codegenInstance :: InstantiatedDefinition -> Codegen Doc
 codegenInstance (InstantiatedDefinition name expr) =
   codegenTopLevel name (typeOf expr) expr
 
-
-codegenStructField :: StructField Mono.Type -> Doc
+codegenStructField :: StructField Mono.Type -> Codegen Doc
 codegenStructField (StructField _ n t) =
-  text n <+> codegenType t
+  (text n <+>) <$> codegenType t
 
-codegenMonomorphed :: MonomorphedDefinition -> Doc
+codegenMonomorphed :: MonomorphedDefinition -> Codegen Doc
 codegenMonomorphed (MonomorphedDefinition _ name mt expr) =
   codegenTopLevel name mt expr
-codegenMonomorphed (MonomorphedStructDefinition _ name fields) =
-  text "type" <+> safeName name <+> text "struct" <+> block (vcat (map codegenStructField fields))
+codegenMonomorphed (MonomorphedStructDefinition _ name fields) = do
+  fc <- mapM codegenStructField fields
+  return $ text "type" <+> safeName name <+> text "struct" <+> block (vcat fc)
 
 codegenImport :: Import -> Doc
 codegenImport (Import _ name) =
   text "import" <+> doubleQuotes (hcat (punctuate (text "/") (map text name)))
 
-codegenPackage :: MonomorphedPackage -> Doc
-codegenPackage (MonomorphedPackage (PackageDeclaration _ name) imports is ms) =
-  text "package" <+> text (last name)
-  $+$ vcat (map codegenImport imports)
-  $+$ vcat (map codegenInstance (Set.toList is))
-  $+$ vcat (map codegenMonomorphed (Set.toList ms))
+codegenPackage :: MonomorphedPackage -> Codegen Doc
+codegenPackage (MonomorphedPackage (PackageDeclaration _ name) imports is ms) = do
+  isc <- mapM codegenInstance (Set.toList is)
+  msc <- mapM codegenMonomorphed (Set.toList ms)
+  return $ text "package" <+> text (last name)
+           $+$ vcat (map codegenImport imports)
+           $+$ vcat isc
+           $+$ vcat msc
 
-toFilePath :: GoBackend -> PackageName -> Either CodegenError FilePath
-toFilePath _ [] = Left (UnexpectedError "Package name cannot be empty")
+toFilePath :: GoBackend -> PackageName -> Codegen FilePath
+toFilePath _ [] = throwError (UnexpectedError "Package name cannot be empty")
 toFilePath (GoBackend goPath) parts =
   let isMain = last parts == "main"
       dirParts = "src" : if isMain then init parts else parts
@@ -258,6 +312,9 @@ toFilePath (GoBackend goPath) parts =
   in return (dir </> fileName)
 
 instance Backend GoBackend where
-  codegen backend pkg@(MonomorphedPackage (PackageDeclaration _ name) _ _ _) = do
-    path <- toFilePath backend name
-    return [CompiledFile path (render (codegenPackage pkg))]
+  codegen backend pkg@(MonomorphedPackage (PackageDeclaration _ name) _ _ _) =
+    runExcept (runReaderT action pkg)
+    where action = do
+            path <- toFilePath backend name
+            code <- codegenPackage pkg
+            return [CompiledFile path (render code)]

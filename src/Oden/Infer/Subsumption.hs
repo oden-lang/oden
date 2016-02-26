@@ -51,7 +51,10 @@ collectSubstitutions (TStruct _ fs1) (TStruct _ fs2)
   -- * Polymorphic structs
   -- * Don't compare by source info
   | fs1 == fs2  = return ()
-collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 t2)
+collectSubstitutions (TNamed _ n1 _) (TNamed _ n2 _)
+  -- TODO: Compare underlying types
+  | n1 == n2 = return ()
+collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t1) t1 t2)
 
 subsume :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr
 subsume s@(Forall _ _ st) expr = do
