@@ -92,8 +92,9 @@ explodeTopLevel pkg top =
           (is, Map.insert name (tsi, sc) ts, defs)
         iter (is, ts, defs) (ImportDeclaration si name) =
           (is ++ [Untyped.Import si name], ts, defs)
-        iter (is, ts, defs) (StructDefinition si name params fields) =
-          let def = Untyped.StructDefinition si (FQN pkg name) (map explodeNameBinding params) (map explodeStructField fields)
+        iter (is, ts, defs) (StructDefinition si name fields) =
+          -- TODO: Add support for type parameters
+          let def = Untyped.StructDefinition si (FQN pkg name) [] (map explodeStructField fields)
           in (is, Map.delete name ts, defs ++ [def])
         toSignatureError :: (Name, (SourceInfo, TypeSignature)) -> ExplodeError
         toSignatureError (n, (si, sc)) = TypeSignatureWithoutDefinition si n sc

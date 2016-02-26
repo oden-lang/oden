@@ -109,15 +109,14 @@ spec = do
          (U.NameBinding (src 1 3) "y")
          (U.Symbol (src 1 4) (Unqualified "x"))))]
 
-    it "converts struct definition with type parameters" $
+    it "converts struct definition and uses empty list for type parameters" $
       (snd <$> explodeTopLevel [StructDefinition
                                 (src 1 1)
                                 "S"
-                                [NameBinding (src 1 2) "t"]
                                 [StructFieldExpr (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))]])
       `shouldSucceedWith`
       [U.StructDefinition
        (src 1 1)
        (FQN ["pkg"] "S")
-       [U.NameBinding (src 1 2) "t"]
+       []
        [U.StructField (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))]]

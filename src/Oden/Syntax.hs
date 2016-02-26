@@ -49,7 +49,8 @@ data TopLevel = ImportDeclaration SourceInfo PackageName
               | TypeSignatureDeclaration SourceInfo Name TypeSignature
               | ValueDefinition SourceInfo Name Expr
               | FnDefinition SourceInfo Name [NameBinding] Expr
-              | StructDefinition SourceInfo Name [NameBinding] [StructFieldExpr]
+              -- TODO: Add support for type parameters
+              | StructDefinition SourceInfo Name [StructFieldExpr]
               deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]

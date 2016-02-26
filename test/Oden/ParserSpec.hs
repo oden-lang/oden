@@ -303,15 +303,8 @@ spec = do
     it "parses struct definition without type parameters" $
       parseTopLevel "struct S {\n  x :: T\n}"
       `shouldSucceedWith`
-      StructDefinition (src 1 1) "S" [] [
+      StructDefinition (src 1 1) "S" [
           StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 8) (Unqualified "T"))
-        ]
-
-    it "parses struct definition with type parameters" $
-      parseTopLevel "struct S(t) {\n  x :: t\n}"
-      `shouldSucceedWith`
-      StructDefinition (src 1 1) "S" [NameBinding (src 1 10) "t"] [
-          StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 8) (Unqualified "t"))
         ]
 
     it "parses value definition" $

@@ -292,7 +292,6 @@ topLevel = import' <|> struct <|> try typeSignature <|> def
     si <- currentSourceInfo
     reserved "struct"
     StructDefinition si <$> name
-                        <*> maybeParensList nameBinding
                         <*> braces (many structField)
   structField = do
     si <- currentSourceInfo
