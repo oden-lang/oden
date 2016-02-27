@@ -89,7 +89,7 @@ instance Pretty QualifiedName where
   pp (FQN pkg name) = hcat (punctuate (text ".") (map text (pkg ++ [name])))
 
 instance Pretty Poly.StructField where
-  pp (Poly.TStructField _ name t) = text name <+> text "::" <+> pp t
+  pp (Poly.TStructField _ name t) = text name <+> pp t
 
 instance Pretty Poly.Type where
   pp (Poly.TAny _) = text "any"
@@ -137,7 +137,7 @@ instance Pretty SignatureVarBinding where
 
 
 instance Pretty TSStructField where
-  pp (TSStructField _ name t) = text name <+> text "::" <+> pp t
+  pp (TSStructField _ name t) = text name <+> pp t
 
 instance Pretty SignatureExpr where
   pp (TSUnit _) = text "()"

@@ -253,11 +253,19 @@ spec = do
         [Literal (src 1 3) (Int 1)]
 
     it "parses struct initializer with unnamed struct type" $
-      parseExpr "{size :: int}{1}"
+      parseExpr "{size int}{1}"
       `shouldSucceedWith`
       StructInitializer (src 1 1)
-        (TSStruct (src 1 1) [TSStructField (src 1 2) "size" (TSSymbol (src 1 10) (Unqualified "int"))])
-        [Literal (src 1 15) (Int 1)]
+        (TSStruct (src 1 1) [TSStructField (src 1 2) "size" (TSSymbol (src 1 7) (Unqualified "int"))])
+        [Literal (src 1 12) (Int 1)]
+
+    it "parses struct initializer with unnamed struct type containing multiple fields" $
+      parseExpr "{size int, name string}{1, \"foo\"}"
+      `shouldSucceedWith`
+      StructInitializer (src 1 1)
+        (TSStruct (src 1 1) [TSStructField (src 1 2) "size" (TSSymbol (src 1 7) (Unqualified "int")),
+                             TSStructField (src 1 12) "name" (TSSymbol (src 1 17) (Unqualified "string"))])
+        [Literal (src 1 25) (Int 1), Literal (src 1 28) (String "foo")]
 
   describe "parseTopLevel" $ do
     it "parses type signature" $
@@ -315,10 +323,17 @@ spec = do
        (TSFn (src 1 17) (TSVar (src 1 17) "a") (TSVar (src 1 23) "a")))
 
     it "parses struct definition without type parameters" $
-      parseTopLevel "struct S {\n  x :: T\n}"
+      parseTopLevel "struct S {\n  x T\n}"
       `shouldSucceedWith`
       StructDefinition (src 1 1) "S" [
-          StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 8) (Unqualified "T"))
+          StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 5) (Unqualified "T"))
+        ]
+    it "parses struct definition multiple fields" $
+      parseTopLevel "struct S {\n  x T\n  y T\n}"
+      `shouldSucceedWith`
+      StructDefinition (src 1 1) "S" [
+          StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 5) (Unqualified "T")),
+          StructFieldExpr (src 3 3) "y" (TSSymbol (src 3 5) (Unqualified "T"))
         ]
 
     it "parses value definition" $

@@ -192,7 +192,6 @@ structFieldType :: Parser TSStructField
 structFieldType = do
   si <- currentSourceInfo
   n <- name
-  reserved "::"
   TSStructField si n <$> type'
 
 type' :: Parser SignatureExpr
@@ -316,7 +315,6 @@ topLevel = import' <|> struct <|> try typeSignature <|> def
   structField = do
     si <- currentSourceInfo
     n <- name
-    reserved "::"
     StructFieldExpr si n <$> type'
 
 package :: Parser Package
