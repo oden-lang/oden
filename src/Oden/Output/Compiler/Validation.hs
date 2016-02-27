@@ -14,6 +14,7 @@ instance OdenOutput ValidationError where
   name Redefinition{}              = "Compiler.Validation.Redefinition"
   name ValueDiscarded{}            = "Compiler.Validation.ValueDiscarded"
   name DuplicatedRecordFieldName{} = "Compiler.Validation.DuplicatedRecordFieldName"
+  name DivisionByZero {}           = "Compiler.Validation.DivisionByZero"
 
   header (Redefinition _ i) s =
     code s (pretty i) <+> text "is already defined"
@@ -23,14 +24,18 @@ instance OdenOutput ValidationError where
     <+> text "discarded"
   header (DuplicatedRecordFieldName _ n) _ =
     text "Duplicate struct field name" <+> pretty n
+  header (DivisionByZero e) s = text "Division by zero: "
+                                <+> code s (pretty e)
 
   details Redefinition{} _              = text "Shadowing is not allowed"
   details ValueDiscarded{} _            = empty
   details DuplicatedRecordFieldName{} _ = empty
+  details DivisionByZero{} _            = empty
 
   sourceInfo (Redefinition si _) = Just si
   sourceInfo (ValueDiscarded e) = Just (getSourceInfo e)
   sourceInfo (DuplicatedRecordFieldName si _) = Just si
+  sourceInfo (DivisionByZero e)  = Just (getSourceInfo e)
 
 instance OdenOutput ValidationWarning where
   outputType _ = Warning

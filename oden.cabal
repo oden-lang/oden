@@ -38,6 +38,7 @@ library
     Oden.Compiler.Monomorphization,
     Oden.Compiler.TypeEncoder
     Oden.Compiler.Validation,
+    Oden.Compiler.LiteralEval,
     Oden.Core,
     Oden.Core.Operator,
     Oden.Core.Untyped,

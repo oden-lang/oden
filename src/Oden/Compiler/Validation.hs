@@ -1,11 +1,14 @@
 module Oden.Compiler.Validation where
 
 import           Oden.Core             as Core
+import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName    (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
+
+import           Oden.Compiler.LiteralEval
 
 import           Control.Monad.Except
 import           Control.Monad.Reader
@@ -17,6 +20,7 @@ import qualified Data.Set        as Set
 data ValidationError = Redefinition SourceInfo Identifier
                      | ValueDiscarded (Expr Type)
                      | DuplicatedRecordFieldName SourceInfo Identifier
+                     | DivisionByZero (Expr Type)
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValidationWarning -- There's no warnings defined yet.
@@ -46,6 +50,12 @@ validateExpr (Subslice _ s r _) = do
   validateRange r
 validateExpr (UnaryOp _ _ rhs _) =
   validateExpr rhs
+validateExpr e@(BinaryOp _ Divide lhs rhs _) = do
+  validateExpr lhs
+  validateExpr rhs
+  case evaluate rhs of
+    Just (Int 0) -> throwError $ DivisionByZero e
+    _ -> return ()
 validateExpr (BinaryOp _ _ lhs rhs _) = do
   validateExpr lhs
   validateExpr rhs
