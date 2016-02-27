@@ -278,8 +278,6 @@ monomorphDefinition d@(Core.Definition si name (Poly.Forall _ _ st, expr)) = do
       addMonomorphed name (MonomorphedDefinition si name mt mExpr)
 monomorphDefinition d@(Core.TypeDefinition _ (FQN _ localName) _ _) =
   extendEnvironment localName d
-  -- monoType <- toMonomorphic (getSourceInfo polyType) polyType
-  -- addMonomorphed localName (MonomorphedTypeDefinition si localName monoType)
 
 monomorphPackage :: CompileEnvironment -> Core.Package -> Either MonomorphError MonomorphedPackage
 monomorphPackage environment' (Core.Package pkgDecl imports definitions) = do
