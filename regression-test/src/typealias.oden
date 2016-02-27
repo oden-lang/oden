@@ -1,0 +1,19 @@
+package typealias/main
+
+import fmt
+
+// Oden does not support polymorphic type definitions yet.
+type IntPair = (int -> int -> int) -> int
+
+pair :: int -> int -> IntPair
+pair x y f -> f(x, y)
+
+first :: IntPair -> int
+first p -> p(fn x y -> x)
+
+p :: IntPair
+p = pair(1, 2)
+
+main -> fmt.Println(first(p))
+
+
