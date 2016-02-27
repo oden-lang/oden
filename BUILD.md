@@ -16,7 +16,7 @@ the library can be built with Cabal, using `cabal build oden`, not `cabal
 build`.
 
 To get the `oden` executable run `make cli` and it will
-be available in `dist/build/cli/cli`.
+be available in `dist/build-oden-cli/bin/oden`.
 
 ## Distribution
 
