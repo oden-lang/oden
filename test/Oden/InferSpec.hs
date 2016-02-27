@@ -409,6 +409,17 @@ spec = do
                               [tSlice [] typeInt]
        typeInt)
 
+    it "infers struct initializer" $
+      let structType = (TStruct Missing [TStructField Missing "msg" (TBasic Missing TString)]) in
+        inferExpr predef (Untyped.StructInitializer
+                          Missing
+                          (TSStruct Missing [TSStructField Missing "msg" (TSSymbol Missing (Unqualified "string"))])
+                          [Untyped.Literal Missing (Untyped.String "hello")])
+        `shouldSucceedWith`
+        (forall [] structType,
+         Core.StructInitializer Missing structType [Core.Literal Missing (Core.String "hello") typeString])
+
+
   describe "inferDefinition" $ do
 
     it "infers (def n (+ 1 1))" $

@@ -160,6 +160,8 @@ instantiateExpr (Core.Slice si es t) =
 instantiateExpr (Core.Block si es t) =
   Core.Block si <$> mapM instantiateExpr es
                 <*> replace t
+instantiateExpr (Core.StructInitializer si t vs) =
+  Core.StructInitializer si <$> replace t <*> mapM instantiateExpr vs
 
 instantiate :: Core.Expr Poly.Type
             -> Mono.Type

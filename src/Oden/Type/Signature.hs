@@ -3,6 +3,9 @@ module Oden.Type.Signature where
 import Oden.Identifier
 import Oden.SourceInfo
 
+data TSStructField = TSStructField SourceInfo String SignatureExpr
+                   deriving (Show, Eq, Ord)
+
 data SignatureExpr = TSUnit SourceInfo
                    | TSVar SourceInfo String
                    | TSSymbol SourceInfo Identifier
@@ -11,6 +14,7 @@ data SignatureExpr = TSUnit SourceInfo
                    | TSNoArgFn SourceInfo SignatureExpr
                    | TSTuple SourceInfo SignatureExpr SignatureExpr [SignatureExpr]
                    | TSSlice SourceInfo SignatureExpr
+                   | TSStruct SourceInfo [TSStructField]
                    deriving (Show, Eq, Ord)
 
 data SignatureVarBinding = SignatureVarBinding SourceInfo String

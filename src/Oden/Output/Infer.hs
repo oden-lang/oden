@@ -21,6 +21,8 @@ instance OdenOutput TypeError where
   name (ArgumentCountMismatch _ _ _)                        = "Infer.ArgumentCountMismatch"
   name (TypeSignatureSubsumptionError _ SubsumptionError{}) = "Infer.TypeSignatureSubsumptionError"
   name (ValueUsedAsType _ _)                                = "Infer.ValueUsedAsType"
+  name (InvalidTypeInStructInitializer _ _)                 = "Infer.InvalidTypeInStructInitializer"
+  name (StructInitializerFieldCountMismatch _ _ _)          = "Infer.StructInitializerFieldCountMismatch"
 
   header (UnificationFail _ t1 t2) s = text "Cannot unify types"
     <+> code s (pp t1) <+> text "and" <+> code s (pp t2)
@@ -40,6 +42,10 @@ instance OdenOutput TypeError where
   header (ValueUsedAsType _ n) s =
     text "The value" <+> strCode s n
     <+> text "cannot be used as a type"
+  header (InvalidTypeInStructInitializer _ t) s =
+    text "Type" <+> code s (pp t) <+> text "cannot be initialized as a struct"
+  header (StructInitializerFieldCountMismatch _ _ _) _ =
+    text "Struct is initialized with too many values"
 
   details (UnificationFail _ _ _) _ = empty
   details (InfiniteType _ v t) s = code s (pp v) <+> equals <+> code s (pp t)
@@ -57,6 +63,10 @@ instance OdenOutput TypeError where
   details (TypeSignatureSubsumptionError _ (SubsumptionError _ t1 t2)) s =
     text "Type" <+> code s (pp t1) <+> text "does not subsume" <+> code s (pp t2)
   details ValueUsedAsType{} _ = empty
+  details InvalidTypeInStructInitializer{} _ = empty
+  details (StructInitializerFieldCountMismatch _ structType types) s =
+    text "Struct:" <+> (code s (pp structType))
+    $+$ text "Initialized with:" <+> vcat (map (code s . pp) types)
 
   sourceInfo (ArgumentCountMismatch e _ _)                               = Just (getSourceInfo e)
   sourceInfo (UnificationFail si _ _)                                    = Just si
@@ -68,3 +78,5 @@ instance OdenOutput TypeError where
   sourceInfo (InvalidPackageReference si _)                              = Just si
   sourceInfo (TypeSignatureSubsumptionError _ (SubsumptionError si _ _)) = Just si
   sourceInfo (ValueUsedAsType si _)                                      = Just si
+  sourceInfo (InvalidTypeInStructInitializer si _)                       = Just si
+  sourceInfo (StructInitializerFieldCountMismatch si _ _)                = Just si

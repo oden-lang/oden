@@ -59,6 +59,8 @@ explodeExpr (Fn si [arg] b) =
   Untyped.Fn si (explodeNameBinding arg) (explodeExpr b)
 explodeExpr (Fn si (arg:args) b) =
   Untyped.Fn si (explodeNameBinding arg) (explodeExpr (Fn si args b))
+explodeExpr (StructInitializer si ts exprs) =
+  Untyped.StructInitializer si ts (map explodeExpr exprs)
 
 -- invalid, but can be handled anyway
 explodeExpr (Subscript _ a []) = explodeExpr a

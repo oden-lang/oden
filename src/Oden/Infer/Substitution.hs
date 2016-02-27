@@ -66,8 +66,8 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.Symbol si x t)                   = Core.Symbol si x (apply s t)
   apply s (Core.Subscript si es i t)             = Core.Subscript si (apply s es) (apply s i) (apply s t)
   apply s (Core.Subslice si es (Range e1 e2) t)  = Core.Subslice si (apply s es) (Range (apply s e1) (apply s e2)) (apply s t)
-  apply s (Core.Subslice si es (RangeTo e) t)  = Core.Subslice si (apply s es) (RangeTo (apply s e)) (apply s t)
-  apply s (Core.Subslice si es (RangeFrom e) t)    = Core.Subslice si (apply s es) (RangeFrom (apply s e)) (apply s t)
+  apply s (Core.Subslice si es (RangeTo e) t)    = Core.Subslice si (apply s es) (RangeTo (apply s e)) (apply s t)
+  apply s (Core.Subslice si es (RangeFrom e) t)  = Core.Subslice si (apply s es) (RangeFrom (apply s e)) (apply s t)
   apply s (Core.UnaryOp si o e t)                = Core.UnaryOp si o (apply s e) (apply s t)
   apply s (Core.BinaryOp si o e1 e2 t)           = Core.BinaryOp si o (apply s e1) (apply s e2) (apply s t)
   apply s (Core.Application si f p t)            = Core.Application si (apply s f) (apply s p) (apply s t)
@@ -81,6 +81,7 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.If si c tb fb t)                 = Core.If si (apply s c) (apply s tb) (apply s fb) (apply s t)
   apply s (Core.Slice si es t)                   = Core.Slice si (apply s es) (apply s t)
   apply s (Core.Block si es t)                   = Core.Block si (apply s es) (apply s t)
+  apply s (Core.StructInitializer si t vs)       = Core.StructInitializer si (apply s t) (apply s vs)
 
 instance Substitutable a => Substitutable [a] where
   apply = map . apply

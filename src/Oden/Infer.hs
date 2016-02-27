@@ -103,6 +103,8 @@ data TypeError
   | TypeSignatureSubsumptionError Name SubsumptionError
   | InvalidPackageReference SourceInfo Name
   | ValueUsedAsType SourceInfo Name
+  | InvalidTypeInStructInitializer SourceInfo Type
+  | StructInitializerFieldCountMismatch SourceInfo Type [Type]
   deriving (Show, Eq)
 
 -------------------------------------------------------------------------------
@@ -378,6 +380,25 @@ infer expr = case expr of
       _ -> uni si tv (Core.typeOf (last tes))
     return (Core.Block si tes tv)
 
+  Untyped.StructInitializer si ts values -> do
+    t <- resolveType ts
+    typedValues <- mapM infer values
+    case underlying t of
+      TStruct _ fields -> do
+        let typedExpr = Core.StructInitializer si t typedValues
+
+        -- Make sure the struct has at least as many values as being used in
+        -- the initialization.
+        when (length values > length fields) $
+          throwError $
+            StructInitializerFieldCountMismatch si t (map Core.typeOf typedValues)
+
+        zipWithM_ unifyField fields typedValues
+        return typedExpr
+        where
+        unifyField (TStructField fsi _ ft) te = uni fsi ft (Core.typeOf te)
+      _ -> throwError $ InvalidTypeInStructInitializer si t
+
 resolveType :: SignatureExpr -> Infer Type
 resolveType (TSUnit si) = return (TUnit si)
 resolveType (TSVar si s) = return (TVar si (TV s))
@@ -389,6 +410,10 @@ resolveType (TSTuple si fe se re) = TTuple si <$> resolveType fe
                                               <*> resolveType se
                                               <*> mapM resolveType re
 resolveType (TSSlice si e) = TSlice si <$> resolveType e
+resolveType (TSStruct si fields) = TStruct si <$> mapM resolveStructFieldType fields
+  where
+  resolveStructFieldType (TSStructField fsi name expr) =
+    TStructField fsi name <$> resolveType expr
 
 resolveTypeSignature :: TypeSignature -> Infer Scheme
 resolveTypeSignature (Explicit si bindings expr) = do

@@ -133,12 +133,12 @@ codegenType (Mono.TSlice _ t) = do
 codegenType (Mono.TUncurriedFn _ as r) = do
   as' <- mapM codegenType as
   rc <- codegenType r
-  return $ func empty (hcat (punctuate (text ", ") as')) rc empty
+  return $ func empty (hcat (punctuate (comma <+> space) as')) rc empty
 codegenType (Mono.TVariadicFn _ as v r) = do
   as' <- mapM codegenType as
   vc <- codegenType v
   rc <- codegenType r
-  return $ func empty (hcat (punctuate (text ", ") (as' ++ [vc <> text "..."]))) rc empty
+  return $ func empty (hcat (punctuate (comma <+> space) (as' ++ [vc <> text "..."]))) rc empty
 codegenType (Mono.TStruct _ fs) = (text "struct" <>) . block . vcat <$> (mapM codegenField fs)
   where codegenField (Mono.TStructField _ name t) = do
           tc <- codegenType t
@@ -175,7 +175,7 @@ codegenUnaryOperator o = text (show o)
 
 codegenRange :: Range Mono.Type -> Codegen Doc
 codegenRange (Range e1 e2) =
-  brackets <$> hcat <$> punctuate (text ":") <$> mapM codegenExpr [e1, e2]
+  brackets . hcat . punctuate (text ":") <$> mapM codegenExpr [e1, e2]
 codegenRange (RangeTo e) = do
   ec <- codegenExpr e
   return $ brackets $ text ":" <+> ec
@@ -193,7 +193,7 @@ codegenExpr (Subscript _ s i _) = do
 codegenExpr (Subslice _ s r _) =
   (<>) <$> codegenExpr s <*> codegenRange r
 codegenExpr (UnaryOp _ o e _) =
-  parens <$> (codegenUnaryOperator o <+>) <$> codegenExpr e
+  parens . (codegenUnaryOperator o <+>) <$> codegenExpr e
 codegenExpr (BinaryOp _ o e1 e2 _) = do
   ec1 <- codegenExpr e1
   ec2 <- codegenExpr e2
@@ -210,11 +210,11 @@ codegenExpr (UncurriedFnApplication _ f ps _) =
       in do fc <-codegenExpr f
             pc <- mapM codegenExpr nonVariadicParams
             sc <- codegenExpr slice
-            return $ fc <> parens (hcat (punctuate (text ", ") (pc ++ [sc <> text "..."])))
+            return $ fc <> parens (hcat (punctuate (comma <+> space) (pc ++ [sc <> text "..."])))
     _ -> do
       fc <- codegenExpr f
       pc <- mapM codegenExpr ps
-      return $ fc <> parens (hcat (punctuate (text ", ") pc))
+      return $ fc <> parens (hcat (punctuate (comma <+> space) pc))
 codegenExpr (NoArgApplication _ f _) =
   (<> parens empty) <$> codegenExpr f
 codegenExpr (Fn _ (NameBinding _ a) body (Mono.TFn _ d r)) =
@@ -236,7 +236,7 @@ codegenExpr (Literal _ (Bool False) _) = return $ text "false"
 codegenExpr (Literal _ (String s) _) = return $ text (showGoString s)
 codegenExpr (Literal _ Unit{} _) = return $ text "struct{}{}"
 codegenExpr (Tuple _ f s r t) =
-  (<>) <$> codegenType t <*> (braces <$> hcat <$> punctuate (text ", ") <$> (mapM codegenExpr (f:s:r)))
+  (<>) <$> codegenType t <*> (braces . hcat . punctuate (comma <+> space) <$> (mapM codegenExpr (f:s:r)))
 codegenExpr (If _ condExpr thenExpr elseExpr t) = do
   tc <- codegenType t
   condc <- codegenExpr condExpr
@@ -245,7 +245,7 @@ codegenExpr (If _ condExpr thenExpr elseExpr t) = do
   return $ parens (func empty empty tc (braces (text "if" <+> condc <+> thenc <+> text "else" <+> elsec)))
            <> parens empty
 codegenExpr (Slice _ exprs t) =
-  (<>) <$> codegenType t <*> (braces <$> hcat <$> punctuate (comma <+> space) <$> (mapM codegenExpr exprs))
+  (<>) <$> codegenType t <*> (braces . hcat . punctuate (comma <+> space) <$> (mapM codegenExpr exprs))
 codegenExpr (Block _ [] t) = do
   tc <- codegenType t
   return $ parens
@@ -258,6 +258,10 @@ codegenExpr (Block _ exprs t) = do
   return $ parens
            (func empty empty tc (braces (vcat (ic ++ [rc]))))
            <> parens empty
+codegenExpr (StructInitializer _ structType values) = do
+  tc <- codegenType structType
+  vc <- mapM codegenExpr values
+  return $ tc <> braces (hcat (punctuate (comma <+> space) vc))
 
 codegenTopLevel :: Name -> Mono.Type -> Expr Mono.Type -> Codegen Doc
 codegenTopLevel "main" (Mono.TNoArgFn _ Mono.TUnit{}) (NoArgFn _ body _) =

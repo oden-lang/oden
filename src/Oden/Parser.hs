@@ -120,6 +120,13 @@ application = do
   args <- parensList expr
   return (Application si f args)
 
+structInitializer :: Parser Expr
+structInitializer = do
+  si <- currentSourceInfo
+  t <- type'
+  args <- bracesList expr
+  return (StructInitializer si t args)
+
 emptyBrackets :: Parser ()
 emptyBrackets = do
   _ <- char '['
@@ -169,12 +176,24 @@ termNoSlice =
   <|> bool
   <|> try number
   <|> try application
+  <|> try structInitializer
   <|> symbol
   <|> block
   <|> unitExprOrTuple
 
 tvar :: Parser String
 tvar = char '#' *> name
+
+structType :: Parser SignatureExpr
+structType = TSStruct <$> currentSourceInfo
+                    <*> braces (structFieldType `sepBy1` comma)
+
+structFieldType :: Parser TSStructField
+structFieldType = do
+  si <- currentSourceInfo
+  n <- name
+  reserved "::"
+  TSStructField si n <$> type'
 
 type' :: Parser SignatureExpr
 type' = do
@@ -188,6 +207,7 @@ type' = do
         <|> var
         <|> identifier TSSymbol
         <|> unitExprOrTupleType
+        <|> structType
   var = TSVar <$> currentSourceInfo <*> tvar
   noArgFn = TSNoArgFn <$> currentSourceInfo <*> (rArrow *> type')
   unitExprOrTupleType = do
@@ -292,7 +312,7 @@ topLevel = import' <|> struct <|> try typeSignature <|> def
     si <- currentSourceInfo
     reserved "struct"
     StructDefinition si <$> name
-                        <*> braces (many structField)
+                        <*> braces (structField `sepBy1` topSeparator)
   structField = do
     si <- currentSourceInfo
     n <- name

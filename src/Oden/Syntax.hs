@@ -23,6 +23,7 @@ data Expr = Symbol SourceInfo Identifier
           | Slice SourceInfo [Expr]
           | Tuple SourceInfo Expr Expr [Expr]
           | Block SourceInfo [Expr]
+          | StructInitializer SourceInfo SignatureExpr [Expr]
           deriving (Show, Eq, Ord)
 
 data Subscript = Singular Expr

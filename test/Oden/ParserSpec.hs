@@ -245,6 +245,20 @@ spec = do
     it "fails on subslices with open start and end" $
       shouldFail $ parseExpr "a[:]"
 
+    it "parses struct initializer with named type" $
+      parseExpr "A{1}"
+      `shouldSucceedWith`
+      StructInitializer (src 1 1)
+        (TSSymbol (src 1 1) (Unqualified "A"))
+        [Literal (src 1 3) (Int 1)]
+
+    it "parses struct initializer with unnamed struct type" $
+      parseExpr "{size :: int}{1}"
+      `shouldSucceedWith`
+      StructInitializer (src 1 1)
+        (TSStruct (src 1 1) [TSStructField (src 1 2) "size" (TSSymbol (src 1 10) (Unqualified "int"))])
+        [Literal (src 1 15) (Int 1)]
+
   describe "parseTopLevel" $ do
     it "parses type signature" $
       parseTopLevel "x :: int"

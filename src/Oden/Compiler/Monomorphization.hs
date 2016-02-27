@@ -143,12 +143,15 @@ getMonomorphic i@(Unqualified n) t = do
     Nothing ->
       local (const Map.empty) (getMonomorphicDefinition i t)
 
+toMonomorphic :: SourceInfo -> Poly.Type -> Monomorph Mono.Type
+toMonomorphic si pt =
+  either
+  (const $ throwError (UnexpectedPolyType si pt))
+  return
+  (Poly.toMonomorphic pt)
+
 getMonoType :: Core.Expr Poly.Type -> Monomorph Mono.Type
-getMonoType e =
-  let pt = Core.typeOf e
-  in either (const $ throwError (UnexpectedPolyType (getSourceInfo e) pt))
-            return
-            (Poly.toMonomorphic pt)
+getMonoType e = toMonomorphic (getSourceInfo e) (Core.typeOf e)
 
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
 monomorph e@(Core.Symbol si ident _) = do
@@ -239,6 +242,10 @@ monomorph (Core.Let si b@(Core.NameBinding bsi _) expr body _) = do
   where
   isReferenceTo :: Core.NameBinding -> LetReference -> Bool
   isReferenceTo (Core.NameBinding _ n) (LetReference ln _ _) = n == ln
+monomorph (Core.StructInitializer si structType values) = do
+  structMonoType <- toMonomorphic si structType
+  monoValues <- mapM monomorph values
+  return (Core.StructInitializer si structMonoType monoValues)
 
 monomorphReference :: Core.Expr Poly.Type
                    -> SourceInfo

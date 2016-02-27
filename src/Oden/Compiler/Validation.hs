@@ -81,6 +81,7 @@ validateExpr (Block _ exprs _) = do
   warnOnDiscarded expr = case typeOf expr of
     TUnit{} -> return ()
     _ -> throwError (ValueDiscarded expr)
+validateExpr StructInitializer{} = return ()
 
 validateRange :: Range Type -> Validate()
 validateRange (Range e1 e2) = do

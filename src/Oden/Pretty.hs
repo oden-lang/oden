@@ -46,7 +46,7 @@ instance Pretty Identifier where
   pp (Qualified p n) = text p <> text "." <> text n
   pp (Unqualified n) = text n
 
-instance Pretty (Expr t) where
+instance Pretty t => Pretty (Expr t) where
   pp (Symbol _ i _) = pp i
   pp (Subscript _ s i _) = pp s <> text "[" <> pp i <> text "]"
   pp (Subslice _ s r _) = pp s <> pp r
@@ -71,8 +71,10 @@ instance Pretty (Expr t) where
     text "[]" <> braces (hcat (punctuate (text ", ") (map pp es)))
   pp (Block _ es _) =
     braces (vcat (map pp es))
+  pp (StructInitializer _ structType values) =
+    pp structType <> braces (hcat (punctuate (text ", ") (map pp values)))
 
-instance Pretty (Range r) where
+instance Pretty r => Pretty (Range r) where
   pp (Range e1 e2) = brackets $ pp e1 <+> (text ":") <+> pp e2
   pp (RangeTo e) = brackets $ (text ":") <+> pp e
   pp (RangeFrom e) = brackets $ pp e <+> (text ":")
@@ -85,6 +87,9 @@ instance Pretty Poly.TVarBinding where
 
 instance Pretty QualifiedName where
   pp (FQN pkg name) = hcat (punctuate (text ".") (map text (pkg ++ [name])))
+
+instance Pretty Poly.StructField where
+  pp (Poly.TStructField _ name t) = text name <+> text "::" <+> pp t
 
 instance Pretty Poly.Type where
   pp (Poly.TAny _) = text "any"
@@ -102,8 +107,7 @@ instance Pretty Poly.Type where
   pp (Poly.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Poly.TSlice _ t) =
     text "[]" <> braces (pp t)
-  pp (Poly.TStruct _ fs) = braces (hcat (punctuate (text "; ") (map ppField fs)))
-    where ppField (Poly.TStructField _ name t) = text name <+> pp t
+  pp (Poly.TStruct _ fs) = braces (hcat (punctuate (text "; ") (map pp fs)))
   pp (Poly.TNamed _ n _) = pp n
 
 instance Pretty Poly.Scheme where
@@ -131,6 +135,10 @@ instance Pretty Mono.Type where
 instance Pretty SignatureVarBinding where
   pp (SignatureVarBinding _ s) = text ("#" ++ s)
 
+
+instance Pretty TSStructField where
+  pp (TSStructField _ name t) = text name <+> text "::" <+> pp t
+
 instance Pretty SignatureExpr where
   pp (TSUnit _) = text "()"
   pp (TSVar _ v) = text ("#" ++ v)
@@ -142,6 +150,7 @@ instance Pretty SignatureExpr where
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
   pp (TSSlice _ t) =
     text "!" <> braces (pp t)
+  pp (TSStruct _ fields) = braces (hcat (punctuate (text "; ") (map pp fields)))
 
 instance Pretty TypeSignature where
   pp (Explicit _ vars expr) =

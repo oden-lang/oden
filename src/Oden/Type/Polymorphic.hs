@@ -11,7 +11,8 @@ module Oden.Type.Polymorphic (
   FTV,
   ftv,
   getBindingVar,
-  equalsT
+  equalsT,
+  underlying
 ) where
 
 import           Oden.Type.Basic
@@ -179,6 +180,10 @@ equalsT (TStruct _ fs1) (TStruct _ fs2) =
 equalsT (TNamed _ n1 t1) (TNamed _ n2 t2) =
   n1 == n2 && t1 `equalsT` t2
 equalsT _ _ = False
+
+underlying :: Type -> Type
+underlying (TNamed _ _ t) = t
+underlying t = t
 
 class FTV a where
   ftv :: a -> Set.Set TVar
