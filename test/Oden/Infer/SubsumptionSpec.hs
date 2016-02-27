@@ -1,13 +1,12 @@
 module Oden.Infer.SubsumptionSpec where
 
-import           Data.Map
 import           Test.Hspec
 
 import           Oden.Infer.Subsumption
-import           Oden.Infer.Substitution
 import           Oden.SourceInfo
 import           Oden.Core
 import           Oden.Identifier
+import           Oden.QualifiedName
 import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
 
@@ -34,6 +33,9 @@ typeString = TBasic Predefined TString
 
 typeFn :: Type -> Type -> Type
 typeFn = TFn Missing
+
+named :: String -> Type -> Type
+named = TNamed Missing . FQN []
 
 typeSlice :: Type -> Type
 typeSlice = TSlice Missing
@@ -93,7 +95,7 @@ spec = do
     it "TFn of TVars subsume same TFn" $
       let expr tv = Fn Predefined
                     (NameBinding Missing "x")
-                    (Symbol Missing (Unqualified "x") tv) (typeFn tv tv) in do
+                    (Symbol Missing (Unqualified "x") tv) (typeFn tv tv) in
         scheme (typeFn tvarA tvarA) `subsume` expr tvarB
         `shouldSucceedWith`
         (scheme (typeFn tvarA tvarA), expr tvarA)
@@ -105,18 +107,26 @@ spec = do
       in shouldFail (scheme (typeFn typeString typeInt) `subsume` expr)
 
     it "TVar does not subsume TFn" $
-      let expr = Symbol Missing (Unqualified "x") (typeFn tvarB tvarB) in do
+      let expr = Symbol Missing (Unqualified "x") (typeFn tvarB tvarB) in
         shouldFail (scheme tvarA `subsume` expr)
 
     it "tuple of tvars subsumes tuple of same tvars" $
       let tupleType = (TTuple Predefined tvarA tvarA [])
-          expr = Symbol Missing (Unqualified "x") tupleType in do
+          expr = Symbol Missing (Unqualified "x") tupleType in
         scheme tupleType `subsume` expr
         `shouldSucceedWith`
         (scheme tupleType, expr)
 
     it "tvar slice subsumes same tvar slice" $
-      let expr tv = Slice Predefined [Symbol Missing (Unqualified "x") tv] (typeSlice tv) in do
+      let expr tv = Slice Predefined [Symbol Missing (Unqualified "x") tv] (typeSlice tv) in
         scheme (typeSlice tvarA) `subsume` expr tvarA
         `shouldSucceedWith`
         (scheme (typeSlice tvarA), expr tvarA)
+
+    it "TNamed TFn of TVars subsume unnamed but equal TFn" $
+      let expr tv = Fn Predefined
+                    (NameBinding Missing "x")
+                    (Symbol Missing (Unqualified "x") tv) (typeFn tv tv) in
+        scheme (named "MyFn" $ typeFn tvarA tvarA) `subsume` expr tvarB
+        `shouldSucceedWith`
+        (scheme (named "MyFn" $ typeFn tvarA tvarA), expr tvarA)

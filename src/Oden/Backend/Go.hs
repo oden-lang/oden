@@ -143,7 +143,7 @@ codegenType (Mono.TStruct _ fs) = (text "struct" <>) . block . vcat <$> (mapM co
   where codegenField (Mono.TStructField _ name t) = do
           tc <- codegenType t
           return $ safeName name <+> tc
-codegenType (Mono.TNamed _ n _) = codegenQualifiedName n
+codegenType (Mono.TNamed _ _ t) = codegenType t
 
 showGoString :: Show a => a -> String
 showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)
@@ -281,16 +281,12 @@ codegenInstance :: InstantiatedDefinition -> Codegen Doc
 codegenInstance (InstantiatedDefinition name expr) =
   codegenTopLevel name (typeOf expr) expr
 
-codegenStructField :: StructField Mono.Type -> Codegen Doc
-codegenStructField (StructField _ n t) =
-  (text n <+>) <$> codegenType t
-
 codegenMonomorphed :: MonomorphedDefinition -> Codegen Doc
 codegenMonomorphed (MonomorphedDefinition _ name mt expr) =
   codegenTopLevel name mt expr
-codegenMonomorphed (MonomorphedStructDefinition _ name fields) = do
-  fc <- mapM codegenStructField fields
-  return $ text "type" <+> safeName name <+> text "struct" <+> block (vcat fc)
+codegenMonomorphed (MonomorphedTypeDefinition _ name monoType) = do
+  tc <- codegenType monoType
+  return $ text "type" <+> safeName name <+> tc
 
 codegenImport :: Import -> Doc
 codegenImport (Import _ name) =

@@ -74,10 +74,6 @@ explodeExpr (Slice si es) =
 explodeExpr (Block si es) =
   Untyped.Block si (map explodeExpr es)
 
-explodeStructField :: StructFieldExpr -> Untyped.StructField
-explodeStructField (StructFieldExpr si name t) =
-  Untyped.StructField si name t
-
 explodeTopLevel :: PackageName -> [TopLevel] -> Either [ExplodeError] ([Untyped.Import], [Untyped.Definition])
 explodeTopLevel pkg top =
   let (is, scs, defs) = foldl iter ([], Map.empty, []) top
@@ -94,9 +90,9 @@ explodeTopLevel pkg top =
           (is, Map.insert name (tsi, sc) ts, defs)
         iter (is, ts, defs) (ImportDeclaration si name) =
           (is ++ [Untyped.Import si name], ts, defs)
-        iter (is, ts, defs) (StructDefinition si name fields) =
+        iter (is, ts, defs) (TypeDefinition si name typeSig) =
           -- TODO: Add support for type parameters
-          let def = Untyped.StructDefinition si (FQN pkg name) [] (map explodeStructField fields)
+          let def = Untyped.TypeDefinition si (FQN pkg name) [] typeSig
           in (is, Map.delete name ts, defs ++ [def])
         toSignatureError :: (Name, (SourceInfo, TypeSignature)) -> ExplodeError
         toSignatureError (n, (si, sc)) = TypeSignatureWithoutDefinition si n sc

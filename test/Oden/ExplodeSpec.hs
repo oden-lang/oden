@@ -110,13 +110,13 @@ spec = do
          (U.Symbol (src 1 4) (Unqualified "x"))))]
 
     it "converts struct definition and uses empty list for type parameters" $
-      (snd <$> explodeTopLevel [StructDefinition
+      (snd <$> explodeTopLevel [TypeDefinition
                                 (src 1 1)
                                 "S"
-                                [StructFieldExpr (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))]])
+                                (TSStruct (src 1 2) [TSStructField (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))])])
       `shouldSucceedWith`
-      [U.StructDefinition
+      [U.TypeDefinition
        (src 1 1)
        (FQN ["pkg"] "S")
        []
-       [U.StructField (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))]]
+       (TSStruct (src 1 2) [TSStructField (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))])]

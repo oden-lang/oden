@@ -16,14 +16,13 @@ reservedNames :: [String]
 reservedNames = [
     "package",
     "import",
-    "def",
+    "type",
     "let",
     "in",
-    "fix",
     "if",
     "then",
     "else",
-    "any",
+    "=",
     "->"
   ]
 

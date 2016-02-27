@@ -182,7 +182,7 @@ equalsT (TNamed _ n1 t1) (TNamed _ n2 t2) =
 equalsT _ _ = False
 
 underlying :: Type -> Type
-underlying (TNamed _ _ t) = t
+underlying (TNamed _ _ t) = underlying t
 underlying t = t
 
 class FTV a where

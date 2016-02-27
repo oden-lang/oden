@@ -74,7 +74,7 @@ data StructField = StructField SourceInfo Name SignatureExpr
                  deriving (Show, Eq, Ord)
 
 data Definition = Definition SourceInfo Name (Maybe TypeSignature) Expr
-                | StructDefinition SourceInfo QualifiedName [NameBinding] [StructField]
+                | TypeDefinition SourceInfo QualifiedName [NameBinding] SignatureExpr
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]

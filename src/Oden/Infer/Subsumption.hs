@@ -20,6 +20,8 @@ data SubsumptionError = SubsumptionError SourceInfo Type Type
 type Subsume a = StateT (Map.Map TVar Type) (Except SubsumptionError) a
 
 collectSubstitutions :: Type -> Type -> Subsume ()
+collectSubstitutions t1 (TNamed _ _ t2) = collectSubstitutions t1 t2
+collectSubstitutions (TNamed _ _ t1) t2 = collectSubstitutions t1 t2
 collectSubstitutions TUnit{} TUnit{} = return ()
 collectSubstitutions (TBasic _ b1) (TBasic _ b2)
   | b1 == b2 = return ()
@@ -48,10 +50,7 @@ collectSubstitutions (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
 collectSubstitutions TAny{} _ = return ()
 collectSubstitutions (TStruct _ fs1) (TStruct _ fs2) =
   zipWithM_ collectSubstitutions (map getStructFieldType fs1) (map getStructFieldType fs2)
-collectSubstitutions (TNamed _ n1 t1) (TNamed _ n2 t2)
-  | n1 == n2 = collectSubstitutions t1 t2
-collectSubstitutions t1 (TNamed _ _ t2) = collectSubstitutions t1 t2
-collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t1) t1 t2)
+collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 t2)
 
 subsume :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr
 subsume s@(Forall _ _ st) expr = do

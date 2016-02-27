@@ -70,21 +70,15 @@ instance FTV Constraint where
 instance Substitutable Constraint where
   apply s (si, t1, t2) = (si, apply s t1, apply s t2)
 
-instance FTV (Core.StructField Type) where
-  ftv (Core.StructField _ _ t) = ftv t
-
-instance Substitutable (Core.StructField Type) where
-  apply s (Core.StructField si n t) = Core.StructField si n (apply s t)
-
 instance FTV TypeBinding where
   ftv (Package _ _ e)        = ftv e
   ftv (Local _ _ d)          = ftv d
-  ftv (Struct _ _ _ fs) = ftv fs
+  ftv (Type _ _ _ fs) = ftv fs
 
 instance Substitutable TypeBinding where
   apply _ (Package si n e) = Package si n e
   apply s (Local si n d) = Local si n (apply s d)
-  apply s (Struct si n bs fs) = Struct si n bs (apply s fs)
+  apply s (Type si n bs t) = Type si n bs (apply s t)
 
 instance FTV TypingEnvironment where
   ftv (Environment env) = ftv $ Map.elems env
@@ -103,6 +97,7 @@ data TypeError
   | TypeSignatureSubsumptionError Name SubsumptionError
   | InvalidPackageReference SourceInfo Name
   | ValueUsedAsType SourceInfo Name
+  | TypeIsNotAnExpression SourceInfo Name
   | InvalidTypeInStructInitializer SourceInfo Type
   | StructInitializerFieldCountMismatch SourceInfo Type [Type]
   deriving (Show, Eq)
@@ -149,11 +144,10 @@ lookupTypeIn _ si "bool" = return (TBasic si TBool)
 lookupTypeIn _ si "string" = return (TBasic si TString)
 lookupTypeIn env si name =
   case Environment.lookup name env of
-      Nothing                          -> throwError $ NotInScope si (Unqualified name)
-      Just Package{}                   -> throwError $ InvalidPackageReference si name
-      Just (Local _ _ _)               -> throwError $ ValueUsedAsType si name
-      Just (Struct si' n _ fields) ->
-        return $ TNamed si' n (TStruct si' (map Core.fieldDefinitionToType fields))
+    Nothing                   -> throwError $ NotInScope si (Unqualified name)
+    Just Package{}            -> throwError $ InvalidPackageReference si name
+    Just (Local _ _ _)        -> throwError $ ValueUsedAsType si name
+    Just (Type _ n _ t)       -> return $ TNamed si n t
 
 -- | Lookup type in the environment
 lookupType :: SourceInfo -> Identifier -> Infer Type
@@ -172,12 +166,13 @@ lookupType si (Unqualified name) = do
   lookupTypeIn env si name
 
 lookupValueIn :: TypingEnvironment -> SourceInfo -> Name -> Infer Type
-lookupValueIn env si name =
-  case Environment.lookup name env of
-      Nothing                              -> throwError $ NotInScope si (Unqualified name)
-      Just Package{}                       -> throwError $ InvalidPackageReference si name
-      Just (Local _ _ sc)                  -> instantiate sc
-      Just (Struct _ n _ fields)           -> return (TNamed si n (TStruct si (map Core.fieldDefinitionToType fields)))
+lookupValueIn env si name = do
+  type' <- case Environment.lookup name env of
+            Nothing             -> throwError $ NotInScope si (Unqualified name)
+            Just Package{}      -> throwError $ InvalidPackageReference si name
+            Just (Local _ _ sc) -> instantiate sc
+            Just Type{}         -> throwError (TypeIsNotAnExpression si name)
+  return $ setSourceInfo si type'
 
 -- | Lookup type of a value in the environment
 lookupValue :: SourceInfo -> Identifier -> Infer Type
@@ -434,14 +429,11 @@ inferDef (Untyped.Definition si name s expr) = do
     Just ts -> resolveTypeSignature ts
   te <- inEnv (name, Local si name recType) (infer expr)
   return (Core.Definition si name (generalize env te))
-inferDef (Untyped.StructDefinition si name params fields) = do
-  fields' <- mapM resolveField fields
-  return (Core.StructDefinition si name (map convertParams params) fields')
+inferDef (Untyped.TypeDefinition si name params typeExpr) = do
+  type' <- resolveType typeExpr
+  return (Core.TypeDefinition si name (map convertParams params) type')
   where
   convertParams (Untyped.NameBinding bsi bn) = Core.NameBinding bsi bn
-  resolveField (Untyped.StructField fsi fn tsExpr) = do
-    t <- resolveType tsExpr
-    return (Core.StructField fsi fn t)
 
 getTypeSignature :: Untyped.Definition -> Maybe TypeSignature
 getTypeSignature (Untyped.Definition _ _ ts _) = ts
@@ -466,8 +458,8 @@ inferDefinition env def = do
       let env' = env `extend` (name, Local si name (fst canonical'))
       return (env', Core.Definition si name canonical')
 
-    (Core.StructDefinition si name@(FQN _ localName) params fields, _) ->
-      return (env `extend` (localName, Struct si name params fields), def')
+    (Core.TypeDefinition si name@(FQN _ localName) params type', _) ->
+      return (env `extend` (localName, Type si name params type'), def')
 
     (Core.ForeignDefinition _ name _, _) ->
       error ("unexpected foreign definition: " ++ name)
@@ -570,6 +562,7 @@ unifies si (TSlice _ t1) (TSlice _ t2) = unifies si t1 t2
 unifies si (TNamed _ n1 t1) (TNamed _ n2 t2)
   | n1 == n2 = unifies si t1 t2
 unifies si t1 (TNamed _ _ t2) = unifies si t1 t2
+unifies si (TNamed _ _ t1) t2 = unifies si t1 t2
 unifies si (TStruct _ fs1) (TStruct _ fs2) =
   unifyMany si (map getStructFieldType fs1) (map getStructFieldType fs2)
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2

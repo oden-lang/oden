@@ -375,7 +375,7 @@ spec = do
       inferExpr predef (uApplication (uSymbol (Unqualified "len")) [uSlice [uLiteral (uBool True)]])
       `shouldSucceedWith`
       (forall [] (TBasic Predefined TInt),
-       tUncurriedFnApplication (Core.Symbol Missing (Unqualified "len") (TUncurriedFn Predefined [TSlice Predefined (TBasic Missing TBool)] (TBasic Predefined TInt)))
+       tUncurriedFnApplication (Core.Symbol Missing (Unqualified "len") (TUncurriedFn Missing [TSlice Predefined (TBasic Missing TBool)] (TBasic Predefined TInt)))
                               [Core.Slice Missing [Core.Literal Missing (tBool True) typeBool] (typeSlice typeBool)]
        (TBasic Predefined TInt))
 

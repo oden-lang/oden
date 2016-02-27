@@ -98,15 +98,9 @@ data Range t = Range (Expr t) (Expr t)
 
 type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
 
-data StructField t = StructField SourceInfo Name t
-                   deriving (Show, Eq, Ord)
-
-fieldDefinitionToType :: StructField Poly.Type -> Poly.StructField
-fieldDefinitionToType (StructField fsi fn t) = Poly.TStructField fsi fn t
-
 data Definition = Definition SourceInfo Name CanonicalExpr
                 | ForeignDefinition SourceInfo Name Poly.Scheme
-                | StructDefinition SourceInfo QualifiedName [NameBinding] [StructField Poly.Type]
+                | TypeDefinition SourceInfo QualifiedName [NameBinding] Poly.Type
                 deriving (Show, Eq, Ord)
 
 type PackageName = [Name]

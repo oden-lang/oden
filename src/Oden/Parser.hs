@@ -2,6 +2,7 @@
 
 module Oden.Parser where
 
+import           Control.Monad (void)
 import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
@@ -184,16 +185,6 @@ termNoSlice =
 tvar :: Parser String
 tvar = char '#' *> name
 
-structType :: Parser SignatureExpr
-structType = TSStruct <$> currentSourceInfo
-                    <*> braces (structFieldType `sepBy1` comma)
-
-structFieldType :: Parser TSStructField
-structFieldType = do
-  si <- currentSourceInfo
-  n <- name
-  TSStructField si n <$> type'
-
 type' :: Parser SignatureExpr
 type' = do
   si <- currentSourceInfo
@@ -218,6 +209,18 @@ type' = do
       (f:s:r) -> return (TSTuple si f s r)
   slice' = TSSlice <$> currentSourceInfo
                    <*> (emptyBrackets *> braces type')
+  structType = TSStruct <$> currentSourceInfo
+                      <*> braces (structFieldType `sepBy1` structFieldSeparator)
+  structFieldType = do
+    si <- currentSourceInfo
+    n <- name
+    TSStructField si n <$> type'
+
+  structFieldSeparator = do
+    spaces
+    optional (comma <|> void newline)
+    whitespace
+
 
 expr :: Parser Expr
 expr = Ex.buildExpressionParser table term
@@ -273,7 +276,7 @@ pkgDecl = do
   return (PackageDeclaration si name')
 
 topLevel :: Parser TopLevel
-topLevel = import' <|> struct <|> try typeSignature <|> def
+topLevel = import' <|> typeDef <|> try typeSignature <|> def
   where
   tvarBinding = do
     si <- currentSourceInfo
@@ -307,15 +310,12 @@ topLevel = import' <|> struct <|> try typeSignature <|> def
     si <- currentSourceInfo
     reserved "import"
     ImportDeclaration si <$> importName
-  struct = do
+  typeDef = do
     si <- currentSourceInfo
-    reserved "struct"
-    StructDefinition si <$> name
-                        <*> braces (structField `sepBy1` topSeparator)
-  structField = do
-    si <- currentSourceInfo
+    reserved "type"
     n <- name
-    StructFieldExpr si n <$> type'
+    reserved "="
+    TypeDefinition si n <$> type'
 
 package :: Parser Package
 package = Package <$> pkgDecl <*> topLevel `sepBy` topSeparator

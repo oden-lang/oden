@@ -17,7 +17,7 @@ import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
 data MonomorphedDefinition = MonomorphedDefinition SourceInfo Name Mono.Type (Core.Expr Mono.Type)
-                           | MonomorphedStructDefinition SourceInfo Name [Core.StructField Mono.Type]
+                           | MonomorphedTypeDefinition SourceInfo Name Mono.Type
                            deriving (Show, Eq, Ord)
 
 data InstantiatedDefinition =
@@ -116,7 +116,7 @@ getMonomorphicDefinition ident t = do
         Just (InstantiatedDefinition name _) -> return (Unqualified name)
         Nothing -> instantiateDefinition key sc pe
     Core.Definition _ pn _ -> return (Unqualified pn)
-    Core.StructDefinition _ (FQN _ n) _ _ -> return (Unqualified n)
+    Core.TypeDefinition _ (FQN _ n) _ _ -> return (Unqualified n)
 
 getMonomorphicLetBinding :: Name
                          -> Mono.Type
@@ -276,16 +276,10 @@ monomorphDefinition d@(Core.Definition si name (Poly.Forall _ _ st, expr)) = do
     Right mt -> do
       mExpr <- monomorph expr
       addMonomorphed name (MonomorphedDefinition si name mt mExpr)
-monomorphDefinition d@(Core.StructDefinition si (FQN _ localName) _ fields) = do
+monomorphDefinition d@(Core.TypeDefinition _ (FQN _ localName) _ _) =
   extendEnvironment localName d
-  mFields <- mapM fieldMonoType fields
-  addMonomorphed localName (MonomorphedStructDefinition si localName mFields)
-  where
-  fieldMonoType :: Core.StructField Poly.Type -> Monomorph (Core.StructField Mono.Type)
-  fieldMonoType (Core.StructField si' name pt) =
-    case Poly.toMonomorphic pt of
-      Left _   -> throwError (UnexpectedPolyType si' pt)
-      Right mt -> return (Core.StructField si' name mt)
+  -- monoType <- toMonomorphic (getSourceInfo polyType) polyType
+  -- addMonomorphed localName (MonomorphedTypeDefinition si localName monoType)
 
 monomorphPackage :: CompileEnvironment -> Core.Package -> Either MonomorphError MonomorphedPackage
 monomorphPackage environment' (Core.Package pkgDecl imports definitions) = do

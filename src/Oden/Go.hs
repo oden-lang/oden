@@ -161,19 +161,17 @@ convertType (Struct fields) = do
   convertStructField (StructField fieldName goType) = Poly.TStructField Missing fieldName <$> convertType goType
 convertType (Unsupported n) = Left n
 
-
 objectsToScope :: Core.PackageName -> [PackageObject] -> (Map.Map Name Core.Definition, Maybe UnsupportedTypesWarning)
 objectsToScope pkgName objs =
   case foldl addObject ([], []) objs of
     (s, []) -> (Map.fromList s, Nothing)
     (s, msgs) -> (Map.fromList s, Just (UnsupportedTypesWarning pkgName msgs))
   where
-  addObject (assocs, us) (NamedType name (Struct fields)) =
-    case mapM convertStructField fields of
+  addObject (assocs, us) (NamedType name goType) =
+    case convertType goType of
          Left u -> (assocs, (name, u) : us)
-         Right fields' ->
-           ((name, Core.StructDefinition Missing (FQN pkgName name) [] fields') : assocs, us)
-    where convertStructField (StructField fieldName goType) = Core.StructField Missing fieldName <$> convertType goType
+         Right type' ->
+           ((name, Core.TypeDefinition Missing (FQN pkgName name) [] type') : assocs, us)
   addObject (assocs, us) o =
     let n = nameOf o
         t = typeOf o

@@ -92,6 +92,25 @@ validateRange (RangeTo e) =
 validateRange (RangeFrom e) =
   validateExpr e
 
+repeated :: [StructField] -> [StructField]
+repeated fields = snd (foldl check (Set.empty, []) fields)
+  where
+  check (names, fields') f@(TStructField _ n _)
+    | n `Set.member` names = (names, fields'++ [f])
+    | otherwise            = (Set.insert n names, fields')
+
+validateType :: Type -> Validate ()
+validateType (TTuple _ f s r) = mapM_ validateType (f:s:r)
+validateType (TNoArgFn _ r) = validateType r
+validateType (TFn _ d r) = mapM_ validateType [d, r]
+validateType (TSlice _ t) = validateType t
+validateType (TNamed _ _ t) = validateType t
+validateType (TStruct _ fs) =
+  case repeated fs of
+    [] -> return ()
+    (TStructField si name _:_) -> throwError (DuplicatedStructFieldName si name)
+validateType _ = return ()
+
 validatePackage :: Package -> Validate ()
 validatePackage (Package _ _ definitions) = validateDefs definitions
   where
@@ -100,20 +119,11 @@ validatePackage (Package _ _ definitions) = validateDefs definitions
     withName name $ do
       validateExpr expr
       validateDefs defs
-  validateDefs (StructDefinition _ (FQN _ n) _ fs:defs) = do
-    case repeated fs of
-      [] -> return ()
-      (Core.StructField si name _:_) -> throwError (DuplicatedStructFieldName si name)
+  validateDefs (TypeDefinition _ (FQN _ n) _ type':defs) = do
+    validateType type'
     withName n (validateDefs defs)
   validateDefs (_:defs) = validateDefs defs
   validateDefs [] = return ()
-
-repeated :: [Core.StructField Type] -> [Core.StructField Type]
-repeated fields = snd (foldl check (Set.empty, []) fields)
-  where
-  check (names, fields') f@(StructField _ n _)
-    | n `Set.member` names = (names, fields'++ [f])
-    | otherwise            = (Set.insert n names, fields')
 
 validate :: Package -> Either ValidationError [ValidationWarning]
 validate pkg =

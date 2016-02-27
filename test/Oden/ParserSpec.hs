@@ -323,18 +323,19 @@ spec = do
        (TSFn (src 1 17) (TSVar (src 1 17) "a") (TSVar (src 1 23) "a")))
 
     it "parses struct definition without type parameters" $
-      parseTopLevel "struct S {\n  x T\n}"
+      parseTopLevel "type S = {\n  x T\n}"
       `shouldSucceedWith`
-      StructDefinition (src 1 1) "S" [
-          StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 5) (Unqualified "T"))
-        ]
+      TypeDefinition (src 1 1) "S" (TSStruct (src 1 10) [
+          TSStructField (src 2 3) "x" (TSSymbol (src 2 5) (Unqualified "T"))
+        ])
+
     it "parses struct definition multiple fields" $
-      parseTopLevel "struct S {\n  x T\n  y T\n}"
+      parseTopLevel "type S = {\n  x T\n  y T\n}"
       `shouldSucceedWith`
-      StructDefinition (src 1 1) "S" [
-          StructFieldExpr (src 2 3) "x" (TSSymbol (src 2 5) (Unqualified "T")),
-          StructFieldExpr (src 3 3) "y" (TSSymbol (src 3 5) (Unqualified "T"))
-        ]
+      TypeDefinition (src 1 1) "S" (TSStruct (src 1 10) [
+          TSStructField (src 2 3) "x" (TSSymbol (src 2 5) (Unqualified "T")),
+          TSStructField (src 3 3) "y" (TSSymbol (src 3 5) (Unqualified "T"))
+        ])
 
     it "parses value definition" $
       parseTopLevel "x = y"
