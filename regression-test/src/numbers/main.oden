@@ -2,8 +2,8 @@ package numbers/main
 
 import fmt
 
-plus x y -> x + y
+plus(x, y) = x + y
 
 plus1 = plus(1)
 
-main -> fmt.Println(plus1(plus1(-10)))
+main() = fmt.Println(plus1(plus1(-10)))

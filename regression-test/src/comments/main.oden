@@ -5,4 +5,4 @@ import fmt
 /* this is a multiline comment */
 // this is a single line comment
 
-main -> /* they can be added here and there... */ fmt.Println("I've got nothing to say.") // it works here as well
+main() = /* they can be added here and there... */ fmt.Println("I've got nothing to say.") // it works here as well

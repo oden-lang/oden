@@ -102,6 +102,9 @@ brackets = Tok.brackets lexer
 rArrow :: Parser ()
 rArrow = reservedOp "->"
 
+equals :: Parser ()
+equals = reservedOp "="
+
 packageName :: Parser [String]
 packageName = part `sepBy` char '/'
   where

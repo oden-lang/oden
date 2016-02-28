@@ -8,4 +8,4 @@ result = {
 }
 
 main :: -> ()
-main -> fmt.Println(result)
+main() = fmt.Println(result)

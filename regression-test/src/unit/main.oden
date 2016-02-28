@@ -4,4 +4,4 @@ import fmt
 
 testing = ()
 
-main -> fmt.Println("wtf...")
+main() = fmt.Println("wtf...")

@@ -2,8 +2,8 @@ package higherorder/main
 
 import fmt
 
-identity x -> x
+identity(x) = x
 
-applyTo1 x -> x(1)
+applyTo1(x) = x(1)
 
-main -> fmt.Println((identity(applyTo1))(fn x -> x * 2))
+main() = fmt.Println((identity(applyTo1))((x) -> x * 2))

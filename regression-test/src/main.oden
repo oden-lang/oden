@@ -4,9 +4,9 @@ package main
 // import declaration
 import fmt
 
-identityString x -> "" ++ x
+identityString(x) = "" ++ x
 
 result = identityString("Hello") ++ ", world!"
 
 // main function definition, must have type (-> unit)
-main -> fmt.Println(result)
+main() = fmt.Println(result)
