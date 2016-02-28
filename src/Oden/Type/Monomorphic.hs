@@ -1,3 +1,4 @@
+-- | This module contains values representing monomorphic types.
 module Oden.Type.Monomorphic where
 
 import           Oden.QualifiedName

@@ -1,3 +1,6 @@
+-- | This module contains values representing polymorphic types, i.e. types
+-- that can be instantiated into other polymorphic types and purely monomorphic
+-- types.
 module Oden.Type.Polymorphic (
   TVar(..),
   StructField(..),
@@ -22,15 +25,18 @@ import           Oden.QualifiedName
 
 import qualified Data.Set               as Set
 
+-- | Wrapper for type variable names.
 newtype TVar = TV String
   deriving (Show, Eq, Ord)
 
+-- | The name and type of a struct field.
 data StructField = TStructField SourceInfo String Type
                  deriving (Show, Eq, Ord)
 
 getStructFieldType :: StructField -> Type
 getStructFieldType (TStructField _ _ t) = t
 
+-- | A polymorphic type.
 data Type
   = TAny SourceInfo
   -- | A type variable.
@@ -91,6 +97,7 @@ instance HasSourceInfo Type where
   setSourceInfo si (TStruct _ fs)        = TStruct si fs
   setSourceInfo si (TNamed _ n t)        = TNamed si n t
 
+-- | A type variable binding.
 data TVarBinding = TVarBinding SourceInfo TVar
                  deriving (Show, Eq, Ord)
 
@@ -104,6 +111,7 @@ instance HasSourceInfo TVarBinding where
   getSourceInfo (TVarBinding si _)   = si
   setSourceInfo si (TVarBinding _ v) = TVarBinding si v
 
+-- | A polymorphic type and its quantified type variable bindings.
 data Scheme = Forall SourceInfo [TVarBinding] Type
             deriving (Show, Eq, Ord)
 
@@ -111,6 +119,8 @@ instance HasSourceInfo Scheme where
   getSourceInfo (Forall si _ _) = si
   setSourceInfo si (Forall _ v t) = Forall si v t
 
+-- | Converts a polymorphic 'Type' to a monomorphic 'Mono.Type'
+-- and fails if there's any 'TVar' in the type.
 toMonomorphic :: Type -> Either String Mono.Type
 toMonomorphic (TAny si) = Right (Mono.TAny si)
 toMonomorphic (TBasic si b) = Right (Mono.TBasic si b)
@@ -137,9 +147,12 @@ toMonomorphic (TStruct si fs) = Mono.TStruct si <$> mapM toMonomorphicStructFiel
           Mono.TStructField si' n <$> toMonomorphic pt
 toMonomorphic (TNamed si n t) = Mono.TNamed si n <$> toMonomorphic t
 
+-- | Predicate returning if there's any 'TVar' in the 'Scheme'.
 isPolymorphic :: Scheme -> Bool
 isPolymorphic (Forall _ tvars _) = not (null tvars)
 
+-- TODO: Use 'toMonomorphic' here and check if it's a Left or Right value?
+-- | Predicate returning if there's any 'TVar' in the 'Type'.
 isPolymorphicType :: Type -> Bool
 isPolymorphicType TAny{} = False
 isPolymorphicType TUnit{} = False
@@ -157,9 +170,11 @@ isPolymorphicType (TSlice _ a) = isPolymorphicType a
 isPolymorphicType (TStruct _ fs) = any (isPolymorphicType . getStructFieldType) fs
 isPolymorphicType (TNamed _ _ t) = isPolymorphicType t
 
+-- | Equality for '[Type]', disregarding SourceInfo.
 equalsAllT :: [Type] -> [Type] -> Bool
 equalsAllT t1 t2 = and (zipWith equalsT t1 t2)
 
+-- | Equality for 'Type', disregarding SourceInfo.
 equalsT :: Type -> Type -> Bool
 equalsT TAny{} TAny{} = True
 equalsT TUnit{} TUnit{} = True
@@ -185,6 +200,7 @@ underlying :: Type -> Type
 underlying (TNamed _ _ t) = underlying t
 underlying t = t
 
+-- | Values that can return the free type variables they contain.
 class FTV a where
   ftv :: a -> Set.Set TVar
 
