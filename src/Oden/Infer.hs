@@ -454,7 +454,7 @@ inferDefinition env def = do
       (resolvedType, typeCs) <- runInfer env (resolveTypeSignature ts)
       subst <- runSolve (cs ++ typeCs)
       let (Forall si _ _, substExpr) = apply subst canonical
-      canonical' <- left (TypeSignatureSubsumptionError name) $ subsume resolvedType substExpr
+      canonical' <- left (TypeSignatureSubsumptionError name) $ resolvedType `subsumedBy` substExpr
       let env' = env `extend` (name, Local si name (fst canonical'))
       return (env', Core.Definition si name canonical')
 

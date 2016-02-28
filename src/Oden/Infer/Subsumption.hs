@@ -1,6 +1,6 @@
 module Oden.Infer.Subsumption (
   SubsumptionError(..),
-  subsume,
+  subsumedBy,
   collectSubstitutions
 ) where
 
@@ -19,6 +19,8 @@ data SubsumptionError = SubsumptionError SourceInfo Type Type
 
 type Subsume a = StateT (Map.Map TVar Type) (Except SubsumptionError) a
 
+-- | Collects the substitutions in the 'Subsume' state for matching types and
+  -- throws 'SubsumptionError' on mismatches.
 collectSubstitutions :: Type -> Type -> Subsume ()
 collectSubstitutions t1 (TNamed _ _ t2) = collectSubstitutions t1 t2
 collectSubstitutions (TNamed _ _ t1) t2 = collectSubstitutions t1 t2
@@ -52,7 +54,10 @@ collectSubstitutions (TStruct _ fs1) (TStruct _ fs2) =
   zipWithM_ collectSubstitutions (map getStructFieldType fs1) (map getStructFieldType fs2)
 collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 t2)
 
-subsume :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr
-subsume s@(Forall _ _ st) expr = do
+-- | Test if a type scheme is subsumed by an expression with a more general
+-- type. If so, return the expression specialized to the less general type (all
+-- subexpression types being substituted as well).
+subsumedBy :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr
+subsumedBy s@(Forall _ _ st) expr = do
   subst <- snd <$> runExcept (runStateT (collectSubstitutions st (Core.typeOf expr)) Map.empty)
   return (s, apply (Subst subst) expr)
