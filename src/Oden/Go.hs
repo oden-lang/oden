@@ -1,3 +1,7 @@
+-- | This module queries the Go importer for available definitions in Go
+-- packages in the system. All Go types and constructs are not support by Oden
+-- (yet) so it also returns 'UnsupportedTypesWarning's for those types which
+-- it ignores.
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE OverloadedStrings        #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
