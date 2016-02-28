@@ -1,3 +1,4 @@
+-- | Instantiates polymorphically typed expressions with monomorphic types.
 module Oden.Compiler.Instantiate (
   instantiate,
   InstantiateError(..)
@@ -119,8 +120,8 @@ instantiateExpr (Core.UnaryOp si o e t) =
   Core.UnaryOp si o <$> instantiateExpr e <*> replace t
 instantiateExpr (Core.BinaryOp si o e1 e2 t) =
   Core.BinaryOp si o <$> instantiateExpr e1
-               <*> instantiateExpr e2
-               <*> replace t
+                     <*> instantiateExpr e2
+                     <*> replace t
 instantiateExpr (Core.Application si f p t) =
   Core.Application si <$> instantiateExpr f
                       <*> instantiateExpr p
@@ -146,9 +147,9 @@ instantiateExpr (Core.Literal si l t) =
   Core.Literal si l <$> replace t
 instantiateExpr (Core.If si c tb eb t) =
   Core.If si <$> instantiateExpr c
-              <*> instantiateExpr tb
-              <*> instantiateExpr eb
-              <*> replace t
+             <*> instantiateExpr tb
+             <*> instantiateExpr eb
+             <*> replace t
 instantiateExpr (Core.Tuple si fe se rs t) =
   Core.Tuple si <$> instantiateExpr fe
                 <*> instantiateExpr se
@@ -163,6 +164,9 @@ instantiateExpr (Core.Block si es t) =
 instantiateExpr (Core.StructInitializer si t vs) =
   Core.StructInitializer si <$> replace t <*> mapM instantiateExpr vs
 
+-- | Given a polymorphically typed expression and a monomorphic type, return
+-- the expression with all types substitued for monomorphic ones. If there's
+-- a mismatch an error is thrown.
 instantiate :: Core.Expr Poly.Type
             -> Mono.Type
             -> Either InstantiateError (Core.Expr Poly.Type)

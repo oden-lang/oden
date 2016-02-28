@@ -1,3 +1,9 @@
+-- | Generates monomorphic definitions from all usages of polymorphic
+-- definitions. Generated names are based on which monomorphic types are used.
+-- All references in are replaced with the generated names. This module also
+-- does monomorpization for let-bound polymorphic values.
+--
+-- Any polymorphic definitions and let bindings not used will be ignored.
 module Oden.Compiler.Monomorphization where
 
 import           Control.Monad.Except
@@ -11,13 +17,11 @@ import           Oden.Compiler.TypeEncoder
 import qualified Oden.Core                 as Core
 import           Oden.Identifier
 import           Oden.Environment                as Environment
-import           Oden.QualifiedName        (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
 data MonomorphedDefinition = MonomorphedDefinition SourceInfo Name Mono.Type (Core.Expr Mono.Type)
-                           | MonomorphedTypeDefinition SourceInfo Name Mono.Type
                            deriving (Show, Eq, Ord)
 
 data InstantiatedDefinition =
@@ -37,9 +41,13 @@ data LocalBinding = LetBinding Core.NameBinding (Core.Expr Poly.Type)
 
 type LocalBindings = Map Name LocalBinding
 
+-- | Represents a reference to a let-bound name and the monomorphic type it was
+-- inferred to.
 data LetReference = LetReference Name Mono.Type Name
                  deriving (Show, Eq, Ord)
 
+-- | A let-bound expression instantiated to a monomorphic with which it was
+-- used.
 data LetInstance = LetInstance SourceInfo Core.NameBinding (Core.Expr Mono.Type)
 
 data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type) InstantiatedDefinition
@@ -47,6 +55,8 @@ data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type
                                      , environment :: CompileEnvironment
                                      }
 
+-- | The monomorphization monad stack that keeps track of bindings, references
+-- and what is has monomorphed already.
 type Monomorph a = RWST LocalBindings
                         (Set LetReference)
                         MonomorphState
@@ -116,7 +126,8 @@ getMonomorphicDefinition ident t = do
         Just (InstantiatedDefinition name _) -> return (Unqualified name)
         Nothing -> instantiateDefinition key sc pe
     Core.Definition _ pn _ -> return (Unqualified pn)
-    Core.TypeDefinition _ (FQN _ n) _ _ -> return (Unqualified n)
+    -- Types cannot be referred to at this stage.
+    Core.TypeDefinition _ _ _ _ -> throwError $ NotInScope ident
 
 getMonomorphicLetBinding :: Name
                          -> Mono.Type
@@ -153,6 +164,7 @@ toMonomorphic si pt =
 getMonoType :: Core.Expr Poly.Type -> Monomorph Mono.Type
 getMonoType e = toMonomorphic (getSourceInfo e) (Core.typeOf e)
 
+-- | Return a monomorphic version of a polymorphic expression.
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
 monomorph e@(Core.Symbol si ident _) = do
   mt <- getMonoType e
@@ -247,26 +259,38 @@ monomorph (Core.StructInitializer si structType values) = do
   monoValues <- mapM monomorph values
   return (Core.StructInitializer si structMonoType monoValues)
 
+-- Given a let-bound expression and a reference to that binding, create a
+-- monomorphic instance of the let-bound expression.
 monomorphReference :: Core.Expr Poly.Type
-                   -> SourceInfo
-                   -> SourceInfo
+                   -> SourceInfo -- Let expression source info.
+                   -> SourceInfo -- Let binding source info.
                    -> LetReference
                    -> Monomorph LetInstance
-monomorphReference e si bsi (LetReference n _ _) | not (Poly.isPolymorphicType (Core.typeOf e)) = do
-  me <- monomorph e
-  return (LetInstance si (Core.NameBinding bsi n) me)
-monomorphReference e si bsi (LetReference _ mt mn) =
+
+-- The let-bound value is monomorphic and does not need to be instantiated.
+monomorphReference e letSourceInfo bindingSourceInfo (LetReference n _ _)
+  | not (Poly.isPolymorphicType (Core.typeOf e)) = do
+    me <- monomorph e
+    return (LetInstance letSourceInfo (Core.NameBinding bindingSourceInfo n) me)
+
+-- The let-bound value is polymorphic and must be instantiated.
+monomorphReference e letSourceInfo bindingSourceInfo (LetReference _ mt mn) =
   case instantiate e mt of
     Left err -> throwError (MonomorphInstantiateError err)
     Right expr -> do
       me <- monomorph expr
-      return (LetInstance si (Core.NameBinding bsi mn) me)
+      return (LetInstance letSourceInfo (Core.NameBinding bindingSourceInfo mn) me)
 
-unwrapLetInstances :: [LetInstance] -> Core.Expr Mono.Type -> Core.Expr Mono.Type
+-- | Creates nested let expressions for each let instance around the body
+-- expression.
+unwrapLetInstances :: [LetInstance]
+                   -> Core.Expr Mono.Type -- Body expression.
+                   -> Core.Expr Mono.Type
 unwrapLetInstances [] body = body
 unwrapLetInstances (LetInstance si mn me:is) body =
   Core.Let si mn me (unwrapLetInstances is body) (Core.typeOf body)
 
+-- | Monomorphs a definition and registers the result.
 monomorphDefinition :: Core.Definition -> Monomorph ()
 monomorphDefinition Core.ForeignDefinition{} = return ()
 monomorphDefinition d@(Core.Definition si name (Poly.Forall _ _ st, expr)) = do
@@ -276,9 +300,12 @@ monomorphDefinition d@(Core.Definition si name (Poly.Forall _ _ st, expr)) = do
     Right mt -> do
       mExpr <- monomorph expr
       addMonomorphed name (MonomorphedDefinition si name mt mExpr)
-monomorphDefinition d@(Core.TypeDefinition _ (FQN _ localName) _ _) =
-  extendEnvironment localName d
+-- Type definitions are not monomorphed or generated to output code, so just
+-- ignore it.
+monomorphDefinition Core.TypeDefinition{} = return ()
 
+-- | Monomorphs a package and returns the complete package with instantiated
+-- and monomorphed definitions.
 monomorphPackage :: CompileEnvironment -> Core.Package -> Either MonomorphError MonomorphedPackage
 monomorphPackage environment' (Core.Package pkgDecl imports definitions) = do
   let st = MonomorphState { instances = Map.empty
@@ -289,6 +316,3 @@ monomorphPackage environment' (Core.Package pkgDecl imports definitions) = do
   let is = Set.fromList (Map.elems (instances s))
       ms = Set.fromList (Map.elems (monomorphed s))
   return (MonomorphedPackage pkgDecl imports is ms)
-
-compile :: CompileEnvironment -> Core.Package -> Either MonomorphError MonomorphedPackage
-compile = monomorphPackage

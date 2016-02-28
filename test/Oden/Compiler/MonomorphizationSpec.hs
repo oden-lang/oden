@@ -211,9 +211,9 @@ letWithShadowingMonomorphed =
 
 spec :: Spec
 spec =
-  describe "compile" $ do
+  describe "monomorphPackage" $ do
     it "compiles empty package" $
-      compile Environment.empty (Core.Package myPkg [] [])
+      monomorphPackage Environment.empty (Core.Package myPkg [] [])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -221,7 +221,7 @@ spec =
         Set.empty
         Set.empty
     it "excludes unused polymorphic definitions" $
-      compile Environment.empty (Core.Package myPkg [] [identityDef])
+      monomorphPackage Environment.empty (Core.Package myPkg [] [identityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -229,7 +229,7 @@ spec =
         Set.empty
         Set.empty
     it "monomorphs polymorphic function usage" $
-      compile Environment.empty (Core.Package myPkg [] [identityDef, usingIdentityDef])
+      monomorphPackage Environment.empty (Core.Package myPkg [] [identityDef, usingIdentityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -237,7 +237,7 @@ spec =
         (Set.singleton identityInstIntToInt)
         (Set.singleton usingIdentityMonomorphed)
     it "monomorphs polymorphic function usage recursively" $
-      compile Environment.empty (Core.Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
+      monomorphPackage Environment.empty (Core.Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -245,7 +245,7 @@ spec =
         (Set.fromList [identityInstIntToInt, identity2InstIntToInt])
         (Set.singleton usingIdentity2Monomorphed)
     it "monomorphs let bound polymorphic function" $
-      compile Environment.empty (Core.Package myPkg [] [letBoundIdentity])
+      monomorphPackage Environment.empty (Core.Package myPkg [] [letBoundIdentity])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -253,7 +253,7 @@ spec =
         Set.empty
         (Set.singleton letBoundIdentityMonomorphed)
     it "uses polymorphic predefined Go funcs" $
-      compile (fromDefinitions predefined) (Core.Package myPkg [] [sliceLenDef])
+      monomorphPackage (fromDefinitions predefined) (Core.Package myPkg [] [sliceLenDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -261,7 +261,7 @@ spec =
         Set.empty
         (Set.singleton sliceLenMonomorphed)
     it "monomorphs let with shadowing" $
-      compile Environment.empty (Core.Package myPkg [] [letWithShadowing])
+      monomorphPackage Environment.empty (Core.Package myPkg [] [letWithShadowing])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
