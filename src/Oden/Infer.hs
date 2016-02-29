@@ -40,7 +40,7 @@ import           Oden.Type.Signature
 -- Classes
 -------------------------------------------------------------------------------
 
--- | Inference monad
+-- | Inference monad.
 type Infer a = (RWST
                   TypingEnvironment -- Typing environment
                   [Constraint]              -- Generated constraints
@@ -49,10 +49,10 @@ type Infer a = (RWST
                     TypeError)
                   a)                        -- Result
 
--- | Inference state
+-- | Inference state.
 data InferState = InferState { count :: Int }
 
--- | Initial inference state
+-- | Initial inference state.
 initInfer :: InferState
 initInfer = InferState { count = 0 }
 
@@ -60,7 +60,7 @@ type Constraint = (SourceInfo, Type, Type)
 
 type Unifier = (Subst, [Constraint])
 
--- | Constraint solver monad
+-- | Constraint solver monad.
 type Solve a = ExceptT TypeError Identity a
 
 
@@ -106,34 +106,41 @@ data TypeError
 -- Inference
 -------------------------------------------------------------------------------
 
--- | Run the inference monad
+-- | Run the inference monad.
 runInfer :: TypingEnvironment -> Infer a -> Either TypeError (a, [Constraint])
 runInfer env m = runExcept $ evalRWST m env initInfer
 
--- | Solve for the toplevel type of an expression in a given environment
-inferExpr :: TypingEnvironment -> Untyped.Expr -> Either TypeError Core.CanonicalExpr
+-- | Solve for the top-level type of an expression in a given typing
+-- environment.
+inferExpr :: TypingEnvironment
+          -> Untyped.Expr
+          -> Either TypeError Core.CanonicalExpr
 inferExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
   subst <- runSolve cs
   return $ closeOver (apply subst te)
 
--- | Return the internal constraints used in solving for the type of an expression
-constraintsExpr :: TypingEnvironment -> Untyped.Expr -> Either TypeError ([Constraint], Subst, Core.Expr Type, Scheme)
+-- | Return the internal constraints used in solving for the type of an
+-- expression.
+constraintsExpr :: TypingEnvironment
+                -> Untyped.Expr
+                -> Either TypeError ([Constraint], Subst, Core.Expr Type, Scheme)
 constraintsExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
   subst <- runSolve cs
   let (sc, te') = closeOver $ apply subst te
   return (cs, subst, te', sc)
 
--- | Canonicalize and return the polymorphic toplevel type.
+-- | Canonicalize and return the polymorphic top-level type.
 closeOver :: Core.Expr Type -> Core.CanonicalExpr
 closeOver = normalize . generalize empty
 
--- | Unify two types
+-- | Unify two types. Order can matter when the first type is the one being
+-- subsumed by the second, e.g. when unifying with TAny.
 uni :: SourceInfo -> Type -> Type -> Infer ()
 uni si t1 t2 = tell [(si, t1, t2)]
 
--- | Extend type environment
+-- | Extend the typing environment.
 inEnv :: (Name, TypeBinding) -> Infer a -> Infer a
 inEnv (x, sc) = local (`extend` (x, sc))
 
@@ -149,7 +156,7 @@ lookupTypeIn env si name =
     Just (Local _ _ _)        -> throwError $ ValueUsedAsType si name
     Just (Type _ n _ t)       -> return $ TNamed si n t
 
--- | Lookup type in the environment
+-- | Lookup a type in the environment.
 lookupType :: SourceInfo -> Identifier -> Infer Type
 lookupType si (Qualified pkg name) = do
   env <- ask
@@ -174,7 +181,7 @@ lookupValueIn env si name = do
             Just Type{}         -> throwError (TypeIsNotAnExpression si name)
   return $ setSourceInfo si type'
 
--- | Lookup type of a value in the environment
+-- | Lookup type of a value in the environment.
 lookupValue :: SourceInfo -> Identifier -> Infer Type
 lookupValue si (Qualified pkg name) = do
   env <- ask
@@ -193,22 +200,31 @@ lookupValue si (Unqualified name) = do
 letters :: [String]
 letters = [1..] >>= flip replicateM ['a'..'z']
 
+-- | Create a new type variable with a unique name.
 fresh :: SourceInfo -> Infer Type
 fresh si = do
     s <- get
     put s{count = count s + 1}
     return $ TVar si (TV (letters !! count s))
 
+-- | Create a type based on scheme but with all fresh type variables.
 instantiate :: Scheme -> Infer Type
 instantiate (Forall _ as t) = do
     as' <- mapM (fresh . getSourceInfo) as
     let s = Subst $ Map.fromList $ zip (map getBindingVar as) as'
     return $ apply s t
 
-generalize :: TypingEnvironment -> Core.Expr Type -> (Scheme, Core.Expr Type)
-generalize env t  = (Forall (getSourceInfo t) as (Core.typeOf t), t)
-    where as = map (TVarBinding Missing) (Set.toList $ ftv t `Set.difference` ftv env)
+-- | Given a typed expression, return a canonical expression with the free
+-- type variables (not present in the environment) declared as type variable
+-- bindings for the expression.
+generalize :: TypingEnvironment -> Core.Expr Type -> Core.CanonicalExpr
+generalize env expr  = (Forall (getSourceInfo expr) bindings (Core.typeOf expr), expr)
+    where bindings = map (TVarBinding Missing) (Set.toList $ ftv expr `Set.difference` ftv env)
 
+-- | The heart of the inferencer. Takes an untyped expression and returns the
+-- inferred typed expression. Constraints are collected in the 'Infer' monad
+-- and substitutions are made before the inference is complete, so the
+-- expressions returned from 'infer' are not the final results.
 infer :: Untyped.Expr -> Infer (Core.Expr Type)
 infer expr = case expr of
   Untyped.Literal si Untyped.Unit ->
@@ -394,6 +410,7 @@ infer expr = case expr of
         unifyField (TStructField fsi _ ft) te = uni fsi ft (Core.typeOf te)
       _ -> throwError $ InvalidTypeInStructInitializer si t
 
+-- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr -> Infer Type
 resolveType (TSUnit si) = return (TUnit si)
 resolveType (TSVar si s) = return (TVar si (TV s))
@@ -410,6 +427,7 @@ resolveType (TSStruct si fields) = TStruct si <$> mapM resolveStructFieldType fi
   resolveStructFieldType (TSStructField fsi name expr) =
     TStructField fsi name <$> resolveType expr
 
+-- | Tries to resolve a user-supplied type signature to an actual type scheme.
 resolveTypeSignature :: TypeSignature -> Infer Scheme
 resolveTypeSignature (Explicit si bindings expr) = do
   t <- resolveType expr
@@ -420,6 +438,8 @@ resolveTypeSignature (Implicit si expr) = do
   t <- resolveType expr
   return (Forall si (map (TVarBinding si) (Set.toList (ftv t))) t)
 
+-- | Infer the untyped definition in the Infer monad, returning a typed
+-- version. Resolves type signatures of optionally type-annotated definitions.
 inferDef :: Untyped.Definition -> Infer Core.Definition
 inferDef (Untyped.Definition si name s expr) = do
   tv <- fresh si
@@ -439,6 +459,8 @@ getTypeSignature :: Untyped.Definition -> Maybe TypeSignature
 getTypeSignature (Untyped.Definition _ _ ts _) = ts
 getTypeSignature _ = Nothing
 
+-- | Infer a top-level definitition, returning a typed version and the typing
+-- environment extended with the definitions name and type.
 inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either TypeError (TypingEnvironment, Core.Definition)
 inferDefinition env def = do
   (def', cs) <- runInfer env (inferDef def)
@@ -464,6 +486,8 @@ inferDefinition env def = do
     (Core.ForeignDefinition _ name _, _) ->
       error ("unexpected foreign definition: " ++ name)
 
+-- | Infer the package, returning a package with typed definitions along with
+-- the extended typing environment.
 inferPackage :: TypingEnvironment -> Untyped.Package -> Either TypeError (Core.Package, TypingEnvironment)
 inferPackage env (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
   (env', inferred) <- foldM iter (env, []) defs
@@ -474,11 +498,17 @@ inferPackage env (Untyped.Package (Untyped.PackageDeclaration psi name) imports 
       return (e', inferred ++ [def'])
   convertImport (Untyped.Import si n) = Core.Import si n
 
+-- | Swaps all type variables names for generated ones based on 'letters'.
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)
-normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
+normalize (Forall si _ exprType, te) = (Forall si tvarBindings (normtype exprType), te)
   where
-    ord = zip (nub $ fv body) (map TV letters)
+    -- Pairs of type variables in the type and new 'TV' values to substitute
+    -- with, a sequence based on 'letters'.
+    ord = zip (nub $ fv exprType) (map TV letters)
 
+    tvarBindings = map (TVarBinding Missing . snd) ord
+
+    -- Extracts free type variables as 'TV' values.
     fv :: Type -> [TVar]
     fv TAny{}                 = []
     fv TUnit{}                = []
@@ -494,6 +524,7 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
     fv (TStruct _ fs)         = concatMap (fv . getStructFieldType) fs
     fv (TNamed _ _ t)         = fv t
 
+    -- Substitutes type variables for generated names in ord.
     normtype t@TAny{}                = t
     normtype t@TUnit{}               = t
     normtype t@TBasic{}              = t
@@ -512,8 +543,6 @@ normalize (Forall si _ body, te) = (Forall si tvarBindings (normtype body), te)
         Just x -> TVar si' x
         Nothing -> error "type variable not in signature"
 
-    tvarBindings = map (TVarBinding Missing . snd) ord
-
 -------------------------------------------------------------------------------
 -- Constraint Solver
 -------------------------------------------------------------------------------
@@ -523,6 +552,7 @@ runSolve :: [Constraint] -> Either TypeError Subst
 runSolve cs = runIdentity $ runExceptT $ solver st
   where st = (emptySubst, cs)
 
+-- | Unifies the corresponding types in the lists (like a zip).
 unifyMany :: SourceInfo -> [Type] -> [Type] -> Solve Subst
 unifyMany _ [] [] = return emptySubst
 unifyMany si (t1 : ts1) (t2 : ts2) =
@@ -531,6 +561,9 @@ unifyMany si (t1 : ts1) (t2 : ts2) =
      return (su2 `compose` su1)
 unifyMany si t1 t2 = throwError $ UnificationMismatch si t1 t2
 
+-- | Unify two types, returning the resulting substitution. Order can matter
+-- when the first type is the one being subsumed by the second, e.g. when
+-- unifying with TAny.
 unifies :: SourceInfo -> Type -> Type -> Solve Subst
 unifies _ (TVar _ v) t = v `bind` t
 unifies _ t (TVar _ v) = v `bind` t
@@ -576,11 +609,15 @@ solver (su, cs) =
       su1  <- unifies si t1 t2
       solver (su1 `compose` su, apply su1 cs0)
 
+-- | Create a substitution from the 'TVar' to the 'Type', as long as the 'TVar'
+-- does not occur in the 'Type'. In that case we have an infinite type, which
+-- is an error.
 bind ::  TVar -> Type -> Solve Subst
 bind a (TVar _ v) | v == a = return emptySubst
 bind a t
   | occursCheck a t = throwError $ InfiniteType (getSourceInfo t) a t
   | otherwise       = return (Subst $ Map.singleton a t)
 
+-- | Check if the 'TVar' occurs in the 'Type'.
 occursCheck ::  Substitutable a => TVar -> a -> Bool
 occursCheck a t = a `Set.member` ftv t
