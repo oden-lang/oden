@@ -284,9 +284,6 @@ codegenInstance (InstantiatedDefinition name expr) =
 codegenMonomorphed :: MonomorphedDefinition -> Codegen Doc
 codegenMonomorphed (MonomorphedDefinition _ name mt expr) =
   codegenTopLevel name mt expr
-codegenMonomorphed (MonomorphedTypeDefinition _ name monoType) = do
-  tc <- codegenType monoType
-  return $ text "type" <+> safeName name <+> tc
 
 codegenImport :: Import -> Doc
 codegenImport (Import _ name) =
