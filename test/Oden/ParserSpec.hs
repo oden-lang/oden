@@ -44,20 +44,20 @@ spec = do
       Literal (src 1 1) (String "foo bar 123")
 
     it "parses fn expression" $
-      parseExpr "fn x -> x"
+      parseExpr "(x) -> x"
       `shouldSucceedWith`
-      Fn (src 1 1) [NameBinding (src 1 4) "x"] (Symbol (src 1 9) (Unqualified "x"))
+      Fn (src 1 1) [NameBinding (src 1 2) "x"] (Symbol (src 1 8) (Unqualified "x"))
 
     it "parses multi-arg fn expression" $
-      parseExpr "fn x y z -> x"
+      parseExpr "(x, y, z) -> x"
       `shouldSucceedWith`
       Fn
       (src 1 1)
-      [NameBinding (src 1 4) "x", NameBinding (src 1 6) "y", NameBinding (src 1 8) "z"]
-      (Symbol (src 1 13) (Unqualified "x"))
+      [NameBinding (src 1 2) "x", NameBinding (src 1 5) "y", NameBinding (src 1 8) "z"]
+      (Symbol (src 1 14) (Unqualified "x"))
 
     it "parses no-arg fn expression" $
-      parseExpr "fn -> x"
+      parseExpr "() -> x"
       `shouldSucceedWith`
       Fn (src 1 1) [] (Symbol (src 1 7) (Unqualified "x"))
 
@@ -179,12 +179,12 @@ spec = do
       [Symbol (src 1 3) (Unqualified "y")]
 
     it "parses single-arg fn application" $
-      parseExpr "(fn x -> x)(y)"
+      parseExpr "((x) -> x)(y)"
       `shouldSucceedWith`
       Application
       (src 1 1)
-      (Fn (src 1 2) [NameBinding (src 1 5) "x"] (Symbol (src 1 10) (Unqualified "x")))
-      [Symbol (src 1 13) (Unqualified "y")]
+      (Fn (src 1 2) [NameBinding (src 1 3) "x"] (Symbol (src 1 9) (Unqualified "x")))
+      [Symbol (src 1 12) (Unqualified "y")]
 
     it "ignores whitespace" $
       parseExpr "x(   \n\n y \r\n\t   )"
@@ -343,26 +343,26 @@ spec = do
       ValueDefinition (src 1 1) "x" (Symbol (src 1 5) (Unqualified "y"))
 
     it "parses fn definition" $
-      parseTopLevel "f = fn x -> x"
+      parseTopLevel "f = (x) -> x"
       `shouldSucceedWith`
-      ValueDefinition (src 1 1) "f" (Fn (src 1 5) [NameBinding (src 1 8) "x"] (Symbol (src 1 13) (Unqualified "x")))
+      ValueDefinition (src 1 1) "f" (Fn (src 1 5) [NameBinding (src 1 6) "x"] (Symbol (src 1 12) (Unqualified "x")))
 
     it "parses short-hand fn definition" $
-      parseTopLevel "f x -> x"
+      parseTopLevel "f(x) = x"
       `shouldSucceedWith`
       FnDefinition (src 1 1) "f" [NameBinding (src 1 3) "x"] (Symbol (src 1 8) (Unqualified "x"))
 
     it "parses short-hand no-arg fn definition" $
-      parseTopLevel "side-effect -> x"
+      parseTopLevel "sideEffect() = x"
       `shouldSucceedWith`
-      FnDefinition (src 1 1) "side-effect" [] (Symbol (src 1 16) (Unqualified "x"))
+      FnDefinition (src 1 1) "sideEffect" [] (Symbol (src 1 16) (Unqualified "x"))
 
     it "parses short-hand multi-arg fn definition" $
-      parseTopLevel "f x y z -> x"
+      parseTopLevel "f(x, y, z) = x"
       `shouldSucceedWith`
       FnDefinition (src 1 1) "f"
-      [NameBinding (src 1 3) "x", NameBinding (src 1 5) "y", NameBinding (src 1 7) "z"]
-      (Symbol (src 1 12) (Unqualified "x"))
+      [NameBinding (src 1 3) "x", NameBinding (src 1 6) "y", NameBinding (src 1 9) "z"]
+      (Symbol (src 1 14) (Unqualified "x"))
 
   describe "parsePackage" $ do
     it "parses package declaration" $

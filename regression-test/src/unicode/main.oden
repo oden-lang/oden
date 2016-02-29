@@ -2,6 +2,6 @@ package unicode/main
 
 import fmt
 
-main -> {
+main() = {
   fmt.Println("As a [Swede], \229äö is what I want to write. \\\\ \"oh yeah\"")
 }

@@ -2,4 +2,4 @@ package let/main
 
 import fmt
 
-main -> fmt.Println(let name = "Foo" in name ++ "!")
+main() = fmt.Println(let name = "Foo" in name ++ "!")

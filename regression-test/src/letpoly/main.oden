@@ -2,6 +2,6 @@ package letpoly/main
 
 import fmt
 
-identity x -> x
+identity(x) = x
 
-main -> fmt.Println(let id = identity(identity) in id("a"))
+main() = fmt.Println(let id = identity(identity) in id("a"))

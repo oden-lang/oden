@@ -92,16 +92,16 @@ nameBinding = do
 fn :: Parser Expr
 fn = do
   si <- currentSourceInfo
-  reserved "fn"
-  args <- many nameBinding
-  body <- spaces *> rArrow *> spaces *> expr
+  args <- parensList nameBinding
+  rArrow
+  body <- expr
   return (Fn si args body)
 
 letPair :: Parser LetPair
 letPair = do
   si <- currentSourceInfo
   i <- nameBinding
-  reservedOp "="
+  equals
   e <- expr
   return (LetPair si i e)
 
@@ -297,15 +297,15 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
     i <- name
     reservedOp "::"
     TypeSignatureDeclaration si i <$> signature
-  valueDef = do
+  valueDef si n = do
+    equals
+    ValueDefinition si n <$> expr
+  fnDef si n =
+    FnDefinition si n <$> parensList nameBinding <*> (equals *> expr)
+  def = do
     si <- currentSourceInfo
-    i <- name
-    reservedOp "="
-    ValueDefinition si i <$> expr
-  fnDef = do
-    si <- currentSourceInfo
-    FnDefinition si <$> name <*> many nameBinding <*> (rArrow *> expr)
-  def = try valueDef <|> fnDef
+    n <- name
+    fnDef si n <|> valueDef si n
   import' = do
     si <- currentSourceInfo
     reserved "import"
@@ -314,7 +314,7 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
     si <- currentSourceInfo
     reserved "type"
     n <- name
-    reserved "="
+    equals
     TypeDefinition si n <$> type'
 
 package :: Parser Package

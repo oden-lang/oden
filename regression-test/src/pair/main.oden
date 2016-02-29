@@ -2,10 +2,10 @@ package pair/main
 
 import fmt
 
-pair x y f -> f(x, y)
+pair(x, y, f) = f(x, y)
 
-first p -> p(fn x y -> x)
+first(p) = p((x, y) -> x)
 
 p = pair("a", "b")
 
-main -> fmt.Println(first(p))
+main() = fmt.Println(first(p))

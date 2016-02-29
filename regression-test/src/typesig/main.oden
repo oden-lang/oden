@@ -2,18 +2,18 @@ package typesig/main
 
 import fmt
 
-identityNoTypeSig x -> x
+identityNoTypeSig(x) = x
 
 identityImplicit :: #a -> #a
-identityImplicit x -> x
+identityImplicit(x) = x
 
 identityExplicit :: forall #a. #a -> #a
-identityExplicit x -> x
+identityExplicit(x) = x
 
 theMessage :: string
 theMessage = "Type signatures work!"
 
-main -> fmt.Println(
+main() = fmt.Println(
   identityExplicit(
     identityImplicit(
       identityNoTypeSig(theMessage))))
