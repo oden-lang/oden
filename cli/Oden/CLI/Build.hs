@@ -12,7 +12,7 @@ import           Oden.Explode
 import qualified Oden.Go                         as Go
 import           Oden.Infer
 import qualified Oden.Infer.Environment          as IE
-import           Oden.Parser
+import           Oden.Parser                     (parsePackage)
 import           Oden.Predefined
 import           Oden.Scanner
 import           Oden.SourceInfo
@@ -48,9 +48,12 @@ logCompiledFiles files = liftIO $ putStrLn $ "Compiled " ++ show (length files) 
 
 compileToTypeBinding :: CE.Binding -> IE.TypeBinding
 compileToTypeBinding (CE.Package si n p) = IE.Package si n (Environment.map compileToTypeBinding p)
-compileToTypeBinding (CE.Definition (Core.Definition si n (sc, _))) = Local si n sc
-compileToTypeBinding (CE.Definition (Core.ForeignDefinition si n sc)) = Local si n sc
-compileToTypeBinding (CE.Definition (Core.ForeignDefinition si n sc)) = Local si n sc
+compileToTypeBinding (CE.Definition (Core.Definition sourceInfo name (scheme, _))) =
+  Local sourceInfo name scheme
+compileToTypeBinding (CE.Definition (Core.ForeignDefinition sourceInfo name scheme)) =
+  Local sourceInfo name scheme
+compileToTypeBinding (CE.Definition (Core.TypeDefinition sourceInfo name bindings type')) =
+  Type sourceInfo name bindings type'
 
 scanImports :: Untyped.Package -> CLI CompileEnvironment
 scanImports (Untyped.Package _ imports _) = foldM scanImport Environment.empty imports
