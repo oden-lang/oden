@@ -1,11 +1,12 @@
 -- | This module contains values representing monomorphic types.
 module Oden.Type.Monomorphic where
 
+import           Oden.Identifier
 import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Basic
 
-data StructField = TStructField SourceInfo String Type
+data StructField = TStructField SourceInfo Identifier Type
                  deriving (Show, Eq, Ord)
 
 data Type

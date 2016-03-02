@@ -6,7 +6,7 @@ import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Signature
 
-data NameBinding = NameBinding SourceInfo Name
+data NameBinding = NameBinding SourceInfo Identifier
                  deriving (Show, Eq, Ord)
 
 data Expr = Symbol SourceInfo Identifier
@@ -70,20 +70,20 @@ data Range = Range Expr Expr
            | RangeFrom Expr
            deriving (Show, Eq, Ord)
 
-data StructField = StructField SourceInfo Name SignatureExpr
+data StructField = StructField SourceInfo Identifier SignatureExpr
                  deriving (Show, Eq, Ord)
 
-data Definition = Definition SourceInfo Name (Maybe TypeSignature) Expr
+data Definition = Definition SourceInfo Identifier (Maybe TypeSignature) Expr
                 | TypeDefinition SourceInfo QualifiedName [NameBinding] SignatureExpr
                 deriving (Show, Eq, Ord)
 
-type PackageName = [Name]
+type PackageName = [String]
 
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                           deriving (Show, Eq, Ord)
 
-data Import = Import SourceInfo PackageName
-            deriving (Show, Eq, Ord)
+data ImportReference = ImportReference SourceInfo PackageName
+                     deriving (Show, Eq, Ord)
 
-data Package = Package PackageDeclaration [Import] [Definition]
+data Package i = Package PackageDeclaration i [Definition]
              deriving (Show, Eq, Ord)

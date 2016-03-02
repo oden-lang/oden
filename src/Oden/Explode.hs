@@ -15,7 +15,7 @@ import           Oden.Type.Signature
 
 import qualified Data.Map              as Map
 
-data ExplodeError = TypeSignatureWithoutDefinition SourceInfo Name TypeSignature
+data ExplodeError = TypeSignatureWithoutDefinition SourceInfo Identifier TypeSignature
                   deriving (Show, Eq)
 
 explodeNameBinding :: NameBinding -> Untyped.NameBinding
@@ -74,7 +74,7 @@ explodeExpr (Slice si es) =
 explodeExpr (Block si es) =
   Untyped.Block si (map explodeExpr es)
 
-explodeTopLevel :: PackageName -> [TopLevel] -> Either [ExplodeError] ([Untyped.Import], [Untyped.Definition])
+explodeTopLevel :: PackageName -> [TopLevel] -> Either [ExplodeError] ([Untyped.ImportReference], [Untyped.Definition])
 explodeTopLevel pkg top =
   let (is, scs, defs) = foldl iter ([], Map.empty, []) top
   in case Map.assocs scs of
@@ -89,15 +89,15 @@ explodeTopLevel pkg top =
         iter (is, ts, defs) (TypeSignatureDeclaration tsi name sc) =
           (is, Map.insert name (tsi, sc) ts, defs)
         iter (is, ts, defs) (ImportDeclaration si name) =
-          (is ++ [Untyped.Import si name], ts, defs)
+          (is ++ [Untyped.ImportReference si name], ts, defs)
         iter (is, ts, defs) (TypeDefinition si name typeSig) =
           -- TODO: Add support for type parameters
           let def = Untyped.TypeDefinition si (FQN pkg name) [] typeSig
           in (is, Map.delete name ts, defs ++ [def])
-        toSignatureError :: (Name, (SourceInfo, TypeSignature)) -> ExplodeError
+        toSignatureError :: (Identifier, (SourceInfo, TypeSignature)) -> ExplodeError
         toSignatureError (n, (si, sc)) = TypeSignatureWithoutDefinition si n sc
 
-explodePackage :: Package -> Either [ExplodeError] Untyped.Package
+explodePackage :: Package -> Either [ExplodeError] (Untyped.Package [Untyped.ImportReference])
 explodePackage (Package (PackageDeclaration si name) definitions) = do
   (is, ds) <- explodeTopLevel name definitions
   return (Untyped.Package (Untyped.PackageDeclaration si name) is ds)

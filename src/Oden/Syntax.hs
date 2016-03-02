@@ -1,11 +1,11 @@
 module Oden.Syntax where
 
-import           Oden.Identifier
 import           Oden.Core.Operator
+import           Oden.Identifier
 import           Oden.SourceInfo
 import           Oden.Type.Signature
 
-data NameBinding = NameBinding SourceInfo Name
+data NameBinding = NameBinding SourceInfo Identifier
                  deriving (Show, Eq, Ord)
 
 data LetPair = LetPair SourceInfo NameBinding Expr
@@ -38,20 +38,20 @@ data Literal = Int Integer
              | Unit
              deriving (Show, Eq, Ord)
 
-type PackageName = [Name]
+type PackageName = [String]
 
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                           deriving (Show, Eq, Ord)
 
-data StructFieldExpr = StructFieldExpr SourceInfo Name SignatureExpr
+data StructFieldExpr = StructFieldExpr SourceInfo Identifier SignatureExpr
                      deriving (Show, Eq, Ord)
 
 data TopLevel = ImportDeclaration SourceInfo PackageName
-              | TypeSignatureDeclaration SourceInfo Name TypeSignature
-              | ValueDefinition SourceInfo Name Expr
-              | FnDefinition SourceInfo Name [NameBinding] Expr
+              | TypeSignatureDeclaration SourceInfo Identifier TypeSignature
+              | ValueDefinition SourceInfo Identifier Expr
+              | FnDefinition SourceInfo Identifier [NameBinding] Expr
               -- TODO: Add support for type parameters
-              | TypeDefinition SourceInfo Name SignatureExpr
+              | TypeDefinition SourceInfo Identifier SignatureExpr
               deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]

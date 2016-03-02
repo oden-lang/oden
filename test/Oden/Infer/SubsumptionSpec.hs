@@ -35,7 +35,7 @@ typeFn :: Type -> Type -> Type
 typeFn = TFn Missing
 
 named :: String -> Type -> Type
-named = TNamed Missing . FQN []
+named = TNamed Missing . FQN [] . Identifier
 
 typeSlice :: Type -> Type
 typeSlice = TSlice Missing
@@ -93,39 +93,39 @@ spec =
 
     it "TFn of TVars is subsumed by same TFn" $
       let expr tv = Fn Predefined
-                    (NameBinding Missing "x")
-                    (Symbol Missing (Unqualified "x") tv) (typeFn tv tv) in
+                    (NameBinding Missing (Identifier "x"))
+                    (Symbol Missing (Identifier "x") tv) (typeFn tv tv) in
         scheme (typeFn tvarA tvarA) `subsumedBy` expr tvarB
         `shouldSucceedWith`
         (scheme (typeFn tvarA tvarA), expr tvarA)
 
     it "TFn of a tvars is not subsumed by TFn from string to int" $
       let expr = Fn Predefined
-                    (NameBinding Missing "x")
-                    (Symbol Missing (Unqualified "x") tvarA) (typeFn tvarA tvarA)
+                    (NameBinding Missing (Identifier "x"))
+                    (Symbol Missing (Identifier "x") tvarA) (typeFn tvarA tvarA)
       in shouldFail (scheme (typeFn typeString typeInt) `subsumedBy` expr)
 
     it "TVar is not subsumed by TFn" $
-      let expr = Symbol Missing (Unqualified "x") (typeFn tvarB tvarB) in
+      let expr = Symbol Missing (Identifier "x") (typeFn tvarB tvarB) in
         shouldFail (scheme tvarA `subsumedBy` expr)
 
     it "tuple of tvars is subsumed by tuple of same tvars" $
       let tupleType = (TTuple Predefined tvarA tvarA [])
-          expr = Symbol Missing (Unqualified "x") tupleType in
+          expr = Symbol Missing (Identifier "x") tupleType in
         scheme tupleType `subsumedBy` expr
         `shouldSucceedWith`
         (scheme tupleType, expr)
 
     it "tvar slice is subsumed by same tvar slice" $
-      let expr tv = Slice Predefined [Symbol Missing (Unqualified "x") tv] (typeSlice tv) in
+      let expr tv = Slice Predefined [Symbol Missing (Identifier "x") tv] (typeSlice tv) in
         scheme (typeSlice tvarA) `subsumedBy` expr tvarA
         `shouldSucceedWith`
         (scheme (typeSlice tvarA), expr tvarA)
 
     it "TNamed TFn of TVars is subsumed by unnamed but equal TFn" $
       let expr tv = Fn Predefined
-                    (NameBinding Missing "x")
-                    (Symbol Missing (Unqualified "x") tv) (typeFn tv tv) in
+                    (NameBinding Missing (Identifier "x"))
+                    (Symbol Missing (Identifier "x") tv) (typeFn tv tv) in
         scheme (named "MyFn" $ typeFn tvarA tvarA) `subsumedBy` expr tvarB
         `shouldSucceedWith`
         (scheme (named "MyFn" $ typeFn tvarA tvarA), expr tvarA)

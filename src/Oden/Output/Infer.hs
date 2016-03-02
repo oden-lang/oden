@@ -29,23 +29,23 @@ instance OdenOutput TypeError where
   header (UnificationFail _ t1 t2) s = text "Cannot unify types"
     <+> code s (pp t1) <+> text "and" <+> code s (pp t2)
   header (InfiniteType _ _ _) _ = text "Cannot construct an infinite type"
-  header (InvalidPackageReference _ p) s = text "Invalid reference to package" <+> code s (text p)
+  header (InvalidPackageReference _ p) s = text "Invalid reference to package" <+> code s (pp p)
   header (NotInScope _ i) s = code s (pp i) <+> text "is not in scope"
-  header (PackageNotInScope _ p) s = text "Package" <+> code s (text p) <+> text "is not in scope"
-  header (MemberNotInPackage _ p m) s = code s (text m) <+> text "is not a member of package" <+> code s (text p)
+  header (PackageNotInScope _ p) s = text "Package" <+> code s (pp p) <+> text "is not in scope"
+  header (MemberNotInPackage _ p m) s = code s (pp m) <+> text "is not a member of package" <+> code s (pp p)
   header (UnificationMismatch _ _ _) _ = text "Types do not match"
   header (ArgumentCountMismatch _ as ps) _ | length as > length ps =
     text "Function is applied to too few arguments"
   header (ArgumentCountMismatch _ _ _) _ =
     text "Function is applied to too many arguments"
   header (TypeSignatureSubsumptionError n SubsumptionError{}) s =
-    text "Type signature for" <+> strCode s n
+    text "Type signature for" <+> code s (pp n)
     <+> text "does not subsume the type of the definition"
   header (ValueUsedAsType _ n) s =
-    text "The value" <+> strCode s n
+    text "The value" <+> code s (pp n)
     <+> text "cannot be used as a type"
   header (TypeIsNotAnExpression _ n) s =
-    text "The type" <+> strCode s n
+    text "The type" <+> code s (pp n)
     <+> text "is not an expression"
   header (InvalidTypeInStructInitializer _ t) s =
     text "Type" <+> code s (pp t) <+> text "cannot be initialized as a struct"

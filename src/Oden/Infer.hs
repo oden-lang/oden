@@ -30,6 +30,7 @@ import           Oden.Identifier
 import           Oden.Infer.Environment
 import           Oden.Infer.Substitution
 import           Oden.Infer.Subsumption
+import           Oden.Predefined
 import           Oden.QualifiedName      (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Basic
@@ -89,15 +90,15 @@ instance Substitutable TypingEnvironment where
 data TypeError
   = UnificationFail SourceInfo Type Type
   | InfiniteType SourceInfo TVar Type
-  | PackageNotInScope SourceInfo Name
+  | PackageNotInScope SourceInfo Identifier
   | NotInScope SourceInfo Identifier
-  | MemberNotInPackage SourceInfo Name Name
+  | MemberNotInPackage SourceInfo Identifier Identifier
   | UnificationMismatch SourceInfo [Type] [Type]
   | ArgumentCountMismatch (Core.Expr Type) [Type] [Type]
-  | TypeSignatureSubsumptionError Name SubsumptionError
-  | InvalidPackageReference SourceInfo Name
-  | ValueUsedAsType SourceInfo Name
-  | TypeIsNotAnExpression SourceInfo Name
+  | TypeSignatureSubsumptionError Identifier SubsumptionError
+  | InvalidPackageReference SourceInfo Identifier
+  | ValueUsedAsType SourceInfo Identifier
+  | TypeIsNotAnExpression SourceInfo Identifier
   | InvalidTypeInStructInitializer SourceInfo Type
   | StructInitializerFieldCountMismatch SourceInfo Type [Type]
   deriving (Show, Eq)
@@ -141,62 +142,41 @@ uni :: SourceInfo -> Type -> Type -> Infer ()
 uni si t1 t2 = tell [(si, t1, t2)]
 
 -- | Extend the typing environment.
-inEnv :: (Name, TypeBinding) -> Infer a -> Infer a
+inEnv :: (Identifier, TypeBinding) -> Infer a -> Infer a
 inEnv (x, sc) = local (`extend` (x, sc))
 
-lookupTypeIn :: TypingEnvironment -> SourceInfo -> Name -> Infer Type
-lookupTypeIn _ si "any" = return (TAny si)
-lookupTypeIn _ si "int" = return (TBasic si TInt)
-lookupTypeIn _ si "bool" = return (TBasic si TBool)
-lookupTypeIn _ si "string" = return (TBasic si TString)
-lookupTypeIn env si name =
-  case Environment.lookup name env of
-    Nothing                   -> throwError $ NotInScope si (Unqualified name)
-    Just Package{}            -> throwError $ InvalidPackageReference si name
-    Just (Local _ _ _)        -> throwError $ ValueUsedAsType si name
-    Just (Type _ n _ t)       -> return $ TNamed si n t
+lookupTypeIn :: TypingEnvironment -> SourceInfo -> Identifier -> Infer Type
+lookupTypeIn _ si (Identifier "any") = return (TAny si)
+lookupTypeIn _ si (Identifier "int") = return (TBasic si TInt)
+lookupTypeIn _ si (Identifier "bool") = return (TBasic si TBool)
+lookupTypeIn _ si (Identifier "string") = return (TBasic si TString)
+lookupTypeIn env si identifier =
+  case Environment.lookup identifier env of
+    Nothing                   -> throwError $ NotInScope si identifier
+    Just Package{}            -> throwError $ InvalidPackageReference si identifier
+    Just (Local _ _ _)        -> throwError $ ValueUsedAsType si identifier
+    Just (Type _ typeIdentifier _ t)       -> return $ TNamed si typeIdentifier t
 
 -- | Lookup a type in the environment.
 lookupType :: SourceInfo -> Identifier -> Infer Type
-lookupType si (Qualified pkg name) = do
+lookupType si identifier = do
   env <- ask
-  case Environment.lookup pkg env of
-      Just (Package _ _ env') ->
-        lookupValueIn env' si name `catchError` onError
-        where
-        onError :: TypeError -> Infer Type
-        onError NotInScope{} = throwError $ MemberNotInPackage si pkg name
-        onError e = throwError e
-      _              -> throwError $ PackageNotInScope si pkg
-lookupType si (Unqualified name) = do
-  env <- ask
-  lookupTypeIn env si name
+  lookupTypeIn env si identifier
 
-lookupValueIn :: TypingEnvironment -> SourceInfo -> Name -> Infer Type
-lookupValueIn env si name = do
-  type' <- case Environment.lookup name env of
-            Nothing             -> throwError $ NotInScope si (Unqualified name)
-            Just Package{}      -> throwError $ InvalidPackageReference si name
+lookupValueIn :: TypingEnvironment -> SourceInfo -> Identifier -> Infer Type
+lookupValueIn env si identifier = do
+  type' <- case Environment.lookup identifier env of
+            Nothing             -> throwError $ NotInScope si identifier
+            Just Package{}      -> throwError $ InvalidPackageReference si identifier
             Just (Local _ _ sc) -> instantiate sc
-            Just Type{}         -> throwError (TypeIsNotAnExpression si name)
+            Just Type{}         -> throwError (TypeIsNotAnExpression si identifier)
   return $ setSourceInfo si type'
 
 -- | Lookup type of a value in the environment.
 lookupValue :: SourceInfo -> Identifier -> Infer Type
-lookupValue si (Qualified pkg name) = do
+lookupValue si identifier = do
   env <- ask
-  case Environment.lookup pkg env of
-      Just (Package _ _ env') ->
-        lookupValueIn env' si name `catchError` onError
-        where
-        onError :: TypeError -> Infer Type
-        onError NotInScope{} = throwError $ MemberNotInPackage si pkg name
-        onError e = throwError e
-      _              -> throwError $ PackageNotInScope si pkg
-lookupValue si (Unqualified name) = do
-  env <- ask
-  lookupValueIn env si name
-
+  lookupValueIn env si identifier
 letters :: [String]
 letters = [1..] >>= flip replicateM ['a'..'z']
 
@@ -484,19 +464,20 @@ inferDefinition env def = do
       return (env `extend` (localName, Type si name params type'), def')
 
     (Core.ForeignDefinition _ name _, _) ->
-      error ("unexpected foreign definition: " ++ name)
+      error ("unexpected foreign definition: " ++ asString name)
 
 -- | Infer the package, returning a package with typed definitions along with
 -- the extended typing environment.
-inferPackage :: TypingEnvironment -> Untyped.Package -> Either TypeError (Core.Package, TypingEnvironment)
-inferPackage env (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
-  (env', inferred) <- foldM iter (env, []) defs
-  return (Core.Package (Core.PackageDeclaration psi name) (map convertImport imports) inferred, env')
+inferPackage :: Untyped.Package [Core.ImportedPackage]
+             -> Either TypeError Core.Package
+inferPackage (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
+  let env = fromPackage universe `merge` fromPackages imports
+  inferred <- snd <$> foldM iter (env, []) defs
+  return (Core.Package (Core.PackageDeclaration psi name) imports inferred)
   where
   iter (e, inferred) def = do
       (e', def') <- inferDefinition e def
       return (e', inferred ++ [def'])
-  convertImport (Untyped.Import si n) = Core.Import si n
 
 -- | Swaps all type variables names for generated ones based on 'letters'.
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)

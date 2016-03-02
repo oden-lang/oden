@@ -3,8 +3,8 @@ module Oden.ParserSpec where
 
 import           Test.Hspec
 
-import           Oden.Identifier
 import           Oden.Core.Operator
+import           Oden.Identifier
 import           Oden.Parser
 import           Oden.SourceInfo
 import           Oden.Syntax
@@ -18,10 +18,10 @@ src l c = SourceInfo (Position "<stdin>" l c)
 spec :: Spec
 spec = do
   describe "parseExpr" $ do
-    it "parses qualified identifier" $
-      parseExpr "foo.bar"
+    it "parses identifier" $
+      parseExpr "foo"
       `shouldSucceedWith`
-      Symbol (src 1 1) (Qualified "foo" "bar")
+      Symbol (src 1 1) (Identifier "foo")
 
     it "parses integer literal" $
       parseExpr "123"
@@ -46,29 +46,29 @@ spec = do
     it "parses fn expression" $
       parseExpr "(x) -> x"
       `shouldSucceedWith`
-      Fn (src 1 1) [NameBinding (src 1 2) "x"] (Symbol (src 1 8) (Unqualified "x"))
+      Fn (src 1 1) [NameBinding (src 1 2) (Identifier "x")] (Symbol (src 1 8) (Identifier "x"))
 
     it "parses multi-arg fn expression" $
       parseExpr "(x, y, z) -> x"
       `shouldSucceedWith`
       Fn
       (src 1 1)
-      [NameBinding (src 1 2) "x", NameBinding (src 1 5) "y", NameBinding (src 1 8) "z"]
-      (Symbol (src 1 14) (Unqualified "x"))
+      [NameBinding (src 1 2) (Identifier "x"), NameBinding (src 1 5) (Identifier "y"), NameBinding (src 1 8) (Identifier "z")]
+      (Symbol (src 1 14) (Identifier "x"))
 
     it "parses no-arg fn expression" $
       parseExpr "() -> x"
       `shouldSucceedWith`
-      Fn (src 1 1) [] (Symbol (src 1 7) (Unqualified "x"))
+      Fn (src 1 1) [] (Symbol (src 1 7) (Identifier "x"))
 
     it "parses if expression" $
       parseExpr "if a then b else c"
       `shouldSucceedWith`
       If
       (src 1 1)
-      (Symbol (src 1 4) (Unqualified "a"))
-      (Symbol (src 1 11) (Unqualified "b"))
-      (Symbol (src 1 18) (Unqualified "c"))
+      (Symbol (src 1 4) (Identifier "a"))
+      (Symbol (src 1 11) (Identifier "b"))
+      (Symbol (src 1 18) (Identifier "c"))
 
     it "parses empty block as unit literal" $
       parseExpr "()"
@@ -102,9 +102,9 @@ spec = do
       parseExpr "{\n  x\n  y\n  z\n}"
       `shouldSucceedWith`
       Block (src 1 1) [
-          Symbol (src 2 3) (Unqualified "x"),
-          Symbol (src 3 3) (Unqualified "y"),
-          Symbol (src 4 3) (Unqualified "z")
+          Symbol (src 2 3) (Identifier "x"),
+          Symbol (src 3 3) (Identifier "y"),
+          Symbol (src 4 3) (Identifier "z")
         ]
 
     it "parses let binding and block of symbol" $
@@ -112,8 +112,8 @@ spec = do
       `shouldSucceedWith`
       Let
       (src 1 1)
-      [LetPair (src 1 5) (NameBinding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
-      (Block (src 1 14) [Symbol (src 1 16) (Unqualified "x")])
+      [LetPair (src 1 5) (NameBinding (src 1 5) (Identifier "x")) (Symbol (src 1 9) (Identifier "y"))]
+      (Block (src 1 14) [Symbol (src 1 16) (Identifier "x")])
 
     it "parses block with let binding and block of symbol" $
       parseExpr "{\n  let x = y in {\n    x\n  }\n}"
@@ -121,8 +121,8 @@ spec = do
       Block (src 1 1) [
           Let
           (src 2 3)
-          [LetPair (src 2 7) (NameBinding (src 2 7) "x") (Symbol (src 2 11) (Unqualified "y"))]
-          (Block (src 2 16) [Symbol (src 3 5) (Unqualified "x")])
+          [LetPair (src 2 7) (NameBinding (src 2 7) (Identifier "x")) (Symbol (src 2 11) (Identifier "y"))]
+          (Block (src 2 16) [Symbol (src 3 5) (Identifier "x")])
         ]
 
     it "fails on if expression with newlines" pending
@@ -133,8 +133,8 @@ spec = do
       `shouldSucceedWith`
       Let
       (src 1 1)
-      [LetPair (src 1 5) (NameBinding (src 1 5) "x") (Symbol (src 1 9) (Unqualified "y"))]
-      (Symbol (src 1 14) (Unqualified "z"))
+      [LetPair (src 1 5) (NameBinding (src 1 5) (Identifier "x")) (Symbol (src 1 9) (Identifier "y"))]
+      (Symbol (src 1 14) (Identifier "z"))
 
     it "parses unary negative operator application" $
       parseExpr "-x"
@@ -142,7 +142,7 @@ spec = do
       UnaryOp
       (src 1 1)
       Negative
-      (Symbol (src 1 2) (Unqualified "x"))
+      (Symbol (src 1 2) (Identifier "x"))
 
     it "parses unary positve operator application" $
       parseExpr "+ x"
@@ -150,7 +150,7 @@ spec = do
       UnaryOp
       (src 1 1)
       Positive
-      (Symbol (src 1 3) (Unqualified "x"))
+      (Symbol (src 1 3) (Identifier "x"))
 
     it "parses binary operator application" $
       parseExpr "x + y"
@@ -158,8 +158,8 @@ spec = do
       BinaryOp
       (src 1 3)
       Add
-      (Symbol (src 1 1) (Unqualified "x"))
-      (Symbol (src 1 5) (Unqualified "y"))
+      (Symbol (src 1 1) (Identifier "x"))
+      (Symbol (src 1 5) (Identifier "y"))
 
     it "parses string concat application" $
       parseExpr "x ++ y"
@@ -167,80 +167,80 @@ spec = do
       BinaryOp
       (src 1 3)
       Concat
-      (Symbol (src 1 1) (Unqualified "x"))
-      (Symbol (src 1 6) (Unqualified "y"))
+      (Symbol (src 1 1) (Identifier "x"))
+      (Symbol (src 1 6) (Identifier "y"))
 
     it "parses single-arg fn application" $
       parseExpr "x(y)"
       `shouldSucceedWith`
       Application
       (src 1 1)
-      (Symbol (src 1 1) (Unqualified "x"))
-      [Symbol (src 1 3) (Unqualified "y")]
+      (Symbol (src 1 1) (Identifier "x"))
+      [Symbol (src 1 3) (Identifier "y")]
 
     it "parses single-arg fn application" $
       parseExpr "((x) -> x)(y)"
       `shouldSucceedWith`
       Application
       (src 1 1)
-      (Fn (src 1 2) [NameBinding (src 1 3) "x"] (Symbol (src 1 9) (Unqualified "x")))
-      [Symbol (src 1 12) (Unqualified "y")]
+      (Fn (src 1 2) [NameBinding (src 1 3) (Identifier "x")] (Symbol (src 1 9) (Identifier "x")))
+      [Symbol (src 1 12) (Identifier "y")]
 
     it "ignores whitespace" $
       parseExpr "x(   \n\n y \r\n\t   )"
       `shouldSucceedWith`
       Application
       (src 1 1)
-      (Symbol (src 1 1) (Unqualified "x"))
-      [Symbol (src 3 2) (Unqualified "y")]
+      (Symbol (src 1 1) (Identifier "x"))
+      [Symbol (src 3 2) (Identifier "y")]
 
     it "ignores comments" $
       parseExpr "\n// foobar\nx"
       `shouldSucceedWith`
-      Symbol (src 3 1) (Unqualified "x")
+      Symbol (src 3 1) (Identifier "x")
 
     it "ignores multi-line comments" $
       parseExpr "/*\n\n foo //whatever\tbar\n*/x"
       `shouldSucceedWith`
-      Symbol (src 4 3) (Unqualified "x")
+      Symbol (src 4 3) (Identifier "x")
 
     it "parses slice literal" $
       parseExpr "[]{x, y, z}"
       `shouldSucceedWith`
       Slice (src 1 1) [
-          Symbol (src 1 4) (Unqualified "x"),
-          Symbol (src 1 7) (Unqualified "y"),
-          Symbol (src 1 10) (Unqualified "z")
+          Symbol (src 1 4) (Identifier "x"),
+          Symbol (src 1 7) (Identifier "y"),
+          Symbol (src 1 10) (Identifier "z")
         ]
 
     it "parses slice subscript" $
       parseExpr "a[b]"
       `shouldSucceedWith`
       Subscript (src 1 1)
-        (Symbol (src 1 1) (Unqualified "a"))
-        [Singular (Symbol (src 1 3) (Unqualified "b"))]
+        (Symbol (src 1 1) (Identifier "a"))
+        [Singular (Symbol (src 1 3) (Identifier "b"))]
 
     it "parses sublices with closed beginning and end" $
       parseExpr "a[b:c]"
       `shouldSucceedWith`
       Subscript (src 1 1)
-        (Symbol (src 1 1) (Unqualified "a"))
-        [Range (Symbol (src 1 3) (Unqualified "b"))
-               (Symbol (src 1 5) (Unqualified "c"))]
+        (Symbol (src 1 1) (Identifier "a"))
+        [Range (Symbol (src 1 3) (Identifier "b"))
+               (Symbol (src 1 5) (Identifier "c"))]
 
     it "parses subslices with open start" $
       parseExpr "a[:c]"
       `shouldSucceedWith`
       Subscript (src 1 1)
-        (Symbol (src 1 1) (Unqualified "a"))
-        [RangeTo (Symbol (src 1 4) (Unqualified "c"))]
+        (Symbol (src 1 1) (Identifier "a"))
+        [RangeTo (Symbol (src 1 4) (Identifier "c"))]
 
     it "parses subslices with open ending" $
       parseExpr "a[b:]"
       `shouldSucceedWith`
       Subscript (src 1 1)
-        (Symbol (src 1 1) (Unqualified "a"))
-        [RangeFrom (Symbol (src 1 3) (Unqualified "b"))]
+        (Symbol (src 1 1) (Identifier "a"))
+        [RangeFrom (Symbol (src 1 3) (Identifier "b"))]
 
     it "fails on subslices with open start and end" $
       shouldFail $ parseExpr "a[:]"
@@ -249,44 +249,44 @@ spec = do
       parseExpr "A{1}"
       `shouldSucceedWith`
       StructInitializer (src 1 1)
-        (TSSymbol (src 1 1) (Unqualified "A"))
+        (TSSymbol (src 1 1) (Identifier "A"))
         [Literal (src 1 3) (Int 1)]
 
     it "parses struct initializer with unnamed struct type" $
       parseExpr "{size int}{1}"
       `shouldSucceedWith`
       StructInitializer (src 1 1)
-        (TSStruct (src 1 1) [TSStructField (src 1 2) "size" (TSSymbol (src 1 7) (Unqualified "int"))])
+        (TSStruct (src 1 1) [TSStructField (src 1 2) (Identifier "size") (TSSymbol (src 1 7) (Identifier "int"))])
         [Literal (src 1 12) (Int 1)]
 
     it "parses struct initializer with unnamed struct type containing multiple fields" $
       parseExpr "{size int, name string}{1, \"foo\"}"
       `shouldSucceedWith`
       StructInitializer (src 1 1)
-        (TSStruct (src 1 1) [TSStructField (src 1 2) "size" (TSSymbol (src 1 7) (Unqualified "int")),
-                             TSStructField (src 1 12) "name" (TSSymbol (src 1 17) (Unqualified "string"))])
+        (TSStruct (src 1 1) [TSStructField (src 1 2) (Identifier "size") (TSSymbol (src 1 7) (Identifier "int")),
+                             TSStructField (src 1 12) (Identifier "name") (TSSymbol (src 1 17) (Identifier "string"))])
         [Literal (src 1 25) (Int 1), Literal (src 1 28) (String "foo")]
 
   describe "parseTopLevel" $ do
     it "parses type signature" $
       parseTopLevel "x :: int"
       `shouldSucceedWith`
-      TypeSignatureDeclaration (src 1 1) "x" (Implicit (src 1 6) (TSSymbol (src 1 6) (Unqualified "int")))
+      TypeSignatureDeclaration (src 1 1) (Identifier "x") (Implicit (src 1 6) (TSSymbol (src 1 6) (Identifier "int")))
 
     it "parses type signature without explicit forall" $
       parseTopLevel "x :: int -> int"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
-      "x"
-      (Implicit (src 1 6) (TSFn (src 1 6) (TSSymbol (src 1 6) (Unqualified "int")) (TSSymbol (src 1 13) (Unqualified "int"))))
+      (Identifier "x")
+      (Implicit (src 1 6) (TSFn (src 1 6) (TSSymbol (src 1 6) (Identifier "int")) (TSSymbol (src 1 13) (Identifier "int"))))
 
     it "parses type signature with no-arg fn" $
       parseTopLevel "x :: -> ()"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
-      "x"
+      (Identifier "x")
       (Implicit (src 1 6) (TSNoArgFn (src 1 6) (TSUnit (src 1 9))))
 
     it "parses type signature with int slice" $
@@ -294,29 +294,29 @@ spec = do
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
-      "x"
-      (Implicit (src 1 6) (TSSlice (src 1 6) (TSSymbol (src 1 9) (Unqualified "int"))))
+      (Identifier "x")
+      (Implicit (src 1 6) (TSSlice (src 1 6) (TSSymbol (src 1 9) (Identifier "int"))))
 
     it "parses type signature with string slice" $
       parseTopLevel "x :: []{string}"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
-      "x"
-      (Implicit (src 1 6) (TSSlice (src 1 6) (TSSymbol (src 1 9) (Unqualified "string"))))
+      (Identifier "x")
+      (Implicit (src 1 6) (TSSlice (src 1 6) (TSSymbol (src 1 9) (Identifier "string"))))
 
 
     it "parses polymorphic type signature with implicit forall" $
       parseTopLevel "x :: #a -> #a"
       `shouldSucceedWith`
-      TypeSignatureDeclaration (src 1 1) "x" (Implicit (src 1 6) (TSFn (src 1 6) (TSVar (src 1 6) "a") (TSVar (src 1 12) "a")))
+      TypeSignatureDeclaration (src 1 1) (Identifier "x") (Implicit (src 1 6) (TSFn (src 1 6) (TSVar (src 1 6) "a") (TSVar (src 1 12) "a")))
 
     it "parses polymorphic type signature with explicit forall" $
       parseTopLevel "x :: forall #a. #a -> #a"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
-      "x"
+      (Identifier "x")
       (Explicit
        (src 1 6)
        [SignatureVarBinding (src 1 13) "a"]
@@ -325,44 +325,44 @@ spec = do
     it "parses struct definition without type parameters" $
       parseTopLevel "type S = {\n  x T\n}"
       `shouldSucceedWith`
-      TypeDefinition (src 1 1) "S" (TSStruct (src 1 10) [
-          TSStructField (src 2 3) "x" (TSSymbol (src 2 5) (Unqualified "T"))
+      TypeDefinition (src 1 1) (Identifier "S") (TSStruct (src 1 10) [
+          TSStructField (src 2 3) (Identifier "x") (TSSymbol (src 2 5) (Identifier "T"))
         ])
 
     it "parses struct definition multiple fields" $
       parseTopLevel "type S = {\n  x T\n  y T\n}"
       `shouldSucceedWith`
-      TypeDefinition (src 1 1) "S" (TSStruct (src 1 10) [
-          TSStructField (src 2 3) "x" (TSSymbol (src 2 5) (Unqualified "T")),
-          TSStructField (src 3 3) "y" (TSSymbol (src 3 5) (Unqualified "T"))
+      TypeDefinition (src 1 1) (Identifier "S") (TSStruct (src 1 10) [
+          TSStructField (src 2 3) (Identifier "x") (TSSymbol (src 2 5) (Identifier "T")),
+          TSStructField (src 3 3) (Identifier "y") (TSSymbol (src 3 5) (Identifier "T"))
         ])
 
     it "parses value definition" $
       parseTopLevel "x = y"
       `shouldSucceedWith`
-      ValueDefinition (src 1 1) "x" (Symbol (src 1 5) (Unqualified "y"))
+      ValueDefinition (src 1 1) (Identifier "x") (Symbol (src 1 5) (Identifier "y"))
 
     it "parses fn definition" $
       parseTopLevel "f = (x) -> x"
       `shouldSucceedWith`
-      ValueDefinition (src 1 1) "f" (Fn (src 1 5) [NameBinding (src 1 6) "x"] (Symbol (src 1 12) (Unqualified "x")))
+      ValueDefinition (src 1 1) (Identifier "f") (Fn (src 1 5) [NameBinding (src 1 6) (Identifier "x")] (Symbol (src 1 12) (Identifier "x")))
 
     it "parses short-hand fn definition" $
       parseTopLevel "f(x) = x"
       `shouldSucceedWith`
-      FnDefinition (src 1 1) "f" [NameBinding (src 1 3) "x"] (Symbol (src 1 8) (Unqualified "x"))
+      FnDefinition (src 1 1) (Identifier "f") [NameBinding (src 1 3) (Identifier "x")] (Symbol (src 1 8) (Identifier "x"))
 
     it "parses short-hand no-arg fn definition" $
       parseTopLevel "sideEffect() = x"
       `shouldSucceedWith`
-      FnDefinition (src 1 1) "sideEffect" [] (Symbol (src 1 16) (Unqualified "x"))
+      FnDefinition (src 1 1) (Identifier "sideEffect") [] (Symbol (src 1 16) (Identifier "x"))
 
     it "parses short-hand multi-arg fn definition" $
       parseTopLevel "f(x, y, z) = x"
       `shouldSucceedWith`
-      FnDefinition (src 1 1) "f"
-      [NameBinding (src 1 3) "x", NameBinding (src 1 6) "y", NameBinding (src 1 9) "z"]
-      (Symbol (src 1 14) (Unqualified "x"))
+      FnDefinition (src 1 1) (Identifier "f")
+      [NameBinding (src 1 3) (Identifier "x"), NameBinding (src 1 6) (Identifier "y"), NameBinding (src 1 9) (Identifier "z")]
+      (Symbol (src 1 14) (Identifier "x"))
 
   describe "parsePackage" $ do
     it "parses package declaration" $

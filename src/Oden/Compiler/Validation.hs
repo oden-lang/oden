@@ -12,27 +12,27 @@ import           Control.Monad.State
 
 import qualified Data.Set        as Set
 
-data ValidationError = Redefinition SourceInfo Name
+data ValidationError = Redefinition SourceInfo Identifier
                      | ValueDiscarded (Expr Type)
-                     | DuplicatedStructFieldName SourceInfo Name
+                     | DuplicatedStructFieldName SourceInfo Identifier
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValidationWarning -- There's no warnings defined yet.
                        deriving (Show, Eq, Ord)
 
 type Validate = ReaderT
-                (Set.Set Name)
+                (Set.Set Identifier)
                 (StateT [ValidationWarning]
                         (Except ValidationError))
 
-errorIfDefined :: Name -> SourceInfo -> Validate ()
+errorIfDefined :: Identifier -> SourceInfo -> Validate ()
 errorIfDefined name si = do
   scope <- ask
   when (Set.member name scope) $
     throwError (Redefinition si name)
 
-withName :: Name -> Validate a -> Validate a
-withName = local . Set.insert
+withIdentifier :: Identifier -> Validate a -> Validate a
+withIdentifier = local . Set.insert
 
 validateExpr :: Expr Type -> Validate ()
 validateExpr Symbol{} = return ()
@@ -57,13 +57,13 @@ validateExpr (UncurriedFnApplication _ f args _) = do
   mapM_ validateExpr args
 validateExpr (Fn _ (NameBinding si name) body _) =  do
   errorIfDefined name si
-  withName name (validateExpr body)
+  withIdentifier name (validateExpr body)
 validateExpr (NoArgFn _ body _) =
   validateExpr body
 validateExpr (Let _ (NameBinding si name) value body _) = do
   errorIfDefined name si
   validateExpr value
-  withName name (validateExpr body)
+  withIdentifier name (validateExpr body)
 validateExpr Literal{} = return ()
 validateExpr (Tuple _ f s r _) =
   mapM_ validateExpr (f:s:r)
@@ -116,12 +116,12 @@ validatePackage (Package _ _ definitions) = validateDefs definitions
   where
   validateDefs (Definition si name (_, expr):defs) = do
     errorIfDefined name si
-    withName name $ do
+    withIdentifier name $ do
       validateExpr expr
       validateDefs defs
   validateDefs (TypeDefinition _ (FQN _ n) _ type':defs) = do
     validateType type'
-    withName n (validateDefs defs)
+    withIdentifier n (validateDefs defs)
   validateDefs (_:defs) = validateDefs defs
   validateDefs [] = return ()
 

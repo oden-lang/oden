@@ -3,6 +3,7 @@
 module Oden.Parser where
 
 import           Control.Monad (void)
+import           Data.Either
 import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
@@ -10,7 +11,8 @@ import qualified Text.Parsec.Token     as Tok
 import qualified Text.Parsec.Expr      as Ex
 
 import           Oden.Identifier
-import           Oden.Lexer            as Lexer
+import           Oden.Lexer            hiding (identifier)
+import qualified Oden.Lexer            as Lexer
 import           Oden.Syntax           as Syntax
 import           Oden.Type.Signature
 import           Oden.SourceInfo
@@ -33,17 +35,17 @@ currentSourceInfo = do
   return (SourceInfo (Position (sourceName pos)
                                (sourceLine pos)
                                (sourceColumn pos)))
-identifier :: (SourceInfo -> Identifier ->  e) -> Parser e
-identifier f = do
-  si <- currentSourceInfo
-  i <- try qualified <|> unqualified
-  return (f si i)
-  where
-  qualified = Qualified <$> name <*> (char '.' *> name)
-  unqualified = Unqualified <$> name
+
+identifier :: Parser Identifier
+identifier = do
+  s <- Lexer.identifier
+  either (fail . errorMessage) return (createLegalIdentifier s)
+
+identified :: (SourceInfo -> Identifier -> e) -> Parser e
+identified f = f <$> currentSourceInfo <*> identifier
 
 symbol :: Parser Expr
-symbol = identifier Symbol
+symbol = identified Symbol
 
 number :: Parser Expr
 number = do
@@ -84,10 +86,7 @@ if' = do
   return (If si cond t f)
 
 nameBinding :: Parser NameBinding
-nameBinding = do
-  si <- currentSourceInfo
-  n <- name
-  return (NameBinding si n)
+nameBinding = NameBinding <$> currentSourceInfo <*> identifier
 
 fn :: Parser Expr
 fn = do
@@ -183,7 +182,8 @@ termNoSlice =
   <|> unitExprOrTuple
 
 tvar :: Parser String
-tvar = char '#' *> name
+-- TODO: Parse type variables as just like identifiers.
+tvar = char '#' *> (asString <$> identifier)
 
 type' :: Parser SignatureExpr
 type' = do
@@ -195,7 +195,7 @@ type' = do
   simple = slice'
         <|> noArgFn
         <|> var
-        <|> identifier TSSymbol
+        <|> identified TSSymbol
         <|> unitExprOrTupleType
         <|> structType
   var = TSVar <$> currentSourceInfo <*> tvar
@@ -213,7 +213,7 @@ type' = do
                       <*> braces (structFieldType `sepBy1` structFieldSeparator)
   structFieldType = do
     si <- currentSourceInfo
-    n <- name
+    n <- identifier
     TSStructField si n <$> type'
 
   structFieldSeparator = do
@@ -271,9 +271,9 @@ pkgDecl :: Parser PackageDeclaration
 pkgDecl = do
   si <- currentSourceInfo
   reserved "package"
-  name' <- packageName
+  pkg <- packageName
   topSeparator
-  return (PackageDeclaration si name')
+  return (PackageDeclaration si pkg)
 
 topLevel :: Parser TopLevel
 topLevel = import' <|> typeDef <|> try typeSignature <|> def
@@ -294,7 +294,7 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
   signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
   typeSignature = do
     si <- currentSourceInfo
-    i <- name
+    i <- identifier
     reservedOp "::"
     TypeSignatureDeclaration si i <$> signature
   valueDef si n = do
@@ -304,7 +304,7 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
     FnDefinition si n <$> parensList nameBinding <*> (equals *> expr)
   def = do
     si <- currentSourceInfo
-    n <- name
+    n <- identifier
     fnDef si n <|> valueDef si n
   import' = do
     si <- currentSourceInfo
@@ -313,7 +313,7 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
   typeDef = do
     si <- currentSourceInfo
     reserved "type"
-    n <- name
+    n <- identifier
     equals
     TypeDefinition si n <$> type'
 

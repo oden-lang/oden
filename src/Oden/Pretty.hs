@@ -21,7 +21,7 @@ rArr :: Doc
 rArr = text "->"
 
 instance Pretty NameBinding where
-  pp (NameBinding _ name) = text name
+  pp (NameBinding _ identifier) = pp identifier
 
 instance Pretty UnaryOperator where
   pp Positive = text "+"
@@ -43,8 +43,7 @@ instance Pretty BinaryOperator where
   pp Or = text "||"
 
 instance Pretty Identifier where
-  pp (Qualified p n) = text p <> text "." <> text n
-  pp (Unqualified n) = text n
+  pp (Identifier n) = text n
 
 instance Pretty t => Pretty (Expr t) where
   pp (Symbol _ i _) = pp i
@@ -86,10 +85,10 @@ instance Pretty Poly.TVarBinding where
   pp (Poly.TVarBinding _ v) = pp v
 
 instance Pretty QualifiedName where
-  pp (FQN pkg name) = hcat (punctuate (text ".") (map text (pkg ++ [name])))
+  pp (FQN pkg identifier) = hcat (punctuate (text ".") ((map text pkg) ++ [pp identifier]))
 
 instance Pretty Poly.StructField where
-  pp (Poly.TStructField _ name t) = text name <+> pp t
+  pp (Poly.TStructField _ identifier t) = pp identifier <+> pp t
 
 instance Pretty Poly.Type where
   pp (Poly.TAny _) = text "any"
@@ -129,7 +128,7 @@ instance Pretty Mono.Type where
   pp (Mono.TSlice _ t) =
     text "!" <> braces (pp t)
   pp (Mono.TStruct _ fs) = braces (hcat (punctuate (text "; ") (map ppField fs)))
-    where ppField (Mono.TStructField _ name t) = text name <+> pp t
+    where ppField (Mono.TStructField _ identifier t) = pp identifier <+> pp t
   pp (Mono.TNamed _ n _) = pp n
 
 instance Pretty SignatureVarBinding where
@@ -137,7 +136,7 @@ instance Pretty SignatureVarBinding where
 
 
 instance Pretty TSStructField where
-  pp (TSStructField _ name t) = text name <+> pp t
+  pp (TSStructField _ identifier t) = pp identifier <+> pp t
 
 instance Pretty SignatureExpr where
   pp (TSUnit _) = text "()"

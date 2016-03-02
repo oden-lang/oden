@@ -7,7 +7,7 @@ import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic as Poly
 
-data NameBinding = NameBinding SourceInfo Name
+data NameBinding = NameBinding SourceInfo Identifier
                  deriving (Show, Eq, Ord)
 
 data Expr t = Symbol SourceInfo Identifier t
@@ -98,18 +98,18 @@ data Range t = Range (Expr t) (Expr t)
 
 type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
 
-data Definition = Definition SourceInfo Name CanonicalExpr
-                | ForeignDefinition SourceInfo Name Poly.Scheme
+data Definition = Definition SourceInfo Identifier CanonicalExpr
+                | ForeignDefinition SourceInfo Identifier Poly.Scheme
                 | TypeDefinition SourceInfo QualifiedName [NameBinding] Poly.Type
                 deriving (Show, Eq, Ord)
 
-type PackageName = [Name]
+type PackageName = [String]
 
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                         deriving (Show, Eq, Ord)
 
-data Import = Import SourceInfo PackageName
-            deriving (Show, Eq, Ord)
+data ImportedPackage = ImportedPackage SourceInfo Identifier Package
+                     deriving (Show, Eq, Ord)
 
-data Package = Package PackageDeclaration [Import] [Definition]
+data Package = Package PackageDeclaration [ImportedPackage] [Definition]
              deriving (Show, Eq, Ord)

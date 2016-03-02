@@ -28,8 +28,8 @@ identityPoly :: Core.Expr Poly.Type
 identityPoly =
   Core.Fn
   Missing
-  (Core.NameBinding Missing "x")
-  (Core.Symbol Missing (Unqualified "x") tvarA)
+  (Core.NameBinding Missing (Identifier "x"))
+  (Core.Symbol Missing (Identifier "x") tvarA)
   (Poly.TFn Missing tvarA tvarA)
 
 identityIntType :: Mono.Type
@@ -39,15 +39,15 @@ identityInt :: Core.Expr Poly.Type
 identityInt =
   Core.Fn
   Missing
-  (Core.NameBinding Missing "x")
-  (Core.Symbol Missing (Unqualified "x") typeInt)
+  (Core.NameBinding Missing (Identifier "x"))
+  (Core.Symbol Missing (Identifier "x") typeInt)
   (Poly.TFn Missing typeInt typeInt)
 
 lenType :: Poly.Type
 lenType = Poly.TUncurriedFn Missing [Poly.TSlice Missing tvarA] typeInt
 
 lenPoly :: Core.Expr Poly.Type
-lenPoly = Core.Symbol Missing (Unqualified "len") lenType
+lenPoly = Core.Symbol Missing (Identifier "len") lenType
 
 lenIntType :: Mono.Type
 lenIntType = Mono.TUncurriedFn Missing [Mono.TSlice Missing monoInt] monoInt
@@ -56,15 +56,15 @@ lenInt :: Core.Expr Poly.Type
 lenInt =
   Core.Symbol
   Missing
-  (Unqualified "len")
+  (Identifier "len")
   (Poly.TUncurriedFn Missing [Poly.TSlice Missing typeInt] typeInt)
 
 pairPoly :: Core.Expr Poly.Type
 pairPoly =
   Core.Tuple
   Missing
-  (Core.Symbol Missing (Unqualified "x") tvarA)
-  (Core.Symbol Missing (Unqualified "y") (Poly.TVar Missing (Poly.TV "b")))
+  (Core.Symbol Missing (Identifier "x") tvarA)
+  (Core.Symbol Missing (Identifier "y") (Poly.TVar Missing (Poly.TV "b")))
   []
   (Poly.TTuple Missing tvarA (Poly.TVar Missing (Poly.TV "b")) [])
 
@@ -76,8 +76,8 @@ pairIntString :: Core.Expr Poly.Type
 pairIntString =
   Core.Tuple
   Missing
-  (Core.Symbol Missing (Unqualified "x") typeInt)
-  (Core.Symbol Missing (Unqualified "y") (Poly.TBasic Missing TString))
+  (Core.Symbol Missing (Identifier "x") typeInt)
+  (Core.Symbol Missing (Identifier "y") (Poly.TBasic Missing TString))
   []
   (Poly.TTuple Missing typeInt (Poly.TBasic Missing TString) [])
 

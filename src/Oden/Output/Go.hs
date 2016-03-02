@@ -5,6 +5,7 @@ import           Text.PrettyPrint
 
 import           Oden.Go as G
 import           Oden.Output
+import           Oden.Pretty
 
 instance OdenOutput PackageImportError where
   outputType _ = Error
@@ -19,6 +20,6 @@ instance OdenOutput UnsupportedTypesWarning where
   name _        = "Go.UnsupportedTypesWarning"
   header u s    = text "Some definitions could not be imported from package" <+> strCode s (intercalate "/" (pkg u)) <> colon
   details u s   = vcat (map formatMessage (messages u))
-    where formatMessage (n, msg) = strCode s n
+    where formatMessage (n, msg) = code s (pp n)
                                    <+> parens (text msg <+> text "are not supported")
   sourceInfo _ = Nothing

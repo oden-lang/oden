@@ -16,11 +16,11 @@ instance OdenOutput ExplodeError where
     text "Type signature has no corresponding definition"
 
   details (TypeSignatureWithoutDefinition _ n sc@(Explicit _ _ TSFn{})) s =
-    text "Define the function" <+> strCode s n
+    text "Define the function" <+> code s (pp n)
     <+> text "with type" <+> code s (pp sc)
 
   details (TypeSignatureWithoutDefinition _ n sc) s =
-    text "Define the value" <+> strCode s n
+    text "Define the value" <+> code s (pp n)
     <+> text "with type" <+> code s (pp sc)
 
   sourceInfo (TypeSignatureWithoutDefinition si _ _) = Just si

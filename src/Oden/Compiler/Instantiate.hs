@@ -37,6 +37,7 @@ monoToPoly (Mono.TStruct si fs) = Poly.TStruct si (map fieldMonoToPoly fs)
 monoToPoly (Mono.TNamed si n t) = Poly.TNamed si n (monoToPoly t)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
+getSubstitutions Poly.TUnit{} Mono.TUnit{} = return Map.empty
 getSubstitutions p@(Poly.TBasic _ pb) m@(Mono.TBasic _ mb) =
   if pb == mb
   then Right Map.empty
