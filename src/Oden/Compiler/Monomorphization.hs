@@ -233,6 +233,10 @@ monomorph (Core.StructInitializer si structType values) = do
   structMonoType <- toMonomorphic si structType
   monoValues <- mapM monomorph values
   return (Core.StructInitializer si structMonoType monoValues)
+monomorph e@(Core.MemberAccess si expr name _) = do
+  monoType <- getMonoType e
+  monoExpr <- monomorph expr
+  return (Core.MemberAccess si monoExpr name monoType)
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.

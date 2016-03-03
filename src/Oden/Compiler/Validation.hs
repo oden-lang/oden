@@ -82,6 +82,7 @@ validateExpr (Block _ exprs _) = do
     TUnit{} -> return ()
     _ -> throwError (ValueDiscarded expr)
 validateExpr StructInitializer{} = return ()
+validateExpr (MemberAccess _ expr _ _) = validateExpr expr
 
 validateRange :: Range Type -> Validate()
 validateRange (Range e1 e2) = do

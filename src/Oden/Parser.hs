@@ -3,7 +3,6 @@
 module Oden.Parser where
 
 import           Control.Monad (void)
-import           Data.Either
 import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
@@ -149,23 +148,6 @@ unitExprOrTuple = do
     [e]     -> return e
     (f:s:r) -> return (Tuple si f s r)
 
-subscript :: Parser Subscript
-subscript = try openStart <|> try range <|> try openEnd <|> simple
-   where
-     openStart = RangeTo <$> (char ':' *> expr)
-     openEnd = RangeFrom <$> (expr <* char ':')
-     range = Range <$> expr <*> (char ':' *> expr)
-     simple = Singular <$> expr
-
-term :: Parser Expr
-term = do
-  si <- currentSourceInfo
-  basicTerm <- termNoSlice
-  indices <- many (brackets subscript)
-  case indices of
-    [] -> return basicTerm
-    is -> return (Subscript si basicTerm is)
-
 termNoSlice :: Parser Expr
 termNoSlice =
   try fn
@@ -180,6 +162,39 @@ termNoSlice =
   <|> symbol
   <|> block
   <|> unitExprOrTuple
+
+subscript :: Parser Subscript
+subscript = try openStart <|> try range <|> try openEnd <|> simple
+   where
+     openStart = RangeTo <$> (char ':' *> expr)
+     openEnd = RangeFrom <$> (expr <* char ':')
+     range = Range <$> expr <*> (char ':' *> expr)
+     simple = Singular <$> expr
+
+memberAccess :: Parser Expr
+memberAccess = do
+  expr' <- termNoSlice
+  accesses <- many1 dotAndName
+  return $ foldl wrap expr' accesses
+  where
+  dotAndName = do
+    si <- currentSourceInfo
+    reservedOp "."
+    name <- identifier
+    return (si, name)
+  wrap accessExpr (sourceInfo, accessName) = MemberAccess sourceInfo accessExpr accessName
+
+subscriptExpr :: Parser Expr
+subscriptExpr = do
+  si <- currentSourceInfo
+  basicTerm <- termNoSlice
+  indices <- many (brackets subscript)
+  case indices of
+    [] -> return basicTerm
+    is -> return (Subscript si basicTerm is)
+
+term :: Parser Expr
+term = try memberAccess <|> subscriptExpr
 
 tvar :: Parser String
 -- TODO: Parse type variables as just like identifiers.

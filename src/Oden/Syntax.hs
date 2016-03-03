@@ -24,6 +24,7 @@ data Expr = Symbol SourceInfo Identifier
           | Tuple SourceInfo Expr Expr [Expr]
           | Block SourceInfo [Expr]
           | StructInitializer SourceInfo SignatureExpr [Expr]
+          | MemberAccess SourceInfo Expr Identifier
           deriving (Show, Eq, Ord)
 
 data Subscript = Singular Expr

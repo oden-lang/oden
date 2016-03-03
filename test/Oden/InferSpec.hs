@@ -64,6 +64,7 @@ uTuple                  = Untyped.Tuple Missing
 uIf                     = Untyped.If Missing
 uSlice                  = Untyped.Slice Missing
 uBlock                  = Untyped.Block Missing
+uMemberAccess           = Untyped.MemberAccess Missing
 
 uInt    = Untyped.Int
 uString = Untyped.String
@@ -86,6 +87,7 @@ tTuple                  = Core.Tuple Missing
 tIf                     = Core.If Missing
 tSlice                  = Core.Slice Missing
 tBlock                  = Core.Block Missing
+tMemberAccess           = Core.MemberAccess Missing
 
 tUnit   = Core.Unit
 tInt    = Core.Int
@@ -227,6 +229,20 @@ spec = do
         (tLiteral (tString "foo") typeString)
         [tLiteral tUnit typeUnit]
         tupleType)
+
+    it "infers struct member access" $
+      inferExpr empty (uFn
+                       (uNameBinding (Identifier "x"))
+                       (uMemberAccess
+                        (uSymbol (Identifier "x"))
+                        (Identifier "y")))
+      `shouldSucceedWith`
+      let structType = (TStruct Missing [TStructField Missing (Identifier "y") tvarA]) in
+        (forall [tvarBinding tvA] (typeFn structType tvarA),
+        tFn
+        (tNameBinding (Identifier "x"))
+        (tMemberAccess (tSymbol (Identifier "x") structType) (Identifier "y") tvarA)
+        (typeFn structType tvarA))
 
     it "infers identity fn" $
       inferExpr empty (uFn (uNameBinding (Identifier "x")) (uSymbol (Identifier "x")))

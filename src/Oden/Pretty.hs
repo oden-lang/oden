@@ -72,6 +72,8 @@ instance Pretty t => Pretty (Expr t) where
     braces (vcat (map pp es))
   pp (StructInitializer _ structType values) =
     pp structType <> braces (hcat (punctuate (text ", ") (map pp values)))
+  pp (MemberAccess _ expr name _) =
+    pp expr <> text "." <> pp name
 
 instance Pretty r => Pretty (Range r) where
   pp (Range e1 e2) = brackets $ pp e1 <+> (text ":") <+> pp e2

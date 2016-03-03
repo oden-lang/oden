@@ -23,6 +23,25 @@ spec = do
       `shouldSucceedWith`
       Symbol (src 1 1) (Identifier "foo")
 
+    it "parses single member accesss" $
+      parseExpr "foo.bar"
+      `shouldSucceedWith`
+      MemberAccess
+      (src 1 4)
+      (Symbol (src 1 1) (Identifier "foo"))
+      (Identifier "bar")
+
+    it "parses multiple member accesses" $
+      parseExpr "foo.bar.baz"
+      `shouldSucceedWith`
+      MemberAccess
+      (src 1 8)
+      (MemberAccess
+       (src 1 4)
+       (Symbol (src 1 1) (Identifier "foo"))
+       (Identifier "bar"))
+      (Identifier "baz")
+
     it "parses integer literal" $
       parseExpr "123"
       `shouldSucceedWith`

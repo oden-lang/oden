@@ -18,7 +18,6 @@ import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Monad.RWS       hiding ((<>))
 
-import           Data.List               (nub)
 import qualified Data.Map                as Map
 import qualified Data.Set                as Set
 
@@ -284,6 +283,14 @@ infer expr = case expr of
     t <- lookupValue si x
     return $ Core.Symbol si x t
 
+  Untyped.MemberAccess si expr' fieldName -> do
+    tv <- fresh si
+    typedExpr <- infer expr'
+    uni (getSourceInfo typedExpr)
+        (Core.typeOf typedExpr)
+        (TStruct (getSourceInfo typedExpr) [TStructField si fieldName tv])
+    return (Core.MemberAccess si typedExpr fieldName tv)
+
   Untyped.Fn si (Untyped.NameBinding bsi a) b -> do
     tv <- fresh bsi
     tb <- inEnv (a, Local bsi a (Forall bsi [] tv)) (infer b)
@@ -479,50 +486,20 @@ inferPackage (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs
       (e', def') <- inferDefinition e def
       return (e', inferred ++ [def'])
 
--- | Swaps all type variables names for generated ones based on 'letters'.
+-- | Swaps all type variables names for generated ones based on 'letters' to
+-- get a nice sequence.
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)
-normalize (Forall si _ exprType, te) = (Forall si tvarBindings (normtype exprType), te)
+normalize (Forall si _ exprType, te) =
+  (Forall si newBindings (apply subst exprType), apply subst te)
   where
-    -- Pairs of type variables in the type and new 'TV' values to substitute
-    -- with, a sequence based on 'letters'.
-    ord = zip (nub $ fv exprType) (map TV letters)
-
-    tvarBindings = map (TVarBinding Missing . snd) ord
-
-    -- Extracts free type variables as 'TV' values.
-    fv :: Type -> [TVar]
-    fv TAny{}                 = []
-    fv TUnit{}                = []
-    fv TBasic{}               = []
-    fv (TTuple _ f s rs)      = fv f ++ fv s ++ concatMap fv rs
-    fv (TVar _ a)             = [a]
-    fv (TNoArgFn _ a)         = fv a
-    fv (TFn _ a b)            = fv a ++ fv b
-    fv (TUncurriedFn _ as r)  = concatMap fv as ++ fv r
-    fv (TVariadicFn _ as v r) = concatMap fv as ++ fv v ++ fv r
-    fv (TCon _ d r)           = fv d ++ fv r
-    fv (TSlice _ t)           = fv t
-    fv (TStruct _ fs)         = concatMap (fv . getStructFieldType) fs
-    fv (TNamed _ _ t)         = fv t
-
-    -- Substitutes type variables for generated names in ord.
-    normtype t@TAny{}                = t
-    normtype t@TUnit{}               = t
-    normtype t@TBasic{}              = t
-    normtype (TTuple si' f s r)       = TTuple si' (normtype f) (normtype s) (map normtype r)
-    normtype (TNoArgFn si' a)         = TNoArgFn si' (normtype a)
-    normtype (TFn si' a b)            = TFn si' (normtype a) (normtype b)
-    normtype (TUncurriedFn si' as r)  = TUncurriedFn si' (map normtype as) (normtype r)
-    normtype (TVariadicFn si' as v r) = TVariadicFn si' (map normtype as) (normtype v) (normtype r)
-    normtype (TCon si' d r)           = TCon si' (normtype d) (normtype r)
-    normtype (TSlice si' a)           = TSlice si' (normtype a)
-    normtype (TStruct ssi fs)         = TStruct ssi (map normFieldType fs)
-      where normFieldType (TStructField fsi n ft) = TStructField fsi n (normtype ft)
-    normtype (TNamed si' n t)         = TNamed si' n (normtype t)
-    normtype (TVar si' a)             =
-      case Prelude.lookup a ord of
-        Just x -> TVar si' x
-        Nothing -> error "type variable not in signature"
+    -- Pairs of existing type variables in the type and new type variables
+    -- values to substitute with, a sequence based on 'letters'.
+    substPairs = zip (Set.toList $ ftv exprType) (map TV letters)
+    -- The substitution based on the pairs.
+    subst = Subst (Map.fromList (map wrapTvar substPairs))
+    wrapTvar (tv1, tv2) = (tv1, TVar Missing tv2)
+    -- The new set of type variables bindings for the canonical expression.
+    newBindings = map (TVarBinding Missing . snd) substPairs
 
 -------------------------------------------------------------------------------
 -- Constraint Solver

@@ -82,6 +82,7 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.Slice si es t)                   = Core.Slice si (apply s es) (apply s t)
   apply s (Core.Block si es t)                   = Core.Block si (apply s es) (apply s t)
   apply s (Core.StructInitializer si t vs)       = Core.StructInitializer si (apply s t) (apply s vs)
+  apply s (Core.MemberAccess si expr name t)     = Core.MemberAccess si (apply s expr) name (apply s t)
 
 instance Substitutable a => Substitutable [a] where
   apply = map . apply

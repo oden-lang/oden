@@ -69,6 +69,11 @@ getSubstitutions (Poly.TTuple _ pf ps pr) (Mono.TTuple _ mf ms mr) = do
   return (foldl mappend f (s:r))
 getSubstitutions (Poly.TSlice _ p) (Mono.TSlice _ m) =
   getSubstitutions p m
+getSubstitutions (Poly.TStruct _ polyFields) (Mono.TStruct _ monoFields) =
+  foldM getFieldSubstitutions Map.empty (zip polyFields monoFields)
+  where
+  getFieldSubstitutions subst (Poly.TStructField _ _ pt, Mono.TStructField _ _ mt) =
+    (subst `mappend`) <$> getSubstitutions pt mt
 getSubstitutions poly mono = Left (TypeMismatch (getSourceInfo mono) poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
@@ -164,6 +169,8 @@ instantiateExpr (Core.Block si es t) =
                 <*> replace t
 instantiateExpr (Core.StructInitializer si t vs) =
   Core.StructInitializer si <$> replace t <*> mapM instantiateExpr vs
+instantiateExpr (Core.MemberAccess si expr name t) =
+  Core.MemberAccess si <$> instantiateExpr expr <*> return name <*> replace t
 
 -- | Given a polymorphically typed expression and a monomorphic type, return
 -- the expression with all types substitued for monomorphic ones. If there's

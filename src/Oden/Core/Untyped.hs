@@ -24,6 +24,7 @@ data Expr = Symbol SourceInfo Identifier
           | Slice SourceInfo [Expr]
           | Block SourceInfo [Expr]
           | StructInitializer SourceInfo SignatureExpr [Expr]
+          | MemberAccess SourceInfo Expr Identifier
           deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Expr where
@@ -42,6 +43,7 @@ instance HasSourceInfo Expr where
   getSourceInfo (Tuple si _ _ _)                = si
   getSourceInfo (Block si _)                    = si
   getSourceInfo (StructInitializer si _ _)      = si
+  getSourceInfo (MemberAccess si _ _)           = si
 
   setSourceInfo si (Symbol _ i)                   = Symbol si i
   setSourceInfo si (Subscript _ s i)              = Subscript si s i
@@ -58,6 +60,7 @@ instance HasSourceInfo Expr where
   setSourceInfo si (Tuple _ f s r)                = Tuple si f s r
   setSourceInfo si (Block _ e)                    = Block si e
   setSourceInfo si (StructInitializer _ ts es)    = StructInitializer si ts es
+  setSourceInfo si (MemberAccess _ expr n)        = MemberAccess si expr n
 
 data Literal = Int Integer
              | Bool Bool
