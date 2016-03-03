@@ -39,8 +39,8 @@ readPackage fname = do
 
 validatePkg :: Core.Package -> CLI ()
 validatePkg pkg = do
-  warnings <- liftEither (validate pkg)
-  mapM_ logWarning warnings
+  warnings' <- liftEither (validate pkg)
+  mapM_ logWarning warnings'
 
 logCompiledFiles :: [CompiledFile] -> CLI ()
 logCompiledFiles [_] = liftIO $ putStrLn "Compiled 1 Go source file."

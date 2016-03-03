@@ -27,6 +27,7 @@ data Options = Options { showHelp        :: Bool
                        , odenPath        :: FilePath
                        , outPath         :: FilePath
                        , printMonochrome :: Bool
+                       , warnings        :: Bool
                        } deriving (Show, Eq, Ord)
 
 orMaybe :: Maybe a -> Maybe a -> Maybe a
@@ -41,12 +42,21 @@ setOdenPath path opts = do
 setOutPath :: Maybe FilePath -> Options -> IO Options
 setOutPath path opts = return (opts { outPath = fromMaybe (outPath opts) path })
 
+toggleWarnings :: Maybe String -> Options -> IO Options
+toggleWarnings (Just "none") opts = return (opts { warnings = False })
+toggleWarnings _ opts = return (opts { warnings = True })
+
 defaultOptions :: Options
 defaultOptions = Options { showHelp = False
                          , showVersion = False
+                         , warnings = False
                          , odenPath = "."
                          , outPath = "target/go"
                          , printMonochrome = False }
+
+defaultOptionsForArgs :: [String] -> Options
+defaultOptionsForArgs ("lint":_) = defaultOptions { warnings = True }
+defaultOptionsForArgs _ = defaultOptions
 
 options :: [OptDescr (Options -> IO Options)]
 options =
@@ -56,6 +66,9 @@ options =
   , Option ['V'] ["version"]
     (NoArg (\opts -> return $ opts { showVersion = True }))
     "Print the CLI version"
+  , Option ['W'] ["warn"]
+    (OptArg toggleWarnings "all|none")
+    "Enable or disable compiler warnings"
   , Option ['p'] ["oden-path"]
     (OptArg setOdenPath "DIR")
     "Search path for Oden sources"
@@ -88,7 +101,7 @@ getOptions = do
   argv <- getArgs
   case getOpt Permute options argv of
     (o, args, []) -> do
-      o' <- foldM (flip ($)) defaultOptions o
+      o' <- foldM (flip ($)) (defaultOptionsForArgs args) o
       return (Right (o', args))
     (_, _, errs) -> return $ Left (concat errs ++ "\n" ++ help)
 
@@ -110,8 +123,10 @@ liftEither' = either (printOutputs >=> throwError) return
 
 logWarning :: Output.OdenOutput o => o -> CLI ()
 logWarning o = do
-  s <- printOutput o
-  liftIO (hPutStrLn stderr s)
+  opts <- ask
+  when (warnings opts) $ do
+    s <- printOutput o
+    liftIO (hPutStrLn stderr s)
 
 exitWithMessage :: String -> IO ()
 exitWithMessage err = do
