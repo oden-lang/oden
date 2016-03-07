@@ -11,4 +11,8 @@ bar = Bar{Foo{"hi!"}}
 printFooName :: { foo { name string }} -> ()
 printFooName(x) = fmt.Println(x.foo.name)
 
-main() = printFooName(bar)
+// NOTE: Polymorphic struct fields not supported yet!
+
+main() = {
+  printFooName(bar)
+}
