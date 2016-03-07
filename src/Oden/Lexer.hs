@@ -69,6 +69,12 @@ reservedOp = Tok.reservedOp lexer
 identifier :: Parser String
 identifier = Tok.identifier lexer
 
+identifierNoSpace :: Parser String
+identifierNoSpace = do
+  first <- nameFirst
+  rest <- many nameLetter
+  return $ first : rest
+
 string :: Parser String
 string = Tok.stringLiteral lexer
 

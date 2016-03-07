@@ -259,8 +259,12 @@ codegenExpr (StructInitializer _ structType values) = do
   tc <- codegenType structType
   vc <- mapM codegenExpr values
   return $ tc <> braces (hcat (punctuate (comma <+> space) vc))
-codegenExpr (MemberAccess _ expr name _) = do
+codegenExpr (StructFieldAccess _ expr name _) = do
   ec <- codegenExpr expr
+  nc <- codegenIdentifier name
+  return $ ec <> text "." <> nc
+codegenExpr (PackageMemberAccess _ pkgAlias name _) = do
+  ec <- codegenIdentifier pkgAlias
   nc <- codegenIdentifier name
   return $ ec <> text "." <> nc
 

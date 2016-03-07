@@ -23,24 +23,24 @@ spec = do
       `shouldSucceedWith`
       Symbol (src 1 1) (Identifier "foo")
 
-    it "parses single member accesss" $
+    it "parses single member access" $
       parseExpr "foo.bar"
       `shouldSucceedWith`
       MemberAccess
-      (src 1 4)
+      (src 1 1)
       (Symbol (src 1 1) (Identifier "foo"))
-      (Identifier "bar")
+      (Symbol (src 1 5) (Identifier "bar"))
 
     it "parses multiple member accesses" $
       parseExpr "foo.bar.baz"
       `shouldSucceedWith`
       MemberAccess
-      (src 1 8)
+      (src 1 1)
       (MemberAccess
-       (src 1 4)
+       (src 1 1)
        (Symbol (src 1 1) (Identifier "foo"))
-       (Identifier "bar"))
-      (Identifier "baz")
+       (Symbol (src 1 5) (Identifier "bar")))
+      (Symbol (src 1 9) (Identifier "baz"))
 
     it "parses integer literal" $
       parseExpr "123"
@@ -189,11 +189,45 @@ spec = do
       (Symbol (src 1 1) (Identifier "x"))
       (Symbol (src 1 6) (Identifier "y"))
 
+    it "parses fn application with string concatenation" $
+      parseExpr "foo(y) ++ \"!\""
+      `shouldSucceedWith`
+      BinaryOp
+      (src 1 8)
+      Concat
+      (Application
+       (src 1 4)
+       (Symbol (src 1 1) (Identifier "foo"))
+       [Symbol (src 1 5) (Identifier "y")])
+      (Literal (src 1 11) (String "!"))
+
+    it "parses package member fn application" $
+      parseExpr "foo.Bar(y)"
+      `shouldSucceedWith`
+      Application
+      (src 1 8)
+      (MemberAccess
+       (src 1 1)
+       (Symbol (src 1 1) (Identifier "foo"))
+       (Symbol (src 1 5) (Identifier "Bar")))
+      [Symbol (src 1 9) (Identifier "y")]
+
+    it "parses fn application member access" $
+      parseExpr "foo(y).Bar"
+      `shouldSucceedWith`
+      MemberAccess
+      (src 1 8)
+      (Application
+       (src 1 1)
+       (Symbol (src 1 1) (Identifier "foo"))
+       [Symbol (src 1 5) (Identifier "y")])
+      (Symbol (src 1 8) (Identifier "Bar"))
+
     it "parses single-arg fn application" $
       parseExpr "x(y)"
       `shouldSucceedWith`
       Application
-      (src 1 1)
+      (src 1 2)
       (Symbol (src 1 1) (Identifier "x"))
       [Symbol (src 1 3) (Identifier "y")]
 
@@ -201,7 +235,7 @@ spec = do
       parseExpr "((x) -> x)(y)"
       `shouldSucceedWith`
       Application
-      (src 1 1)
+      (src 1 11)
       (Fn (src 1 2) [NameBinding (src 1 3) (Identifier "x")] (Symbol (src 1 9) (Identifier "x")))
       [Symbol (src 1 12) (Identifier "y")]
 
@@ -209,7 +243,7 @@ spec = do
       parseExpr "x(   \n\n y \r\n\t   )"
       `shouldSucceedWith`
       Application
-      (src 1 1)
+      (src 1 2)
       (Symbol (src 1 1) (Identifier "x"))
       [Symbol (src 3 2) (Identifier "y")]
 

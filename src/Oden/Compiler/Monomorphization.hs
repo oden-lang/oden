@@ -67,11 +67,6 @@ lookupIn env identifier =
       Nothing             -> throwError $ NotInScope identifier
       Just binding        -> return binding
 
-getInEnvironment :: Identifier -> Monomorph Binding
-getInEnvironment identifier = do
-  env <- ask
-  lookupIn env identifier
-
 withIdentifier :: Identifier -> Binding -> Monomorph a -> Monomorph a
 withIdentifier identifier binding = local (`extend` (identifier, binding))
 
@@ -96,11 +91,11 @@ instantiateDefinition key@(pn, t) _ pe = do
       addInstance key (InstantiatedDefinition identifier me)
       return identifier
 
-getMonomorphic :: Identifier -> Mono.Type -> Monomorph Identifier
-getMonomorphic ident t = do
-  def <- getInEnvironment ident
+getMonomorphicIn :: CompileEnvironment -> Identifier -> Mono.Type -> Monomorph Identifier
+getMonomorphicIn env ident t = do
+  def <- lookupIn env ident
   case def of
-    Package{} -> error "packages not support right now"
+    Package{} -> throwError $ NotInScope ident
     Definition Core.ForeignDefinition{} -> return ident
     Definition (Core.Definition _ _ (sc, pe)) | Poly.isPolymorphic sc -> do
       let key = (ident, t)
@@ -141,8 +136,9 @@ getMonoType e = toMonomorphic (getSourceInfo e) (Core.typeOf e)
 -- | Return a monomorphic version of a polymorphic expression.
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
 monomorph e@(Core.Symbol si ident _) = do
+  env <- ask
   mt <- getMonoType e
-  m <- getMonomorphic ident mt
+  m <- getMonomorphicIn env ident mt
   return (Core.Symbol si m mt)
 monomorph e@(Core.Subscript si s i _) = do
   mt <- getMonoType e
@@ -233,10 +229,19 @@ monomorph (Core.StructInitializer si structType values) = do
   structMonoType <- toMonomorphic si structType
   monoValues <- mapM monomorph values
   return (Core.StructInitializer si structMonoType monoValues)
-monomorph e@(Core.MemberAccess si expr name _) = do
+monomorph e@(Core.StructFieldAccess si expr name _) = do
   monoType <- getMonoType e
   monoExpr <- monomorph expr
-  return (Core.MemberAccess si monoExpr name monoType)
+  return (Core.StructFieldAccess si monoExpr name monoType)
+monomorph (Core.PackageMemberAccess si pkgAlias name polyType) = do
+  env <- ask
+  monoType <- toMonomorphic si polyType
+  binding <- lookupIn env pkgAlias
+  case binding of
+    Package _ _ pkgEnv -> do
+      m <- getMonomorphicIn pkgEnv name monoType
+      return (Core.PackageMemberAccess si pkgAlias m monoType)
+    _ -> error "cannot access member in non-existing package"
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
@@ -293,8 +298,8 @@ monomorphDefinitions (Core.ForeignDefinition{} : defs) =
 -- | Monomorphs a package and returns the complete package with instantiated
 -- and monomorphed definitions.
 monomorphPackage :: Core.Package -> Either MonomorphError MonomorphedPackage
-monomorphPackage (Core.Package pkgDecl imports definitions) = do
-  let environment = fromPackage universe `merge` fromPackages imports
+monomorphPackage self@(Core.Package pkgDecl imports definitions) = do
+  let environment = fromPackage universe `merge` fromPackage self `merge` fromPackages imports
   let st = MonomorphState { instances = Map.empty
                           , monomorphed = Map.empty
                           }

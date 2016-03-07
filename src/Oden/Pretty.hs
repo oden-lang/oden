@@ -1,6 +1,7 @@
 module Oden.Pretty where
 
 import           Oden.Core
+import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.QualifiedName    (QualifiedName(..))
@@ -19,6 +20,42 @@ commaSepParens ps = parens (hcat (punctuate (text ", ") (map pp ps)))
 
 rArr :: Doc
 rArr = text "->"
+
+instance Pretty Untyped.NameBinding where
+  pp (Untyped.NameBinding _ identifier) = pp identifier
+
+instance Pretty Untyped.Range where
+  pp (Untyped.Range e1 e2) = brackets $ pp e1 <+> (text ":") <+> pp e2
+  pp (Untyped.RangeTo e) = brackets $ (text ":") <+> pp e
+  pp (Untyped.RangeFrom e) = brackets $ pp e <+> (text ":")
+
+instance Pretty Untyped.Expr where
+  pp (Untyped.Symbol _ i) = pp i
+  pp (Untyped.Subscript _ s i) = pp s <> text "[" <> pp i <> text "]"
+  pp (Untyped.Subslice _ s r) = pp s <> pp r
+  pp (Untyped.UnaryOp _ op e) = pp op <+> pp e
+  pp (Untyped.BinaryOp _ op e1 e2) = parens (pp e1 <+> pp op <+> pp e2)
+  pp (Untyped.Application _ f a) = pp f <> commaSepParens a
+  pp (Untyped.Fn _ n b) = text "fn" <+> pp n <+> rArr <+> pp b
+  pp (Untyped.NoArgFn _ b) = text "fn" <+> rArr <+> pp b
+  pp (Untyped.Let _ n e b) =
+    text "let" <+> pp n <+> equals <+> pp e <+> text "in" <+> pp b
+  pp (Untyped.Literal _ (Untyped.Int n)) = integer n
+  pp (Untyped.Literal _ (Untyped.Bool True)) = text "true"
+  pp (Untyped.Literal _ (Untyped.Bool False)) = text "false"
+  pp (Untyped.Literal _ (Untyped.String s)) = text (show s)
+  pp (Untyped.Literal _ Untyped.Unit{}) = text "()"
+  pp (Untyped.Tuple _ f s r) = commaSepParens (f:s:r)
+  pp (Untyped.If _ c t e) =
+    text "if" <+> pp c <+> text "then" <+> pp t <+> text "else" <+> pp e
+  pp (Untyped.Slice _ es) =
+    text "[]" <> braces (hcat (punctuate (text ", ") (map pp es)))
+  pp (Untyped.Block _ es) =
+    braces (vcat (map pp es))
+  pp (Untyped.StructInitializer _ structType values) =
+    pp structType <> braces (hcat (punctuate (text ", ") (map pp values)))
+  pp (Untyped.MemberAccess _ pkgAlias name) =
+    pp pkgAlias <> text "." <> pp name
 
 instance Pretty NameBinding where
   pp (NameBinding _ identifier) = pp identifier
@@ -72,8 +109,10 @@ instance Pretty t => Pretty (Expr t) where
     braces (vcat (map pp es))
   pp (StructInitializer _ structType values) =
     pp structType <> braces (hcat (punctuate (text ", ") (map pp values)))
-  pp (MemberAccess _ expr name _) =
+  pp (StructFieldAccess _ expr name _) =
     pp expr <> text "." <> pp name
+  pp (PackageMemberAccess _ pkgAlias name _) =
+    pp pkgAlias <> text "." <> pp name
 
 instance Pretty r => Pretty (Range r) where
   pp (Range e1 e2) = brackets $ pp e1 <+> (text ":") <+> pp e2

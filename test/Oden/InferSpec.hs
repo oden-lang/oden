@@ -87,7 +87,8 @@ tTuple                  = Core.Tuple Missing
 tIf                     = Core.If Missing
 tSlice                  = Core.Slice Missing
 tBlock                  = Core.Block Missing
-tMemberAccess           = Core.MemberAccess Missing
+tFieldAccess            = Core.StructFieldAccess Missing
+tPackageMemberAcccess   = Core.PackageMemberAccess Missing
 
 tUnit   = Core.Unit
 tInt    = Core.Int
@@ -115,6 +116,13 @@ predefAndMaxVariadic = predef `extend` ((Identifier "max"),
 predefAndIdentityAny :: TypingEnvironment
 predefAndIdentityAny = predef `extend` ((Identifier "identity"),
                                         Local Predefined (Identifier "identity") $ forall [] (typeUncurried [typeAny] typeAny))
+
+fooBarPkgEnv :: TypingEnvironment
+fooBarPkgEnv = predef `extend` ((Identifier "foo"),
+                                Package Missing
+                                (Identifier "foo")
+                                (fromList [(Identifier "Bar",
+                                            Local Predefined (Identifier "Bar") $ forall [] typeInt)]))
 
 booleanOp :: Type
 booleanOp = typeFn typeBool (typeFn typeBool typeBool)
@@ -241,8 +249,14 @@ spec = do
         (forall [tvarBinding tvA] (typeFn structType tvarA),
         tFn
         (tNameBinding (Identifier "x"))
-        (tMemberAccess (tSymbol (Identifier "x") structType) (Identifier "y") tvarA)
+        (tFieldAccess (tSymbol (Identifier "x") structType) (Identifier "y") tvarA)
         (typeFn structType tvarA))
+
+    it "infers package member access" $
+      inferExpr fooBarPkgEnv (uMemberAccess (uSymbol (Identifier "foo")) (Identifier "Bar"))
+      `shouldSucceedWith`
+      (forall [] typeInt,
+       (tPackageMemberAcccess (Identifier "foo") (Identifier "Bar") typeInt))
 
     it "infers identity fn" $
       inferExpr empty (uFn (uNameBinding (Identifier "x")) (uSymbol (Identifier "x")))

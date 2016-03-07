@@ -283,13 +283,17 @@ infer expr = case expr of
     t <- lookupValue si x
     return $ Core.Symbol si x t
 
-  Untyped.MemberAccess si expr' fieldName -> do
-    tv <- fresh si
-    typedExpr <- infer expr'
-    uni (getSourceInfo typedExpr)
-        (Core.typeOf typedExpr)
-        (TStruct (getSourceInfo typedExpr) [TStructField si fieldName tv])
-    return (Core.MemberAccess si typedExpr fieldName tv)
+  Untyped.MemberAccess si expr'@(Untyped.Symbol symbolSourceInfo name) memberName -> do
+    env <- ask
+    case Environment.lookup name env of
+      Just (Package _ _ pkgEnv) -> do
+        valueType <- lookupValueIn pkgEnv si memberName
+        return (Core.PackageMemberAccess si name memberName valueType)
+      Just _ -> inferStructFieldAccess si expr' memberName
+      Nothing -> throwError $ NotInScope symbolSourceInfo name
+
+  Untyped.MemberAccess si expr' fieldName ->
+    inferStructFieldAccess si expr' fieldName
 
   Untyped.Fn si (Untyped.NameBinding bsi a) b -> do
     tv <- fresh bsi
@@ -396,6 +400,15 @@ infer expr = case expr of
         where
         unifyField (TStructField fsi _ ft) te = uni fsi ft (Core.typeOf te)
       _ -> throwError $ InvalidTypeInStructInitializer si t
+
+  where
+  inferStructFieldAccess si expr' fieldName = do
+    tv <- fresh si
+    typedExpr <- infer expr'
+    uni (getSourceInfo typedExpr)
+        (Core.typeOf typedExpr)
+        (TStruct (getSourceInfo typedExpr) [TStructField si fieldName tv])
+    return (Core.StructFieldAccess si typedExpr fieldName tv)
 
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr -> Infer Type

@@ -169,8 +169,10 @@ instantiateExpr (Core.Block si es t) =
                 <*> replace t
 instantiateExpr (Core.StructInitializer si t vs) =
   Core.StructInitializer si <$> replace t <*> mapM instantiateExpr vs
-instantiateExpr (Core.MemberAccess si expr name t) =
-  Core.MemberAccess si <$> instantiateExpr expr <*> return name <*> replace t
+instantiateExpr (Core.StructFieldAccess si expr name t) =
+  Core.StructFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
+instantiateExpr (Core.PackageMemberAccess si pkgAlias name t) =
+  Core.PackageMemberAccess si pkgAlias name <$> replace t
 
 -- | Given a polymorphically typed expression and a monomorphic type, return
 -- the expression with all types substitued for monomorphic ones. If there's

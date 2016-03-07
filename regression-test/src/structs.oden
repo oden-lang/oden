@@ -1,0 +1,14 @@
+package structs/main
+
+import fmt
+
+type Foo = { name string }
+type Bar = { foo Foo }
+
+bar = Bar{Foo{"hi!"}}
+
+// Typed by struct fields, not name.
+printFooName :: { foo { name string }} -> ()
+printFooName(x) = fmt.Println(x.foo.name)
+
+main() = printFooName(bar)

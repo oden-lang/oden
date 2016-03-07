@@ -112,13 +112,6 @@ let' = do
   body <- expr
   return (Let si bindings body)
 
-application :: Parser Expr
-application = do
-  si <- currentSourceInfo
-  f <- symbol <|> parens expr
-  args <- parensList expr
-  return (Application si f args)
-
 structInitializer :: Parser Expr
 structInitializer = do
   si <- currentSourceInfo
@@ -157,7 +150,6 @@ termNoSlice =
   <|> slice
   <|> bool
   <|> try number
-  <|> try application
   <|> try structInitializer
   <|> symbol
   <|> block
@@ -171,19 +163,6 @@ subscript = try openStart <|> try range <|> try openEnd <|> simple
      range = Range <$> expr <*> (char ':' *> expr)
      simple = Singular <$> expr
 
-memberAccess :: Parser Expr
-memberAccess = do
-  expr' <- termNoSlice
-  accesses <- many1 dotAndName
-  return $ foldl wrap expr' accesses
-  where
-  dotAndName = do
-    si <- currentSourceInfo
-    reservedOp "."
-    name <- identifier
-    return (si, name)
-  wrap accessExpr (sourceInfo, accessName) = MemberAccess sourceInfo accessExpr accessName
-
 subscriptExpr :: Parser Expr
 subscriptExpr = do
   si <- currentSourceInfo
@@ -192,9 +171,6 @@ subscriptExpr = do
   case indices of
     [] -> return basicTerm
     is -> return (Subscript si basicTerm is)
-
-term :: Parser Expr
-term = try memberAccess <|> subscriptExpr
 
 tvar :: Parser String
 -- TODO: Parse type variables as just like identifiers.
@@ -238,7 +214,18 @@ type' = do
 
 
 expr :: Parser Expr
-expr = Ex.buildExpressionParser table term
+expr = Ex.buildExpressionParser table subscriptExpr
+
+memberAccess :: Ex.Assoc -> Op Expr
+memberAccess = Ex.Infix $ do
+  reservedOp "."
+  return (\expr' name -> MemberAccess (getSourceInfo expr') expr' name)
+
+application :: Op Expr
+application = Ex.Postfix $ do
+  si <- currentSourceInfo
+  args <- parensList expr
+  return (\f -> Application si f args)
 
 infixOp :: String -> BinaryOperator -> Ex.Assoc -> Op Expr
 infixOp x o = Ex.Infix $ do
@@ -254,6 +241,12 @@ prefixOp x o = Ex.Prefix $ do
 
 table :: Operators Expr
 table = [
+    [
+      memberAccess Ex.AssocLeft
+    ],
+    [
+      application
+    ],
     [
       prefixOp "+" Positive,
       prefixOp "-" Negative,
