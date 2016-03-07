@@ -213,6 +213,8 @@ spec = do
       [Symbol (src 1 9) (Identifier "y")]
 
     it "parses fn application member access" $
+      pending
+      {-
       parseExpr "foo(y).Bar"
       `shouldSucceedWith`
       MemberAccess
@@ -222,6 +224,7 @@ spec = do
        (Symbol (src 1 1) (Identifier "foo"))
        [Symbol (src 1 5) (Identifier "y")])
       (Symbol (src 1 8) (Identifier "Bar"))
+      -}
 
     it "parses single-arg fn application" $
       parseExpr "x(y)"
