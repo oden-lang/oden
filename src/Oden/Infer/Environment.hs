@@ -15,6 +15,7 @@ import Oden.Type.Polymorphic
 data TypeBinding = Package SourceInfo Identifier TypingEnvironment
                  | Local SourceInfo Identifier Scheme
                  | Type SourceInfo QualifiedName [Core.NameBinding] Type
+                 | QuantifiedType SourceInfo Identifier Type
                  deriving (Show, Eq)
 
 type TypingEnvironment = Environment TypeBinding

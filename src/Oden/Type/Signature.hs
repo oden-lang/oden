@@ -13,7 +13,6 @@ data TSStructField = TSStructField SourceInfo Identifier SignatureExpr
 
 -- | A type expression used in type signatures and type annotations.
 data SignatureExpr = TSUnit SourceInfo
-                   | TSVar SourceInfo String
                    | TSSymbol SourceInfo Identifier
                    | TSApp SourceInfo SignatureExpr SignatureExpr
                    | TSFn SourceInfo SignatureExpr SignatureExpr
@@ -24,11 +23,10 @@ data SignatureExpr = TSUnit SourceInfo
                    deriving (Show, Eq, Ord)
 
 -- | A type variable binding in an explicit quantification.
-data SignatureVarBinding = SignatureVarBinding SourceInfo String
+data SignatureVarBinding = SignatureVarBinding SourceInfo Identifier
                          deriving (Show, Eq, Ord)
 
 -- | A top level type signature with explicit or implicit type variable
 -- quantification.
-data TypeSignature = Explicit SourceInfo [SignatureVarBinding] SignatureExpr
-                   | Implicit SourceInfo SignatureExpr
+data TypeSignature = TypeSignature SourceInfo [SignatureVarBinding] SignatureExpr
                    deriving (Show, Eq, Ord)

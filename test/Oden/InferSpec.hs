@@ -42,13 +42,13 @@ typeUncurried = TUncurriedFn Missing
 typeVariadic = TVariadicFn Missing
 
 tsUnit = TSUnit Missing
-tsVar = TSVar Missing
+tsVar = TSSymbol Missing . Identifier
 tsSymbol = TSSymbol Missing
 tsFn = TSFn Missing
 
-implicit = Implicit Missing
-explicit = Explicit Missing
-varBinding = SignatureVarBinding Missing
+implicit = TypeSignature Missing []
+explicit = TypeSignature Missing
+varBinding = SignatureVarBinding Missing . Identifier
 
 forall = Forall Missing
 tvarBinding = TVarBinding Missing

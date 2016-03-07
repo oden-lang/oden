@@ -73,12 +73,14 @@ instance Substitutable Constraint where
 instance FTV TypeBinding where
   ftv (Package _ _ e)        = ftv e
   ftv (Local _ _ d)          = ftv d
-  ftv (Type _ _ _ fs) = ftv fs
+  ftv (Type _ _ _ fs)        = ftv fs
+  ftv (QuantifiedType _ _ t) = ftv t
 
 instance Substitutable TypeBinding where
-  apply _ (Package si n e) = Package si n e
-  apply s (Local si n d) = Local si n (apply s d)
-  apply s (Type si n bs t) = Type si n bs (apply s t)
+  apply _ (Package si n e)        = Package si n e
+  apply s (Local si n d)          = Local si n (apply s d)
+  apply s (Type si n bs t)        = Type si n bs (apply s t)
+  apply s (QuantifiedType si n t) = QuantifiedType si n (apply s t)
 
 instance FTV TypingEnvironment where
   ftv (Environment env) = ftv $ Map.elems env
@@ -151,10 +153,11 @@ lookupTypeIn _ si (Identifier "bool") = return (TBasic si TBool)
 lookupTypeIn _ si (Identifier "string") = return (TBasic si TString)
 lookupTypeIn env si identifier =
   case Environment.lookup identifier env of
-    Nothing                   -> throwError $ NotInScope si identifier
-    Just Package{}            -> throwError $ InvalidPackageReference si identifier
-    Just (Local _ _ _)        -> throwError $ ValueUsedAsType si identifier
-    Just (Type _ typeIdentifier _ t)       -> return $ TNamed si typeIdentifier t
+    Nothing                          -> throwError $ NotInScope si identifier
+    Just Package{}                   -> throwError $ InvalidPackageReference si identifier
+    Just (Local _ _ _)               -> throwError $ ValueUsedAsType si identifier
+    Just (Type _ typeIdentifier _ t) -> return $ TNamed si typeIdentifier t
+    Just (QuantifiedType _ _ t)      -> return t
 
 -- | Lookup a type in the environment.
 lookupType :: SourceInfo -> Identifier -> Infer Type
@@ -165,10 +168,11 @@ lookupType si identifier = do
 lookupValueIn :: TypingEnvironment -> SourceInfo -> Identifier -> Infer Type
 lookupValueIn env si identifier = do
   type' <- case Environment.lookup identifier env of
-            Nothing             -> throwError $ NotInScope si identifier
-            Just Package{}      -> throwError $ InvalidPackageReference si identifier
-            Just (Local _ _ sc) -> instantiate sc
-            Just Type{}         -> throwError (TypeIsNotAnExpression si identifier)
+            Nothing               -> throwError $ NotInScope si identifier
+            Just Package{}        -> throwError $ InvalidPackageReference si identifier
+            Just (Local _ _ sc)   -> instantiate sc
+            Just Type{}           -> throwError (TypeIsNotAnExpression si identifier)
+            Just QuantifiedType{} -> throwError (TypeIsNotAnExpression si identifier)
   return $ setSourceInfo si type'
 
 -- | Lookup type of a value in the environment.
@@ -413,7 +417,6 @@ infer expr = case expr of
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr -> Infer Type
 resolveType (TSUnit si) = return (TUnit si)
-resolveType (TSVar si s) = return (TVar si (TV s))
 resolveType (TSSymbol si i) = lookupType si i
 resolveType (TSApp _si _e1 _e2) = error "Type constructor application not implemented yet."
 resolveType (TSFn si de re) = TFn si <$> resolveType de <*> resolveType re
@@ -429,14 +432,16 @@ resolveType (TSStruct si fields) = TStruct si <$> mapM resolveStructFieldType fi
 
 -- | Tries to resolve a user-supplied type signature to an actual type scheme.
 resolveTypeSignature :: TypeSignature -> Infer Scheme
-resolveTypeSignature (Explicit si bindings expr) = do
-  t <- resolveType expr
+resolveTypeSignature (TypeSignature si bindings expr) = do
+  env <- ask
+  envWithBindings <- foldM extendWithBinding env bindings
+  t <- local (const envWithBindings) (resolveType expr)
   return (Forall si (map toVarBinding bindings) t)
   where
-  toVarBinding (SignatureVarBinding si' s) = TVarBinding si' (TV s)
-resolveTypeSignature (Implicit si expr) = do
-  t <- resolveType expr
-  return (Forall si (map (TVarBinding si) (Set.toList (ftv t))) t)
+  extendWithBinding env' (SignatureVarBinding si' v) = do
+    tv <- fresh si'
+    return $ env' `extend` (v, QuantifiedType si' v tv)
+  toVarBinding (SignatureVarBinding si' (Identifier v)) = TVarBinding si' (TV v)
 
 -- | Infer the untyped definition in the Infer monad, returning a typed
 -- version. Resolves type signatures of optionally type-annotated definitions.

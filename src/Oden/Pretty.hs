@@ -120,7 +120,7 @@ instance Pretty r => Pretty (Range r) where
   pp (RangeFrom e) = brackets $ pp e <+> (text ":")
 
 instance Pretty Poly.TVar where
-  pp (Poly.TV s) = text ('#' : s)
+  pp (Poly.TV s) = text s
 
 instance Pretty Poly.TVarBinding where
   pp (Poly.TVarBinding _ v) = pp v
@@ -173,7 +173,7 @@ instance Pretty Mono.Type where
   pp (Mono.TNamed _ n _) = pp n
 
 instance Pretty SignatureVarBinding where
-  pp (SignatureVarBinding _ s) = text ("#" ++ s)
+  pp (SignatureVarBinding _ s) = pp s
 
 
 instance Pretty TSStructField where
@@ -181,7 +181,6 @@ instance Pretty TSStructField where
 
 instance Pretty SignatureExpr where
   pp (TSUnit _) = text "()"
-  pp (TSVar _ v) = text ("#" ++ v)
   pp (TSSymbol _ i) = pp i
   pp (TSApp _ d r) = pp d <> parens (pp r)
   pp (TSNoArgFn _ t) = rArr <+> pp t
@@ -193,6 +192,6 @@ instance Pretty SignatureExpr where
   pp (TSStruct _ fields) = braces (hcat (punctuate (text "; ") (map pp fields)))
 
 instance Pretty TypeSignature where
-  pp (Explicit _ vars expr) =
+  pp (TypeSignature _ [] expr) = pp expr
+  pp (TypeSignature _ vars expr) =
     text "forall" <+> hsep (map pp vars) <> text "." <+> pp expr
-  pp (Implicit _ expr) = pp expr
