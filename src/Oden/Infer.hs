@@ -19,6 +19,7 @@ import           Control.Monad.Identity
 import           Control.Monad.RWS       hiding ((<>))
 
 import qualified Data.Map                as Map
+import           Data.Maybe
 import qualified Data.Set                as Set
 
 import qualified Oden.Core               as Core
@@ -431,12 +432,12 @@ resolveType (TSStruct si fields) = TStruct si <$> mapM resolveStructFieldType fi
     TStructField fsi name <$> resolveType expr
 
 -- | Tries to resolve a user-supplied type signature to an actual type scheme.
-resolveTypeSignature :: TypeSignature -> Infer Scheme
+resolveTypeSignature :: TypeSignature -> Infer (Scheme, TypingEnvironment)
 resolveTypeSignature (TypeSignature si bindings expr) = do
   env <- ask
   envWithBindings <- foldM extendWithBinding env bindings
   t <- local (const envWithBindings) (resolveType expr)
-  return (Forall si (map toVarBinding bindings) t)
+  return (Forall si (map toVarBinding bindings) t, envWithBindings)
   where
   extendWithBinding env' (SignatureVarBinding si' v) = do
     tv <- fresh si'
@@ -449,10 +450,11 @@ inferDef :: Untyped.Definition -> Infer Core.Definition
 inferDef (Untyped.Definition si name s expr) = do
   tv <- fresh si
   env <- ask
-  recType <- case s of
-    Nothing -> return (Forall si [] tv)
+  (recType, envWithBindings) <- case s of
+    Nothing -> return (Forall si [] tv, env)
     Just ts -> resolveTypeSignature ts
-  te <- inEnv (name, Local si name recType) (infer expr)
+  let recursiveEnv = envWithBindings  `extend` (name, Local si name recType)
+  te <- local (const recursiveEnv) (infer expr)
   return (Core.Definition si name (generalize env te))
 inferDef (Untyped.TypeDefinition si name params typeExpr) = do
   type' <- resolveType typeExpr
@@ -468,17 +470,27 @@ getTypeSignature _ = Nothing
 -- environment extended with the definitions name and type.
 inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either TypeError (TypingEnvironment, Core.Definition)
 inferDefinition env def = do
-  (def', cs) <- runInfer env (inferDef def)
-  case (def', getTypeSignature def) of
+  -- If there's an explicit type signature then try to resolve it, returning
+  -- the type, a new Environment extended with quantified type variables, and
+  -- the resulting inference constraints.
+  maybeTypeSignature <- case (getTypeSignature def) of
+    Just ts -> Just <$> runInfer env (resolveTypeSignature ts)
+    Nothing -> return Nothing
 
+  -- Extract the extended environment.
+  let envWithBindings = (snd . fst) <$> maybeTypeSignature
+
+  -- Infer the definition.
+  (def', cs) <- runInfer (env `fromMaybe` envWithBindings) (inferDef def)
+
+  case (def', maybeTypeSignature) of
     (Core.Definition si name (_, te), Nothing) -> do
       subst <- runSolve cs
       let canonical = closeOver (apply subst te)
           env' = env `extend` (name, Local si name (fst canonical))
       return (env', Core.Definition si name canonical)
 
-    (Core.Definition _ name canonical, Just ts) ->  do
-      (resolvedType, typeCs) <- runInfer env (resolveTypeSignature ts)
+    (Core.Definition _ name canonical, Just ((resolvedType, _), typeCs)) ->  do
       subst <- runSolve (cs ++ typeCs)
       let (Forall si _ _, substExpr) = apply subst canonical
       canonical' <- left (TypeSignatureSubsumptionError name) $ resolvedType `subsumedBy` substExpr
