@@ -499,7 +499,7 @@ spec = do
                                                   (Just $ implicit (tsSymbol (Identifier "bool")))
                                                   (uLiteral (uInt 1)))
 
-    it "subsumes int with any" $
+    it "any subsumes int" $
         inferDefinition empty (uDefinition (Identifier "some-number")
                                                   (Just $ implicit (tsSymbol (Identifier "any")))
                                                   (uLiteral (uInt 1)))
