@@ -19,9 +19,9 @@ instance OdenOutput ExplodeError where
   header (InvalidMemberAccessExpression _ _ nonName) s =
     text "Invalid member access expression" <+> code s (pp nonName)
 
-  details (TypeSignatureWithoutDefinition _ n sc@(Explicit _ _ TSFn{})) s =
+  details (TypeSignatureWithoutDefinition _ n ts@(TypeSignature _ _ TSFn{})) s =
     text "Define the function" <+> code s (pp n)
-    <+> text "with type" <+> code s (pp sc)
+    <+> text "with type" <+> code s (pp ts)
   details (InvalidMemberAccessExpression _ expr' _) s =
     text "In the expression" <+> code s (pp expr')
 

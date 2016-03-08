@@ -13,7 +13,6 @@ module Oden.Infer (
   constraintsExpr
 ) where
 
-import           Control.Arrow           (left)
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Monad.RWS       hiding ((<>))
@@ -73,12 +72,14 @@ instance Substitutable Constraint where
 instance FTV TypeBinding where
   ftv (Package _ _ e)        = ftv e
   ftv (Local _ _ d)          = ftv d
-  ftv (Type _ _ _ fs) = ftv fs
+  ftv (Type _ _ _ fs)        = ftv fs
+  ftv (QuantifiedType _ _ t) = ftv t
 
 instance Substitutable TypeBinding where
-  apply _ (Package si n e) = Package si n e
-  apply s (Local si n d) = Local si n (apply s d)
-  apply s (Type si n bs t) = Type si n bs (apply s t)
+  apply _ (Package si n e)        = Package si n e
+  apply s (Local si n d)          = Local si n (apply s d)
+  apply s (Type si n bs t)        = Type si n bs (apply s t)
+  apply s (QuantifiedType si n t) = QuantifiedType si n (apply s t)
 
 instance FTV TypingEnvironment where
   ftv (Environment env) = ftv $ Map.elems env
@@ -135,8 +136,8 @@ constraintsExpr env ex = do
 closeOver :: Core.Expr Type -> Core.CanonicalExpr
 closeOver = normalize . generalize empty
 
--- | Unify two types. Order can matter when the first type is the one being
--- subsumed by the second, e.g. when unifying with TAny.
+-- | Unify two types. Order matters in some cases as the first type is the one
+-- being subsumed by the second, e.g. when unifying with TAny.
 uni :: SourceInfo -> Type -> Type -> Infer ()
 uni si t1 t2 = tell [(si, t1, t2)]
 
@@ -151,10 +152,11 @@ lookupTypeIn _ si (Identifier "bool") = return (TBasic si TBool)
 lookupTypeIn _ si (Identifier "string") = return (TBasic si TString)
 lookupTypeIn env si identifier =
   case Environment.lookup identifier env of
-    Nothing                   -> throwError $ NotInScope si identifier
-    Just Package{}            -> throwError $ InvalidPackageReference si identifier
-    Just (Local _ _ _)        -> throwError $ ValueUsedAsType si identifier
-    Just (Type _ typeIdentifier _ t)       -> return $ TNamed si typeIdentifier t
+    Nothing                          -> throwError $ NotInScope si identifier
+    Just Package{}                   -> throwError $ InvalidPackageReference si identifier
+    Just (Local _ _ _)               -> throwError $ ValueUsedAsType si identifier
+    Just (Type _ typeIdentifier _ t) -> return $ TNamed si typeIdentifier t
+    Just (QuantifiedType _ _ t)      -> return t
 
 -- | Lookup a type in the environment.
 lookupType :: SourceInfo -> Identifier -> Infer Type
@@ -165,10 +167,11 @@ lookupType si identifier = do
 lookupValueIn :: TypingEnvironment -> SourceInfo -> Identifier -> Infer Type
 lookupValueIn env si identifier = do
   type' <- case Environment.lookup identifier env of
-            Nothing             -> throwError $ NotInScope si identifier
-            Just Package{}      -> throwError $ InvalidPackageReference si identifier
-            Just (Local _ _ sc) -> instantiate sc
-            Just Type{}         -> throwError (TypeIsNotAnExpression si identifier)
+            Nothing               -> throwError $ NotInScope si identifier
+            Just Package{}        -> throwError $ InvalidPackageReference si identifier
+            Just (Local _ _ sc)   -> instantiate sc
+            Just Type{}           -> throwError (TypeIsNotAnExpression si identifier)
+            Just QuantifiedType{} -> throwError (TypeIsNotAnExpression si identifier)
   return $ setSourceInfo si type'
 
 -- | Lookup type of a value in the environment.
@@ -184,7 +187,7 @@ fresh :: SourceInfo -> Infer Type
 fresh si = do
     s <- get
     put s{count = count s + 1}
-    return $ TVar si (TV (letters !! count s))
+    return $ TVar si (TV ("_t" ++ (show $ count s)))
 
 -- | Create a type based on scheme but with all fresh type variables.
 instantiate :: Scheme -> Infer Type
@@ -413,7 +416,6 @@ infer expr = case expr of
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr -> Infer Type
 resolveType (TSUnit si) = return (TUnit si)
-resolveType (TSVar si s) = return (TVar si (TV s))
 resolveType (TSSymbol si i) = lookupType si i
 resolveType (TSApp _si _e1 _e2) = error "Type constructor application not implemented yet."
 resolveType (TSFn si de re) = TFn si <$> resolveType de <*> resolveType re
@@ -428,62 +430,73 @@ resolveType (TSStruct si fields) = TStruct si <$> mapM resolveStructFieldType fi
     TStructField fsi name <$> resolveType expr
 
 -- | Tries to resolve a user-supplied type signature to an actual type scheme.
-resolveTypeSignature :: TypeSignature -> Infer Scheme
-resolveTypeSignature (Explicit si bindings expr) = do
-  t <- resolveType expr
-  return (Forall si (map toVarBinding bindings) t)
+resolveTypeSignature :: TypeSignature -> Infer (Scheme, TypingEnvironment)
+resolveTypeSignature (TypeSignature si bindings expr) = do
+  env <- ask
+  envWithBindings <- foldM extendWithBinding env bindings
+  t <- local (const envWithBindings) (resolveType expr)
+  return (Forall si (map toVarBinding bindings) t, envWithBindings)
   where
-  toVarBinding (SignatureVarBinding si' s) = TVarBinding si' (TV s)
-resolveTypeSignature (Implicit si expr) = do
-  t <- resolveType expr
-  return (Forall si (map (TVarBinding si) (Set.toList (ftv t))) t)
+  extendWithBinding env' (SignatureVarBinding si' v) = do
+    tv <- fresh si'
+    return $ env' `extend` (v, QuantifiedType si' v tv)
+  toVarBinding (SignatureVarBinding si' (Identifier v)) = TVarBinding si' (TV v)
+
+-- | Indicates if the canonical expression should be generated by closing over
+-- the the free type variables in the inferred expression. This is done when
+-- top type signatures are missing.
+type ShouldCloseOver = Bool
 
 -- | Infer the untyped definition in the Infer monad, returning a typed
 -- version. Resolves type signatures of optionally type-annotated definitions.
-inferDef :: Untyped.Definition -> Infer Core.Definition
+inferDef :: Untyped.Definition -> Infer (Core.Definition, ShouldCloseOver)
 inferDef (Untyped.Definition si name s expr) = do
-  tv <- fresh si
   env <- ask
-  recType <- case s of
-    Nothing -> return (Forall si [] tv)
-    Just ts -> resolveTypeSignature ts
-  te <- inEnv (name, Local si name recType) (infer expr)
-  return (Core.Definition si name (generalize env te))
+  case s of
+    Nothing -> do
+      tv <- fresh si
+      let recScheme = Forall si [] tv
+      let recursiveEnv = env `extend` (name, Local si name recScheme)
+      te <- local (const recursiveEnv) (infer expr)
+      return (Core.Definition si name (recScheme, te), True)
+    Just ts -> do
+      (recScheme@(Forall _ _ recType), envWithBindings) <- resolveTypeSignature ts
+      let recursiveEnv = envWithBindings  `extend` (name, Local si name recScheme)
+      te <- local (const recursiveEnv) (infer expr)
+      uni (getSourceInfo te) recType (Core.typeOf te)
+      case recScheme `subsumedBy` te of
+        Left e -> throwError $ TypeSignatureSubsumptionError name e
+        Right canonical -> return (Core.Definition si name canonical, False)
+
 inferDef (Untyped.TypeDefinition si name params typeExpr) = do
   type' <- resolveType typeExpr
-  return (Core.TypeDefinition si name (map convertParams params) type')
+  return (Core.TypeDefinition si name (map convertParams params) type', False)
   where
   convertParams (Untyped.NameBinding bsi bn) = Core.NameBinding bsi bn
-
-getTypeSignature :: Untyped.Definition -> Maybe TypeSignature
-getTypeSignature (Untyped.Definition _ _ ts _) = ts
-getTypeSignature _ = Nothing
 
 -- | Infer a top-level definitition, returning a typed version and the typing
 -- environment extended with the definitions name and type.
 inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either TypeError (TypingEnvironment, Core.Definition)
 inferDefinition env def = do
-  (def', cs) <- runInfer env (inferDef def)
-  case (def', getTypeSignature def) of
+  -- Infer the definition.
+  ((def', shouldCloseOver), cs) <- runInfer env (inferDef def)
 
-    (Core.Definition si name (_, te), Nothing) -> do
+  case def' of
+    Core.Definition si name (_, te) | shouldCloseOver -> do
       subst <- runSolve cs
-      let canonical = closeOver (apply subst te)
-          env' = env `extend` (name, Local si name (fst canonical))
-      return (env', Core.Definition si name canonical)
-
-    (Core.Definition _ name canonical, Just ts) ->  do
-      (resolvedType, typeCs) <- runInfer env (resolveTypeSignature ts)
-      subst <- runSolve (cs ++ typeCs)
-      let (Forall si _ _, substExpr) = apply subst canonical
-      canonical' <- left (TypeSignatureSubsumptionError name) $ resolvedType `subsumedBy` substExpr
-      let env' = env `extend` (name, Local si name (fst canonical'))
+      let canonical'@(sc, _) = closeOver (apply subst te)
+          env' = env `extend` (name, Local si name sc)
+      return (env', Core.Definition si name canonical')
+    Core.Definition si name canonical -> do
+      subst <- runSolve cs
+      let canonical'@(sc, _) = normalize (apply subst canonical)
+          env' = env `extend` (name, Local si name sc)
       return (env', Core.Definition si name canonical')
 
-    (Core.TypeDefinition si name@(FQN _ localName) params type', _) ->
+    Core.TypeDefinition si name@(FQN _ localName) params type' ->
       return (env `extend` (localName, Type si name params type'), def')
 
-    (Core.ForeignDefinition _ name _, _) ->
+    Core.ForeignDefinition _ name _ ->
       error ("unexpected foreign definition: " ++ asString name)
 
 -- | Infer the package, returning a package with typed definitions along with
@@ -532,9 +545,9 @@ unifyMany si (t1 : ts1) (t2 : ts2) =
      return (su2 `compose` su1)
 unifyMany si t1 t2 = throwError $ UnificationMismatch si t1 t2
 
--- | Unify two types, returning the resulting substitution. Order can matter
--- when the first type is the one being subsumed by the second, e.g. when
--- unifying with TAny.
+-- | Unify two types, returning the resulting substitution. Order matters in
+-- some cases as the first type is the one being subsumed by the second, e.g.
+-- when unifying with TAny.
 unifies :: SourceInfo -> Type -> Type -> Solve Subst
 unifies _ (TVar _ v) t = v `bind` t
 unifies _ t (TVar _ v) = v `bind` t

@@ -5,14 +5,18 @@ import fmt
 type Foo = { name string }
 type Bar = { foo Foo }
 
-bar = Bar{Foo{"hi!"}}
+bar = Bar{Foo{"mono"}}
 
 // Typed by struct fields, not name.
 printFooName :: { foo { name string }} -> ()
 printFooName(x) = fmt.Println(x.foo.name)
 
-// NOTE: Polymorphic struct fields not supported yet!
+anyTypeOfName :: forall a. a -> {name a}
+anyTypeOfName(name) = {name a}{name}
+
+poly = anyTypeOfName("poly")
 
 main() = {
   printFooName(bar)
+  fmt.Println(poly.name)
 }

@@ -7,7 +7,7 @@ nothing = ()
 stuff :: (int, (), string)
 stuff = (1, nothing, "yey")
 
-pair :: #a -> #b -> (#a, #b)
+pair :: forall a b. a -> b -> (a, b)
 pair(x, y) = (x, y)
 
 main :: -> ()

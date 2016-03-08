@@ -185,11 +185,9 @@ type' = do
   simple :: Parser SignatureExpr
   simple = slice'
         <|> noArgFn
-        <|> var
         <|> identified TSSymbol
         <|> unitExprOrTupleType
         <|> structType
-  var = TSVar <$> currentSourceInfo <*> tvar
   noArgFn = TSNoArgFn <$> currentSourceInfo <*> (rArrow *> type')
   unitExprOrTupleType = do
     si <- currentSourceInfo
@@ -286,19 +284,16 @@ pkgDecl = do
 topLevel :: Parser TopLevel
 topLevel = import' <|> typeDef <|> try typeSignature <|> def
   where
-  tvarBinding = do
-    si <- currentSourceInfo
-    v <- tvar
-    return (SignatureVarBinding si v)
+  tvarBinding = identified SignatureVarBinding
   explicitlyQuantifiedType = do
     si <- currentSourceInfo
     reservedOp "forall"
     bindings <- many1 tvarBinding
-    reserved "."
-    Explicit si bindings <$> type'
+    reservedOp "."
+    TypeSignature si bindings <$> type'
   implicitlyQuantifiedType = do
     si <- currentSourceInfo
-    Implicit si <$> type'
+    TypeSignature si [] <$> type'
   signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
   typeSignature = do
     si <- currentSourceInfo
