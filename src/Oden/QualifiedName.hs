@@ -1,7 +1,8 @@
 module Oden.QualifiedName where
 
-type PackageName = String
-type Name = String
+import Oden.Identifier
 
-data QualifiedName = FQN [PackageName] Name
+type PackageName = String
+
+data QualifiedName = FQN [PackageName] Identifier
                    deriving (Show, Eq, Ord)

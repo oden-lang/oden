@@ -43,6 +43,7 @@ library
     Oden.Environment,
     Oden.Explode,
     Oden.Identifier,
+    Oden.Imports,
     Oden.Infer,
     Oden.Infer.Environment,
     Oden.Infer.Substitution,

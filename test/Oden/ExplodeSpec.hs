@@ -21,102 +21,102 @@ spec :: Spec
 spec = do
   describe "explodeExpr" $ do
     it "converts symbol" $
-      explodeExpr (Symbol (src 1 1) (Unqualified "x"))
-      `shouldBe`
-      U.Symbol (src 1 1) (Unqualified "x")
+      explodeExpr (Symbol (src 1 1) (Identifier "x"))
+      `shouldSucceedWith`
+      U.Symbol (src 1 1) (Identifier "x")
 
     it "converts int literal" $
       explodeExpr (Literal (src 1 1) (Int 1))
-      `shouldBe`
+      `shouldSucceedWith`
       U.Literal (src 1 1) (U.Int 1)
 
     it "converts bool literal" $
       explodeExpr (Literal (src 1 1) (Bool True))
-      `shouldBe`
+      `shouldSucceedWith`
       U.Literal (src 1 1) (U.Bool True)
 
     it "converts fn application with no params" $
       explodeExpr (Application
                    (src 1 1)
-                   (Fn (src 1 1) [] (Symbol (src 1 3) (Unqualified "x")))
+                   (Fn (src 1 1) [] (Symbol (src 1 3) (Identifier "x")))
                    [])
-      `shouldBe`
+      `shouldSucceedWith`
       U.Application
       (src 1 1)
-      (U.NoArgFn (src 1 1) (U.Symbol (src 1 3) (Unqualified "x"))) []
+      (U.NoArgFn (src 1 1) (U.Symbol (src 1 3) (Identifier "x"))) []
 
     it "converts fn application with multiple params" $
       explodeExpr (Application
                    (src 1 1)
                    (Fn
                     (src 1 1)
-                    [NameBinding (src 1 2) "x",
-                     NameBinding (src 1 3) "y"]
-                    (Symbol (src 1 4) (Unqualified "x")))
-                   [Symbol (src 1 5) (Unqualified "x"),
-                    Symbol (src 1 9) (Unqualified "y")])
-      `shouldBe`
+                    [NameBinding (src 1 2) (Identifier "x"),
+                     NameBinding (src 1 3) (Identifier "y")]
+                    (Symbol (src 1 4) (Identifier "x")))
+                   [Symbol (src 1 5) (Identifier "x"),
+                    Symbol (src 1 9) (Identifier "y")])
+      `shouldSucceedWith`
       U.Application
       (src 1 1)
       (U.Fn
        (src 1 1)
-       (U.NameBinding (src 1 2) "x")
+       (U.NameBinding (src 1 2) (Identifier "x"))
        (U.Fn
         (src 1 1)
-        (U.NameBinding (src 1 3) "y")
-        (U.Symbol (src 1 4) (Unqualified "x"))))
-      [U.Symbol (src 1 5) (Unqualified "x"),
-       U.Symbol (src 1 9) (Unqualified "y")]
+        (U.NameBinding (src 1 3) (Identifier "y"))
+        (U.Symbol (src 1 4) (Identifier "x"))))
+      [U.Symbol (src 1 5) (Identifier "x"),
+       U.Symbol (src 1 9) (Identifier "y")]
 
   describe "explodeTopLevel" $ do
     it "converts fn definition with no argument" $
-      (snd <$> explodeTopLevel [FnDefinition (src 1 1) "f" [] (Symbol (src 1 3) (Unqualified "x"))])
+      (snd <$> explodeTopLevel [FnDefinition (src 1 1) (Identifier "f") [] (Symbol (src 1 3) (Identifier "x"))])
       `shouldSucceedWith`
-      [U.Definition (src 1 1) "f" Nothing (U.NoArgFn (src 1 1) (U.Symbol (src 1 3) (Unqualified "x")))]
+      [U.Definition (src 1 1) (Identifier "f") Nothing (U.NoArgFn (src 1 1) (U.Symbol (src 1 3) (Identifier "x")))]
 
     it "converts fn definition with single argument" $
       (snd <$> explodeTopLevel [FnDefinition
                                 (src 1 1)
-                                "f"
-                                [NameBinding (src 1 2) "x"]
-                                (Symbol (src 1 3) (Unqualified "x"))])
+                                (Identifier "f")
+                                [NameBinding (src 1 2) (Identifier "x")]
+                                (Symbol (src 1 3) (Identifier "x"))])
       `shouldSucceedWith`
       [U.Definition
        (src 1 1)
-       "f"
+       (Identifier "f")
        Nothing
        (U.Fn
         (src 1 1)
-        (U.NameBinding (src 1 2) "x")
-        (U.Symbol (src 1 3) (Unqualified "x")))]
+        (U.NameBinding (src 1 2) (Identifier "x"))
+        (U.Symbol (src 1 3) (Identifier "x")))]
 
     it "converts fn definition with multiple arguments" $
       (snd <$> explodeTopLevel [FnDefinition
                                 (src 1 1)
-                                "f"
-                                [NameBinding (src 1 2) "x", NameBinding (src 1 3) "y"]
-                                (Symbol (src 1 4) (Unqualified "x"))])
+                                (Identifier "f")
+                                [NameBinding (src 1 2) (Identifier "x"), NameBinding (src 1 3) (Identifier "y")]
+                                (Symbol (src 1 4) (Identifier "x"))])
       `shouldSucceedWith`
       [U.Definition
        (src 1 1)
-       "f"
+       (Identifier "f")
        Nothing
        (U.Fn
         (src 1 1)
-        (U.NameBinding (src 1 2) "x")
+        (U.NameBinding (src 1 2) (Identifier "x"))
         (U.Fn
          (src 1 1)
-         (U.NameBinding (src 1 3) "y")
-         (U.Symbol (src 1 4) (Unqualified "x"))))]
+         (U.NameBinding (src 1 3) (Identifier "y"))
+         (U.Symbol (src 1 4) (Identifier "x"))))]
 
     it "converts struct definition and uses empty list for type parameters" $
       (snd <$> explodeTopLevel [TypeDefinition
                                 (src 1 1)
-                                "S"
-                                (TSStruct (src 1 2) [TSStructField (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))])])
+                                (Identifier "S")
+                                (TSStruct (src 1 2) [TSStructField (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t"))])])
       `shouldSucceedWith`
       [U.TypeDefinition
        (src 1 1)
-       (FQN ["pkg"] "S")
+       (FQN ["pkg"] (Identifier "S"))
        []
-       (TSStruct (src 1 2) [TSStructField (src 1 3) "x" (TSSymbol (src 1 4) (Unqualified "t"))])]
+       (TSStruct (src 1 2) [TSStructField (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t"))])]

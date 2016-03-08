@@ -37,6 +37,7 @@ monoToPoly (Mono.TStruct si fs) = Poly.TStruct si (map fieldMonoToPoly fs)
 monoToPoly (Mono.TNamed si n t) = Poly.TNamed si n (monoToPoly t)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
+getSubstitutions Poly.TUnit{} Mono.TUnit{} = return Map.empty
 getSubstitutions p@(Poly.TBasic _ pb) m@(Mono.TBasic _ mb) =
   if pb == mb
   then Right Map.empty
@@ -68,6 +69,11 @@ getSubstitutions (Poly.TTuple _ pf ps pr) (Mono.TTuple _ mf ms mr) = do
   return (foldl mappend f (s:r))
 getSubstitutions (Poly.TSlice _ p) (Mono.TSlice _ m) =
   getSubstitutions p m
+getSubstitutions (Poly.TStruct _ polyFields) (Mono.TStruct _ monoFields) =
+  foldM getFieldSubstitutions Map.empty (zip polyFields monoFields)
+  where
+  getFieldSubstitutions subst (Poly.TStructField _ _ pt, Mono.TStructField _ _ mt) =
+    (subst `mappend`) <$> getSubstitutions pt mt
 getSubstitutions poly mono = Left (TypeMismatch (getSourceInfo mono) poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
@@ -163,6 +169,10 @@ instantiateExpr (Core.Block si es t) =
                 <*> replace t
 instantiateExpr (Core.StructInitializer si t vs) =
   Core.StructInitializer si <$> replace t <*> mapM instantiateExpr vs
+instantiateExpr (Core.StructFieldAccess si expr name t) =
+  Core.StructFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
+instantiateExpr (Core.PackageMemberAccess si pkgAlias name t) =
+  Core.PackageMemberAccess si pkgAlias name <$> replace t
 
 -- | Given a polymorphically typed expression and a monomorphic type, return
 -- the expression with all types substitued for monomorphic ones. If there's

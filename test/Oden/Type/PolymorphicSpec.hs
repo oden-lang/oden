@@ -1,5 +1,6 @@
 module Oden.Type.PolymorphicSpec where
 
+import           Oden.Identifier
 import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
@@ -7,7 +8,7 @@ import           Oden.Type.Polymorphic
 import           Test.Hspec
 
 named :: String -> Type -> Type
-named = TNamed Missing . FQN []
+named = TNamed Missing . FQN [] . Identifier
 
 spec =
   describe "underlying" $ do

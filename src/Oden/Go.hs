@@ -8,13 +8,14 @@
 module Oden.Go (
   PackageImportError(..),
   UnsupportedTypesWarning(..),
-  getPackageDefinitions
+  importer
 ) where
 
 
 import qualified Oden.Core                  as Core
 import           Oden.Go.Types              as G
 import           Oden.Identifier
+import           Oden.Imports
 import           Oden.QualifiedName         (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
@@ -25,7 +26,6 @@ import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.ByteString.Lazy.Char8 (pack)
 import qualified Data.HashMap.Strict        as HM
-import qualified Data.Map                   as Map
 import           Data.List                  (intercalate)
 import qualified Data.Text                  as T
 
@@ -62,13 +62,13 @@ instance FromJSON Type where
       k -> fail ("Unknown kind: " ++ k)
   parseJSON v = fail ("Unexpected: " ++ show v)
 
-data PackageObject = Func Name Type
-                   | Var Name Type
-                   | Const Name Type
-                   | NamedType Name Type
+data PackageObject = Func String Type
+                   | Var String Type
+                   | Const String Type
+                   | NamedType String Type
                    deriving (Show, Eq)
 
-nameOf :: PackageObject -> Name
+nameOf :: PackageObject -> String
 nameOf (Func n _) = n
 nameOf (Var n _) = n
 nameOf (Const n _) = n
@@ -91,8 +91,6 @@ instance FromJSON PackageObject where
       _ -> fail ("Unknown object type: " ++ t)
   parseJSON v = fail $ "Expected JSON object for PackageObject but got: " ++ show v
 
-data PackageImportError = PackageImportError Core.PackageName String deriving (Show, Eq)
-
 data PackageObjectsResponse = ErrorResponse String | ObjectsResponse [PackageObject]
                             deriving (Show, Eq)
 
@@ -107,10 +105,6 @@ decodeResponse pkgName s = either (Left . PackageImportError pkgName) Right $ do
   case value of
     ErrorResponse err -> Left err
     ObjectsResponse objs -> Right objs
-
-data UnsupportedTypesWarning = UnsupportedTypesWarning { pkg      :: Core.PackageName
-                                                       , messages :: [(Name, String)]
-                                                       } deriving (Show, Eq)
 
 convertType :: G.Type -> Either String Poly.Type
 -- TODO: Add "Untyped constant" concept in Oden type system
@@ -154,39 +148,40 @@ convertType (Signature True Nothing args _) = do
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
 convertType (Named pkgName n (Struct fields)) = do
   fields' <- mapM convertField fields
-  return (Poly.TNamed Missing (FQN pkgName n) (Poly.TStruct Missing fields'))
+  return (Poly.TNamed Missing (FQN pkgName (Identifier n)) (Poly.TStruct Missing fields'))
   where
-  convertField (StructField name goType) = Poly.TStructField Missing name <$> convertType goType
+  convertField (StructField name goType) = Poly.TStructField Missing (Identifier name) <$> convertType goType
 convertType (Named _ _ t) = convertType t
 convertType (Struct fields) = do
   fields' <- mapM convertStructField fields
   return (Poly.TStruct Missing fields')
   where
-  convertStructField (StructField fieldName goType) = Poly.TStructField Missing fieldName <$> convertType goType
+  convertStructField (StructField fieldName goType) = Poly.TStructField Missing (Identifier fieldName) <$> convertType goType
 convertType (Unsupported n) = Left n
 
-objectsToScope :: Core.PackageName -> [PackageObject] -> (Map.Map Name Core.Definition, Maybe UnsupportedTypesWarning)
-objectsToScope pkgName objs =
-  case foldl addObject ([], []) objs of
-    (s, []) -> (Map.fromList s, Nothing)
-    (s, msgs) -> (Map.fromList s, Just (UnsupportedTypesWarning pkgName msgs))
+objectsToPackage :: Core.PackageName
+             -> [PackageObject]
+             -> (Core.Package, [UnsupportedMessage])
+objectsToPackage pkgName objs =
+  (Core.Package (Core.PackageDeclaration Missing pkgName) [] allDefs, allMessages)
   where
-  addObject (assocs, us) (NamedType name goType) =
+  (allDefs, allMessages) = foldl addObject ([], []) objs
+  addObject (defs, msgs) (NamedType name goType) =
+    let identifier = Identifier name in
     case convertType goType of
-         Left u -> (assocs, (name, u) : us)
+         Left u -> (defs, (identifier, u) : msgs)
          Right type' ->
-           ((name, Core.TypeDefinition Missing (FQN pkgName name) [] type') : assocs, us)
-  addObject (assocs, us) o =
-    let n = nameOf o
-        t = typeOf o
-    in case convertType t of
-         Left u -> (assocs, (n, u) : us)
+           (Core.TypeDefinition Missing (FQN pkgName identifier) [] type' : defs, msgs)
+  addObject (defs, msgs) obj =
+    let n = Identifier (nameOf obj)
+    in case convertType (typeOf obj) of
+         Left u -> (defs, (n, u) : msgs)
          Right ct ->
            let sc = Poly.Forall Missing [] ct
-           in ((n, Core.ForeignDefinition Missing n sc) : assocs, us)
+           in (Core.ForeignDefinition Missing n sc : defs, msgs)
 
-getPackageDefinitions :: Core.PackageName -> IO (Either PackageImportError (Map.Map Name Core.Definition, Maybe UnsupportedTypesWarning))
-getPackageDefinitions pkgName = do
+importer :: Importer
+importer pkgName = do
   cs <- newCString (intercalate "/" pkgName)
   objs <- decodeResponse pkgName <$> (c_GetPackageObjects cs >>= peekCString)
-  return (objectsToScope pkgName <$> objs)
+  return (objectsToPackage pkgName <$> objs)

@@ -8,7 +8,7 @@ import Oden.Identifier
 import Oden.SourceInfo
 
 -- | The name and type pair for a struct field.
-data TSStructField = TSStructField SourceInfo String SignatureExpr
+data TSStructField = TSStructField SourceInfo Identifier SignatureExpr
                    deriving (Show, Eq, Ord)
 
 -- | A type expression used in type signatures and type annotations.

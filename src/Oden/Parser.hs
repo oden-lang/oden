@@ -10,7 +10,8 @@ import qualified Text.Parsec.Token     as Tok
 import qualified Text.Parsec.Expr      as Ex
 
 import           Oden.Identifier
-import           Oden.Lexer            as Lexer
+import           Oden.Lexer            hiding (identifier)
+import qualified Oden.Lexer            as Lexer
 import           Oden.Syntax           as Syntax
 import           Oden.Type.Signature
 import           Oden.SourceInfo
@@ -33,17 +34,17 @@ currentSourceInfo = do
   return (SourceInfo (Position (sourceName pos)
                                (sourceLine pos)
                                (sourceColumn pos)))
-identifier :: (SourceInfo -> Identifier ->  e) -> Parser e
-identifier f = do
-  si <- currentSourceInfo
-  i <- try qualified <|> unqualified
-  return (f si i)
-  where
-  qualified = Qualified <$> name <*> (char '.' *> name)
-  unqualified = Unqualified <$> name
+
+identifier :: Parser Identifier
+identifier = do
+  s <- Lexer.identifier
+  either (fail . errorMessage) return (createLegalIdentifier s)
+
+identified :: (SourceInfo -> Identifier -> e) -> Parser e
+identified f = f <$> currentSourceInfo <*> identifier
 
 symbol :: Parser Expr
-symbol = identifier Symbol
+symbol = identified Symbol
 
 number :: Parser Expr
 number = do
@@ -84,10 +85,7 @@ if' = do
   return (If si cond t f)
 
 nameBinding :: Parser NameBinding
-nameBinding = do
-  si <- currentSourceInfo
-  n <- name
-  return (NameBinding si n)
+nameBinding = NameBinding <$> currentSourceInfo <*> identifier
 
 fn :: Parser Expr
 fn = do
@@ -113,13 +111,6 @@ let' = do
   reserved "in"
   body <- expr
   return (Let si bindings body)
-
-application :: Parser Expr
-application = do
-  si <- currentSourceInfo
-  f <- symbol <|> parens expr
-  args <- parensList expr
-  return (Application si f args)
 
 structInitializer :: Parser Expr
 structInitializer = do
@@ -150,23 +141,6 @@ unitExprOrTuple = do
     [e]     -> return e
     (f:s:r) -> return (Tuple si f s r)
 
-subscript :: Parser Subscript
-subscript = try openStart <|> try range <|> try openEnd <|> simple
-   where
-     openStart = RangeTo <$> (char ':' *> expr)
-     openEnd = RangeFrom <$> (expr <* char ':')
-     range = Range <$> expr <*> (char ':' *> expr)
-     simple = Singular <$> expr
-
-term :: Parser Expr
-term = do
-  si <- currentSourceInfo
-  basicTerm <- termNoSlice
-  indices <- many (brackets subscript)
-  case indices of
-    [] -> return basicTerm
-    is -> return (Subscript si basicTerm is)
-
 termNoSlice :: Parser Expr
 termNoSlice =
   try fn
@@ -176,14 +150,31 @@ termNoSlice =
   <|> slice
   <|> bool
   <|> try number
-  <|> try application
   <|> try structInitializer
   <|> symbol
   <|> block
   <|> unitExprOrTuple
 
+subscript :: Parser Subscript
+subscript = try openStart <|> try range <|> try openEnd <|> simple
+   where
+     openStart = RangeTo <$> (char ':' *> expr)
+     openEnd = RangeFrom <$> (expr <* char ':')
+     range = Range <$> expr <*> (char ':' *> expr)
+     simple = Singular <$> expr
+
+subscriptExpr :: Parser Expr
+subscriptExpr = do
+  si <- currentSourceInfo
+  basicTerm <- termNoSlice
+  indices <- many (brackets subscript)
+  case indices of
+    [] -> return basicTerm
+    is -> return (Subscript si basicTerm is)
+
 tvar :: Parser String
-tvar = char '#' *> name
+-- TODO: Parse type variables as just like identifiers.
+tvar = char '#' *> (asString <$> identifier)
 
 type' :: Parser SignatureExpr
 type' = do
@@ -195,7 +186,7 @@ type' = do
   simple = slice'
         <|> noArgFn
         <|> var
-        <|> identifier TSSymbol
+        <|> identified TSSymbol
         <|> unitExprOrTupleType
         <|> structType
   var = TSVar <$> currentSourceInfo <*> tvar
@@ -213,7 +204,7 @@ type' = do
                       <*> braces (structFieldType `sepBy1` structFieldSeparator)
   structFieldType = do
     si <- currentSourceInfo
-    n <- name
+    n <- identifier
     TSStructField si n <$> type'
 
   structFieldSeparator = do
@@ -223,7 +214,18 @@ type' = do
 
 
 expr :: Parser Expr
-expr = Ex.buildExpressionParser table term
+expr = Ex.buildExpressionParser table subscriptExpr
+
+memberAccess :: Ex.Assoc -> Op Expr
+memberAccess = Ex.Infix $ do
+  reservedOp "."
+  return (\expr' name -> MemberAccess (getSourceInfo expr') expr' name)
+
+application :: Op Expr
+application = Ex.Postfix $ do
+  si <- currentSourceInfo
+  args <- parensList expr
+  return (\f -> Application si f args)
 
 infixOp :: String -> BinaryOperator -> Ex.Assoc -> Op Expr
 infixOp x o = Ex.Infix $ do
@@ -239,6 +241,12 @@ prefixOp x o = Ex.Prefix $ do
 
 table :: Operators Expr
 table = [
+    [
+      memberAccess Ex.AssocLeft
+    ],
+    [
+      application
+    ],
     [
       prefixOp "+" Positive,
       prefixOp "-" Negative,
@@ -271,9 +279,9 @@ pkgDecl :: Parser PackageDeclaration
 pkgDecl = do
   si <- currentSourceInfo
   reserved "package"
-  name' <- packageName
+  pkg <- packageName
   topSeparator
-  return (PackageDeclaration si name')
+  return (PackageDeclaration si pkg)
 
 topLevel :: Parser TopLevel
 topLevel = import' <|> typeDef <|> try typeSignature <|> def
@@ -294,7 +302,7 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
   signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
   typeSignature = do
     si <- currentSourceInfo
-    i <- name
+    i <- identifier
     reservedOp "::"
     TypeSignatureDeclaration si i <$> signature
   valueDef si n = do
@@ -304,7 +312,7 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
     FnDefinition si n <$> parensList nameBinding <*> (equals *> expr)
   def = do
     si <- currentSourceInfo
-    n <- name
+    n <- identifier
     fnDef si n <|> valueDef si n
   import' = do
     si <- currentSourceInfo
@@ -313,7 +321,7 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
   typeDef = do
     si <- currentSourceInfo
     reserved "type"
-    n <- name
+    n <- identifier
     equals
     TypeDefinition si n <$> type'
 

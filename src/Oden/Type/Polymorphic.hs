@@ -18,6 +18,7 @@ module Oden.Type.Polymorphic (
   underlying
 ) where
 
+import           Oden.Identifier
 import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 import           Oden.SourceInfo
@@ -30,7 +31,7 @@ newtype TVar = TV String
   deriving (Show, Eq, Ord)
 
 -- | The name and type of a struct field.
-data StructField = TStructField SourceInfo String Type
+data StructField = TStructField SourceInfo Identifier Type
                  deriving (Show, Eq, Ord)
 
 getStructFieldType :: StructField -> Type

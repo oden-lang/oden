@@ -83,24 +83,27 @@ writeType (Mono.TStruct _ fs) = do
   pad
   foldl writeField (return ()) fs
   where
-  writeField a (Mono.TStructField _ n t) = a >> withIncreasedLevel (tell n >> pad >> writeType t) >> pad
+  writeField a (Mono.TStructField _ identifier t) = do
+    _ <- a
+    withIncreasedLevel $ do
+      tell (asString identifier)
+      pad
+      writeType t
+    pad
 writeType (Mono.TNamed _ (FQN ns name) t) = do
-  let parts = (ns ++ [name]) :: [String]
+  let parts = (ns ++ [asString name]) :: [String]
   tell (intercalate "_" parts)
   withIncreasedLevel (writeType t)
 
 writeTypeInstance :: Identifier -> Mono.Type -> TypeEncoder ()
-writeTypeInstance i t = do
-  tell (writeIdentifier i)
+writeTypeInstance identifier typeInstance = do
+  tell (asString identifier)
   pad
   tell "inst"
   pad
-  writeType t
-  where
-  writeIdentifier (Unqualified n) = n
-  writeIdentifier (Qualified p n) = p ++ "_" ++ n
+  writeType typeInstance
 
-encodeTypeInstance :: Identifier -> Mono.Type -> Name
+encodeTypeInstance :: Identifier -> Mono.Type -> String
 encodeTypeInstance i t =
   let (_, encoded) = runWriter (runStateT (writeTypeInstance i t) 1)
   in encoded

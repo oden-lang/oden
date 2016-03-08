@@ -15,11 +15,11 @@ instance OdenOutput ValidationError where
   name ValueDiscarded{}            = "Compiler.Validation.ValueDiscarded"
   name DuplicatedStructFieldName{} = "Compiler.Validation.DuplicatedStructFieldName"
 
-  header (Redefinition _ i) s = strCode s i <+> text "is already defined"
+  header (Redefinition _ i) s = code s (pp i) <+> text "is already defined"
   header (ValueDiscarded e) s     = text "Value of type"
                                     <+> code s (pp (typeOf e))
                                     <+> text "discarded"
-  header (DuplicatedStructFieldName _ n) _ = text "Duplicate struct field name" <+> text n
+  header (DuplicatedStructFieldName _ n) _ = text "Duplicate struct field name" <+> pp n
 
   details Redefinition{} _              = text "Shadowing is not allowed"
   details ValueDiscarded{} _            = empty

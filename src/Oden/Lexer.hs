@@ -36,8 +36,11 @@ reservedOps = [
   "::"
   ]
 
+nameFirst :: Parser Char
+nameFirst = alphaNum
+
 nameLetter :: Parser Char
-nameLetter = alphaNum <|> oneOf "_-'!$&*+<=>?^|~"
+nameLetter = alphaNum <|> oneOf "_-'!?'"
 
 importLetter :: Parser Char
 importLetter = nameLetter <|> oneOf "."
@@ -48,7 +51,7 @@ lexer = Tok.makeTokenParser Tok.LanguageDef
   , Tok.commentEnd      = "*/"
   , Tok.commentLine     = "//"
   , Tok.nestedComments  = True
-  , Tok.identStart      = nameLetter
+  , Tok.identStart      = nameFirst
   , Tok.identLetter     = nameLetter
   , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~"
   , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
@@ -63,8 +66,14 @@ reserved = Tok.reserved lexer
 reservedOp :: String -> Parser ()
 reservedOp = Tok.reservedOp lexer
 
-name :: Parser String
-name = Tok.identifier lexer
+identifier :: Parser String
+identifier = Tok.identifier lexer
+
+identifierNoSpace :: Parser String
+identifierNoSpace = do
+  first <- nameFirst
+  rest <- many nameLetter
+  return $ first : rest
 
 string :: Parser String
 string = Tok.stringLiteral lexer
@@ -108,13 +117,13 @@ equals = reservedOp "="
 packageName :: Parser [String]
 packageName = part `sepBy` char '/'
   where
-  part = many1 nameLetter
+  part = many1 alphaNum
 
 importName :: Parser [String]
 importName = part `sepBy` char '/'
   where
   part = do
-    c <- nameLetter
+    c <- alphaNum
     cs <- many1 importLetter
     return (c:cs)
 

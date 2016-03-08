@@ -18,7 +18,6 @@ import           Control.Monad.Except
 import           Control.Monad.Identity
 import           Control.Monad.RWS       hiding ((<>))
 
-import           Data.List               (nub)
 import qualified Data.Map                as Map
 import qualified Data.Set                as Set
 
@@ -30,6 +29,7 @@ import           Oden.Identifier
 import           Oden.Infer.Environment
 import           Oden.Infer.Substitution
 import           Oden.Infer.Subsumption
+import           Oden.Predefined
 import           Oden.QualifiedName      (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Basic
@@ -89,15 +89,15 @@ instance Substitutable TypingEnvironment where
 data TypeError
   = UnificationFail SourceInfo Type Type
   | InfiniteType SourceInfo TVar Type
-  | PackageNotInScope SourceInfo Name
+  | PackageNotInScope SourceInfo Identifier
   | NotInScope SourceInfo Identifier
-  | MemberNotInPackage SourceInfo Name Name
+  | MemberNotInPackage SourceInfo Identifier Identifier
   | UnificationMismatch SourceInfo [Type] [Type]
   | ArgumentCountMismatch (Core.Expr Type) [Type] [Type]
-  | TypeSignatureSubsumptionError Name SubsumptionError
-  | InvalidPackageReference SourceInfo Name
-  | ValueUsedAsType SourceInfo Name
-  | TypeIsNotAnExpression SourceInfo Name
+  | TypeSignatureSubsumptionError Identifier SubsumptionError
+  | InvalidPackageReference SourceInfo Identifier
+  | ValueUsedAsType SourceInfo Identifier
+  | TypeIsNotAnExpression SourceInfo Identifier
   | InvalidTypeInStructInitializer SourceInfo Type
   | StructInitializerFieldCountMismatch SourceInfo Type [Type]
   deriving (Show, Eq)
@@ -141,62 +141,41 @@ uni :: SourceInfo -> Type -> Type -> Infer ()
 uni si t1 t2 = tell [(si, t1, t2)]
 
 -- | Extend the typing environment.
-inEnv :: (Name, TypeBinding) -> Infer a -> Infer a
+inEnv :: (Identifier, TypeBinding) -> Infer a -> Infer a
 inEnv (x, sc) = local (`extend` (x, sc))
 
-lookupTypeIn :: TypingEnvironment -> SourceInfo -> Name -> Infer Type
-lookupTypeIn _ si "any" = return (TAny si)
-lookupTypeIn _ si "int" = return (TBasic si TInt)
-lookupTypeIn _ si "bool" = return (TBasic si TBool)
-lookupTypeIn _ si "string" = return (TBasic si TString)
-lookupTypeIn env si name =
-  case Environment.lookup name env of
-    Nothing                   -> throwError $ NotInScope si (Unqualified name)
-    Just Package{}            -> throwError $ InvalidPackageReference si name
-    Just (Local _ _ _)        -> throwError $ ValueUsedAsType si name
-    Just (Type _ n _ t)       -> return $ TNamed si n t
+lookupTypeIn :: TypingEnvironment -> SourceInfo -> Identifier -> Infer Type
+lookupTypeIn _ si (Identifier "any") = return (TAny si)
+lookupTypeIn _ si (Identifier "int") = return (TBasic si TInt)
+lookupTypeIn _ si (Identifier "bool") = return (TBasic si TBool)
+lookupTypeIn _ si (Identifier "string") = return (TBasic si TString)
+lookupTypeIn env si identifier =
+  case Environment.lookup identifier env of
+    Nothing                   -> throwError $ NotInScope si identifier
+    Just Package{}            -> throwError $ InvalidPackageReference si identifier
+    Just (Local _ _ _)        -> throwError $ ValueUsedAsType si identifier
+    Just (Type _ typeIdentifier _ t)       -> return $ TNamed si typeIdentifier t
 
 -- | Lookup a type in the environment.
 lookupType :: SourceInfo -> Identifier -> Infer Type
-lookupType si (Qualified pkg name) = do
+lookupType si identifier = do
   env <- ask
-  case Environment.lookup pkg env of
-      Just (Package _ _ env') ->
-        lookupValueIn env' si name `catchError` onError
-        where
-        onError :: TypeError -> Infer Type
-        onError NotInScope{} = throwError $ MemberNotInPackage si pkg name
-        onError e = throwError e
-      _              -> throwError $ PackageNotInScope si pkg
-lookupType si (Unqualified name) = do
-  env <- ask
-  lookupTypeIn env si name
+  lookupTypeIn env si identifier
 
-lookupValueIn :: TypingEnvironment -> SourceInfo -> Name -> Infer Type
-lookupValueIn env si name = do
-  type' <- case Environment.lookup name env of
-            Nothing             -> throwError $ NotInScope si (Unqualified name)
-            Just Package{}      -> throwError $ InvalidPackageReference si name
+lookupValueIn :: TypingEnvironment -> SourceInfo -> Identifier -> Infer Type
+lookupValueIn env si identifier = do
+  type' <- case Environment.lookup identifier env of
+            Nothing             -> throwError $ NotInScope si identifier
+            Just Package{}      -> throwError $ InvalidPackageReference si identifier
             Just (Local _ _ sc) -> instantiate sc
-            Just Type{}         -> throwError (TypeIsNotAnExpression si name)
+            Just Type{}         -> throwError (TypeIsNotAnExpression si identifier)
   return $ setSourceInfo si type'
 
 -- | Lookup type of a value in the environment.
 lookupValue :: SourceInfo -> Identifier -> Infer Type
-lookupValue si (Qualified pkg name) = do
+lookupValue si identifier = do
   env <- ask
-  case Environment.lookup pkg env of
-      Just (Package _ _ env') ->
-        lookupValueIn env' si name `catchError` onError
-        where
-        onError :: TypeError -> Infer Type
-        onError NotInScope{} = throwError $ MemberNotInPackage si pkg name
-        onError e = throwError e
-      _              -> throwError $ PackageNotInScope si pkg
-lookupValue si (Unqualified name) = do
-  env <- ask
-  lookupValueIn env si name
-
+  lookupValueIn env si identifier
 letters :: [String]
 letters = [1..] >>= flip replicateM ['a'..'z']
 
@@ -304,6 +283,18 @@ infer expr = case expr of
     t <- lookupValue si x
     return $ Core.Symbol si x t
 
+  Untyped.MemberAccess si expr'@(Untyped.Symbol symbolSourceInfo name) memberName -> do
+    env <- ask
+    case Environment.lookup name env of
+      Just (Package _ _ pkgEnv) -> do
+        valueType <- lookupValueIn pkgEnv si memberName
+        return (Core.PackageMemberAccess si name memberName valueType)
+      Just _ -> inferStructFieldAccess si expr' memberName
+      Nothing -> throwError $ NotInScope symbolSourceInfo name
+
+  Untyped.MemberAccess si expr' fieldName ->
+    inferStructFieldAccess si expr' fieldName
+
   Untyped.Fn si (Untyped.NameBinding bsi a) b -> do
     tv <- fresh bsi
     tb <- inEnv (a, Local bsi a (Forall bsi [] tv)) (infer b)
@@ -410,6 +401,15 @@ infer expr = case expr of
         unifyField (TStructField fsi _ ft) te = uni fsi ft (Core.typeOf te)
       _ -> throwError $ InvalidTypeInStructInitializer si t
 
+  where
+  inferStructFieldAccess si expr' fieldName = do
+    tv <- fresh si
+    typedExpr <- infer expr'
+    uni (getSourceInfo typedExpr)
+        (Core.typeOf typedExpr)
+        (TStruct (getSourceInfo typedExpr) [TStructField si fieldName tv])
+    return (Core.StructFieldAccess si typedExpr fieldName tv)
+
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr -> Infer Type
 resolveType (TSUnit si) = return (TUnit si)
@@ -484,64 +484,35 @@ inferDefinition env def = do
       return (env `extend` (localName, Type si name params type'), def')
 
     (Core.ForeignDefinition _ name _, _) ->
-      error ("unexpected foreign definition: " ++ name)
+      error ("unexpected foreign definition: " ++ asString name)
 
 -- | Infer the package, returning a package with typed definitions along with
 -- the extended typing environment.
-inferPackage :: TypingEnvironment -> Untyped.Package -> Either TypeError (Core.Package, TypingEnvironment)
-inferPackage env (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
-  (env', inferred) <- foldM iter (env, []) defs
-  return (Core.Package (Core.PackageDeclaration psi name) (map convertImport imports) inferred, env')
+inferPackage :: Untyped.Package [Core.ImportedPackage]
+             -> Either TypeError Core.Package
+inferPackage (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
+  let env = fromPackage universe `merge` fromPackages imports
+  inferred <- snd <$> foldM iter (env, []) defs
+  return (Core.Package (Core.PackageDeclaration psi name) imports inferred)
   where
   iter (e, inferred) def = do
       (e', def') <- inferDefinition e def
       return (e', inferred ++ [def'])
-  convertImport (Untyped.Import si n) = Core.Import si n
 
--- | Swaps all type variables names for generated ones based on 'letters'.
+-- | Swaps all type variables names for generated ones based on 'letters' to
+-- get a nice sequence.
 normalize :: (Scheme, Core.Expr Type) -> (Scheme, Core.Expr Type)
-normalize (Forall si _ exprType, te) = (Forall si tvarBindings (normtype exprType), te)
+normalize (Forall si _ exprType, te) =
+  (Forall si newBindings (apply subst exprType), apply subst te)
   where
-    -- Pairs of type variables in the type and new 'TV' values to substitute
-    -- with, a sequence based on 'letters'.
-    ord = zip (nub $ fv exprType) (map TV letters)
-
-    tvarBindings = map (TVarBinding Missing . snd) ord
-
-    -- Extracts free type variables as 'TV' values.
-    fv :: Type -> [TVar]
-    fv TAny{}                 = []
-    fv TUnit{}                = []
-    fv TBasic{}               = []
-    fv (TTuple _ f s rs)      = fv f ++ fv s ++ concatMap fv rs
-    fv (TVar _ a)             = [a]
-    fv (TNoArgFn _ a)         = fv a
-    fv (TFn _ a b)            = fv a ++ fv b
-    fv (TUncurriedFn _ as r)  = concatMap fv as ++ fv r
-    fv (TVariadicFn _ as v r) = concatMap fv as ++ fv v ++ fv r
-    fv (TCon _ d r)           = fv d ++ fv r
-    fv (TSlice _ t)           = fv t
-    fv (TStruct _ fs)         = concatMap (fv . getStructFieldType) fs
-    fv (TNamed _ _ t)         = fv t
-
-    -- Substitutes type variables for generated names in ord.
-    normtype t@TAny{}                = t
-    normtype t@TUnit{}               = t
-    normtype t@TBasic{}              = t
-    normtype (TTuple si' f s r)       = TTuple si' (normtype f) (normtype s) (map normtype r)
-    normtype (TNoArgFn si' a)         = TNoArgFn si' (normtype a)
-    normtype (TFn si' a b)            = TFn si' (normtype a) (normtype b)
-    normtype (TUncurriedFn si' as r)  = TUncurriedFn si' (map normtype as) (normtype r)
-    normtype (TVariadicFn si' as v r) = TVariadicFn si' (map normtype as) (normtype v) (normtype r)
-    normtype (TCon si' d r)           = TCon si' (normtype d) (normtype r)
-    normtype (TSlice si' a)           = TSlice si' (normtype a)
-    normtype (TStruct ssi fs)         = TStruct ssi (map normFieldType fs)
-      where normFieldType (TStructField fsi n ft) = TStructField fsi n (normtype ft)
-    normtype (TNamed si' n t)         = TNamed si' n (normtype t)
-    normtype (TVar si' a)             =
-      case Prelude.lookup a ord of
-        Just x -> TVar si' x
-        Nothing -> error "type variable not in signature"
+    -- Pairs of existing type variables in the type and new type variables
+    -- values to substitute with, a sequence based on 'letters'.
+    substPairs = zip (Set.toList $ ftv exprType) (map TV letters)
+    -- The substitution based on the pairs.
+    subst = Subst (Map.fromList (map wrapTvar substPairs))
+    wrapTvar (tv1, tv2) = (tv1, TVar Missing tv2)
+    -- The new set of type variables bindings for the canonical expression.
+    newBindings = map (TVarBinding Missing . snd) substPairs
 
 -------------------------------------------------------------------------------
 -- Constraint Solver

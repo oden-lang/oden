@@ -18,9 +18,9 @@ instance OdenOutput MonomorphError where
   header (UnexpectedPolyType _ e) s         = text "Unexpected polymorphic type" <+> code s (pp e)
   header (MonomorphInstantiateError err) s  = header err s
 
+  details (MonomorphInstantiateError e) s = details e s
   details (NotInScope _) _           = empty
   details (UnexpectedPolyType _ _) _ = text "This can usually be fixed by adding (stricter) type signatures to top-level forms."
-  details _ _                        = empty
 
   sourceInfo (MonomorphInstantiateError e) = sourceInfo e
   sourceInfo (UnexpectedPolyType si _) = Just si

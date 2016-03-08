@@ -7,7 +7,7 @@ import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic as Poly
 
-data NameBinding = NameBinding SourceInfo Name
+data NameBinding = NameBinding SourceInfo Identifier
                  deriving (Show, Eq, Ord)
 
 data Expr t = Symbol SourceInfo Identifier t
@@ -27,6 +27,8 @@ data Expr t = Symbol SourceInfo Identifier t
             | Slice SourceInfo [Expr t] t
             | Block SourceInfo [Expr t] t
             | StructInitializer SourceInfo t [Expr t]
+            | StructFieldAccess SourceInfo (Expr t) Identifier t
+            | PackageMemberAccess SourceInfo Identifier Identifier t
             deriving (Show, Eq, Ord)
 
 instance HasSourceInfo (Expr t) where
@@ -47,24 +49,28 @@ instance HasSourceInfo (Expr t) where
   getSourceInfo (Tuple si _ _ _ _)                = si
   getSourceInfo (Block si _ _)                    = si
   getSourceInfo (StructInitializer si _ _)        = si
+  getSourceInfo (StructFieldAccess si _ _ _)      = si
+  getSourceInfo (PackageMemberAccess si _ _ _)    = si
 
-  setSourceInfo si (Symbol _ i t)                   = Symbol si i t
-  setSourceInfo si (Subscript _ s i t)              = Subscript si s i t
-  setSourceInfo si (Subslice _ s r t)               = Subslice si s r t
-  setSourceInfo si (UnaryOp _ o r t)                = UnaryOp si o r t
-  setSourceInfo si (BinaryOp _ p l r t)             = BinaryOp si p l r t
-  setSourceInfo si (Application _ f a t)            = Application si f a t
-  setSourceInfo si (NoArgApplication _ f t)         = NoArgApplication si f t
-  setSourceInfo si (UncurriedFnApplication _ f a t) = UncurriedFnApplication si f a t
-  setSourceInfo si (Fn _ n b t)                     = Fn si n b t
-  setSourceInfo si (NoArgFn _ b t)                  = NoArgFn si b t
-  setSourceInfo si (Let _ n v b t)                  = Let si n v b t
-  setSourceInfo si (Literal _ l t)                  = Literal si l t
-  setSourceInfo si (If _ c t e t')                  = If si c t e t'
-  setSourceInfo si (Slice _ e t)                    = Slice si e t
-  setSourceInfo si (Tuple _ f s r t)                = Tuple si f s r t
-  setSourceInfo si (Block _ e t)                    = Block si e t
-  setSourceInfo si (StructInitializer _ t vs)       = StructInitializer si t vs
+  setSourceInfo si (Symbol _ i t)                      = Symbol si i t
+  setSourceInfo si (Subscript _ s i t)                 = Subscript si s i t
+  setSourceInfo si (Subslice _ s r t)                  = Subslice si s r t
+  setSourceInfo si (UnaryOp _ o r t)                   = UnaryOp si o r t
+  setSourceInfo si (BinaryOp _ p l r t)                = BinaryOp si p l r t
+  setSourceInfo si (Application _ f a t)               = Application si f a t
+  setSourceInfo si (NoArgApplication _ f t)            = NoArgApplication si f t
+  setSourceInfo si (UncurriedFnApplication _ f a t)    = UncurriedFnApplication si f a t
+  setSourceInfo si (Fn _ n b t)                        = Fn si n b t
+  setSourceInfo si (NoArgFn _ b t)                     = NoArgFn si b t
+  setSourceInfo si (Let _ n v b t)                     = Let si n v b t
+  setSourceInfo si (Literal _ l t)                     = Literal si l t
+  setSourceInfo si (If _ c t e t')                     = If si c t e t'
+  setSourceInfo si (Slice _ e t)                       = Slice si e t
+  setSourceInfo si (Tuple _ f s r t)                   = Tuple si f s r t
+  setSourceInfo si (Block _ e t)                       = Block si e t
+  setSourceInfo si (StructInitializer _ t vs)          = StructInitializer si t vs
+  setSourceInfo si (StructFieldAccess _ expr name t)   = StructFieldAccess si expr name t
+  setSourceInfo si (PackageMemberAccess _ pkgAlias name t) = PackageMemberAccess si pkgAlias name t
 
 typeOf :: Expr t -> t
 typeOf (Symbol _ _ t) = t
@@ -84,6 +90,8 @@ typeOf (Tuple _ _ _ _ t) = t
 typeOf (Slice _ _ t) = t
 typeOf (Block _ _ t) = t
 typeOf (StructInitializer _ t _) = t
+typeOf (StructFieldAccess _ _ _ t) = t
+typeOf (PackageMemberAccess _ _ _ t) = t
 
 data Literal = Int Integer
              | Bool Bool
@@ -98,18 +106,18 @@ data Range t = Range (Expr t) (Expr t)
 
 type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
 
-data Definition = Definition SourceInfo Name CanonicalExpr
-                | ForeignDefinition SourceInfo Name Poly.Scheme
+data Definition = Definition SourceInfo Identifier CanonicalExpr
+                | ForeignDefinition SourceInfo Identifier Poly.Scheme
                 | TypeDefinition SourceInfo QualifiedName [NameBinding] Poly.Type
                 deriving (Show, Eq, Ord)
 
-type PackageName = [Name]
+type PackageName = [String]
 
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                         deriving (Show, Eq, Ord)
 
-data Import = Import SourceInfo PackageName
-            deriving (Show, Eq, Ord)
+data ImportedPackage = ImportedPackage SourceInfo Identifier Package
+                     deriving (Show, Eq, Ord)
 
-data Package = Package PackageDeclaration [Import] [Definition]
+data Package = Package PackageDeclaration [ImportedPackage] [Definition]
              deriving (Show, Eq, Ord)
