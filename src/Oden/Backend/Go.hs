@@ -14,7 +14,10 @@ import           Oden.Compiler.Monomorphization
 import           Oden.Core
 import           Oden.Core.Operator
 import           Oden.Identifier
+import           Oden.Metadata
+import           Oden.Pretty
 import           Oden.QualifiedName (QualifiedName(..))
+import           Oden.SourceInfo       hiding (fileName)
 import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 
@@ -282,9 +285,16 @@ codegenTopLevel name _ (Fn _ (NameBinding _ (Identifier param)) body (Mono.TFn _
 codegenTopLevel name t expr =
   varWithType name t expr
 
+
 codegenInstance :: InstantiatedDefinition -> Codegen Doc
-codegenInstance (InstantiatedDefinition (Identifier name) expr) =
-  codegenTopLevel name (typeOf expr) expr
+codegenInstance (InstantiatedDefinition (Identifier defName) si (Identifier name) expr) = do
+  let comment = text "/*"
+                $+$ text "Name:" <+> text defName
+                $+$ text "Defined at:" <+> (text $ show $ getSourceInfo expr)
+                $+$ text "Instantiated with type:" <+> (pp $ typeOf expr)
+                $+$ text "Instantiated at:" <+> (text $ show $ unwrap si)
+                $+$ text "*/"
+  (comment $+$) <$> codegenTopLevel name (typeOf expr) expr
 
 codegenMonomorphed :: MonomorphedDefinition -> Codegen Doc
 codegenMonomorphed (MonomorphedDefinition _ (Identifier name) mt expr) =

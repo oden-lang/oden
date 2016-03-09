@@ -172,14 +172,14 @@ instance Pretty Mono.Type where
     where ppField (Mono.TStructField _ identifier t) = pp identifier <+> pp t
   pp (Mono.TNamed _ n _) = pp n
 
-instance Pretty SignatureVarBinding where
+instance Pretty (SignatureVarBinding a) where
   pp (SignatureVarBinding _ s) = pp s
 
 
-instance Pretty TSStructField where
+instance Pretty (TSStructField a) where
   pp (TSStructField _ identifier t) = pp identifier <+> pp t
 
-instance Pretty SignatureExpr where
+instance Pretty (SignatureExpr a) where
   pp (TSUnit _) = text "()"
   pp (TSSymbol _ i) = pp i
   pp (TSApp _ d r) = pp d <> parens (pp r)
@@ -191,7 +191,7 @@ instance Pretty SignatureExpr where
     text "!" <> braces (pp t)
   pp (TSStruct _ fields) = braces (hcat (punctuate (text "; ") (map pp fields)))
 
-instance Pretty TypeSignature where
+instance Pretty (TypeSignature a) where
   pp (TypeSignature _ [] expr) = pp expr
   pp (TypeSignature _ vars expr) =
     text "forall" <+> hsep (map pp vars) <> text "." <+> pp expr

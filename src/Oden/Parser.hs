@@ -176,13 +176,13 @@ tvar :: Parser String
 -- TODO: Parse type variables as just like identifiers.
 tvar = char '#' *> (asString <$> identifier)
 
-type' :: Parser SignatureExpr
+type' :: Parser (SignatureExpr SourceInfo)
 type' = do
   si <- currentSourceInfo
   ts <- simple `sepBy1` rArrow
   return (foldr1 (TSFn si) ts)
   where
-  simple :: Parser SignatureExpr
+  simple :: Parser (SignatureExpr SourceInfo)
   simple = slice'
         <|> noArgFn
         <|> identified TSSymbol
@@ -199,7 +199,7 @@ type' = do
   slice' = TSSlice <$> currentSourceInfo
                    <*> (emptyBrackets *> braces type')
   structType = TSStruct <$> currentSourceInfo
-                      <*> braces (structFieldType `sepBy1` structFieldSeparator)
+                        <*> braces (structFieldType `sepBy1` structFieldSeparator)
   structFieldType = do
     si <- currentSourceInfo
     n <- identifier
@@ -209,7 +209,6 @@ type' = do
     spaces
     optional (comma <|> void newline)
     whitespace
-
 
 expr :: Parser Expr
 expr = Ex.buildExpressionParser table subscriptExpr
@@ -284,7 +283,7 @@ pkgDecl = do
 topLevel :: Parser TopLevel
 topLevel = import' <|> typeDef <|> try typeSignature <|> def
   where
-  tvarBinding = identified SignatureVarBinding
+  tvarBinding = SignatureVarBinding <$> currentSourceInfo <*> identifier
   explicitlyQuantifiedType = do
     si <- currentSourceInfo
     reservedOp "forall"

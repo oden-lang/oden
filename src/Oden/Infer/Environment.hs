@@ -8,14 +8,15 @@ module Oden.Infer.Environment (
 import Oden.Identifier
 import qualified Oden.Core as Core
 import Oden.Environment hiding (map)
+import Oden.Metadata
 import Oden.QualifiedName (QualifiedName(..))
 import Oden.SourceInfo
 import Oden.Type.Polymorphic
 
-data TypeBinding = Package SourceInfo Identifier TypingEnvironment
-                 | Local SourceInfo Identifier Scheme
-                 | Type SourceInfo QualifiedName [Core.NameBinding] Type
-                 | QuantifiedType SourceInfo Identifier Type
+data TypeBinding = Package (Metadata SourceInfo) Identifier TypingEnvironment
+                 | Local (Metadata SourceInfo) Identifier Scheme
+                 | Type (Metadata SourceInfo) QualifiedName [Core.NameBinding] Type
+                 | QuantifiedType (Metadata SourceInfo) Identifier Type
                  deriving (Show, Eq)
 
 type TypingEnvironment = Environment TypeBinding

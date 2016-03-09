@@ -17,16 +17,17 @@ import           Oden.Compiler.TypeEncoder
 import qualified Oden.Core                 as Core
 import           Oden.Identifier
 import           Oden.Environment                as Environment
+import           Oden.Metadata
 import           Oden.Predefined
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
-data MonomorphedDefinition = MonomorphedDefinition SourceInfo Identifier Mono.Type (Core.Expr Mono.Type)
+data MonomorphedDefinition = MonomorphedDefinition (Metadata SourceInfo) Identifier Mono.Type (Core.Expr Mono.Type)
                            deriving (Show, Eq, Ord)
 
 data InstantiatedDefinition =
-  InstantiatedDefinition Identifier (Core.Expr Mono.Type)
+  InstantiatedDefinition Identifier (Metadata SourceInfo) Identifier (Core.Expr Mono.Type)
   deriving (Show, Eq, Ord)
 
 data MonomorphedPackage = MonomorphedPackage Core.PackageDeclaration
@@ -45,9 +46,9 @@ data MonomorphError   = NotInScope Identifier
 data LetReference = LetReference Identifier Mono.Type Identifier
                  deriving (Show, Eq, Ord)
 
--- | A let-bound expression instantiated to a monomorphic with which it was
--- used.
-data LetInstance = LetInstance SourceInfo Core.NameBinding (Core.Expr Mono.Type)
+-- | A let-bound expression instantiated to a monomorphic type with which it
+-- was used.
+data LetInstance = LetInstance (Metadata SourceInfo) Core.NameBinding (Core.Expr Mono.Type)
 
 data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type) InstantiatedDefinition
                                      , monomorphed :: Map Identifier MonomorphedDefinition
@@ -56,7 +57,7 @@ data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type
 -- | The monomorphization monad stack that keeps track of bindings, references
 -- and what is has monomorphed already.
 type Monomorph a = RWST CompileEnvironment
-                        (Set LetReference)
+                        (Map Identifier LetReference)
                         MonomorphState
                         (Except MonomorphError)
                         a
@@ -88,7 +89,7 @@ instantiateDefinition key@(pn, t) _ pe = do
     Left err -> throwError (MonomorphInstantiateError err)
     Right expr -> do
       me <- monomorph expr
-      addInstance key (InstantiatedDefinition identifier me)
+      addInstance key (InstantiatedDefinition pn (Metadata $ getSourceInfo t) identifier me)
       return identifier
 
 getMonomorphicIn :: CompileEnvironment -> Identifier -> Mono.Type -> Monomorph Identifier
@@ -101,7 +102,7 @@ getMonomorphicIn env ident t = do
       let key = (ident, t)
       is <- gets instances
       case Map.lookup key is of
-        Just (InstantiatedDefinition identifier _) -> return identifier
+        Just (InstantiatedDefinition _ _ identifier _) -> return identifier
         Nothing -> instantiateDefinition key sc pe
     Definition (Core.Definition _ pn _) -> return pn
     -- Types cannot be referred to at this stage.
@@ -116,22 +117,22 @@ getMonomorphicLetBinding :: Identifier
                          -> Poly.Type
                          -> Monomorph Identifier
 getMonomorphicLetBinding identifier mt pt | not (Poly.isPolymorphicType pt) = do
-  tell (Set.singleton (LetReference identifier mt identifier))
+  tell (Map.singleton identifier (LetReference identifier mt identifier))
   return identifier
 getMonomorphicLetBinding identifier mt _ = do
   let encoded = Identifier (encodeTypeInstance identifier mt)
-  tell (Set.singleton (LetReference identifier mt encoded))
+  tell (Map.singleton identifier (LetReference identifier mt encoded))
   return encoded
 
-toMonomorphic :: SourceInfo -> Poly.Type -> Monomorph Mono.Type
-toMonomorphic si pt =
+toMonomorphic :: Metadata SourceInfo -> Poly.Type -> Monomorph Mono.Type
+toMonomorphic (Metadata si) pt =
   either
   (const $ throwError (UnexpectedPolyType si pt))
   return
   (Poly.toMonomorphic pt)
 
 getMonoType :: Core.Expr Poly.Type -> Monomorph Mono.Type
-getMonoType e = toMonomorphic (getSourceInfo e) (Core.typeOf e)
+getMonoType e = toMonomorphic (Metadata $ getSourceInfo e) (Core.typeOf e)
 
 -- | Return a monomorphic version of a polymorphic expression.
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
@@ -217,9 +218,9 @@ monomorph e@(Core.If si cond then' else' _) = do
   return (Core.If si mCond mThen mElse mt)
 monomorph (Core.Let si b@(Core.NameBinding bsi identifier) expr body _) = do
   (mBody, allRefs) <- listen (withIdentifier identifier (LetBinding b expr) (monomorph body))
-  let (refs, other) = Set.partition (isReferenceTo b) allRefs
+  let (refs, other) = Map.partition (isReferenceTo b) allRefs
   tell other
-  insts <- mapM (monomorphReference expr si bsi) (Set.toList refs)
+  insts <- mapM (monomorphReference expr si bsi) (Map.elems refs)
   return (unwrapLetInstances insts mBody)
   where
   isReferenceTo :: Core.NameBinding -> LetReference -> Bool
@@ -246,8 +247,8 @@ monomorph (Core.PackageMemberAccess si pkgAlias name polyType) = do
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
 monomorphReference :: Core.Expr Poly.Type
-                   -> SourceInfo -- Let expression source info.
-                   -> SourceInfo -- Let binding source info.
+                   -> (Metadata SourceInfo) -- Let expression source info.
+                   -> (Metadata SourceInfo) -- Let binding source info.
                    -> LetReference
                    -> Monomorph LetInstance
 

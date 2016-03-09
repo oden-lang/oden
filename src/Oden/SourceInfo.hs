@@ -19,7 +19,7 @@ data SourceInfo = SourceInfo { position :: Position }
 instance Show SourceInfo where
   show Predefined = "<predefined>"
   show Missing = "<missing>"
-  show (SourceInfo pos) = "(" ++ show pos ++ ")"
+  show (SourceInfo pos) = show pos
 
 -- | Types from which you can get and set 'SourceInfo'.
 class HasSourceInfo t where

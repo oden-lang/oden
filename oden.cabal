@@ -51,6 +51,7 @@ library
     Oden.Go,
     Oden.Go.Types,
     Oden.Lexer,
+    Oden.Metadata,
     Oden.Output,
     Oden.Output.Backend,
     Oden.Output.Compiler,

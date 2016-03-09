@@ -10,6 +10,7 @@ import           Oden.Identifier
 import qualified Oden.Infer            as Infer
 import           Oden.Infer            (inferExpr)
 import           Oden.Infer.Environment
+import           Oden.Metadata
 import           Oden.Predefined
 import           Oden.SourceInfo
 import           Oden.Type.Basic
@@ -18,28 +19,34 @@ import           Oden.Type.Signature
 
 import           Oden.Assertions
 
+missing :: Metadata SourceInfo
+missing = Metadata Missing
+
+predefined :: Metadata SourceInfo
+predefined = Metadata Predefined
+
 inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either Infer.TypeError Core.Definition
 inferDefinition env def = snd <$> Infer.inferDefinition env def
 
-typeAny = TAny Missing
-typeUnit = TUnit Missing
-typeInt = TBasic Missing TInt
-typeBool = TBasic Missing TBool
-typeString = TBasic Missing TString
+typeAny = TAny missing
+typeUnit = TUnit missing
+typeInt = TBasic missing TInt
+typeBool = TBasic missing TBool
+typeString = TBasic missing TString
 
 tvA :: TVar
 tvA = TV "a"
 
 tvarA :: Type
-tvarA = TVar Missing (TV "a")
+tvarA = TVar missing (TV "a")
 
-typeSlice = TSlice Missing
+typeSlice = TSlice missing
 intSlice = typeSlice typeInt
 
-typeFn = TFn Missing
-typeNoArgFn = TNoArgFn Missing
-typeUncurried = TUncurriedFn Missing
-typeVariadic = TVariadicFn Missing
+typeFn = TFn missing
+typeNoArgFn = TNoArgFn missing
+typeUncurried = TUncurriedFn missing
+typeVariadic = TVariadicFn missing
 
 tsUnit = TSUnit Missing
 tsVar = TSSymbol Missing . Identifier
@@ -50,79 +57,79 @@ implicit = TypeSignature Missing []
 explicit = TypeSignature Missing
 varBinding = SignatureVarBinding Missing . Identifier
 
-forall = Forall Missing
-tvarBinding = TVarBinding Missing
+forall = Forall missing
+tvarBinding = TVarBinding missing
 
-uSymbol                 = Untyped.Symbol Missing
-uOp                     = Untyped.BinaryOp Missing
-uApplication            = Untyped.Application Missing
-uFn                     = Untyped.Fn Missing
-uNoArgFn                = Untyped.NoArgFn Missing
-uLet                    = Untyped.Let Missing
-uLiteral                = Untyped.Literal Missing
-uTuple                  = Untyped.Tuple Missing
-uIf                     = Untyped.If Missing
-uSlice                  = Untyped.Slice Missing
-uBlock                  = Untyped.Block Missing
-uMemberAccess           = Untyped.MemberAccess Missing
+uSymbol                 = Untyped.Symbol missing
+uOp                     = Untyped.BinaryOp missing
+uApplication            = Untyped.Application missing
+uFn                     = Untyped.Fn missing
+uNoArgFn                = Untyped.NoArgFn missing
+uLet                    = Untyped.Let missing
+uLiteral                = Untyped.Literal missing
+uTuple                  = Untyped.Tuple missing
+uIf                     = Untyped.If missing
+uSlice                  = Untyped.Slice missing
+uBlock                  = Untyped.Block missing
+uMemberAccess           = Untyped.MemberAccess missing
 
 uInt    = Untyped.Int
 uString = Untyped.String
 uBool   = Untyped.Bool
 uUnit   = Untyped.Unit
 
-uNameBinding = Untyped.NameBinding Missing
-uDefinition = Untyped.Definition Missing
+uNameBinding = Untyped.NameBinding missing
+uDefinition = Untyped.Definition missing
 
-tSymbol                 = Core.Symbol Missing
-tOp                     = Core.BinaryOp Missing
-tApplication            = Core.Application Missing
-tNoArgApplication       = Core.NoArgApplication Missing
-tUncurriedFnApplication = Core.UncurriedFnApplication Missing
-tFn                     = Core.Fn Missing
-tNoArgFn                = Core.NoArgFn Missing
-tLet                    = Core.Let Missing
-tLiteral                = Core.Literal Missing
-tTuple                  = Core.Tuple Missing
-tIf                     = Core.If Missing
-tSlice                  = Core.Slice Missing
-tBlock                  = Core.Block Missing
-tFieldAccess            = Core.StructFieldAccess Missing
-tPackageMemberAcccess   = Core.PackageMemberAccess Missing
+tSymbol                 = Core.Symbol missing
+tOp                     = Core.BinaryOp missing
+tApplication            = Core.Application missing
+tNoArgApplication       = Core.NoArgApplication missing
+tUncurriedFnApplication = Core.UncurriedFnApplication missing
+tFn                     = Core.Fn missing
+tNoArgFn                = Core.NoArgFn missing
+tLet                    = Core.Let missing
+tLiteral                = Core.Literal missing
+tTuple                  = Core.Tuple missing
+tIf                     = Core.If missing
+tSlice                  = Core.Slice missing
+tBlock                  = Core.Block missing
+tFieldAccess            = Core.StructFieldAccess missing
+tPackageMemberAcccess   = Core.PackageMemberAccess missing
 
 tUnit   = Core.Unit
 tInt    = Core.Int
 tString = Core.String
 tBool   = Core.Bool
 
-tDefinition = Core.Definition Missing
-tNameBinding = Core.NameBinding Missing
+tDefinition = Core.Definition missing
+tNameBinding = Core.NameBinding missing
 
 predef :: TypingEnvironment
 predef = fromPackage universe
 
 predefAndStringLength :: TypingEnvironment
 predefAndStringLength =  predef `extend` ((Identifier "stringLength"),
-                                          Local Predefined (Identifier "stringLength") $ forall [] (typeFn typeString typeInt))
+                                          Local predefined (Identifier "stringLength") $ forall [] (typeFn typeString typeInt))
 
 predefAndMax :: TypingEnvironment
 predefAndMax =  predef `extend` ((Identifier "max"),
-                                 Local Predefined (Identifier "max") $ forall [] (typeUncurried [typeInt, typeInt] typeInt))
+                                 Local predefined (Identifier "max") $ forall [] (typeUncurried [typeInt, typeInt] typeInt))
 
 predefAndMaxVariadic :: TypingEnvironment
 predefAndMaxVariadic = predef `extend` ((Identifier "max"),
-                                        Local Predefined (Identifier "max") $ forall [] (typeVariadic [] typeInt typeInt))
+                                        Local predefined (Identifier "max") $ forall [] (typeVariadic [] typeInt typeInt))
 
 predefAndIdentityAny :: TypingEnvironment
 predefAndIdentityAny = predef `extend` ((Identifier "identity"),
-                                        Local Predefined (Identifier "identity") $ forall [] (typeUncurried [typeAny] typeAny))
+                                        Local predefined (Identifier "identity") $ forall [] (typeUncurried [typeAny] typeAny))
 
 fooBarPkgEnv :: TypingEnvironment
 fooBarPkgEnv = predef `extend` ((Identifier "foo"),
-                                Package Missing
+                                Package missing
                                 (Identifier "foo")
                                 (fromList [(Identifier "Bar",
-                                            Local Predefined (Identifier "Bar") $ forall [] typeInt)]))
+                                            Local predefined (Identifier "Bar") $ forall [] typeInt)]))
 
 booleanOp :: Type
 booleanOp = typeFn typeBool (typeFn typeBool typeBool)
@@ -225,7 +232,7 @@ spec = do
                                         uLiteral (uString "foo")])
 
     it "infers tuple" $
-      let tupleType = (TTuple Missing typeInt typeString [typeUnit])
+      let tupleType = (TTuple missing typeInt typeString [typeUnit])
       in
         inferExpr empty (uTuple (uLiteral (uInt 1))
                                        (uLiteral (uString "foo"))
@@ -245,7 +252,7 @@ spec = do
                         (uSymbol (Identifier "x"))
                         (Identifier "y")))
       `shouldSucceedWith`
-      let structType = (TStruct Missing [TStructField Missing (Identifier "y") tvarA]) in
+      let structType = (TStruct missing [TStructField missing (Identifier "y") tvarA]) in
         (forall [tvarBinding tvA] (typeFn structType tvarA),
         tFn
         (tNameBinding (Identifier "x"))
@@ -404,10 +411,10 @@ spec = do
     it "infers single-arg uncurried func application" $
       inferExpr predef (uApplication (uSymbol (Identifier "len")) [uSlice [uLiteral (uBool True)]])
       `shouldSucceedWith`
-      (forall [] (TBasic Predefined TInt),
-       tUncurriedFnApplication (Core.Symbol Missing (Identifier "len") (TUncurriedFn Missing [TSlice Predefined (TBasic Missing TBool)] (TBasic Predefined TInt)))
-                              [Core.Slice Missing [Core.Literal Missing (tBool True) typeBool] (typeSlice typeBool)]
-       (TBasic Predefined TInt))
+      (forall [] (TBasic predefined TInt),
+       tUncurriedFnApplication (Core.Symbol missing (Identifier "len") (TUncurriedFn missing [TSlice predefined (TBasic missing TBool)] (TBasic predefined TInt)))
+                              [Core.Slice missing [Core.Literal missing (tBool True) typeBool] (typeSlice typeBool)]
+       (TBasic predefined TInt))
 
     it "infers single-arg uncurried func application" $
       inferExpr predefAndMax (uApplication (uSymbol (Identifier "max"))
@@ -440,14 +447,14 @@ spec = do
        typeInt)
 
     it "infers struct initializer" $
-      let structType = (TStruct Missing [TStructField Missing (Identifier "msg") (TBasic Missing TString)]) in
+      let structType = (TStruct missing [TStructField missing (Identifier "msg") (TBasic missing TString)]) in
         inferExpr predef (Untyped.StructInitializer
-                          Missing
+                          missing
                           (TSStruct Missing [TSStructField Missing (Identifier "msg") (TSSymbol Missing (Identifier "string"))])
-                          [Untyped.Literal Missing (Untyped.String "hello")])
+                          [Untyped.Literal missing (Untyped.String "hello")])
         `shouldSucceedWith`
         (forall [] structType,
-         Core.StructInitializer Missing structType [Core.Literal Missing (Core.String "hello") typeString])
+         Core.StructInitializer missing structType [Core.Literal missing (Core.String "hello") typeString])
 
 
   describe "inferDefinition" $ do

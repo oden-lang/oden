@@ -3,11 +3,12 @@ module Oden.Compiler.Environment where
 import qualified Oden.Core as Core
 import           Oden.Environment hiding (map)
 import           Oden.Identifier
+import           Oden.Metadata
 import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
-data Binding = Package SourceInfo Identifier (Environment Binding)
+data Binding = Package (Metadata SourceInfo) Identifier (Environment Binding)
              | Definition Core.Definition
              | LetBinding Core.NameBinding (Core.Expr Type)
              | FunctionArgument Core.NameBinding

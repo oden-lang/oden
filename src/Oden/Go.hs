@@ -16,6 +16,7 @@ import qualified Oden.Core                  as Core
 import           Oden.Go.Types              as G
 import           Oden.Identifier
 import           Oden.Imports
+import           Oden.Metadata
 import           Oden.QualifiedName         (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
@@ -106,64 +107,67 @@ decodeResponse pkgName s = either (Left . PackageImportError pkgName) Right $ do
     ErrorResponse err -> Left err
     ObjectsResponse objs -> Right objs
 
+missing :: Metadata SourceInfo
+missing = Metadata Missing
+
 convertType :: G.Type -> Either String Poly.Type
 -- TODO: Add "Untyped constant" concept in Oden type system
 -- and/or consider how macros would relate to this.
-convertType (Basic "bool" False) = return (Poly.TBasic Missing TBool)
-convertType (Basic "int" False) = return (Poly.TBasic Missing TInt)
-convertType (Basic "rune" False) = return (Poly.TBasic Missing TInt)
-convertType (Basic "string" False) = return (Poly.TBasic Missing TString)
+convertType (Basic "bool" False) = return (Poly.TBasic missing TBool)
+convertType (Basic "int" False) = return (Poly.TBasic missing TInt)
+convertType (Basic "rune" False) = return (Poly.TBasic missing TInt)
+convertType (Basic "string" False) = return (Poly.TBasic missing TString)
 convertType (Basic "nil" False) = Left "nil constants"
 convertType (Basic n False) = Left ("Basic type: " ++ n)
 convertType (Basic n True) = Left ("Basic untyped: " ++ n)
 convertType (Pointer _) = Left "Pointers"
 convertType (G.Array _ _) = Left "Arrays"
-convertType (Slice t) = Poly.TSlice Missing <$> convertType t
-convertType Interface{} = Right $ Poly.TAny Missing
+convertType (Slice t) = Poly.TSlice missing <$> convertType t
+convertType Interface{} = Right $ Poly.TAny missing
 convertType (Signature _ (Just _) _ _) = Left "Methods (functions with receivers)"
 convertType (Signature False Nothing args []) = do
   as <- mapM convertType args
-  Right (Poly.TUncurriedFn Missing as (Poly.TUnit Missing))
+  Right (Poly.TUncurriedFn missing as (Poly.TUnit missing))
 convertType (Signature False Nothing args [ret]) = do
   as <- mapM convertType args
   r <- convertType ret
-  Right (Poly.TUncurriedFn Missing as r)
+  Right (Poly.TUncurriedFn missing as r)
 convertType (Signature False Nothing args _) = do
   as <- mapM convertType args
-  Right (Poly.TUncurriedFn Missing as (Poly.TUnit Missing))
+  Right (Poly.TUncurriedFn missing as (Poly.TUnit missing))
 convertType (Signature True Nothing [] []) = Left "Variadic functions with no arguments"
 convertType (Signature True Nothing args []) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
-  Right (Poly.TVariadicFn Missing as v (Poly.TUnit Missing))
+  Right (Poly.TVariadicFn missing as v (Poly.TUnit missing))
 convertType (Signature True Nothing args [ret]) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
   r <- convertType ret
-  Right (Poly.TVariadicFn Missing as v r)
+  Right (Poly.TVariadicFn missing as v r)
 convertType (Signature True Nothing args _) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
-  Right (Poly.TVariadicFn Missing as v (Poly.TUnit Missing))
+  Right (Poly.TVariadicFn missing as v (Poly.TUnit missing))
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
 convertType (Named pkgName n (Struct fields)) = do
   fields' <- mapM convertField fields
-  return (Poly.TNamed Missing (FQN pkgName (Identifier n)) (Poly.TStruct Missing fields'))
+  return (Poly.TNamed missing (FQN pkgName (Identifier n)) (Poly.TStruct missing fields'))
   where
-  convertField (StructField name goType) = Poly.TStructField Missing (Identifier name) <$> convertType goType
+  convertField (StructField name goType) = Poly.TStructField missing (Identifier name) <$> convertType goType
 convertType (Named _ _ t) = convertType t
 convertType (Struct fields) = do
   fields' <- mapM convertStructField fields
-  return (Poly.TStruct Missing fields')
+  return (Poly.TStruct missing fields')
   where
-  convertStructField (StructField fieldName goType) = Poly.TStructField Missing (Identifier fieldName) <$> convertType goType
+  convertStructField (StructField fieldName goType) = Poly.TStructField missing (Identifier fieldName) <$> convertType goType
 convertType (Unsupported n) = Left n
 
 objectsToPackage :: Core.PackageName
              -> [PackageObject]
              -> (Core.Package, [UnsupportedMessage])
 objectsToPackage pkgName objs =
-  (Core.Package (Core.PackageDeclaration Missing pkgName) [] allDefs, allMessages)
+  (Core.Package (Core.PackageDeclaration missing pkgName) [] allDefs, allMessages)
   where
   (allDefs, allMessages) = foldl addObject ([], []) objs
   addObject (defs, msgs) (NamedType name goType) =
@@ -171,14 +175,14 @@ objectsToPackage pkgName objs =
     case convertType goType of
          Left u -> (defs, (identifier, u) : msgs)
          Right type' ->
-           (Core.TypeDefinition Missing (FQN pkgName identifier) [] type' : defs, msgs)
+           (Core.TypeDefinition missing (FQN pkgName identifier) [] type' : defs, msgs)
   addObject (defs, msgs) obj =
     let n = Identifier (nameOf obj)
     in case convertType (typeOf obj) of
          Left u -> (defs, (n, u) : msgs)
          Right ct ->
-           let sc = Poly.Forall Missing [] ct
-           in (Core.ForeignDefinition Missing n sc : defs, msgs)
+           let sc = Poly.Forall missing [] ct
+           in (Core.ForeignDefinition missing n sc : defs, msgs)
 
 importer :: Importer
 importer pkgName = do

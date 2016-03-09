@@ -9,6 +9,7 @@ import           Control.Monad.State
 import qualified Data.Map              as Map hiding (foldl)
 
 import qualified Oden.Core             as Core
+import           Oden.Metadata
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
@@ -82,7 +83,7 @@ replace (Poly.TUnit si) = return (Poly.TUnit si)
 replace (Poly.TBasic si b) = return (Poly.TBasic si b)
 replace (Poly.TTuple si f s r) =
   Poly.TTuple si <$> replace f <*> replace s <*> mapM replace r
-replace (Poly.TVar si v) = do
+replace (Poly.TVar (Metadata si) v) = do
   s <- get
   case Map.lookup v s of
     Just mono -> return (setSourceInfo si mono)

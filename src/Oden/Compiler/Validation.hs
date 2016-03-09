@@ -2,6 +2,7 @@ module Oden.Compiler.Validation where
 
 import           Oden.Core             as Core
 import           Oden.Identifier
+import           Oden.Metadata
 import           Oden.QualifiedName    (QualifiedName(..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
@@ -25,8 +26,8 @@ type Validate = ReaderT
                 (StateT [ValidationWarning]
                         (Except ValidationError))
 
-errorIfDefined :: Identifier -> SourceInfo -> Validate ()
-errorIfDefined name si = do
+errorIfDefined :: Identifier -> Metadata SourceInfo -> Validate ()
+errorIfDefined name (Metadata si) = do
   scope <- ask
   when (Set.member name scope) $
     throwError (Redefinition si name)
@@ -110,7 +111,7 @@ validateType (TNamed _ _ t) = validateType t
 validateType (TStruct _ fs) =
   case repeated fs of
     [] -> return ()
-    (TStructField si name _:_) -> throwError (DuplicatedStructFieldName si name)
+    (TStructField (Metadata si) name _:_) -> throwError (DuplicatedStructFieldName si name)
 validateType _ = return ()
 
 validatePackage :: Package -> Validate ()

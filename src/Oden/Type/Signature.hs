@@ -2,31 +2,33 @@
 -- Oden source code, not the actual type expressions get in the compiler. For
 -- example, a 'TSSymbol' expression may refer to a type not in scope which
 -- causes a compile time error.
+--
+-- All values are paramterized to support signatures where the source info is
+-- considered metadata, i.e. not used when comparing with Eq.
 module Oden.Type.Signature where
 
 import Oden.Identifier
-import Oden.SourceInfo
 
 -- | The name and type pair for a struct field.
-data TSStructField = TSStructField SourceInfo Identifier SignatureExpr
-                   deriving (Show, Eq, Ord)
+data TSStructField s = TSStructField s Identifier (SignatureExpr s)
+                     deriving (Show, Eq, Ord)
 
 -- | A type expression used in type signatures and type annotations.
-data SignatureExpr = TSUnit SourceInfo
-                   | TSSymbol SourceInfo Identifier
-                   | TSApp SourceInfo SignatureExpr SignatureExpr
-                   | TSFn SourceInfo SignatureExpr SignatureExpr
-                   | TSNoArgFn SourceInfo SignatureExpr
-                   | TSTuple SourceInfo SignatureExpr SignatureExpr [SignatureExpr]
-                   | TSSlice SourceInfo SignatureExpr
-                   | TSStruct SourceInfo [TSStructField]
-                   deriving (Show, Eq, Ord)
+data SignatureExpr s = TSUnit s
+                     | TSSymbol s Identifier
+                     | TSApp s (SignatureExpr s) (SignatureExpr s)
+                     | TSFn s (SignatureExpr s) (SignatureExpr s)
+                     | TSNoArgFn s (SignatureExpr s)
+                     | TSTuple s (SignatureExpr s) (SignatureExpr s) [(SignatureExpr s)]
+                     | TSSlice s (SignatureExpr s)
+                     | TSStruct s [TSStructField s]
+                     deriving (Show, Eq, Ord)
 
 -- | A type variable binding in an explicit quantification.
-data SignatureVarBinding = SignatureVarBinding SourceInfo Identifier
-                         deriving (Show, Eq, Ord)
+data SignatureVarBinding s = SignatureVarBinding s Identifier
+                           deriving (Show, Eq, Ord)
 
 -- | A top level type signature with explicit or implicit type variable
 -- quantification.
-data TypeSignature = TypeSignature SourceInfo [SignatureVarBinding] SignatureExpr
-                   deriving (Show, Eq, Ord)
+data TypeSignature s = TypeSignature s [SignatureVarBinding s] (SignatureExpr s)
+                     deriving (Show, Eq, Ord)

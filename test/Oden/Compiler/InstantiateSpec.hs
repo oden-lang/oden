@@ -5,6 +5,7 @@ import           Test.Hspec
 import           Oden.Compiler.Instantiate
 import qualified Oden.Core                 as Core
 import           Oden.Identifier
+import           Oden.Metadata
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
@@ -12,74 +13,77 @@ import           Oden.Type.Basic
 
 import           Oden.Assertions
 
+missing :: Metadata SourceInfo
+missing = Metadata Missing
+
 tvA :: Poly.TVar
 tvA = Poly.TV "a"
 
 tvarA :: Poly.Type
-tvarA = Poly.TVar Missing tvA
+tvarA = Poly.TVar missing tvA
 
-typeInt = Poly.TBasic Missing TInt
-typeBool = Poly.TBasic Missing TBool
+typeInt = Poly.TBasic missing TInt
+typeBool = Poly.TBasic missing TBool
 
-monoInt = Mono.TBasic Missing TInt
-monoBool = Mono.TBasic Missing TBool
+monoInt = Mono.TBasic missing TInt
+monoBool = Mono.TBasic missing TBool
 
 identityPoly :: Core.Expr Poly.Type
 identityPoly =
   Core.Fn
-  Missing
-  (Core.NameBinding Missing (Identifier "x"))
-  (Core.Symbol Missing (Identifier "x") tvarA)
-  (Poly.TFn Missing tvarA tvarA)
+  missing
+  (Core.NameBinding missing (Identifier "x"))
+  (Core.Symbol missing (Identifier "x") tvarA)
+  (Poly.TFn missing tvarA tvarA)
 
 identityIntType :: Mono.Type
-identityIntType = Mono.TFn Missing monoInt monoInt
+identityIntType = Mono.TFn missing monoInt monoInt
 
 identityInt :: Core.Expr Poly.Type
 identityInt =
   Core.Fn
-  Missing
-  (Core.NameBinding Missing (Identifier "x"))
-  (Core.Symbol Missing (Identifier "x") typeInt)
-  (Poly.TFn Missing typeInt typeInt)
+  missing
+  (Core.NameBinding missing (Identifier "x"))
+  (Core.Symbol missing (Identifier "x") typeInt)
+  (Poly.TFn missing typeInt typeInt)
 
 lenType :: Poly.Type
-lenType = Poly.TUncurriedFn Missing [Poly.TSlice Missing tvarA] typeInt
+lenType = Poly.TUncurriedFn missing [Poly.TSlice missing tvarA] typeInt
 
 lenPoly :: Core.Expr Poly.Type
-lenPoly = Core.Symbol Missing (Identifier "len") lenType
+lenPoly = Core.Symbol missing (Identifier "len") lenType
 
 lenIntType :: Mono.Type
-lenIntType = Mono.TUncurriedFn Missing [Mono.TSlice Missing monoInt] monoInt
+lenIntType = Mono.TUncurriedFn missing [Mono.TSlice missing monoInt] monoInt
 
 lenInt :: Core.Expr Poly.Type
 lenInt =
   Core.Symbol
-  Missing
+  missing
   (Identifier "len")
-  (Poly.TUncurriedFn Missing [Poly.TSlice Missing typeInt] typeInt)
+  (Poly.TUncurriedFn missing [Poly.TSlice missing typeInt] typeInt)
 
 pairPoly :: Core.Expr Poly.Type
 pairPoly =
   Core.Tuple
-  Missing
-  (Core.Symbol Missing (Identifier "x") tvarA)
-  (Core.Symbol Missing (Identifier "y") (Poly.TVar Missing (Poly.TV "b")))
+  missing
+  (Core.Symbol missing (Identifier "x") tvarA)
+  (Core.Symbol missing (Identifier "y") (Poly.TVar missing (Poly.TV "b")))
   []
-  (Poly.TTuple Missing tvarA (Poly.TVar Missing (Poly.TV "b")) [])
+  (Poly.TTuple missing tvarA (Poly.TVar missing (Poly.TV "b")) [])
 
 
 pairIntStringType :: Mono.Type
-pairIntStringType = Mono.TTuple Missing monoInt (Mono.TBasic Missing TString) []
+pairIntStringType = Mono.TTuple missing monoInt (Mono.TBasic missing TString) []
 
 pairIntString :: Core.Expr Poly.Type
 pairIntString =
   Core.Tuple
-  Missing
-  (Core.Symbol Missing (Identifier "x") typeInt)
-  (Core.Symbol Missing (Identifier "y") (Poly.TBasic Missing TString))
+  missing
+  (Core.Symbol missing (Identifier "x") typeInt)
+  (Core.Symbol missing (Identifier "y") (Poly.TBasic missing TString))
   []
-  (Poly.TTuple Missing typeInt (Poly.TBasic Missing TString) [])
+  (Poly.TTuple missing typeInt (Poly.TBasic missing TString) [])
 
 spec :: Spec
 spec =

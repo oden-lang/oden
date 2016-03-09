@@ -14,11 +14,11 @@ module Oden.Type.Polymorphic (
   FTV,
   ftv,
   getBindingVar,
-  equalsT,
   underlying
 ) where
 
 import           Oden.Identifier
+import           Oden.Metadata
 import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 import           Oden.SourceInfo
@@ -31,7 +31,7 @@ newtype TVar = TV String
   deriving (Show, Eq, Ord)
 
 -- | The name and type of a struct field.
-data StructField = TStructField SourceInfo Identifier Type
+data StructField = TStructField (Metadata SourceInfo) Identifier Type
                  deriving (Show, Eq, Ord)
 
 getStructFieldType :: StructField -> Type
@@ -39,67 +39,67 @@ getStructFieldType (TStructField _ _ t) = t
 
 -- | A polymorphic type.
 data Type
-  = TAny SourceInfo
+  = TAny (Metadata SourceInfo)
   -- | A type variable.
-  | TBasic SourceInfo BasicType
+  | TBasic (Metadata SourceInfo) BasicType
   -- | A type variable.
-  | TVar SourceInfo TVar
+  | TVar (Metadata SourceInfo) TVar
   -- | The unit type.
-  | TUnit SourceInfo
+  | TUnit (Metadata SourceInfo)
   -- | A tuple, with at least two elements.
-  | TTuple SourceInfo Type Type [Type]
+  | TTuple (Metadata SourceInfo) Type Type [Type]
   -- | A type constructor.
-  | TCon SourceInfo Type Type
+  | TCon (Metadata SourceInfo) Type Type
   -- | Like a 'TFn' but with no argument, only a return type.
-  | TNoArgFn SourceInfo Type
+  | TNoArgFn (Metadata SourceInfo) Type
   -- | A curried function.
-  | TFn SourceInfo Type Type
+  | TFn (Metadata SourceInfo) Type Type
   -- | A slice type.
-  | TSlice SourceInfo Type
+  | TSlice (Metadata SourceInfo) Type
   -- | Data structure type.
-  | TStruct SourceInfo [StructField]
+  | TStruct (Metadata SourceInfo) [StructField]
   -- | A name for a type, introduced by type definitions.
-  | TNamed SourceInfo QualifiedName Type
+  | TNamed (Metadata SourceInfo) QualifiedName Type
 
   -- For foreign definitions:
 
   -- | A function that can have multiple arguments (no currying).
-  | TUncurriedFn SourceInfo [Type] Type -- TODO: Support multiple return values somehow.
+  | TUncurriedFn (Metadata SourceInfo) [Type] Type -- TODO: Support multiple return values somehow.
   -- | A variadic function.
-  | TVariadicFn SourceInfo [Type] Type Type -- TODO: Support multiple return values somehow.
+  | TVariadicFn (Metadata SourceInfo) [Type] Type Type -- TODO: Support multiple return values somehow.
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
-  getSourceInfo (TAny si)              = si
-  getSourceInfo (TBasic si _)          = si
-  getSourceInfo (TUnit si)             = si
-  getSourceInfo (TVar si _)            = si
-  getSourceInfo (TTuple si _ _ _)      = si
-  getSourceInfo (TFn si _ _)           = si
-  getSourceInfo (TNoArgFn si _)        = si
-  getSourceInfo (TCon si _ _)          = si
-  getSourceInfo (TUncurriedFn si _ _)  = si
-  getSourceInfo (TVariadicFn si _ _ _) = si
-  getSourceInfo (TSlice si _)          = si
-  getSourceInfo (TStruct si _)         = si
-  getSourceInfo (TNamed si _ _)        = si
+  getSourceInfo (TAny (Metadata si))              = si
+  getSourceInfo (TBasic (Metadata si) _)          = si
+  getSourceInfo (TUnit (Metadata si))             = si
+  getSourceInfo (TVar (Metadata si) _)            = si
+  getSourceInfo (TTuple (Metadata si) _ _ _)      = si
+  getSourceInfo (TFn (Metadata si) _ _)           = si
+  getSourceInfo (TNoArgFn (Metadata si) _)        = si
+  getSourceInfo (TCon (Metadata si) _ _)          = si
+  getSourceInfo (TUncurriedFn (Metadata si) _ _)  = si
+  getSourceInfo (TVariadicFn (Metadata si) _ _ _) = si
+  getSourceInfo (TSlice (Metadata si) _)          = si
+  getSourceInfo (TStruct (Metadata si) _)         = si
+  getSourceInfo (TNamed (Metadata si) _ _)        = si
 
-  setSourceInfo si (TAny _)              = TAny si
-  setSourceInfo si (TBasic _ b)          = TBasic si b
-  setSourceInfo si (TUnit _)             = TUnit si
-  setSourceInfo si (TVar _ v)            = TVar si v
-  setSourceInfo si (TTuple _ f s r)      = TTuple si f s r
-  setSourceInfo si (TFn _ a r)           = TFn si a r
-  setSourceInfo si (TNoArgFn _ r)        = TNoArgFn si r
-  setSourceInfo si (TCon _ d r)          = TCon si d r
-  setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn si a r
-  setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn si a v r
-  setSourceInfo si (TSlice _ t)          = TSlice si t
-  setSourceInfo si (TStruct _ fs)        = TStruct si fs
-  setSourceInfo si (TNamed _ n t)        = TNamed si n t
+  setSourceInfo si (TAny _)              = TAny (Metadata si)
+  setSourceInfo si (TBasic _ b)          = TBasic (Metadata si) b
+  setSourceInfo si (TUnit _)             = TUnit (Metadata si)
+  setSourceInfo si (TVar _ v)            = TVar (Metadata si) v
+  setSourceInfo si (TTuple _ f s r)      = TTuple (Metadata si) f s r
+  setSourceInfo si (TFn _ a r)           = TFn (Metadata si) a r
+  setSourceInfo si (TNoArgFn _ r)        = TNoArgFn (Metadata si) r
+  setSourceInfo si (TCon _ d r)          = TCon (Metadata si) d r
+  setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn (Metadata si) a r
+  setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn (Metadata si) a v r
+  setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
+  setSourceInfo si (TStruct _ fs)        = TStruct (Metadata si) fs
+  setSourceInfo si (TNamed _ n t)        = TNamed (Metadata si) n t
 
 -- | A type variable binding.
-data TVarBinding = TVarBinding SourceInfo TVar
+data TVarBinding = TVarBinding (Metadata SourceInfo) TVar
                  deriving (Show, Eq, Ord)
 
 instance FTV TVarBinding where
@@ -109,16 +109,16 @@ getBindingVar :: TVarBinding -> TVar
 getBindingVar (TVarBinding _ v)  = v
 
 instance HasSourceInfo TVarBinding where
-  getSourceInfo (TVarBinding si _)   = si
-  setSourceInfo si (TVarBinding _ v) = TVarBinding si v
+  getSourceInfo (TVarBinding (Metadata si) _)   = si
+  setSourceInfo si (TVarBinding _ v) = TVarBinding (Metadata si) v
 
 -- | A polymorphic type and its quantified type variable bindings.
-data Scheme = Forall SourceInfo [TVarBinding] Type
+data Scheme = Forall (Metadata SourceInfo) [TVarBinding] Type
             deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Scheme where
-  getSourceInfo (Forall si _ _) = si
-  setSourceInfo si (Forall _ v t) = Forall si v t
+  getSourceInfo (Forall (Metadata si) _ _) = si
+  setSourceInfo si (Forall _ v t) = Forall (Metadata si) v t
 
 -- | Converts a polymorphic 'Type' to a monomorphic 'Mono.Type'
 -- and fails if there's any 'TVar' in the type.
@@ -170,32 +170,6 @@ isPolymorphicType (TVariadicFn _ a v r) =
 isPolymorphicType (TSlice _ a) = isPolymorphicType a
 isPolymorphicType (TStruct _ fs) = any (isPolymorphicType . getStructFieldType) fs
 isPolymorphicType (TNamed _ _ t) = isPolymorphicType t
-
--- | Equality for '[Type]', disregarding SourceInfo.
-equalsAllT :: [Type] -> [Type] -> Bool
-equalsAllT t1 t2 = and (zipWith equalsT t1 t2)
-
--- | Equality for 'Type', disregarding SourceInfo.
-equalsT :: Type -> Type -> Bool
-equalsT TAny{} TAny{} = True
-equalsT TUnit{} TUnit{} = True
-equalsT (TBasic _ b1) (TBasic _ b2) = b1 == b2
-equalsT (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) =
-  f1 `equalsT` f2 && s1 `equalsT` s2 && r1 `equalsAllT` r2
-equalsT (TVar _ v1) (TVar _ v2) = v1 == v2
-equalsT (TCon _ d1 r1) (TCon _ d2 r2) = d1 `equalsT` d2 && r1 `equalsT` r2
-equalsT (TNoArgFn _ a1) (TNoArgFn _ a2) = a1 `equalsT` a2
-equalsT (TFn _ a1 b1) (TFn _ a2 b2) = a1 `equalsT` a2 && b1 `equalsT` b2
-equalsT (TUncurriedFn _ a1 r1) (TUncurriedFn _ a2 r2) =
-  a1 `equalsAllT` a2 && r1 `equalsT` r2
-equalsT (TVariadicFn _ a1 v1 r1) (TVariadicFn _ a2 v2 r2)=
-  a1 `equalsAllT` a2 && v1 `equalsT` v2 && r1 `equalsT` r2
-equalsT (TSlice _ e1) (TSlice _ e2) = e1 `equalsT` e2
-equalsT (TStruct _ fs1) (TStruct _ fs2) =
-  map getStructFieldType fs1 `equalsAllT` map getStructFieldType fs2
-equalsT (TNamed _ n1 t1) (TNamed _ n2 t2) =
-  n1 == n2 && t1 `equalsT` t2
-equalsT _ _ = False
 
 underlying :: Type -> Type
 underlying (TNamed _ _ t) = underlying t

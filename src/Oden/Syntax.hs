@@ -23,7 +23,7 @@ data Expr = Symbol SourceInfo Identifier
           | Slice SourceInfo [Expr]
           | Tuple SourceInfo Expr Expr [Expr]
           | Block SourceInfo [Expr]
-          | StructInitializer SourceInfo SignatureExpr [Expr]
+          | StructInitializer SourceInfo (SignatureExpr SourceInfo) [Expr]
           | MemberAccess SourceInfo Expr Expr
           deriving (Show, Eq, Ord)
 
@@ -75,15 +75,15 @@ type PackageName = [String]
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                           deriving (Show, Eq, Ord)
 
-data StructFieldExpr = StructFieldExpr SourceInfo Identifier SignatureExpr
+data StructFieldExpr = StructFieldExpr SourceInfo Identifier (SignatureExpr SourceInfo)
                      deriving (Show, Eq, Ord)
 
 data TopLevel = ImportDeclaration SourceInfo PackageName
-              | TypeSignatureDeclaration SourceInfo Identifier TypeSignature
+              | TypeSignatureDeclaration SourceInfo Identifier (TypeSignature SourceInfo)
               | ValueDefinition SourceInfo Identifier Expr
               | FnDefinition SourceInfo Identifier [NameBinding] Expr
               -- TODO: Add support for type parameters
-              | TypeDefinition SourceInfo Identifier SignatureExpr
+              | TypeDefinition SourceInfo Identifier (SignatureExpr SourceInfo)
               deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]

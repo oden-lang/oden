@@ -7,6 +7,7 @@ module Oden.Infer.Subsumption (
 import Oden.Type.Polymorphic
 import Oden.Core as Core
 import Oden.Infer.Substitution
+import Oden.Metadata
 import Oden.SourceInfo
 
 import           Control.Monad
@@ -28,12 +29,12 @@ collectSubstitutions TUnit{} TUnit{} = return ()
 collectSubstitutions (TBasic _ b1) (TBasic _ b2)
   | b1 == b2 = return ()
 collectSubstitutions t1@(TCon _ d1 r1) t2@(TCon _ d2 r2)
-  | t1 `equalsT` t2 = do collectSubstitutions d1 d2
-                         collectSubstitutions r1 r2
-collectSubstitutions t (TVar si tv) = do
+  | t1 == t2 = do collectSubstitutions d1 d2
+                  collectSubstitutions r1 r2
+collectSubstitutions t (TVar (Metadata si) tv) = do
   st <- gets (Map.lookup tv)
   case st of
-    Just t' | t `equalsT` t'   -> return ()
+    Just t' | t == t'   -> return ()
             | otherwise -> throwError (SubsumptionError si t t')
     Nothing -> modify (Map.insert tv t)
 collectSubstitutions (TFn _ a1 r1) (TFn _ a2 r2) = do
