@@ -18,7 +18,6 @@ import           Oden.Metadata
 import           Oden.Pretty
 import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo       hiding (fileName)
-import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 
 type Codegen = ReaderT MonomorphedPackage (Except CodegenError)
@@ -54,20 +53,26 @@ varWithType name mt expr = do
 var :: String -> Expr Mono.Type -> Codegen Doc
 var name expr = varWithType name (typeOf expr) expr
 
+isUniverseTypeConstructor :: String -> Mono.Type -> Bool
+isUniverseTypeConstructor expected (Mono.TCon _ (FQN [] (Identifier actual))) =
+  actual == expected
+isUniverseTypeConstructor _ _ = False
+
+
 return' :: Expr Mono.Type -> Codegen Doc
-return' e@(Application _ f _ Mono.TUnit{}) = do
+return' e@(Application _ f _ t) | isUniverseTypeConstructor "unit" t = do
   ec <- codegenExpr e
   return $ case typeOf f of
     Mono.TUncurriedFn{} -> ec $+$ text "return struct{}{}"
     Mono.TVariadicFn{}  -> ec $+$ text "return struct{}{}"
     _                   -> text "return" <+> ec
-return' e@(NoArgApplication _ f Mono.TUnit{}) = do
+return' e@(NoArgApplication _ f t) | isUniverseTypeConstructor "unit" t = do
   ec <- codegenExpr e
   return $ case typeOf f of
     Mono.TUncurriedFn{} -> ec $+$ text "return struct{}{}"
     Mono.TVariadicFn{}  -> ec $+$ text "return struct{}{}"
     _                   -> text "return" <+> ec
-return' e@(UncurriedFnApplication _ f _ Mono.TUnit{}) = do
+return' e@(UncurriedFnApplication _ f _ t) | isUniverseTypeConstructor "unit" t = do
   ec <- codegenExpr e
   return $ case typeOf f of
     Mono.TUncurriedFn{} -> ec $+$ text "return struct{}{}"
@@ -108,10 +113,12 @@ codegenQualifiedName (FQN pkgName (Identifier name)) = do
   else return $ safeName (last pkgName) <> text "." <> safeName name
 
 codegenType :: Mono.Type -> Codegen Doc
-codegenType Mono.TUnit{} = return $ text "struct{}"
-codegenType (Mono.TBasic _ TInt) = return $ text "int"
-codegenType (Mono.TBasic _ TBool) = return $ text "bool"
-codegenType (Mono.TBasic _ TString) = return $ text "string"
+codegenType t@Mono.TCon{}
+  | isUniverseTypeConstructor "unit" t = return $ text "struct{}"
+  | isUniverseTypeConstructor "int" t = return $ text "int"
+  | isUniverseTypeConstructor "bool" t = return $ text "bool"
+  | isUniverseTypeConstructor "string" t = return $ text "string"
+  | otherwise = throwError (UnexpectedError $ "Unsupported type constructor: " ++ show t)
 codegenType (Mono.TTuple _ f s r) = do
   fs <- zipWithM codegenTupleField [0..] (f:s:r)
   return $ text "struct" <> braces (hcat (punctuate (text "; ") fs))
@@ -121,7 +128,6 @@ codegenType (Mono.TTuple _ f s r) = do
     tc <- codegenType t
     return $ text ("_" ++ show n) <+> tc
 codegenType Mono.TAny{} = return $ text "interface{}"
-codegenType (Mono.TCon _ _d _r) = throwError $ UnexpectedError "Type constructors not implemented yet."
 codegenType (Mono.TNoArgFn _ f) = do
   fc <- codegenType f
   return $func empty empty fc empty
@@ -272,7 +278,7 @@ codegenExpr (PackageMemberAccess _ pkgAlias name _) = do
   return $ ec <> text "." <> nc
 
 codegenTopLevel :: String -> Mono.Type -> Expr Mono.Type -> Codegen Doc
-codegenTopLevel "main" (Mono.TNoArgFn _ Mono.TUnit{}) (NoArgFn _ body _) =
+codegenTopLevel "main" (Mono.TNoArgFn _ t) (NoArgFn _ body _) | isUniverseTypeConstructor "unit" t =
   func (text "main") empty empty <$> (braces <$> codegenExpr body)
 codegenTopLevel name (Mono.TNoArgFn _ r) (NoArgFn _ body _) =
   func (safeName name) empty <$> codegenType r <*> (braces <$> return' body)

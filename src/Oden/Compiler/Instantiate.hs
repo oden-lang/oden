@@ -23,10 +23,8 @@ type Instantiate a = StateT Substitutions (Except InstantiateError) a
 
 monoToPoly :: Mono.Type -> Poly.Type
 monoToPoly (Mono.TAny si) = Poly.TAny si
-monoToPoly (Mono.TUnit si) = Poly.TUnit si
-monoToPoly (Mono.TBasic si b) = Poly.TBasic si b
 monoToPoly (Mono.TTuple si f s r) = Poly.TTuple si (monoToPoly f) (monoToPoly s) (map monoToPoly r)
-monoToPoly (Mono.TCon si d r) = Poly.TCon si (monoToPoly d) (monoToPoly r)
+monoToPoly (Mono.TCon si n) = Poly.TCon si n
 monoToPoly (Mono.TNoArgFn si f) = Poly.TNoArgFn si (monoToPoly f)
 monoToPoly (Mono.TFn si f p) = Poly.TFn si (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TUncurriedFn si as r) = Poly.TUncurriedFn si (map monoToPoly as) (monoToPoly r)
@@ -38,15 +36,8 @@ monoToPoly (Mono.TStruct si fs) = Poly.TStruct si (map fieldMonoToPoly fs)
 monoToPoly (Mono.TNamed si n t) = Poly.TNamed si n (monoToPoly t)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
-getSubstitutions Poly.TUnit{} Mono.TUnit{} = return Map.empty
-getSubstitutions p@(Poly.TBasic _ pb) m@(Mono.TBasic _ mb) =
-  if pb == mb
-  then Right Map.empty
-  else Left (TypeMismatch (getSourceInfo m) p m)
-getSubstitutions (Poly.TCon _ pd pr) (Mono.TCon _ md mr) = do
-  ds <- getSubstitutions pd md
-  rs <- getSubstitutions pr mr
-  return (ds `mappend` rs)
+getSubstitutions (Poly.TCon _ pn) (Mono.TCon _ mn)
+  | pn == mn = Right Map.empty
 getSubstitutions (Poly.TNoArgFn _ pf) (Mono.TNoArgFn _ mf) =
   getSubstitutions pf mf
 getSubstitutions (Poly.TFn _ pf pp) (Mono.TFn _ mf mp) = do
@@ -79,8 +70,6 @@ getSubstitutions poly mono = Left (TypeMismatch (getSourceInfo mono) poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
 replace (Poly.TAny si) = return (Poly.TAny si)
-replace (Poly.TUnit si) = return (Poly.TUnit si)
-replace (Poly.TBasic si b) = return (Poly.TBasic si b)
 replace (Poly.TTuple si f s r) =
   Poly.TTuple si <$> replace f <*> replace s <*> mapM replace r
 replace (Poly.TVar (Metadata si) v) = do
@@ -88,7 +77,7 @@ replace (Poly.TVar (Metadata si) v) = do
   case Map.lookup v s of
     Just mono -> return (setSourceInfo si mono)
     Nothing -> throwError (SubstitutionFailed si v (Map.keys s))
-replace (Poly.TCon si d r) = Poly.TCon si <$> replace d <*> replace r
+replace (Poly.TCon si n) = return (Poly.TCon si n)
 replace (Poly.TNoArgFn si t) = Poly.TNoArgFn si <$> replace t
 replace (Poly.TFn si ft pt) = Poly.TFn si <$> replace ft <*> replace pt
 replace (Poly.TUncurriedFn si ft pt) =

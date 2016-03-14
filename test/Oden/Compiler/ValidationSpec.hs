@@ -6,8 +6,8 @@ import           Oden.Compiler.Validation
 import           Oden.Core
 import           Oden.Identifier
 import           Oden.Metadata
+import           Oden.QualifiedName
 import           Oden.SourceInfo
-import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
@@ -15,20 +15,24 @@ import           Oden.Assertions
 missing :: Metadata SourceInfo
 missing = Metadata Missing
 
+typeUnit, typeString :: Type
+typeUnit = TCon (Metadata Predefined) (FQN [] (Identifier "unit"))
+typeString = TCon (Metadata Predefined) (FQN [] (Identifier "string"))
+
 canonical :: Expr Type -> CanonicalExpr
 canonical e = (Forall missing [] (typeOf e), e)
 
 unitExpr :: Expr Type
-unitExpr = Literal missing Unit (TUnit missing)
+unitExpr = Literal missing Unit typeUnit
 
 strExpr :: Expr Type
-strExpr = Literal missing (String "hello") (TBasic missing TString)
+strExpr = Literal missing (String "hello") typeString
 
 letExpr :: Identifier -> Expr Type -> Expr Type -> Expr Type
 letExpr n value body = Let missing (NameBinding missing n) value body (typeOf body)
 
 fnExpr :: Identifier -> Expr Type -> Expr Type
-fnExpr n body = Fn missing (NameBinding missing n) body (TFn missing (TBasic missing TString) (typeOf body))
+fnExpr n body = Fn missing (NameBinding missing n) body (TFn missing typeString (typeOf body))
 
 block :: [Expr Type] -> Expr Type
 block exprs = Block missing exprs (typeOf (last exprs))

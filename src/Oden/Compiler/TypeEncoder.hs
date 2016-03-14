@@ -9,7 +9,6 @@ import           Data.List             (intercalate)
 import           Oden.Identifier
 import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Type.Monomorphic as Mono
-import           Oden.Type.Basic
 
 type Level = Int
 type TypeEncoder t = StateT Level (Writer String) t
@@ -31,21 +30,14 @@ padded s = pad >> tell s >> pad
 paddedTo :: TypeEncoder ()
 paddedTo = padded "to"
 
-writeBasic :: BasicType -> TypeEncoder ()
-writeBasic TInt = tell "int"
-writeBasic TBool = tell "bool"
-writeBasic TString = tell "string"
+writeQualified :: QualifiedName -> TypeEncoder ()
+writeQualified (FQN pkgs name) = do
+  let parts = (pkgs ++ [asString name]) :: [String]
+  tell (intercalate "_" parts)
 
 writeType :: Mono.Type -> TypeEncoder ()
 writeType (Mono.TAny _) = tell "any"
-writeType (Mono.TUnit _) = tell "unit"
-writeType (Mono.TBasic _ b) = writeBasic b
-writeType (Mono.TCon _ d r) = do
-  writeType d
-  pad
-  tell "of"
-  pad
-  writeType r
+writeType (Mono.TCon _ n) = writeQualified n
 writeType (Mono.TTuple _ f s r) = do
   tell "tupleof"
   pad
@@ -90,9 +82,8 @@ writeType (Mono.TStruct _ fs) = do
       pad
       writeType t
     pad
-writeType (Mono.TNamed _ (FQN ns name) t) = do
-  let parts = (ns ++ [asString name]) :: [String]
-  tell (intercalate "_" parts)
+writeType (Mono.TNamed _ n t) = do
+  writeQualified n
   withIncreasedLevel (writeType t)
 
 writeTypeInstance :: Identifier -> Mono.Type -> TypeEncoder ()

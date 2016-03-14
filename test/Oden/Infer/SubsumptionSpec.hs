@@ -7,39 +7,12 @@ import           Oden.SourceInfo
 import           Oden.Core
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName
-import           Oden.Type.Basic
+import           Oden.Predefined
 import           Oden.Type.Polymorphic
+import           Oden.Type.Row
 
 import           Oden.Assertions
-
-
-tvarA :: Type
-tvarA = TVar (Metadata Predefined) (TV "a")
-
-tvarB :: Type
-tvarB = TVar (Metadata Predefined) (TV "b")
-
-tvarC :: Type
-tvarC = TVar (Metadata Predefined) (TV "c")
-
-scheme:: Type -> Scheme
-scheme= Forall (Metadata Predefined) []
-
-typeUnit, typeAny, typeInt, typeString :: Type
-typeUnit = TUnit (Metadata Predefined)
-typeAny = TAny (Metadata Predefined)
-typeInt = TBasic (Metadata Predefined) TInt
-typeString = TBasic (Metadata Predefined) TString
-
-typeFn :: Type -> Type -> Type
-typeFn = TFn (Metadata Missing)
-
-named :: String -> Type -> Type
-named = TNamed (Metadata Missing) . FQN [] . Identifier
-
-typeSlice :: Type -> Type
-typeSlice = TSlice (Metadata Missing)
+import           Oden.Infer.Fixtures
 
 spec :: Spec
 spec =
@@ -94,39 +67,72 @@ spec =
 
     it "TFn of TVars is subsumed by same TFn" $
       let expr tv = Fn (Metadata Predefined)
-                    (NameBinding (Metadata Missing) (Identifier "x"))
-                    (Symbol (Metadata Missing) (Identifier "x") tv) (typeFn tv tv) in
+                    (NameBinding missing (Identifier "x"))
+                    (Symbol missing (Identifier "x") tv) (typeFn tv tv) in
         scheme (typeFn tvarA tvarA) `subsumedBy` expr tvarB
         `shouldSucceedWith`
         (scheme (typeFn tvarA tvarA), expr tvarA)
 
     it "TFn of a tvars is not subsumed by TFn from string to int" $
       let expr = Fn (Metadata Predefined)
-                    (NameBinding (Metadata Missing) (Identifier "x"))
-                    (Symbol (Metadata Missing) (Identifier "x") tvarA) (typeFn tvarA tvarA)
+                    (NameBinding missing (Identifier "x"))
+                    (Symbol missing (Identifier "x") tvarA) (typeFn tvarA tvarA)
       in shouldFail (scheme (typeFn typeString typeInt) `subsumedBy` expr)
 
     it "TVar is not subsumed by TFn" $
-      let expr = Symbol (Metadata Missing) (Identifier "x") (typeFn tvarB tvarB) in
+      let expr = Symbol missing (Identifier "x") (typeFn tvarB tvarB) in
         shouldFail (scheme tvarA `subsumedBy` expr)
 
     it "tuple of tvars is subsumed by tuple of same tvars" $
       let tupleType = (TTuple (Metadata Predefined) tvarA tvarA [])
-          expr = Symbol (Metadata Missing) (Identifier "x") tupleType in
+          expr = Symbol missing (Identifier "x") tupleType in
         scheme tupleType `subsumedBy` expr
         `shouldSucceedWith`
         (scheme tupleType, expr)
 
     it "tvar slice is subsumed by same tvar slice" $
-      let expr tv = Slice (Metadata Predefined) [Symbol (Metadata Missing) (Identifier "x") tv] (typeSlice tv) in
+      let expr tv = Slice (Metadata Predefined) [Symbol missing (Identifier "x") tv] (typeSlice tv) in
         scheme (typeSlice tvarA) `subsumedBy` expr tvarA
         `shouldSucceedWith`
         (scheme (typeSlice tvarA), expr tvarA)
 
     it "TNamed TFn of TVars is subsumed by unnamed but equal TFn" $
       let expr tv = Fn (Metadata Predefined)
-                    (NameBinding (Metadata Missing) (Identifier "x"))
-                    (Symbol (Metadata Missing) (Identifier "x") tv) (typeFn tv tv) in
+                    (NameBinding missing (Identifier "x"))
+                    (Symbol missing (Identifier "x") tv) (typeFn tv tv) in
         scheme (named "MyFn" $ typeFn tvarA tvarA) `subsumedBy` expr tvarB
         `shouldSucceedWith`
         (scheme (named "MyFn" $ typeFn tvarA tvarA), expr tvarA)
+
+    it "empty record is subsumed by empty record" $
+      let emptyRecord = TRecord missing EmptyRow
+          expr = Symbol missing (Identifier "x") emptyRecord in
+        scheme emptyRecord `subsumedBy` expr
+        `shouldSucceedWith`
+        (scheme emptyRecord, expr)
+
+    it "empty record is subsumed by one field record" $
+      let emptyRecord = TRecord missing EmptyRow
+          oneFieldRecord = TRecord missing (Extension missing (Field missing (Identifier "foo") typeInt) EmptyRow)
+          expr = Symbol missing (Identifier "x") oneFieldRecord in
+        scheme emptyRecord `subsumedBy` expr
+        `shouldSucceedWith`
+        (scheme emptyRecord, expr)
+
+    it "one field record is subsumed by extended record" $
+      let oneFieldRow = Extension missing (Field missing (Identifier "foo") typeInt) EmptyRow
+          oneFieldRecord = TRecord missing oneFieldRow
+          twoFieldRecord = TRecord missing (Extension missing (Field missing (Identifier "bar") typeString) oneFieldRow)
+          expr = Symbol missing (Identifier "x") twoFieldRecord in
+        scheme oneFieldRecord `subsumedBy` expr
+        `shouldSucceedWith`
+        (scheme oneFieldRecord, expr)
+
+    it "two field record is not subsumed by one field record" $
+      let oneFieldRow = Extension missing (Field missing (Identifier "foo") typeInt) EmptyRow
+          oneFieldRecord = TRecord missing oneFieldRow
+          twoFieldRecord = TRecord missing (Extension missing (Field missing (Identifier "bar") typeString) oneFieldRow)
+          expr = Symbol missing (Identifier "x") oneFieldRecord in
+        scheme twoFieldRecord `subsumedBy` expr
+        `shouldFailWith`
+        SubsumptionError Missing twoFieldRecord oneFieldRecord

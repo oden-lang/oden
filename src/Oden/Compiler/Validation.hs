@@ -80,7 +80,7 @@ validateExpr (Block _ exprs _) = do
   where
   warnOnDiscarded :: Expr Type -> Validate ()
   warnOnDiscarded expr = case typeOf expr of
-    TUnit{} -> return ()
+    (TCon _ (FQN [] (Identifier "unit"))) -> return ()
     _ -> throwError (ValueDiscarded expr)
 validateExpr StructInitializer{} = return ()
 validateExpr (StructFieldAccess _ expr _ _) = validateExpr expr

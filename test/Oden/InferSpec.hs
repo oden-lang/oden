@@ -10,43 +10,16 @@ import           Oden.Identifier
 import qualified Oden.Infer            as Infer
 import           Oden.Infer            (inferExpr)
 import           Oden.Infer.Environment
-import           Oden.Metadata
 import           Oden.Predefined
 import           Oden.SourceInfo
-import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
 import           Oden.Type.Signature
 
 import           Oden.Assertions
-
-missing :: Metadata SourceInfo
-missing = Metadata Missing
-
-predefined :: Metadata SourceInfo
-predefined = Metadata Predefined
+import           Oden.Infer.Fixtures
 
 inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either Infer.TypeError Core.Definition
 inferDefinition env def = snd <$> Infer.inferDefinition env def
-
-typeAny = TAny missing
-typeUnit = TUnit missing
-typeInt = TBasic missing TInt
-typeBool = TBasic missing TBool
-typeString = TBasic missing TString
-
-tvA :: TVar
-tvA = TV "a"
-
-tvarA :: Type
-tvarA = TVar missing (TV "a")
-
-typeSlice = TSlice missing
-intSlice = typeSlice typeInt
-
-typeFn = TFn missing
-typeNoArgFn = TNoArgFn missing
-typeUncurried = TUncurriedFn missing
-typeVariadic = TVariadicFn missing
 
 tsUnit = TSUnit Missing
 tsVar = TSSymbol Missing . Identifier
@@ -411,10 +384,10 @@ spec = do
     it "infers single-arg uncurried func application" $
       inferExpr predef (uApplication (uSymbol (Identifier "len")) [uSlice [uLiteral (uBool True)]])
       `shouldSucceedWith`
-      (forall [] (TBasic predefined TInt),
-       tUncurriedFnApplication (Core.Symbol missing (Identifier "len") (TUncurriedFn missing [TSlice predefined (TBasic missing TBool)] (TBasic predefined TInt)))
+      (forall [] typeInt,
+       tUncurriedFnApplication (Core.Symbol missing (Identifier "len") (TUncurriedFn missing [TSlice predefined typeBool] typeInt))
                               [Core.Slice missing [Core.Literal missing (tBool True) typeBool] (typeSlice typeBool)]
-       (TBasic predefined TInt))
+       typeInt)
 
     it "infers single-arg uncurried func application" $
       inferExpr predefAndMax (uApplication (uSymbol (Identifier "max"))
@@ -447,7 +420,7 @@ spec = do
        typeInt)
 
     it "infers struct initializer" $
-      let structType = (TStruct missing [TStructField missing (Identifier "msg") (TBasic missing TString)]) in
+      let structType = (TStruct missing [TStructField missing (Identifier "msg") typeString]) in
         inferExpr predef (Untyped.StructInitializer
                           missing
                           (TSStruct Missing [TSStructField Missing (Identifier "msg") (TSSymbol Missing (Identifier "string"))])

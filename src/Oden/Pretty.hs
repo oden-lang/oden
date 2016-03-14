@@ -5,7 +5,6 @@ import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.QualifiedName    (QualifiedName(..))
-import           Oden.Type.Basic
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 import           Oden.Type.Signature
@@ -133,14 +132,11 @@ instance Pretty Poly.StructField where
 
 instance Pretty Poly.Type where
   pp (Poly.TAny _) = text "any"
-  pp (Poly.TBasic _ TInt) = text "int"
-  pp (Poly.TBasic _ TString) = text "string"
-  pp (Poly.TBasic _ TBool) = text "bool"
-  pp (Poly.TUnit _) = text "()"
   pp (Poly.TTuple _ f s r) =
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
   pp (Poly.TVar _ v) = pp v
-  pp (Poly.TCon _ d r) = pp d <> parens (pp r)
+  pp (Poly.TCon _ (FQN [] (Identifier "unit"))) = text "()"
+  pp (Poly.TCon _ n) = pp n
   pp (Poly.TNoArgFn _ t) = rArr <+> pp t
   pp (Poly.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
   pp (Poly.TUncurriedFn _ as r) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
@@ -155,13 +151,10 @@ instance Pretty Poly.Scheme where
 
 instance Pretty Mono.Type where
   pp (Mono.TAny _) = text "any"
-  pp (Mono.TBasic _ TInt) = text "int"
-  pp (Mono.TBasic _ TString) = text "string"
-  pp (Mono.TBasic _ TBool) = text "bool"
-  pp (Mono.TUnit _) = text "()"
   pp (Mono.TTuple _ f s r) =
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
-  pp (Mono.TCon _ d r) = pp d <> parens (pp r)
+  pp (Mono.TCon _ (FQN [] (Identifier "unit"))) = text "()"
+  pp (Mono.TCon _ n) = pp n
   pp (Mono.TNoArgFn _ t) = rArr <+> pp t
   pp (Mono.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
   pp (Mono.TUncurriedFn _ as r) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r

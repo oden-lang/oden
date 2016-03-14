@@ -6,10 +6,10 @@ import           Oden.Compiler.Instantiate
 import qualified Oden.Core                 as Core
 import           Oden.Identifier
 import           Oden.Metadata
+import           Oden.QualifiedName
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
-import           Oden.Type.Basic
 
 import           Oden.Assertions
 
@@ -22,11 +22,13 @@ tvA = Poly.TV "a"
 tvarA :: Poly.Type
 tvarA = Poly.TVar missing tvA
 
-typeInt = Poly.TBasic missing TInt
-typeBool = Poly.TBasic missing TBool
+typeInt = Poly.TCon missing (nameInUniverse "int")
+typeBool = Poly.TCon missing (nameInUniverse "bool")
+typeString = Poly.TCon missing (nameInUniverse "string")
 
-monoInt = Mono.TBasic missing TInt
-monoBool = Mono.TBasic missing TBool
+monoInt = Mono.TCon missing (nameInUniverse "int")
+monoBool = Mono.TCon missing (nameInUniverse "bool")
+monoString = Mono.TCon missing (nameInUniverse "string")
 
 identityPoly :: Core.Expr Poly.Type
 identityPoly =
@@ -74,16 +76,16 @@ pairPoly =
 
 
 pairIntStringType :: Mono.Type
-pairIntStringType = Mono.TTuple missing monoInt (Mono.TBasic missing TString) []
+pairIntStringType = Mono.TTuple missing monoInt monoString []
 
 pairIntString :: Core.Expr Poly.Type
 pairIntString =
   Core.Tuple
   missing
   (Core.Symbol missing (Identifier "x") typeInt)
-  (Core.Symbol missing (Identifier "y") (Poly.TBasic missing TString))
+  (Core.Symbol missing (Identifier "y") typeString)
   []
-  (Poly.TTuple missing typeInt (Poly.TBasic missing TString) [])
+  (Poly.TTuple missing typeInt typeString [])
 
 spec :: Spec
 spec =
