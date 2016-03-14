@@ -45,3 +45,5 @@ intSlice = typeSlice typeInt
 typeNoArgFn = TNoArgFn missing
 typeUncurried = TUncurriedFn missing
 typeVariadic = TVariadicFn missing
+
+emptyRow = REmpty missing

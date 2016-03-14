@@ -20,7 +20,6 @@ module Oden.Type.Polymorphic (
 import           Oden.Identifier
 import           Oden.Metadata
 import qualified Oden.Type.Monomorphic as Mono
-import           Oden.Type.Row
 import           Oden.SourceInfo
 import           Oden.QualifiedName
 
@@ -57,14 +56,18 @@ data Type
   -- | A name for a type, introduced by type definitions.
   | TNamed (Metadata SourceInfo) QualifiedName Type
 
-  | TRecord (Metadata SourceInfo) (Row Type)
-
   -- For foreign definitions:
 
   -- | A function that can have multiple arguments (no currying).
   | TUncurriedFn (Metadata SourceInfo) [Type] Type -- TODO: Support multiple return values somehow.
   -- | A variadic function.
   | TVariadicFn (Metadata SourceInfo) [Type] Type Type -- TODO: Support multiple return values somehow.
+
+  -- | The empty row.
+  | REmpty (Metadata SourceInfo)
+  -- | A row extension (label and type extending another row).
+  | RExtension (Metadata SourceInfo) Identifier Type Type
+
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
@@ -77,9 +80,10 @@ instance HasSourceInfo Type where
   getSourceInfo (TSlice (Metadata si) _)          = si
   getSourceInfo (TStruct (Metadata si) _)         = si
   getSourceInfo (TNamed (Metadata si) _ _)        = si
-  getSourceInfo (TRecord (Metadata si) _)         = si
   getSourceInfo (TUncurriedFn (Metadata si) _ _)  = si
   getSourceInfo (TVariadicFn (Metadata si) _ _ _) = si
+  getSourceInfo (REmpty (Metadata si))            = si
+  getSourceInfo (RExtension (Metadata si) _ _ _)  = si
 
   setSourceInfo si (TAny _)              = TAny (Metadata si)
   setSourceInfo si (TVar _ v)            = TVar (Metadata si) v
@@ -90,9 +94,10 @@ instance HasSourceInfo Type where
   setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
   setSourceInfo si (TStruct _ fs)        = TStruct (Metadata si) fs
   setSourceInfo si (TNamed _ n t)        = TNamed (Metadata si) n t
-  setSourceInfo si (TRecord _ r)         = TRecord (Metadata si) r
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn (Metadata si) a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn (Metadata si) a v r
+  setSourceInfo si REmpty{}              = REmpty (Metadata si)
+  setSourceInfo si (RExtension _ l t r)  = RExtension (Metadata si) l t r
 
 -- | A type variable binding.
 data TVarBinding = TVarBinding (Metadata SourceInfo) TVar
@@ -141,12 +146,10 @@ toMonomorphic (TStruct si fs) = Mono.TStruct si <$> mapM toMonomorphicStructFiel
   where toMonomorphicStructField (TStructField si' n pt) =
           Mono.TStructField si' n <$> toMonomorphic pt
 toMonomorphic (TNamed si n t) = Mono.TNamed si n <$> toMonomorphic t
-toMonomorphic (TRecord si r) = Mono.TRecord si <$> toMonomorphicRow r
-  where
-  toMonomorphicRow EmptyRow = return EmptyRow
-  toMonomorphicRow (Extension extSi (Field m name t) r') =
-    Extension extSi <$> (Field m name <$> toMonomorphic t)
-                    <*> toMonomorphicRow r'
+toMonomorphic (REmpty si) = return $ Mono.REmpty si
+toMonomorphic (RExtension si label type' row) =
+  Mono.RExtension si label <$> toMonomorphic type'
+                           <*> toMonomorphic row
 
 -- | Predicate returning if there's any 'TVar' in the 'Scheme'.
 isPolymorphic :: Scheme -> Bool
@@ -168,7 +171,9 @@ isPolymorphicType (TVariadicFn _ a v r) =
 isPolymorphicType (TSlice _ a) = isPolymorphicType a
 isPolymorphicType (TStruct _ fs) = any (isPolymorphicType . getStructFieldType) fs
 isPolymorphicType (TNamed _ _ t) = isPolymorphicType t
-isPolymorphicType (TRecord _ r) = not $ null (Set.filter (isPolymorphicType . fieldType) (fields r))
+isPolymorphicType (REmpty _) = False
+isPolymorphicType (RExtension _ _ type' row) =
+  isPolymorphicType type' || isPolymorphicType row
 
 underlying :: Type -> Type
 underlying (TNamed _ _ t) = underlying t
@@ -178,26 +183,20 @@ underlying t = t
 class FTV a where
   ftv :: a -> Set.Set TVar
 
-instance FTV t => FTV (Field t) where
-  ftv (Field _ _ t) = ftv t
-
-instance FTV t => FTV (Row t) where
-  ftv EmptyRow = Set.empty
-  ftv (Extension _ field row) = ftv field `Set.union` ftv row
-
 instance FTV Type where
-  ftv TAny{}                    = Set.empty
-  ftv (TTuple _ f s r)          = ftv (f:s:r)
-  ftv TCon{}                    = Set.empty
-  ftv (TVar _ a)                = Set.singleton a
-  ftv (TFn _ t1 t2)             = ftv t1 `Set.union` ftv t2
-  ftv (TNoArgFn _ t)            = ftv t
-  ftv (TUncurriedFn _ as r)     = ftv (r:as)
-  ftv (TVariadicFn _ as v r)    = ftv (v:r:as)
-  ftv (TSlice _ t)              = ftv t
-  ftv (TStruct _ fs)            = ftv (map getStructFieldType fs)
-  ftv (TNamed _ _ t)            = ftv t
-  ftv (TRecord _ r)             = ftv r
+  ftv TAny{}                     = Set.empty
+  ftv (TTuple _ f s r)           = ftv (f:s:r)
+  ftv TCon{}                     = Set.empty
+  ftv (TVar _ a)                 = Set.singleton a
+  ftv (TFn _ t1 t2)              = ftv t1 `Set.union` ftv t2
+  ftv (TNoArgFn _ t)             = ftv t
+  ftv (TUncurriedFn _ as r)      = ftv (r:as)
+  ftv (TVariadicFn _ as v r)     = ftv (v:r:as)
+  ftv (TSlice _ t)               = ftv t
+  ftv (TStruct _ fs)             = ftv (map getStructFieldType fs)
+  ftv (TNamed _ _ t)             = ftv t
+  ftv (REmpty _)                 = Set.empty
+  ftv (RExtension _ _ type' row) = ftv type' `Set.union` ftv row
 
 instance FTV Scheme where
   ftv (Forall _ as t) =

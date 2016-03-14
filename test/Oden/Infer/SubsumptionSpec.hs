@@ -9,7 +9,6 @@ import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.Predefined
 import           Oden.Type.Polymorphic
-import           Oden.Type.Row
 
 import           Oden.Assertions
 import           Oden.Infer.Fixtures
@@ -105,34 +104,30 @@ spec =
         (scheme (named "MyFn" $ typeFn tvarA tvarA), expr tvarA)
 
     it "empty record is subsumed by empty record" $
-      let emptyRecord = TRecord missing EmptyRow
-          expr = Symbol missing (Identifier "x") emptyRecord in
-        scheme emptyRecord `subsumedBy` expr
+      let expr = Symbol missing (Identifier "x") emptyRow in
+        scheme emptyRow `subsumedBy` expr
         `shouldSucceedWith`
-        (scheme emptyRecord, expr)
+        (scheme emptyRow, expr)
 
     it "empty record is subsumed by one field record" $
-      let emptyRecord = TRecord missing EmptyRow
-          oneFieldRecord = TRecord missing (Extension missing (Field missing (Identifier "foo") typeInt) EmptyRow)
-          expr = Symbol missing (Identifier "x") oneFieldRecord in
-        scheme emptyRecord `subsumedBy` expr
+      let oneFieldRow = RExtension missing (Identifier "foo") typeInt emptyRow
+          expr = Symbol missing (Identifier "x") oneFieldRow in
+        scheme emptyRow `subsumedBy` expr
         `shouldSucceedWith`
-        (scheme emptyRecord, expr)
+        (scheme emptyRow, expr)
 
     it "one field record is subsumed by extended record" $
-      let oneFieldRow = Extension missing (Field missing (Identifier "foo") typeInt) EmptyRow
-          oneFieldRecord = TRecord missing oneFieldRow
-          twoFieldRecord = TRecord missing (Extension missing (Field missing (Identifier "bar") typeString) oneFieldRow)
-          expr = Symbol missing (Identifier "x") twoFieldRecord in
-        scheme oneFieldRecord `subsumedBy` expr
+      let oneFieldRow = RExtension missing (Identifier "foo") typeInt emptyRow
+          twoFieldRow = RExtension missing (Identifier "bar") typeString oneFieldRow
+          expr = Symbol missing (Identifier "x") twoFieldRow in
+        scheme oneFieldRow `subsumedBy` expr
         `shouldSucceedWith`
-        (scheme oneFieldRecord, expr)
+        (scheme oneFieldRow, expr)
 
     it "two field record is not subsumed by one field record" $
-      let oneFieldRow = Extension missing (Field missing (Identifier "foo") typeInt) EmptyRow
-          oneFieldRecord = TRecord missing oneFieldRow
-          twoFieldRecord = TRecord missing (Extension missing (Field missing (Identifier "bar") typeString) oneFieldRow)
-          expr = Symbol missing (Identifier "x") oneFieldRecord in
-        scheme twoFieldRecord `subsumedBy` expr
+      let oneFieldRow = RExtension missing (Identifier "foo") typeInt emptyRow
+          twoFieldRow = RExtension missing (Identifier "bar") typeString oneFieldRow
+          expr = Symbol missing (Identifier "x") oneFieldRow in
+        scheme twoFieldRow `subsumedBy` expr
         `shouldFailWith`
-        SubsumptionError Missing twoFieldRecord oneFieldRecord
+        SubsumptionError Missing twoFieldRow oneFieldRow

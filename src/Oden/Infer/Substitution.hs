@@ -4,7 +4,6 @@
 module Oden.Infer.Substitution where
 
 import Oden.Type.Polymorphic as Poly
-import Oden.Type.Row
 import Oden.Core as Core
 
 import qualified Data.Set               as Set
@@ -34,13 +33,6 @@ instance FTV Poly.StructField where
 instance Substitutable Poly.StructField where
   apply s (TStructField si n t) = TStructField si n (apply s t)
 
-instance Substitutable t => Substitutable (Field t) where
-  apply s (Field si n t) = Field si n (apply s t)
-
-instance Substitutable t => Substitutable (Row t) where
-  apply _ EmptyRow = EmptyRow
-  apply s (Extension si f r) = Extension si (apply s f) (apply s r)
-
 instance Substitutable Type where
   apply _ (TAny si)               = TAny si
   apply s (TTuple si f s' r)      = TTuple si (apply s f) (apply s s') (apply s r)
@@ -52,7 +44,8 @@ instance Substitutable Type where
   apply s (TVariadicFn si as v r) = TVariadicFn si (map (apply s) as) (apply s v) (apply s r)
   apply s (TSlice si t)           = TSlice si (apply s t)
   apply s (TStruct si fs)         = TStruct si (map (apply s) fs)
-  apply s (TRecord si r)         = TRecord si (apply s r)
+  apply _ (REmpty si)             = REmpty si
+  apply s (RExtension si l t r)   = RExtension si l (apply s t) (apply s r)
   apply s (TNamed si n t)         = TNamed si n (apply s t)
 
 instance Substitutable Scheme where

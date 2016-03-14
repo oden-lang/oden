@@ -5,7 +5,6 @@ import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
 import           Oden.SourceInfo
-import           Oden.Type.Row
 
 data StructField = TStructField (Metadata SourceInfo) Identifier Type
                  deriving (Show, Eq, Ord)
@@ -19,7 +18,12 @@ data Type
   | TSlice (Metadata SourceInfo) Type
   | TStruct (Metadata SourceInfo) [StructField]
   | TNamed (Metadata SourceInfo) QualifiedName Type
-  | TRecord (Metadata SourceInfo) (Row Type)
+
+  -- | The empty row.
+  | REmpty (Metadata SourceInfo)
+  -- | A row extension (label and type extending another row).
+  | RExtension (Metadata SourceInfo) Identifier Type Type
+
   | TUncurriedFn (Metadata SourceInfo) [Type] Type
   | TVariadicFn (Metadata SourceInfo) [Type] Type Type
   deriving (Show, Eq, Ord)
@@ -35,7 +39,8 @@ instance HasSourceInfo Type where
   getSourceInfo (TSlice (Metadata si) _)          = si
   getSourceInfo (TStruct (Metadata si) _)         = si
   getSourceInfo (TNamed (Metadata si) _ _)        = si
-  getSourceInfo (TRecord (Metadata si) _)         = si
+  getSourceInfo (REmpty (Metadata si))            = si
+  getSourceInfo (RExtension (Metadata si) _ _ _)  = si
 
   setSourceInfo si (TAny _)              = TAny (Metadata si)
   setSourceInfo si (TTuple _ f s r)      = TTuple (Metadata si) f s r
@@ -47,4 +52,5 @@ instance HasSourceInfo Type where
   setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
   setSourceInfo si (TStruct _ fs)        = TStruct (Metadata si) fs
   setSourceInfo si (TNamed _ n t)        = TNamed (Metadata si) n t
-  setSourceInfo si (TRecord _ r)         = TRecord (Metadata si) r
+  setSourceInfo si REmpty{}              = REmpty (Metadata si)
+  setSourceInfo si (RExtension _ l t r)  = RExtension (Metadata si) l t r

@@ -8,7 +8,6 @@ import           Oden.Infer.Substitution
 import           Oden.Infer.Unification
 import           Oden.Predefined
 import           Oden.Type.Polymorphic
-import           Oden.Type.Row
 
 import           Data.Map
 
@@ -37,15 +36,13 @@ spec =
       Subst (fromList [(TV "a", typeInt), (TV "b", typeString)])
 
     it "unifies { foo: int } with a" $
-      let oneFieldRow = Extension missing (Field missing (Identifier "foo") typeInt) EmptyRow
-          oneFieldRecord = TRecord missing oneFieldRow in
-        unify oneFieldRecord tvarA
+      let oneFieldRow = RExtension missing (Identifier "foo") typeInt (REmpty missing) in
+        unify oneFieldRow tvarA
         `shouldSucceedWith`
-        Subst (singleton (TV "a") oneFieldRecord)
+        Subst (singleton (TV "a") oneFieldRow)
 
     it "unifies { foo: int | b } with a" $
-      let oneFieldRow = Extension missing (Field missing (Identifier "foo") typeInt) EmptyRow
-          oneFieldRecord = TRecord missing oneFieldRow in
-        unify oneFieldRecord tvarA
+      let oneFieldRow = RExtension missing (Identifier "foo") typeInt (REmpty missing) in
+        unify oneFieldRow tvarA
         `shouldSucceedWith`
-        Subst (singleton (TV "a") oneFieldRecord)
+        Subst (singleton (TV "a") oneFieldRow)

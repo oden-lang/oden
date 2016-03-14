@@ -5,22 +5,27 @@ module Oden.Infer.Subsumption (
 ) where
 
 import Oden.Core as Core
+import Oden.Identifier
 import Oden.Infer.Substitution
 import Oden.Metadata
+import Oden.Type.Kind
 import Oden.Type.Polymorphic
-import Oden.Type.Row
 import Oden.SourceInfo
 
 import           Control.Monad
 import           Control.Monad.State
 import           Control.Monad.Except
 import qualified Data.Map               as Map
-import qualified Data.Set               as Set
 
 data SubsumptionError = SubsumptionError SourceInfo Type Type
                       deriving (Show, Eq)
 
 type Subsume a = StateT (Map.Map TVar Type) (Except SubsumptionError) a
+
+getFields :: Type -> Subsume (Map.Map Identifier Type)
+getFields REmpty{} = return Map.empty
+getFields (RExtension _ label type' row) = Map.insert label type' <$> getFields row
+getFields t = error $ "not a row: " ++ show t
 
 -- | Collects the substitutions in the 'Subsume' state for matching types and
 -- throws 'SubsumptionError' on mismatches.
@@ -51,8 +56,15 @@ collectSubstitutions (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
 collectSubstitutions TAny{} _ = return ()
 collectSubstitutions (TStruct _ fs1) (TStruct _ fs2) =
   zipWithM_ collectSubstitutions (map getStructFieldType fs1) (map getStructFieldType fs2)
-collectSubstitutions (TRecord _ r1) (TRecord _ r2)
-  | fields r1 `Set.isSubsetOf` fields r2 = return () -- TODO: collect in rows
+collectSubstitutions r1 r2 | kindOf r1 == Row && kindOf r2 == Row = do
+  f1 <- getFields r1
+  f2 <- getFields r2
+  mapM_ (collectFromFields f2) (Map.assocs f1)
+  where
+  collectFromFields general (label, type') =
+    case Map.lookup label general of
+      Just genType -> collectSubstitutions type' genType
+      Nothing -> throwError (SubsumptionError (getSourceInfo r2) r1 r2)
 collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 t2)
 
 -- | Test if a type scheme is subsumed by an expression with a more general
