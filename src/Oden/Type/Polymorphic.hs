@@ -7,7 +7,8 @@ module Oden.Type.Polymorphic (
   Type(..),
   TVarBinding(..),
   Scheme(..),
-  getFields,
+  rowToList,
+  rowFromList,
   getLeafRow,
   toMonomorphic,
   isPolymorphic,
@@ -25,7 +26,6 @@ import           Oden.SourceInfo
 import           Oden.QualifiedName
 
 import qualified Data.Set               as Set
-import qualified Data.Map               as Map
 
 -- | Wrapper for type variable names.
 newtype TVar = TV String
@@ -116,17 +116,17 @@ instance HasSourceInfo Scheme where
   getSourceInfo (Forall (Metadata si) _ _) = si
   setSourceInfo si (Forall _ v t) = Forall (Metadata si) v t
 
-getFields :: Type -> Either String (Map.Map Identifier Type)
-getFields TVar{} = return Map.empty
-getFields REmpty{} = return Map.empty
-getFields (RExtension _ label type' row) = Map.insert label type' <$> getFields row
-getFields _ = Left "Cannot get fields of non-row kind"
+rowToList :: Type -> [(Identifier, Type)]
+rowToList (RExtension _ label type' row) = (label, type') : rowToList row
+rowToList _ = []
 
-getLeafRow :: Type -> Either String Type
-getLeafRow v@TVar{} = return v
-getLeafRow e@REmpty{} = return e
+rowFromList :: [(Identifier, Type)] -> Type
+rowFromList ((label, type') : fields) = RExtension (Metadata Missing) label type' (rowFromList fields)
+rowFromList _ = REmpty (Metadata Missing)
+
+getLeafRow :: Type -> Type
 getLeafRow (RExtension _ _ _ row) = getLeafRow row
-getLeafRow _ = Left "Cannot get leaf row of non-row kind"
+getLeafRow e = e
 
 -- | Converts a polymorphic 'Type' to a monomorphic 'Mono.Type'
 -- and fails if there's any 'TVar' in the type.

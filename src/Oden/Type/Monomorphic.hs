@@ -6,8 +6,6 @@ import           Oden.Metadata
 import           Oden.QualifiedName
 import           Oden.SourceInfo
 
-import qualified Data.Map as Map
-
 data Type
   = TAny (Metadata SourceInfo)
   | TTuple (Metadata SourceInfo) Type Type [Type]
@@ -51,12 +49,14 @@ instance HasSourceInfo Type where
   setSourceInfo si REmpty{}              = REmpty (Metadata si)
   setSourceInfo si (RExtension _ l t r)  = RExtension (Metadata si) l t r
 
-getFields :: Type -> Either String (Map.Map Identifier Type)
-getFields REmpty{} = return Map.empty
-getFields (RExtension _ label type' row) = Map.insert label type' <$> getFields row
-getFields _ = Left "Cannot get fields of non-row kind"
+rowToList :: Type -> [(Identifier, Type)]
+rowToList (RExtension _ label type' row) = (label, type') : rowToList row
+rowToList _ = []
 
-getLeafRow :: Type -> Either String Type
-getLeafRow e@REmpty{} = return e
+rowFromList :: [(Identifier, Type)] -> Type
+rowFromList ((label, type') : fields) = RExtension (Metadata Missing) label type' (rowFromList fields)
+rowFromList _ = REmpty (Metadata Missing)
+
+getLeafRow :: Type -> Type
 getLeafRow (RExtension _ _ _ row) = getLeafRow row
-getLeafRow _ = Left "Cannot get leaf row of non-row kind"
+getLeafRow e = e

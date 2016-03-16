@@ -23,12 +23,6 @@ data SubsumptionError = SubsumptionError SourceInfo Type Type
 
 type Subsume a = StateT (Map.Map TVar Type) (Except SubsumptionError) a
 
-getRowFields :: Type -> Subsume (Map.Map Identifier Type)
-getRowFields r =
-  case getFields r of
-    Left _ -> throwError (InvalidRowError (getSourceInfo r) r)
-    Right fields -> return fields
-
 -- | Collects the substitutions in the 'Subsume' state for matching types and
 -- throws 'SubsumptionError' on mismatches.
 collectSubstitutions :: Type -> Type -> Subsume ()
@@ -59,9 +53,9 @@ collectSubstitutions TAny{} _ = return ()
 collectSubstitutions (TRecord _ r1) (TRecord _ r2) =
   collectSubstitutions r1 r2
 collectSubstitutions r1 r2 | kindOf r1 == Row && kindOf r2 == Row = do
-  f1 <- getRowFields r1
-  f2 <- getRowFields r2
-  mapM_ (collectFromFields f2) (Map.assocs f1)
+  let f1 = rowToList r1
+      f2 = rowToList r2
+  mapM_ (collectFromFields (Map.fromList f2)) f1
   where
   collectFromFields general (label, type') =
     case Map.lookup label general of

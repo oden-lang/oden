@@ -11,8 +11,8 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 
+import           Data.List
 import qualified Data.Set        as Set
-import qualified Data.Map        as Map
 
 data ValidationError = Redefinition SourceInfo Identifier
                      | ValueDiscarded (Expr Type)
@@ -86,7 +86,7 @@ validateExpr (Block _ exprs _) = do
     _ -> throwError (ValueDiscarded expr)
 validateExpr RecordInitializer{} = return ()
 validateExpr (RecordFieldAccess _ expr _ _) = validateExpr expr
-validateExpr (PackageMemberAccess _ _ _ _) = return ()
+validateExpr PackageMemberAccess{} = return ()
 
 validateRange :: Range Type -> Validate()
 validateRange (Range e1 e2) = do
@@ -111,10 +111,9 @@ validateType (TFn _ d r) = mapM_ validateType [d, r]
 validateType (TSlice _ t) = validateType t
 validateType (TNamed _ _ t) = validateType t
 validateType r@RExtension{} =
-  case (repeated . Map.toAscList) <$> getFields r of
-    Left _ -> throwError $ InvalidRow r
-    Right ((name, _):_) -> throwError (DuplicatedRecordFieldName (getSourceInfo r) name)
-    Right [] -> return ()
+  case repeated $ sortOn fst $ rowToList r of
+    ((name, _):_) -> throwError (DuplicatedRecordFieldName (getSourceInfo r) name)
+    [] -> return ()
 validateType _ = return ()
 
 validatePackage :: Package -> Validate ()

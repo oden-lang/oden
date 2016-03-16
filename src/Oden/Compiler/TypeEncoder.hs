@@ -4,7 +4,7 @@ module Oden.Compiler.TypeEncoder (
 
 import           Control.Monad.State
 import           Control.Monad.Writer
-import           Data.List             (intercalate)
+import           Data.List             (intercalate, sortOn)
 import qualified Data.Map              as Map
 
 import           Oden.Identifier
@@ -74,9 +74,7 @@ writeType (Mono.TSlice _ t) = do
 writeType (Mono.TRecord _ row) = do
   tell "record"
   pad
-  case Map.toAscList <$> Mono.getFields row of
-    Left e -> error e
-    Right fields -> foldl writeField (return ()) fields
+  foldl writeField (return ()) (sortOn fst (Mono.rowToList row))
   where
   writeField a (identifier, t) = do
     _ <- a

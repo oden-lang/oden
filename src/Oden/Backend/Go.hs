@@ -4,8 +4,9 @@ module Oden.Backend.Go where
 import           Control.Monad.Except
 import           Control.Monad.Reader
 
-import qualified Data.Set              as Set
+import           Data.List             (sortOn)
 import qualified Data.Map              as Map
+import qualified Data.Set              as Set
 
 import           Numeric
 import           System.FilePath
@@ -151,7 +152,7 @@ codegenType (Mono.TVariadicFn _ as v r) = do
   rc <- codegenType r
   return $ func empty (hcat (punctuate (comma <+> space) (as' ++ [vc <> text "..."]))) rc empty
 codegenType (Mono.TRecord _ row) = do
-  fields <- either (throwError . UnexpectedError) return (Map.toAscList <$> Mono.getFields row)
+  let fields = sortOn fst (Mono.rowToList row)
   (text "struct" <>) . block . vcat <$> (mapM codegenField fields)
   where codegenField ((Identifier name), t) = do
           tc <- codegenType t

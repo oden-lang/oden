@@ -4,9 +4,10 @@ module Oden.Compiler.Instantiate (
   InstantiateError(..)
 ) where
 
-import           Control.Arrow         (left)
 import           Control.Monad.Except
 import           Control.Monad.State
+
+import           Data.List
 import qualified Data.Map              as Map hiding (foldl)
 
 import qualified Oden.Core             as Core
@@ -16,7 +17,6 @@ import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
 data InstantiateError = TypeMismatch SourceInfo Poly.Type Mono.Type
-                      | RowFieldError SourceInfo String
                       | SubstitutionFailed SourceInfo Poly.TVar [Poly.TVar]
                       deriving (Show, Eq, Ord)
 
@@ -37,9 +37,6 @@ monoToPoly (Mono.TNamed si n t) = Poly.TNamed si n (monoToPoly t)
 monoToPoly (Mono.REmpty si) = Poly.REmpty si
 monoToPoly (Mono.RExtension si label polyType row) =
   Poly.RExtension si label (monoToPoly polyType) (monoToPoly row)
-
-liftRowError :: SourceInfo -> Either String a -> Either InstantiateError a
-liftRowError si = left (RowFieldError si)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
 getSubstitutions (Poly.TCon _ pn) (Mono.TCon _ mn)
@@ -74,23 +71,22 @@ getSubstitutions (Poly.TRecord _ polyRow) (Mono.TRecord _ monoRow) =
 -- TODO: Handle one of the sets having more fields, and unifying those with the
 -- other set's leaf row. Perhaps sort the RExtensions by name and collect
 -- substitutions for those recursively until hitting a leaf.
-getSubstitutions polyRow@(Poly.RExtension (Metadata psi) _ _ _) monoRow@(Mono.RExtension (Metadata msi) _ _ _) = do
+getSubstitutions polyRow@(Poly.RExtension (Metadata _psi) _ _ _) monoRow@(Mono.RExtension (Metadata msi) _ _ _) = do
 
   -- Extract the fields in each rows (unordered).
-  polyFields <- liftRowError psi (Poly.getFields polyRow)
-  monoFields <- liftRowError msi (Mono.getFields monoRow)
-
-  let missing = polyFields `Map.difference` monoFields
+  let polyFields = sortOn fst (Poly.rowToList polyRow)
+      monoFields = sortOn fst (Mono.rowToList monoRow)
+      missing = Map.fromList polyFields `Map.difference` Map.fromList monoFields
 
   unless (null missing) $
     throwError (TypeMismatch msi polyRow monoRow)
 
   -- Order the fields by name and get substitutions.
-  substs <- zipWithM getSubstitutions (map snd $ Map.toAscList polyFields) (map snd $ Map.toAscList monoFields)
+  substs <- zipWithM getSubstitutions (map snd polyFields) (map snd monoFields)
 
   -- Retrieve leaf rows.
-  polyLeaf <- liftRowError psi (Poly.getLeafRow polyRow)
-  monoLeaf <- liftRowError psi (Mono.getLeafRow monoRow)
+  let polyLeaf = Poly.getLeafRow polyRow
+      monoLeaf = Mono.getLeafRow monoRow
 
   -- Get substitutions for the leaf rows.
   leafSubst <- getSubstitutions polyLeaf monoLeaf

@@ -59,10 +59,16 @@ spec =
         `shouldSucceedWith`
         Subst (singleton (TV "a") (REmpty missing))
 
+    it "unifies disregarding order of fields" $
+      let firstRow = RExtension missing (Identifier "foo") typeInt (RExtension missing (Identifier "bar") typeInt (REmpty missing))
+          secondRow = RExtension missing (Identifier "bar") typeInt (RExtension missing (Identifier "foo") typeInt (REmpty missing)) in
+        unify firstRow secondRow
+        `shouldSucceedWith`
+        emptySubst
+
     it "unifies a with a row including 'bar' when unifying { foo: int | a } with { bar: int, foo: int }" $
-      pending
-      {-let withRowVariable = RExtension missing (Identifier "foo") typeInt tvarA-}
-          {-withTwoFields = RExtension missing (Identifier "bar") typeInt (RExtension missing (Identifier "foo") typeInt (REmpty missing)) in-}
-        {-unify withRowVariable withTwoFields-}
-        {-`shouldSucceedWith`-}
-        {-Subst (singleton (TV "a") (REmpty missing))-}
+      let withRowVariable = RExtension missing (Identifier "foo") typeInt tvarA
+          withTwoFields = RExtension missing (Identifier "bar") typeInt (RExtension missing (Identifier "foo") typeInt (REmpty missing)) in
+        unify withRowVariable withTwoFields
+        `shouldSucceedWith`
+        Subst (singleton (TV "a") (RExtension missing (Identifier "bar") typeInt (REmpty missing)))
