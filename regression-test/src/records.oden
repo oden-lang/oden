@@ -5,22 +5,26 @@ import fmt
 type Foo = { name: string }
 type Bar = { foo: Foo }
 
+// Construct nested record, type is inferred.
 bar = {
   foo = {
     name = "mono"
   }
 }
 
-// Typed by struct fields, not name.
-printFooName :: { foo: { name: string }} -> ()
+// Accepts nested record, as defined by 'Bar' and 'Foo' above.
+printFooName :: Bar -> ()
 printFooName(x) = fmt.Println(x.foo.name)
 
+// Accept any record with a name field.
 anyTypeOfName :: forall a. a -> { name: a }
 anyTypeOfName(name) = { name = name }
 
+// Construct a record with a string name.
 poly = anyTypeOfName("poly")
 
-// Inferring the type of the record.
+// Return name field from any record type with at least that field. Type is
+// inferred.
 getName(x) = x.name
 
 main() = {
