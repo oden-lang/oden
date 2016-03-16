@@ -3,7 +3,10 @@ module Oden.Backend.Go where
 
 import           Control.Monad.Except
 import           Control.Monad.Reader
+
 import qualified Data.Set              as Set
+import qualified Data.Map              as Map
+
 import           Numeric
 import           System.FilePath
 import           Text.PrettyPrint
@@ -147,8 +150,10 @@ codegenType (Mono.TVariadicFn _ as v r) = do
   vc <- codegenType v
   rc <- codegenType r
   return $ func empty (hcat (punctuate (comma <+> space) (as' ++ [vc <> text "..."]))) rc empty
-codegenType (Mono.TStruct _ fs) = (text "struct" <>) . block . vcat <$> (mapM codegenField fs)
-  where codegenField (Mono.TStructField _ (Identifier name) t) = do
+codegenType (Mono.TRecord _ row) = do
+  fields <- either (throwError . UnexpectedError) return (Map.toAscList <$> Mono.getFields row)
+  (text "struct" <>) . block . vcat <$> (mapM codegenField fields)
+  where codegenField ((Identifier name), t) = do
           tc <- codegenType t
           return $ safeName name <+> tc
 codegenType (Mono.TNamed _ _ t) = codegenType t
@@ -190,6 +195,12 @@ codegenRange (RangeTo e) = do
 codegenRange (RangeFrom e) = do
   ec <- codegenExpr e
   return $ brackets $ ec <+> (text ":")
+
+codegenFieldInitializer :: FieldInitializer Mono.Type -> Codegen Doc
+codegenFieldInitializer (FieldInitializer _ label expr) = do
+  lc <- codegenIdentifier label
+  ec <- codegenExpr expr
+  return (lc <> colon <+> ec)
 
 codegenExpr :: Expr Mono.Type -> Codegen Doc
 codegenExpr (Symbol _ i _) =
@@ -264,11 +275,11 @@ codegenExpr (Block _ exprs t) = do
   return $ parens
            (func empty empty tc (braces (vcat (ic ++ [rc]))))
            <> parens empty
-codegenExpr (StructInitializer _ structType values) = do
+codegenExpr (RecordInitializer _ structType values) = do
   tc <- codegenType structType
-  vc <- mapM codegenExpr values
+  vc <- mapM codegenFieldInitializer values
   return $ tc <> braces (hcat (punctuate (comma <+> space) vc))
-codegenExpr (StructFieldAccess _ expr name _) = do
+codegenExpr (RecordFieldAccess _ expr name _) = do
   ec <- codegenExpr expr
   nc <- codegenIdentifier name
   return $ ec <> text "." <> nc

@@ -15,11 +15,13 @@ import           Control.Monad.Identity
 import qualified Data.Map                as Map
 import qualified Data.Set                as Set
 
+import           Oden.Identifier
 import           Oden.Infer.Substitution
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
 data UnificationError = UnificationFail SourceInfo Type Type
+                      | RowFieldUnificationFail SourceInfo (Identifier, Type) (Identifier, Type)
                       | InfiniteType SourceInfo TVar Type
                       | UnificationMismatch SourceInfo [Type] [Type]
                       deriving (Show, Eq)
@@ -74,8 +76,16 @@ unifies si (TNamed _ n1 t1) (TNamed _ n2 t2)
   | n1 == n2 = unifies si t1 t2
 unifies si t1 (TNamed _ _ t2) = unifies si t1 t2
 unifies si (TNamed _ _ t1) t2 = unifies si t1 t2
-unifies si (TStruct _ fs1) (TStruct _ fs2) =
-  unifyMany si (map getStructFieldType fs1) (map getStructFieldType fs2)
+unifies si (TRecord _ r1) (TRecord _ r2) =
+  unifies si r1 r2
+unifies _ REmpty{} REmpty{} = return emptySubst
+unifies si (RExtension _ l1 t1 r1) (RExtension _ l2 t2 r2) = do
+  -- TODO: Ignore ordering
+  when (l1 /= l2) $
+    throwError $ RowFieldUnificationFail si (l1, t1) (l2, t2)
+  t <- unifies si t1 t2
+  r <- unifies si r1 r2
+  return (t `compose` r)
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2
 
 -- Unification solver

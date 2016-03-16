@@ -1,0 +1,30 @@
+package records/main
+
+import fmt
+
+type Foo = { name: string }
+type Bar = { foo: Foo }
+
+bar = {
+  foo = {
+    name = "mono"
+  }
+}
+
+// Typed by struct fields, not name.
+printFooName :: { foo: { name: string }} -> ()
+printFooName(x) = fmt.Println(x.foo.name)
+
+anyTypeOfName :: forall a. a -> { name: a }
+anyTypeOfName(name) = { name = name }
+
+poly = anyTypeOfName("poly")
+
+// Inferring the type of the record.
+getName(x) = x.name
+
+main() = {
+  printFooName(bar)
+  fmt.Println(poly.name)
+  fmt.Println(getName({ name = "passing a record like this" }))
+}

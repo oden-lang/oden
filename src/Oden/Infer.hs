@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TupleSections    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Oden.Infer (
@@ -83,8 +84,8 @@ data TypeError
   | InvalidPackageReference SourceInfo Identifier
   | ValueUsedAsType SourceInfo Identifier
   | TypeIsNotAnExpression SourceInfo Identifier
-  | InvalidTypeInStructInitializer SourceInfo Type
-  | StructInitializerFieldCountMismatch SourceInfo Type [Type]
+  | InvalidTypeInRecordInitializer SourceInfo Type
+  | RecordInitializerFieldCountMismatch SourceInfo Type [Type]
   deriving (Show, Eq)
 
 -- | Run the inference monad.
@@ -272,11 +273,11 @@ infer expr = case expr of
       Just (Package _ _ pkgEnv) -> do
         valueType <- lookupValueIn pkgEnv si memberName
         return (Core.PackageMemberAccess si name memberName valueType)
-      Just _ -> inferStructFieldAccess si expr' memberName
+      Just _ -> inferRecordFieldAccess si expr' memberName
       Nothing -> throwError $ NotInScope (unwrap symbolSourceInfo) name
 
   Untyped.MemberAccess si expr' fieldName ->
-    inferStructFieldAccess si expr' fieldName
+    inferRecordFieldAccess si expr' fieldName
 
   Untyped.Fn si (Untyped.NameBinding bsi a) b -> do
     tv <- fresh bsi
@@ -365,33 +366,23 @@ infer expr = case expr of
       _ -> uni (unwrap si) tv (Core.typeOf (last tes))
     return (Core.Block si tes tv)
 
-  Untyped.StructInitializer si ts values -> do
-    t <- resolveType ts
-    typedValues <- mapM infer values
-    case underlying t of
-      TStruct _ fields -> do
-        let typedExpr = Core.StructInitializer si t typedValues
-
-        -- Make sure the struct has at least as many values as being used in
-        -- the initialization.
-        when (length values > length fields) $
-          throwError $
-            StructInitializerFieldCountMismatch (unwrap si) t (map Core.typeOf typedValues)
-
-        zipWithM_ unifyField fields typedValues
-        return typedExpr
-        where
-        unifyField (TStructField fsi _ ft) te = uni (unwrap fsi) ft (Core.typeOf te)
-      _ -> throwError $ InvalidTypeInStructInitializer (unwrap si) t
+  Untyped.RecordInitializer si fields -> do
+    (fieldInitializers, row) <- foldM unifyFields ([], REmpty si) fields
+    return (Core.RecordInitializer si (TRecord si row) fieldInitializers)
+    where
+    unifyFields (typedFields, row) (Untyped.FieldInitializer fsi label expr') = do
+      typedExpr <- infer expr'
+      return (Core.FieldInitializer fsi label typedExpr : typedFields, RExtension fsi label (Core.typeOf typedExpr) row)
 
   where
-  inferStructFieldAccess si expr' fieldName = do
-    tv <- fresh si
+  inferRecordFieldAccess si expr' label = do
+    fieldType <- fresh si
+    recordExtType <- fresh si
     typedExpr <- infer expr'
     uni (getSourceInfo typedExpr)
         (Core.typeOf typedExpr)
-        (TStruct (Metadata $ getSourceInfo typedExpr) [TStructField si fieldName tv])
-    return (Core.StructFieldAccess si typedExpr fieldName tv)
+        (TRecord (Metadata $ getSourceInfo typedExpr) (RExtension si label fieldType recordExtType))
+    return (Core.RecordFieldAccess si typedExpr label fieldType)
 
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr SourceInfo -> Infer Type
@@ -404,10 +395,11 @@ resolveType (TSTuple si fe se re) = TTuple (Metadata si) <$> resolveType fe
                                                          <*> resolveType se
                                                          <*> mapM resolveType re
 resolveType (TSSlice si e) = TSlice (Metadata si) <$> resolveType e
-resolveType (TSStruct si fields) = TStruct (Metadata si) <$> mapM resolveStructFieldType fields
-  where
-  resolveStructFieldType (TSStructField fsi name expr) =
-    TStructField (Metadata fsi) name <$> resolveType expr
+resolveType (TSRowEmpty si) = return $ REmpty (Metadata si)
+resolveType (TSRowExtension si label type' row) =
+  RExtension (Metadata si) label <$> resolveType type'
+                                 <*> resolveType row
+resolveType (TSRecord si r) = TRecord (Metadata si) <$> resolveType r
 
 -- | Tries to resolve a user-supplied type signature to an actual type scheme.
 resolveTypeSignature :: TypeSignature SourceInfo -> Infer (Scheme, TypingEnvironment)

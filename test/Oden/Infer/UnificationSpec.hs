@@ -46,3 +46,23 @@ spec =
         unify oneFieldRow tvarA
         `shouldSucceedWith`
         Subst (singleton (TV "a") oneFieldRow)
+
+    it "does not unify { foo: int } with { bar: int }" $
+      let fooRow = RExtension missing (Identifier "foo") typeInt (REmpty missing)
+          barRow = RExtension missing (Identifier "bar") typeInt (REmpty missing) in
+        shouldFail $ unify fooRow barRow
+
+    it "unifies a with an empty row when unifying { foo: int | a } with { foo: int }" $
+      let withRowVariable = RExtension missing (Identifier "foo") typeInt tvarA
+          withoutRowVariable = RExtension missing (Identifier "foo") typeInt (REmpty missing) in
+        unify withRowVariable withoutRowVariable
+        `shouldSucceedWith`
+        Subst (singleton (TV "a") (REmpty missing))
+
+    it "unifies a with a row including 'bar' when unifying { foo: int | a } with { bar: int, foo: int }" $
+      pending
+      {-let withRowVariable = RExtension missing (Identifier "foo") typeInt tvarA-}
+          {-withTwoFields = RExtension missing (Identifier "bar") typeInt (RExtension missing (Identifier "foo") typeInt (REmpty missing)) in-}
+        {-unify withRowVariable withTwoFields-}
+        {-`shouldSucceedWith`-}
+        {-Subst (singleton (TV "a") (REmpty missing))-}

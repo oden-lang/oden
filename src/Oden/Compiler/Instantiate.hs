@@ -4,6 +4,7 @@ module Oden.Compiler.Instantiate (
   InstantiateError(..)
 ) where
 
+import           Control.Arrow         (left)
 import           Control.Monad.Except
 import           Control.Monad.State
 import qualified Data.Map              as Map hiding (foldl)
@@ -15,6 +16,7 @@ import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
 data InstantiateError = TypeMismatch SourceInfo Poly.Type Mono.Type
+                      | RowFieldError SourceInfo String
                       | SubstitutionFailed SourceInfo Poly.TVar [Poly.TVar]
                       deriving (Show, Eq, Ord)
 
@@ -30,10 +32,14 @@ monoToPoly (Mono.TFn si f p) = Poly.TFn si (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TUncurriedFn si as r) = Poly.TUncurriedFn si (map monoToPoly as) (monoToPoly r)
 monoToPoly (Mono.TVariadicFn si as v r) = Poly.TVariadicFn si (map monoToPoly as) (monoToPoly v) (monoToPoly r)
 monoToPoly (Mono.TSlice si t) = Poly.TSlice si (monoToPoly t)
-monoToPoly (Mono.TStruct si fs) = Poly.TStruct si (map fieldMonoToPoly fs)
-  where fieldMonoToPoly (Mono.TStructField si' n mt) =
-          Poly.TStructField si' n (monoToPoly mt)
+monoToPoly (Mono.TRecord si row) = Poly.TRecord si (monoToPoly row)
 monoToPoly (Mono.TNamed si n t) = Poly.TNamed si n (monoToPoly t)
+monoToPoly (Mono.REmpty si) = Poly.REmpty si
+monoToPoly (Mono.RExtension si label polyType row) =
+  Poly.RExtension si label (monoToPoly polyType) (monoToPoly row)
+
+liftRowError :: SourceInfo -> Either String a -> Either InstantiateError a
+liftRowError si = left (RowFieldError si)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
 getSubstitutions (Poly.TCon _ pn) (Mono.TCon _ mn)
@@ -61,12 +67,38 @@ getSubstitutions (Poly.TTuple _ pf ps pr) (Mono.TTuple _ mf ms mr) = do
   return (foldl mappend f (s:r))
 getSubstitutions (Poly.TSlice _ p) (Mono.TSlice _ m) =
   getSubstitutions p m
-getSubstitutions (Poly.TStruct _ polyFields) (Mono.TStruct _ monoFields) =
-  foldM getFieldSubstitutions Map.empty (zip polyFields monoFields)
-  where
-  getFieldSubstitutions subst (Poly.TStructField _ _ pt, Mono.TStructField _ _ mt) =
-    (subst `mappend`) <$> getSubstitutions pt mt
-getSubstitutions poly mono = Left (TypeMismatch (getSourceInfo mono) poly mono)
+
+getSubstitutions (Poly.TRecord _ polyRow) (Mono.TRecord _ monoRow) =
+  getSubstitutions polyRow monoRow
+
+-- TODO: Handle one of the sets having more fields, and unifying those with the
+-- other set's leaf row. Perhaps sort the RExtensions by name and collect
+-- substitutions for those recursively until hitting a leaf.
+getSubstitutions polyRow@(Poly.RExtension (Metadata psi) _ _ _) monoRow@(Mono.RExtension (Metadata msi) _ _ _) = do
+
+  -- Extract the fields in each rows (unordered).
+  polyFields <- liftRowError psi (Poly.getFields polyRow)
+  monoFields <- liftRowError msi (Mono.getFields monoRow)
+
+  let missing = polyFields `Map.difference` monoFields
+
+  unless (null missing) $
+    throwError (TypeMismatch msi polyRow monoRow)
+
+  -- Order the fields by name and get substitutions.
+  substs <- zipWithM getSubstitutions (map snd $ Map.toAscList polyFields) (map snd $ Map.toAscList monoFields)
+
+  -- Retrieve leaf rows.
+  polyLeaf <- liftRowError psi (Poly.getLeafRow polyRow)
+  monoLeaf <- liftRowError psi (Mono.getLeafRow monoRow)
+
+  -- Get substitutions for the leaf rows.
+  leafSubst <- getSubstitutions polyLeaf monoLeaf
+
+  return (foldl mappend leafSubst substs)
+
+getSubstitutions Poly.REmpty{} Mono.REmpty{} = return Map.empty
+getSubstitutions poly mono = throwError (TypeMismatch (getSourceInfo mono) poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
 replace (Poly.TAny si) = return (Poly.TAny si)
@@ -85,10 +117,17 @@ replace (Poly.TUncurriedFn si ft pt) =
 replace (Poly.TVariadicFn si ft vt pt) =
   Poly.TVariadicFn si <$> mapM replace ft <*> replace vt <*> replace pt
 replace (Poly.TSlice si t) = Poly.TSlice si <$> replace t
-replace (Poly.TStruct si fs) = Poly.TStruct si <$> mapM replaceField fs
-  where replaceField (Poly.TStructField si' n t) =
-          Poly.TStructField si' n <$> replace t
+replace (Poly.TRecord si r) = Poly.TRecord si <$> replace r
 replace (Poly.TNamed si n t) = Poly.TNamed si n <$> replace t
+replace (Poly.REmpty si) = return $ Poly.REmpty si
+replace (Poly.RExtension si label type' row) =
+  Poly.RExtension si label <$> replace type'
+                           <*> replace row
+
+instantiateField :: Core.FieldInitializer Poly.Type
+                -> Instantiate (Core.FieldInitializer Poly.Type)
+instantiateField (Core.FieldInitializer si label expr) =
+  Core.FieldInitializer si label <$> instantiateExpr expr
 
 instantiateExpr :: Core.Expr Poly.Type
                 -> Instantiate (Core.Expr Poly.Type)
@@ -157,10 +196,10 @@ instantiateExpr (Core.Slice si es t) =
 instantiateExpr (Core.Block si es t) =
   Core.Block si <$> mapM instantiateExpr es
                 <*> replace t
-instantiateExpr (Core.StructInitializer si t vs) =
-  Core.StructInitializer si <$> replace t <*> mapM instantiateExpr vs
-instantiateExpr (Core.StructFieldAccess si expr name t) =
-  Core.StructFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
+instantiateExpr (Core.RecordInitializer si t fields) =
+  Core.RecordInitializer si <$> replace t <*> mapM instantiateField fields
+instantiateExpr (Core.RecordFieldAccess si expr name t) =
+  Core.RecordFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
 instantiateExpr (Core.PackageMemberAccess si pkgAlias name t) =
   Core.PackageMemberAccess si pkgAlias name <$> replace t
 

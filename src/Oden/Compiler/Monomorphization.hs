@@ -226,14 +226,17 @@ monomorph (Core.Let si b@(Core.NameBinding bsi identifier) expr body _) = do
   isReferenceTo :: Core.NameBinding -> LetReference -> Bool
   isReferenceTo (Core.NameBinding _ identifier') (LetReference letted _ _) =
     identifier' == letted
-monomorph (Core.StructInitializer si structType values) = do
-  structMonoType <- toMonomorphic si structType
-  monoValues <- mapM monomorph values
-  return (Core.StructInitializer si structMonoType monoValues)
-monomorph e@(Core.StructFieldAccess si expr name _) = do
+monomorph e@(Core.RecordInitializer si _ fields) = do
+  monoType <- getMonoType e
+  monoFields <- mapM monomorphField fields
+  return (Core.RecordInitializer si monoType monoFields)
+  where
+  monomorphField (Core.FieldInitializer fsi label expr) =
+    Core.FieldInitializer fsi label <$> monomorph expr
+monomorph e@(Core.RecordFieldAccess si expr name _) = do
   monoType <- getMonoType e
   monoExpr <- monomorph expr
-  return (Core.StructFieldAccess si monoExpr name monoType)
+  return (Core.RecordFieldAccess si monoExpr name monoType)
 monomorph (Core.PackageMemberAccess si pkgAlias name polyType) = do
   env <- ask
   monoType <- toMonomorphic si polyType

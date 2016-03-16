@@ -4,6 +4,11 @@ OS=$(shell tools/get_os.sh)
 DIST_NAME=oden-$(VERSION)-$(OS)
 DIST_ARCHIVE=dist/$(DIST_NAME).tar.gz
 
+TEST_FLAG=
+ifneq ($(strip $(TEST_PATTERN)),)
+	TEST_FLAG=-m "$(TEST_PATTERN)"
+endif
+
 IMPORTER_SRC=$(shell find go/src/oden -name '*.go')
 
 NODEMON=node_modules/.bin/nodemon
@@ -29,7 +34,7 @@ $(TMP):
 
 .PHONY: test
 test:
-	cabal exec runhaskell -- -isrc -itest test/Spec.hs
+	cabal exec runhaskell -- -isrc -itest test/Spec.hs $(TEST_FLAG)
 
 .PHONY: watch-test
 watch-test: $(NODEMON)

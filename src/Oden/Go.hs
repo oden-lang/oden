@@ -23,6 +23,8 @@ import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
 
 import           Control.Applicative        hiding (Const)
+import           Control.Monad
+
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.ByteString.Lazy.Char8 (pack)
@@ -150,17 +152,15 @@ convertType (Signature True Nothing args _) = do
   v <- convertType (last args)
   Right (Poly.TVariadicFn missing as v typeUnit)
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
-convertType (Named pkgName n (Struct fields)) = do
-  fields' <- mapM convertField fields
-  return (Poly.TNamed missing (FQN pkgName (Identifier n)) (Poly.TStruct missing fields'))
-  where
-  convertField (StructField name goType) = Poly.TStructField missing (Identifier name) <$> convertType goType
+convertType (Named pkgName n t@Struct{}) =
+  Poly.TNamed missing (FQN pkgName (Identifier n)) <$> convertType t
 convertType (Named _ _ t) = convertType t
 convertType (Struct fields) = do
-  fields' <- mapM convertStructField fields
-  return (Poly.TStruct missing fields')
+  fields' <- foldM convertField (Poly.REmpty (Metadata Missing)) fields
+  return (Poly.TRecord missing fields')
   where
-  convertStructField (StructField fieldName goType) = Poly.TStructField missing (Identifier fieldName) <$> convertType goType
+  convertField row (StructField name goType) =
+    Poly.RExtension missing (Identifier name) <$> convertType goType <*> return row
 convertType (Unsupported n) = Left n
 
 objectsToPackage :: Core.PackageName

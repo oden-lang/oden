@@ -22,8 +22,8 @@ instance OdenOutput TypeError where
   name (TypeSignatureSubsumptionError _ SubsumptionError{}) = "Infer.TypeSignatureSubsumptionError"
   name (ValueUsedAsType _ _)                                = "Infer.ValueUsedAsType"
   name (TypeIsNotAnExpression _ _)                          = "Infer.TypeIsNotAnExpression"
-  name (InvalidTypeInStructInitializer _ _)                 = "Infer.InvalidTypeInStructInitializer"
-  name (StructInitializerFieldCountMismatch _ _ _)          = "Infer.StructInitializerFieldCountMismatch"
+  name (InvalidTypeInRecordInitializer _ _)                 = "Infer.InvalidTypeInRecordInitializer"
+  name (RecordInitializerFieldCountMismatch _ _ _)          = "Infer.RecordInitializerFieldCountMismatch"
 
   header (UnificationError e) s                             = header e s
   header (InvalidPackageReference _ p) s = text "Invalid reference to package" <+> code s (pp p)
@@ -43,10 +43,10 @@ instance OdenOutput TypeError where
   header (TypeIsNotAnExpression _ n) s =
     text "The type" <+> code s (pp n)
     <+> text "is not an expression"
-  header (InvalidTypeInStructInitializer _ t) s =
+  header (InvalidTypeInRecordInitializer _ t) s =
     text "Type" <+> code s (pp t) <+> text "cannot be initialized as a struct"
-  header (StructInitializerFieldCountMismatch _ _ _) _ =
-    text "Struct is initialized with too many values"
+  header (RecordInitializerFieldCountMismatch _ _ _) _ =
+    text "Record is initialized with too many values"
 
   details (UnificationError e) s = details e s
   details (InvalidPackageReference _ _) _ = text "Packages cannot be referenced as values"
@@ -61,11 +61,11 @@ instance OdenOutput TypeError where
     text "Type" <+> code s (pp t1) <+> text "does not subsume" <+> code s (pp t2)
   details ValueUsedAsType{} _ = empty
   details TypeIsNotAnExpression{} _ = empty
-  details (InvalidTypeInStructInitializer _ t@TNamed{}) s =
+  details (InvalidTypeInRecordInitializer _ t@TNamed{}) s =
     code s (pp t) <+> text "is a type alias for" <+> code s (pp (underlying t))
-  details InvalidTypeInStructInitializer{} _ = empty
-  details (StructInitializerFieldCountMismatch _ structType types) s =
-    text "Struct:" <+> (code s (pp structType))
+  details InvalidTypeInRecordInitializer{} _ = empty
+  details (RecordInitializerFieldCountMismatch _ structType types) s =
+    text "Record:" <+> (code s (pp structType))
     $+$ text "Initialized with:" <+> vcat (map (code s . pp) types)
 
   sourceInfo (UnificationError e)                                        = sourceInfo e
@@ -77,5 +77,5 @@ instance OdenOutput TypeError where
   sourceInfo (TypeSignatureSubsumptionError _ (SubsumptionError si _ _)) = Just si
   sourceInfo (ValueUsedAsType si _)                                      = Just si
   sourceInfo (TypeIsNotAnExpression si _)                                = Just si
-  sourceInfo (InvalidTypeInStructInitializer si _)                       = Just si
-  sourceInfo (StructInitializerFieldCountMismatch si _ _)                = Just si
+  sourceInfo (InvalidTypeInRecordInitializer si _)                       = Just si
+  sourceInfo (RecordInitializerFieldCountMismatch si _ _)                = Just si

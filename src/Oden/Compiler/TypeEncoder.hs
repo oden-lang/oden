@@ -5,6 +5,7 @@ module Oden.Compiler.TypeEncoder (
 import           Control.Monad.State
 import           Control.Monad.Writer
 import           Data.List             (intercalate)
+import qualified Data.Map              as Map
 
 import           Oden.Identifier
 import           Oden.QualifiedName    (QualifiedName(..))
@@ -70,12 +71,14 @@ writeType (Mono.TSlice _ t) = do
   tell "sliceof"
   pad
   withIncreasedLevel (writeType t)
-writeType (Mono.TStruct _ fs) = do
-  tell "struct"
+writeType (Mono.TRecord _ row) = do
+  tell "record"
   pad
-  foldl writeField (return ()) fs
+  case Map.toAscList <$> Mono.getFields row of
+    Left e -> error e
+    Right fields -> foldl writeField (return ()) fields
   where
-  writeField a (Mono.TStructField _ identifier t) = do
+  writeField a (identifier, t) = do
     _ <- a
     withIncreasedLevel $ do
       tell (asString identifier)

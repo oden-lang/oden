@@ -12,10 +12,12 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 
 import qualified Data.Set        as Set
+import qualified Data.Map        as Map
 
 data ValidationError = Redefinition SourceInfo Identifier
                      | ValueDiscarded (Expr Type)
-                     | DuplicatedStructFieldName SourceInfo Identifier
+                     | DuplicatedRecordFieldName SourceInfo Identifier
+                     | InvalidRow Type
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValidationWarning -- There's no warnings defined yet.
@@ -82,8 +84,8 @@ validateExpr (Block _ exprs _) = do
   warnOnDiscarded expr = case typeOf expr of
     (TCon _ (FQN [] (Identifier "unit"))) -> return ()
     _ -> throwError (ValueDiscarded expr)
-validateExpr StructInitializer{} = return ()
-validateExpr (StructFieldAccess _ expr _ _) = validateExpr expr
+validateExpr RecordInitializer{} = return ()
+validateExpr (RecordFieldAccess _ expr _ _) = validateExpr expr
 validateExpr (PackageMemberAccess _ _ _ _) = return ()
 
 validateRange :: Range Type -> Validate()
@@ -95,10 +97,10 @@ validateRange (RangeTo e) =
 validateRange (RangeFrom e) =
   validateExpr e
 
-repeated :: [StructField] -> [StructField]
+repeated :: [(Identifier, Type)] -> [(Identifier, Type)]
 repeated fields = snd (foldl check (Set.empty, []) fields)
   where
-  check (names, fields') f@(TStructField _ n _)
+  check (names, fields') f@(n, _)
     | n `Set.member` names = (names, fields'++ [f])
     | otherwise            = (Set.insert n names, fields')
 
@@ -108,10 +110,11 @@ validateType (TNoArgFn _ r) = validateType r
 validateType (TFn _ d r) = mapM_ validateType [d, r]
 validateType (TSlice _ t) = validateType t
 validateType (TNamed _ _ t) = validateType t
-validateType (TStruct _ fs) =
-  case repeated fs of
-    [] -> return ()
-    (TStructField (Metadata si) name _:_) -> throwError (DuplicatedStructFieldName si name)
+validateType r@RExtension{} =
+  case (repeated . Map.toAscList) <$> getFields r of
+    Left _ -> throwError $ InvalidRow r
+    Right ((name, _):_) -> throwError (DuplicatedRecordFieldName (getSourceInfo r) name)
+    Right [] -> return ()
 validateType _ = return ()
 
 validatePackage :: Package -> Validate ()

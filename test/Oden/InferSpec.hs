@@ -67,7 +67,7 @@ tTuple                  = Core.Tuple missing
 tIf                     = Core.If missing
 tSlice                  = Core.Slice missing
 tBlock                  = Core.Block missing
-tFieldAccess            = Core.StructFieldAccess missing
+tFieldAccess            = Core.RecordFieldAccess missing
 tPackageMemberAcccess   = Core.PackageMemberAccess missing
 
 tUnit   = Core.Unit
@@ -225,8 +225,8 @@ spec = do
                         (uSymbol (Identifier "x"))
                         (Identifier "y")))
       `shouldSucceedWith`
-      let structType = (TStruct missing [TStructField missing (Identifier "y") tvarA]) in
-        (forall [tvarBinding tvA] (typeFn structType tvarA),
+      let structType = (TRecord missing (RExtension missing (Identifier "y") tvarA tvarB)) in
+        (forall [tvarBinding tvA, tvarBinding tvB] (typeFn structType tvarA),
         tFn
         (tNameBinding (Identifier "x"))
         (tFieldAccess (tSymbol (Identifier "x") structType) (Identifier "y") tvarA)
@@ -419,15 +419,14 @@ spec = do
                               [tSlice [] typeInt]
        typeInt)
 
-    it "infers struct initializer" $
-      let structType = (TStruct missing [TStructField missing (Identifier "msg") typeString]) in
-        inferExpr predef (Untyped.StructInitializer
+    it "infers record initializer" $
+      let structType = (TRecord missing (RExtension missing (Identifier "msg") typeString (REmpty missing))) in
+        inferExpr predef (Untyped.RecordInitializer
                           missing
-                          (TSStruct Missing [TSStructField Missing (Identifier "msg") (TSSymbol Missing (Identifier "string"))])
-                          [Untyped.Literal missing (Untyped.String "hello")])
+                          [Untyped.FieldInitializer missing (Identifier "msg") (Untyped.Literal missing (Untyped.String "hello"))])
         `shouldSucceedWith`
         (forall [] structType,
-         Core.StructInitializer missing structType [Core.Literal missing (Core.String "hello") typeString])
+         Core.RecordInitializer missing structType [Core.FieldInitializer missing (Identifier "msg") (Core.Literal missing (Core.String "hello") typeString)])
 
 
   describe "inferDefinition" $ do

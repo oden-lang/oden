@@ -1,13 +1,14 @@
+{-# LANGUAGE TupleSections #-}
 -- | This module contains values representing polymorphic types, i.e. types
 -- that can be instantiated into other polymorphic types and purely monomorphic
 -- types.
 module Oden.Type.Polymorphic (
   TVar(..),
-  StructField(..),
-  getStructFieldType,
   Type(..),
   TVarBinding(..),
   Scheme(..),
+  getFields,
+  getLeafRow,
   toMonomorphic,
   isPolymorphic,
   isPolymorphicType,
@@ -24,17 +25,11 @@ import           Oden.SourceInfo
 import           Oden.QualifiedName
 
 import qualified Data.Set               as Set
+import qualified Data.Map               as Map
 
 -- | Wrapper for type variable names.
 newtype TVar = TV String
   deriving (Show, Eq, Ord)
-
--- | The name and type of a struct field.
-data StructField = TStructField (Metadata SourceInfo) Identifier Type
-                 deriving (Show, Eq, Ord)
-
-getStructFieldType :: StructField -> Type
-getStructFieldType (TStructField _ _ t) = t
 
 -- | A polymorphic type.
 data Type
@@ -51,8 +46,8 @@ data Type
   | TFn (Metadata SourceInfo) Type Type
   -- | A slice type.
   | TSlice (Metadata SourceInfo) Type
-  -- | Data structure type.
-  | TStruct (Metadata SourceInfo) [StructField]
+  -- | A data structure, parameterized by a row for its fields.
+  | TRecord (Metadata SourceInfo) Type
   -- | A name for a type, introduced by type definitions.
   | TNamed (Metadata SourceInfo) QualifiedName Type
 
@@ -78,7 +73,7 @@ instance HasSourceInfo Type where
   getSourceInfo (TNoArgFn (Metadata si) _)        = si
   getSourceInfo (TCon (Metadata si) _)            = si
   getSourceInfo (TSlice (Metadata si) _)          = si
-  getSourceInfo (TStruct (Metadata si) _)         = si
+  getSourceInfo (TRecord (Metadata si) _)         = si
   getSourceInfo (TNamed (Metadata si) _ _)        = si
   getSourceInfo (TUncurriedFn (Metadata si) _ _)  = si
   getSourceInfo (TVariadicFn (Metadata si) _ _ _) = si
@@ -92,7 +87,7 @@ instance HasSourceInfo Type where
   setSourceInfo si (TNoArgFn _ r)        = TNoArgFn (Metadata si) r
   setSourceInfo si (TCon _ n)            = TCon (Metadata si) n
   setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
-  setSourceInfo si (TStruct _ fs)        = TStruct (Metadata si) fs
+  setSourceInfo si (TRecord _ fs)        = TRecord (Metadata si) fs
   setSourceInfo si (TNamed _ n t)        = TNamed (Metadata si) n t
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn (Metadata si) a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn (Metadata si) a v r
@@ -121,6 +116,18 @@ instance HasSourceInfo Scheme where
   getSourceInfo (Forall (Metadata si) _ _) = si
   setSourceInfo si (Forall _ v t) = Forall (Metadata si) v t
 
+getFields :: Type -> Either String (Map.Map Identifier Type)
+getFields TVar{} = return Map.empty
+getFields REmpty{} = return Map.empty
+getFields (RExtension _ label type' row) = Map.insert label type' <$> getFields row
+getFields _ = Left "Cannot get fields of non-row kind"
+
+getLeafRow :: Type -> Either String Type
+getLeafRow v@TVar{} = return v
+getLeafRow e@REmpty{} = return e
+getLeafRow (RExtension _ _ _ row) = getLeafRow row
+getLeafRow _ = Left "Cannot get leaf row of non-row kind"
+
 -- | Converts a polymorphic 'Type' to a monomorphic 'Mono.Type'
 -- and fails if there's any 'TVar' in the type.
 toMonomorphic :: Type -> Either String Mono.Type
@@ -142,14 +149,11 @@ toMonomorphic (TVariadicFn si a v r) =
                       <*> toMonomorphic v
                       <*> toMonomorphic r
 toMonomorphic (TSlice si t) = Mono.TSlice si <$> toMonomorphic t
-toMonomorphic (TStruct si fs) = Mono.TStruct si <$> mapM toMonomorphicStructField fs
-  where toMonomorphicStructField (TStructField si' n pt) =
-          Mono.TStructField si' n <$> toMonomorphic pt
+toMonomorphic (TRecord si row) = Mono.TRecord si <$> toMonomorphic row
 toMonomorphic (TNamed si n t) = Mono.TNamed si n <$> toMonomorphic t
-toMonomorphic (REmpty si) = return $ Mono.REmpty si
-toMonomorphic (RExtension si label type' row) =
-  Mono.RExtension si label <$> toMonomorphic type'
-                           <*> toMonomorphic row
+toMonomorphic (REmpty si) = return (Mono.REmpty si)
+toMonomorphic (RExtension si label polyType row) =
+  Mono.RExtension si label <$> toMonomorphic polyType <*> toMonomorphic row
 
 -- | Predicate returning if there's any 'TVar' in the 'Scheme'.
 isPolymorphic :: Scheme -> Bool
@@ -169,7 +173,7 @@ isPolymorphicType (TUncurriedFn _ a r) =
 isPolymorphicType (TVariadicFn _ a v r) =
   any isPolymorphicType a || isPolymorphicType v || isPolymorphicType r
 isPolymorphicType (TSlice _ a) = isPolymorphicType a
-isPolymorphicType (TStruct _ fs) = any (isPolymorphicType . getStructFieldType) fs
+isPolymorphicType (TRecord _ r) = isPolymorphicType r
 isPolymorphicType (TNamed _ _ t) = isPolymorphicType t
 isPolymorphicType (REmpty _) = False
 isPolymorphicType (RExtension _ _ type' row) =
@@ -193,7 +197,7 @@ instance FTV Type where
   ftv (TUncurriedFn _ as r)      = ftv (r:as)
   ftv (TVariadicFn _ as v r)     = ftv (v:r:as)
   ftv (TSlice _ t)               = ftv t
-  ftv (TStruct _ fs)             = ftv (map getStructFieldType fs)
+  ftv (TRecord _ r)              = ftv r
   ftv (TNamed _ _ t)             = ftv t
   ftv (REmpty _)                 = Set.empty
   ftv (RExtension _ _ type' row) = ftv type' `Set.union` ftv row

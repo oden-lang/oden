@@ -28,6 +28,9 @@ instance Pretty Untyped.Range where
   pp (Untyped.RangeTo e) = brackets $ (text ":") <+> pp e
   pp (Untyped.RangeFrom e) = brackets $ pp e <+> (text ":")
 
+instance Pretty Untyped.FieldInitializer where
+  pp (Untyped.FieldInitializer _ label expr) = pp label <+> text "=" <+> pp expr
+
 instance Pretty Untyped.Expr where
   pp (Untyped.Symbol _ i) = pp i
   pp (Untyped.Subscript _ s i) = pp s <> text "[" <> pp i <> text "]"
@@ -51,8 +54,8 @@ instance Pretty Untyped.Expr where
     text "[]" <> braces (hcat (punctuate (text ", ") (map pp es)))
   pp (Untyped.Block _ es) =
     braces (vcat (map pp es))
-  pp (Untyped.StructInitializer _ structType values) =
-    pp structType <> braces (hcat (punctuate (text ", ") (map pp values)))
+  pp (Untyped.RecordInitializer _ fields) =
+    braces (hcat (punctuate (text ", ") (map pp fields)))
   pp (Untyped.MemberAccess _ pkgAlias name) =
     pp pkgAlias <> text "." <> pp name
 
@@ -81,6 +84,9 @@ instance Pretty BinaryOperator where
 instance Pretty Identifier where
   pp (Identifier n) = text n
 
+instance Pretty t => Pretty (FieldInitializer t) where
+  pp (FieldInitializer _ l e) = pp l <+> text "=" <+> pp e
+
 instance Pretty t => Pretty (Expr t) where
   pp (Symbol _ i _) = pp i
   pp (Subscript _ s i _) = pp s <> text "[" <> pp i <> text "]"
@@ -106,9 +112,9 @@ instance Pretty t => Pretty (Expr t) where
     text "[]" <> braces (hcat (punctuate (text ", ") (map pp es)))
   pp (Block _ es _) =
     braces (vcat (map pp es))
-  pp (StructInitializer _ structType values) =
-    pp structType <> braces (hcat (punctuate (text ", ") (map pp values)))
-  pp (StructFieldAccess _ expr name _) =
+  pp (RecordInitializer _ _ fields) =
+    braces (hcat (punctuate (text ", ") (map pp fields)))
+  pp (RecordFieldAccess _ expr name _) =
     pp expr <> text "." <> pp name
   pp (PackageMemberAccess _ pkgAlias name _) =
     pp pkgAlias <> text "." <> pp name
@@ -127,9 +133,6 @@ instance Pretty Poly.TVarBinding where
 instance Pretty QualifiedName where
   pp (FQN pkg identifier) = hcat (punctuate (text ".") ((map text pkg) ++ [pp identifier]))
 
-instance Pretty Poly.StructField where
-  pp (Poly.TStructField _ identifier t) = pp identifier <+> pp t
-
 instance Pretty Poly.Type where
   pp (Poly.TAny _) = text "any"
   pp (Poly.TTuple _ f s r) =
@@ -143,11 +146,37 @@ instance Pretty Poly.Type where
   pp (Poly.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Poly.TSlice _ t) =
     text "[]" <> braces (pp t)
-  pp (Poly.TStruct _ fs) = braces (hcat (punctuate (text "; ") (map pp fs)))
   pp (Poly.TNamed _ n _) = pp n
+  pp (Poly.TRecord _ r) = braces (ppFields r)
+  pp Poly.REmpty{} = brackets empty
+  pp r@Poly.RExtension{} = parens (ppFields r)
+
+ppFields :: Poly.Type -> Doc
+ppFields Poly.REmpty{} = empty
+ppFields r = getPairs r
+  where
+  getPairs (Poly.RExtension _ label type' Poly.REmpty{}) =
+    pp label <> colon <+> pp type'
+  getPairs (Poly.RExtension _ label type' tv@Poly.TVar{}) =
+    pp label <> colon <+> pp type' <+> text "|" <+> pp tv
+  getPairs (Poly.RExtension _ label type' row) =
+    pp label <> colon <+> pp type' <> comma <+> getPairs row
+  getPairs Poly.REmpty{} = empty
+  getPairs t = error ("non-row type: " ++ show t)
 
 instance Pretty Poly.Scheme where
   pp (Poly.Forall _ vs t) = text "forall" <+> hsep (map pp vs) <> text "." <+> pp t
+
+ppMonoFields :: Mono.Type -> Doc
+ppMonoFields Mono.REmpty{} = empty
+ppMonoFields r = getPairs r
+  where
+  getPairs (Mono.RExtension _ label type' Mono.REmpty{}) =
+    pp label <> colon <+> pp type'
+  getPairs (Mono.RExtension _ label type' row) =
+    pp label <> colon <+> pp type' <> comma <+> getPairs row
+  getPairs Mono.REmpty{} = empty
+  getPairs t = error "non-row type"
 
 instance Pretty Mono.Type where
   pp (Mono.TAny _) = text "any"
@@ -161,16 +190,14 @@ instance Pretty Mono.Type where
   pp (Mono.TVariadicFn _ as v r) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
   pp (Mono.TSlice _ t) =
     text "!" <> braces (pp t)
-  pp (Mono.TStruct _ fs) = braces (hcat (punctuate (text "; ") (map ppField fs)))
-    where ppField (Mono.TStructField _ identifier t) = pp identifier <+> pp t
   pp (Mono.TNamed _ n _) = pp n
+  pp (Mono.TRecord _ r) = braces (ppMonoFields r)
+  pp Mono.REmpty{} = brackets empty
+  pp r@Mono.RExtension{} = parens (ppMonoFields r)
 
 instance Pretty (SignatureVarBinding a) where
   pp (SignatureVarBinding _ s) = pp s
 
-
-instance Pretty (TSStructField a) where
-  pp (TSStructField _ identifier t) = pp identifier <+> pp t
 
 instance Pretty (SignatureExpr a) where
   pp (TSUnit _) = text "()"
@@ -182,7 +209,11 @@ instance Pretty (SignatureExpr a) where
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
   pp (TSSlice _ t) =
     text "!" <> braces (pp t)
-  pp (TSStruct _ fields) = braces (hcat (punctuate (text "; ") (map pp fields)))
+  pp (TSRowEmpty _) = empty
+  pp (TSRowExtension _ label type' TSRowEmpty{}) = pp label <> colon <+> pp type'
+  pp (TSRowExtension _ label type' row) = pp label <> colon <+> pp type' <> comma <+> pp row
+  -- TODO: Better printing with braces
+  pp (TSRecord _ row) = text "record " <> pp row
 
 instance Pretty (TypeSignature a) where
   pp (TypeSignature _ [] expr) = pp expr

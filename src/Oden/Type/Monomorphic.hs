@@ -6,8 +6,7 @@ import           Oden.Metadata
 import           Oden.QualifiedName
 import           Oden.SourceInfo
 
-data StructField = TStructField (Metadata SourceInfo) Identifier Type
-                 deriving (Show, Eq, Ord)
+import qualified Data.Map as Map
 
 data Type
   = TAny (Metadata SourceInfo)
@@ -16,16 +15,13 @@ data Type
   | TNoArgFn (Metadata SourceInfo) Type
   | TFn (Metadata SourceInfo) Type Type
   | TSlice (Metadata SourceInfo) Type
-  | TStruct (Metadata SourceInfo) [StructField]
+  | TRecord (Metadata SourceInfo) Type
   | TNamed (Metadata SourceInfo) QualifiedName Type
-
-  -- | The empty row.
-  | REmpty (Metadata SourceInfo)
-  -- | A row extension (label and type extending another row).
-  | RExtension (Metadata SourceInfo) Identifier Type Type
-
   | TUncurriedFn (Metadata SourceInfo) [Type] Type
   | TVariadicFn (Metadata SourceInfo) [Type] Type Type
+  -- Row
+  | REmpty (Metadata SourceInfo)
+  | RExtension (Metadata SourceInfo) Identifier Type Type
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
@@ -37,7 +33,7 @@ instance HasSourceInfo Type where
   getSourceInfo (TUncurriedFn (Metadata si) _ _)  = si
   getSourceInfo (TVariadicFn (Metadata si) _ _ _) = si
   getSourceInfo (TSlice (Metadata si) _)          = si
-  getSourceInfo (TStruct (Metadata si) _)         = si
+  getSourceInfo (TRecord (Metadata si) _)         = si
   getSourceInfo (TNamed (Metadata si) _ _)        = si
   getSourceInfo (REmpty (Metadata si))            = si
   getSourceInfo (RExtension (Metadata si) _ _ _)  = si
@@ -50,7 +46,17 @@ instance HasSourceInfo Type where
   setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn (Metadata si) a r
   setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn (Metadata si) a v r
   setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
-  setSourceInfo si (TStruct _ fs)        = TStruct (Metadata si) fs
+  setSourceInfo si (TRecord _ fs)        = TRecord (Metadata si) fs
   setSourceInfo si (TNamed _ n t)        = TNamed (Metadata si) n t
   setSourceInfo si REmpty{}              = REmpty (Metadata si)
   setSourceInfo si (RExtension _ l t r)  = RExtension (Metadata si) l t r
+
+getFields :: Type -> Either String (Map.Map Identifier Type)
+getFields REmpty{} = return Map.empty
+getFields (RExtension _ label type' row) = Map.insert label type' <$> getFields row
+getFields _ = Left "Cannot get fields of non-row kind"
+
+getLeafRow :: Type -> Either String Type
+getLeafRow e@REmpty{} = return e
+getLeafRow (RExtension _ _ _ row) = getLeafRow row
+getLeafRow _ = Left "Cannot get leaf row of non-row kind"

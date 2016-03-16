@@ -24,6 +24,10 @@ data ExplodeError = TypeSignatureWithoutDefinition SourceInfo Identifier (TypeSi
 explodeNameBinding :: NameBinding -> Untyped.NameBinding
 explodeNameBinding (NameBinding si name) = Untyped.NameBinding (Metadata si) name
 
+explodeFieldInitializer :: FieldInitializer -> Either ExplodeError Untyped.FieldInitializer
+explodeFieldInitializer (FieldInitializer si label expr) =
+  Untyped.FieldInitializer (Metadata si) label <$> explodeExpr expr
+
 explodeExpr :: Expr -> Either ExplodeError Untyped.Expr
 explodeExpr (Subscript si es [Singular e]) =
   Untyped.Subscript (Metadata si) <$> explodeExpr es <*> explodeExpr e
@@ -62,8 +66,8 @@ explodeExpr (Fn si [arg] b) =
   Untyped.Fn (Metadata si) (explodeNameBinding arg) <$> explodeExpr b
 explodeExpr (Fn si (arg:args) b) =
   Untyped.Fn (Metadata si) (explodeNameBinding arg) <$> explodeExpr (Fn si args b)
-explodeExpr (StructInitializer si ts exprs) =
-  Untyped.StructInitializer (Metadata si) ts <$> mapM explodeExpr exprs
+explodeExpr (RecordInitializer si fields) =
+  Untyped.RecordInitializer (Metadata si) <$> mapM explodeFieldInitializer fields
 explodeExpr (MemberAccess si expr (Symbol _ name)) =
   Untyped.MemberAccess (Metadata si) <$> explodeExpr expr <*> return name
 explodeExpr (MemberAccess si expr nonName) = do

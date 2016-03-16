@@ -301,27 +301,18 @@ spec = do
     it "fails on subslices with open start and end" $
       shouldFail $ parseExpr "a[:]"
 
-    it "parses struct initializer with named type" $
-      parseExpr "A{1}"
+    it "parses record initializer" $
+      parseExpr "{ size = 1 }"
       `shouldSucceedWith`
-      StructInitializer (src 1 1)
-        (TSSymbol (src 1 1) (Identifier "A"))
-        [Literal (src 1 3) (Int 1)]
+      RecordInitializer (src 1 1)
+        [FieldInitializer (src 1 3) (Identifier "size") (Literal (src 1 10) (Int 1))]
 
-    it "parses struct initializer with unnamed struct type" $
-      parseExpr "{size int}{1}"
+    it "parses record initializer containing multiple fields" $
+      parseExpr "{ size = 1, foo = \"foo\" }"
       `shouldSucceedWith`
-      StructInitializer (src 1 1)
-        (TSStruct (src 1 1) [TSStructField (src 1 2) (Identifier "size") (TSSymbol (src 1 7) (Identifier "int"))])
-        [Literal (src 1 12) (Int 1)]
-
-    it "parses struct initializer with unnamed struct type containing multiple fields" $
-      parseExpr "{size int, name string}{1, \"foo\"}"
-      `shouldSucceedWith`
-      StructInitializer (src 1 1)
-        (TSStruct (src 1 1) [TSStructField (src 1 2) (Identifier "size") (TSSymbol (src 1 7) (Identifier "int")),
-                             TSStructField (src 1 12) (Identifier "name") (TSSymbol (src 1 17) (Identifier "string"))])
-        [Literal (src 1 25) (Int 1), Literal (src 1 28) (String "foo")]
+      RecordInitializer (src 1 1)
+        [FieldInitializer (src 1 3) (Identifier "size") (Literal (src 1 10) (Int 1))
+        ,FieldInitializer (src 1 13) (Identifier "foo") (Literal (src 1 19) (String "foo"))]
 
   describe "parseTopLevel" $ do
     it "parses type signature" $
@@ -379,19 +370,36 @@ spec = do
        (TSFn (src 1 16) (TSSymbol (src 1 16) (Identifier "a")) (TSSymbol (src 1 21) (Identifier "a"))))
 
     it "parses struct definition without type parameters" $
-      parseTopLevel "type S = {\n  x T\n}"
+      parseTopLevel "type S = {\n  x: T\n}"
       `shouldSucceedWith`
-      TypeDefinition (src 1 1) (Identifier "S") (TSStruct (src 1 10) [
-          TSStructField (src 2 3) (Identifier "x") (TSSymbol (src 2 5) (Identifier "T"))
-        ])
+      TypeDefinition
+      (src 1 1)
+      (Identifier "S")
+      (TSRecord
+       (src 1 10)
+       (TSRowExtension
+        (src 2 3)
+        (Identifier "x")
+        (TSSymbol (src 2 6) (Identifier "T"))
+        (TSRowEmpty (src 1 10))))
 
-    it "parses struct definition multiple fields" $
-      parseTopLevel "type S = {\n  x T\n  y T\n}"
+    it "parses struct definition with multiple fields" $
+      parseTopLevel "type S = {\n  x: T,\n  y: T\n}"
       `shouldSucceedWith`
-      TypeDefinition (src 1 1) (Identifier "S") (TSStruct (src 1 10) [
-          TSStructField (src 2 3) (Identifier "x") (TSSymbol (src 2 5) (Identifier "T")),
-          TSStructField (src 3 3) (Identifier "y") (TSSymbol (src 3 5) (Identifier "T"))
-        ])
+      TypeDefinition
+      (src 1 1)
+      (Identifier "S")
+      (TSRecord
+       (src 1 10)
+       (TSRowExtension
+        (src 2 3)
+        (Identifier "x")
+        (TSSymbol (src 2 6) (Identifier "T"))
+        (TSRowExtension
+          (src 3 3)
+          (Identifier "y")
+          (TSSymbol (src 3 6) (Identifier "T"))
+          (TSRowEmpty (src 1 10)))))
 
     it "parses value definition" $
       parseTopLevel "x = y"

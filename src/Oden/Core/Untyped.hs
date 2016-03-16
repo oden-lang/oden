@@ -10,6 +10,9 @@ import           Oden.Type.Signature
 data NameBinding = NameBinding (Metadata SourceInfo) Identifier
                  deriving (Show, Eq, Ord)
 
+data FieldInitializer = FieldInitializer (Metadata SourceInfo) Identifier Expr
+                        deriving (Show, Eq, Ord)
+
 data Expr = Symbol (Metadata SourceInfo) Identifier
           | Subscript (Metadata SourceInfo) Expr Expr
           | Subslice (Metadata SourceInfo) Expr Range
@@ -24,7 +27,7 @@ data Expr = Symbol (Metadata SourceInfo) Identifier
           | If (Metadata SourceInfo) Expr Expr Expr
           | Slice (Metadata SourceInfo) [Expr]
           | Block (Metadata SourceInfo) [Expr]
-          | StructInitializer (Metadata SourceInfo) (SignatureExpr SourceInfo) [Expr]
+          | RecordInitializer (Metadata SourceInfo) [FieldInitializer]
           | MemberAccess (Metadata SourceInfo) Expr Identifier
           deriving (Show, Eq, Ord)
 
@@ -43,7 +46,7 @@ instance HasSourceInfo Expr where
   getSourceInfo (Slice (Metadata si) _)                    = si
   getSourceInfo (Tuple (Metadata si) _ _ _)                = si
   getSourceInfo (Block (Metadata si) _)                    = si
-  getSourceInfo (StructInitializer (Metadata si) _ _)      = si
+  getSourceInfo (RecordInitializer (Metadata si) _)        = si
   getSourceInfo (MemberAccess (Metadata si) _ _)           = si
 
   setSourceInfo si (Symbol _ i)                   = Symbol (Metadata si) i
@@ -60,7 +63,7 @@ instance HasSourceInfo Expr where
   setSourceInfo si (Slice _ e)                    = Slice (Metadata si) e
   setSourceInfo si (Tuple _ f s r)                = Tuple (Metadata si) f s r
   setSourceInfo si (Block _ e)                    = Block (Metadata si) e
-  setSourceInfo si (StructInitializer _ ts es)    = StructInitializer (Metadata si) ts es
+  setSourceInfo si (RecordInitializer _ fs)       = RecordInitializer (Metadata si) fs
   setSourceInfo si (MemberAccess _ expr n)        = MemberAccess (Metadata si) expr n
 
 data Literal = Int Integer
@@ -74,7 +77,7 @@ data Range = Range Expr Expr
            | RangeFrom Expr
            deriving (Show, Eq, Ord)
 
-data StructField = StructField (Metadata SourceInfo) Identifier (SignatureExpr SourceInfo)
+data RecordField = RecordField (Metadata SourceInfo) Identifier (SignatureExpr SourceInfo)
                  deriving (Show, Eq, Ord)
 
 data Definition = Definition (Metadata SourceInfo) Identifier (Maybe (TypeSignature SourceInfo)) Expr
