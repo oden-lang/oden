@@ -66,7 +66,7 @@ spec =
         `shouldSucceedWith`
         emptySubst
 
-    it "unifies a with a row including 'bar' when unifying { foo: int | a } with { bar: int, foo: int }" $
+    it "unifies 'a' with a row including 'bar' when unifying { foo: int | a } with { bar: int, foo: int }" $
       let withRowVariable = RExtension missing (Identifier "foo") typeInt tvarA
           withTwoFields = RExtension missing (Identifier "bar") typeInt (RExtension missing (Identifier "foo") typeInt (REmpty missing)) in
         unify withRowVariable withTwoFields
