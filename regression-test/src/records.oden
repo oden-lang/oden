@@ -30,5 +30,8 @@ getName(x) = x.name
 main() = {
   printFooName(bar)
   fmt.Println(poly.name)
-  fmt.Println(getName({ name = "passing a record like this" }))
+  fmt.Println(getName({
+    name = "passing a record like this",
+    age = 42
+  }))
 }

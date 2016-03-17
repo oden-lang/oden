@@ -15,6 +15,7 @@ import Oden.SourceInfo
 import           Control.Monad
 import           Control.Monad.State
 import           Control.Monad.Except
+
 import qualified Data.Map               as Map
 
 data SubsumptionError = SubsumptionError SourceInfo Type Type
