@@ -204,8 +204,10 @@ type' = do
   recordType :: Parser (SignatureExpr SourceInfo)
   recordType = do
     si <- currentSourceInfo
-    fields <- braces (recordFieldType `sepBy1` comma)
-    return $ TSRecord si (foldr ($) (TSRowEmpty si) fields)
+    braces $ do
+      fields <- recordFieldType `sepBy1` comma
+      leaf <- try (pipe *> type') <|> return (TSRowEmpty si)
+      return $ TSRecord si (foldr ($) leaf fields)
   recordFieldType :: Parser (SignatureExpr SourceInfo -> SignatureExpr SourceInfo)
   recordFieldType =
     TSRowExtension <$> currentSourceInfo

@@ -38,7 +38,7 @@ test:
 
 .PHONY: watch-test
 watch-test: $(NODEMON)
-	$(NODEMON) --watch src --watch test -e hs --exec make test
+	$(NODEMON) --watch src --watch test -e hs --exec 'make test || exit 1'
 
 $(NODEMON):
 	npm install nodemon

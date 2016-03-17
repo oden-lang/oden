@@ -148,7 +148,7 @@ instance Pretty Poly.Type where
     text "[]" <> braces (pp t)
   pp (Poly.TNamed _ n _) = pp n
   pp (Poly.TRecord _ r) = braces (ppFields r)
-  pp Poly.REmpty{} = brackets empty
+  pp Poly.REmpty{} = braces empty
   pp r@Poly.RExtension{} = parens (ppFields r)
 
 ppFields :: Poly.Type -> Doc
@@ -161,8 +161,7 @@ ppFields r = getPairs r
     pp label <> colon <+> pp type' <+> text "|" <+> pp tv
   getPairs (Poly.RExtension _ label type' row) =
     pp label <> colon <+> pp type' <> comma <+> getPairs row
-  getPairs Poly.REmpty{} = empty
-  getPairs t = error ("non-row type: " ++ show t)
+  getPairs _ = empty
 
 instance Pretty Poly.Scheme where
   pp (Poly.Forall _ vs t) = text "forall" <+> hsep (map pp vs) <> text "." <+> pp t
@@ -175,8 +174,7 @@ ppMonoFields r = getPairs r
     pp label <> colon <+> pp type'
   getPairs (Mono.RExtension _ label type' row) =
     pp label <> colon <+> pp type' <> comma <+> getPairs row
-  getPairs Mono.REmpty{} = empty
-  getPairs t = error "non-row type"
+  getPairs _ = empty
 
 instance Pretty Mono.Type where
   pp (Mono.TAny _) = text "any"
@@ -192,7 +190,7 @@ instance Pretty Mono.Type where
     text "!" <> braces (pp t)
   pp (Mono.TNamed _ n _) = pp n
   pp (Mono.TRecord _ r) = braces (ppMonoFields r)
-  pp Mono.REmpty{} = brackets empty
+  pp Mono.REmpty{} = braces empty
   pp r@Mono.RExtension{} = parens (ppMonoFields r)
 
 instance Pretty (SignatureVarBinding a) where

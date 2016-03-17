@@ -369,7 +369,28 @@ spec = do
        [SignatureVarBinding (src 1 13) (Identifier "a")]
        (TSFn (src 1 16) (TSSymbol (src 1 16) (Identifier "a")) (TSSymbol (src 1 21) (Identifier "a"))))
 
-    it "parses struct definition without type parameters" $
+    it "parses type signature with row variable record" $
+      parseTopLevel "foo :: forall a. { x: T, y: T | a }"
+      `shouldSucceedWith`
+      TypeSignatureDeclaration
+      (src 1 1)
+      (Identifier "foo")
+      (TypeSignature
+       (src 1 8)
+       [SignatureVarBinding (src 1 15) (Identifier "a")]
+       (TSRecord
+        (src 1 18)
+        (TSRowExtension
+         (src 1 20)
+         (Identifier "x")
+         (TSSymbol (src 1 23) (Identifier "T"))
+         (TSRowExtension
+           (src 1 26)
+           (Identifier "y")
+           (TSSymbol (src 1 29) (Identifier "T"))
+           (TSSymbol (src 1 33) (Identifier "a"))))))
+
+    it "parses record definition without type parameters" $
       parseTopLevel "type S = {\n  x: T\n}"
       `shouldSucceedWith`
       TypeDefinition
@@ -383,7 +404,7 @@ spec = do
         (TSSymbol (src 2 6) (Identifier "T"))
         (TSRowEmpty (src 1 10))))
 
-    it "parses struct definition with multiple fields" $
+    it "parses record definition with multiple fields" $
       parseTopLevel "type S = {\n  x: T,\n  y: T\n}"
       `shouldSucceedWith`
       TypeDefinition
