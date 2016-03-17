@@ -46,4 +46,6 @@ typeNoArgFn = TNoArgFn missing
 typeUncurried = TUncurriedFn missing
 typeVariadic = TVariadicFn missing
 
+typeRecord = TRecord missing
 emptyRow = REmpty missing
+rowExt = RExtension missing

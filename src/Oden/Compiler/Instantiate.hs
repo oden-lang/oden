@@ -7,7 +7,6 @@ module Oden.Compiler.Instantiate (
 import           Control.Monad.Except
 import           Control.Monad.State
 
-import           Data.List
 import qualified Data.Map              as Map hiding (foldl)
 
 import qualified Oden.Core             as Core
@@ -68,28 +67,26 @@ getSubstitutions (Poly.TSlice _ p) (Mono.TSlice _ m) =
 getSubstitutions (Poly.TRecord _ polyRow) (Mono.TRecord _ monoRow) =
   getSubstitutions polyRow monoRow
 
--- TODO: Handle one of the sets having more fields, and unifying those with the
--- other set's leaf row. Perhaps sort the RExtensions by name and collect
--- substitutions for those recursively until hitting a leaf.
 getSubstitutions polyRow@(Poly.RExtension (Metadata _psi) _ _ _) monoRow@(Mono.RExtension (Metadata msi) _ _ _) = do
 
-  -- Extract the fields in each rows (unordered).
-  let polyFields = sortOn fst (Poly.rowToList polyRow)
-      monoFields = sortOn fst (Mono.rowToList monoRow)
-      missing = Map.fromList polyFields `Map.difference` Map.fromList monoFields
+  -- Extract the fields in each rows.
+  let polyFields = Map.fromList (Poly.rowToList polyRow)
+      monoFields = Map.fromList (Mono.rowToList monoRow)
+      onlyInPoly = polyFields `Map.difference` monoFields
+      onlyInMono = monoFields `Map.difference` polyFields
 
-  unless (null missing) $
+  unless (Map.null onlyInPoly) $
     throwError (TypeMismatch msi polyRow monoRow)
 
-  -- Order the fields by name and get substitutions.
-  substs <- zipWithM getSubstitutions (map snd polyFields) (map snd monoFields)
+  -- Get substitutions the common fields.
+  substs <- sequence (Map.elems (Map.intersectionWith getSubstitutions polyFields monoFields))
 
   -- Retrieve leaf rows.
   let polyLeaf = Poly.getLeafRow polyRow
-      monoLeaf = Mono.getLeafRow monoRow
 
-  -- Get substitutions for the leaf rows.
-  leafSubst <- getSubstitutions polyLeaf monoLeaf
+  -- Only the polymorphic leaf (possible a row variable) with the remaining
+  -- monomorphic fields.
+  leafSubst <- getSubstitutions polyLeaf (Mono.rowFromList $ Map.assocs onlyInMono)
 
   return (foldl mappend leafSubst substs)
 

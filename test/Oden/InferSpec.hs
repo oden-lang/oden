@@ -428,10 +428,20 @@ spec = do
         (forall [] structType,
          Core.RecordInitializer missing structType [Core.FieldInitializer missing (Identifier "msg") (Core.Literal missing (Core.String "hello") typeString)])
 
+    it "infers record field access fn" $
+      let recordType = typeRecord (rowExt (Identifier "a") tvarA tvarB)
+          functionType = typeFn recordType tvarA in
+      inferExpr empty (uFn (uNameBinding (Identifier "x")) (uMemberAccess (uSymbol (Identifier "x")) (Identifier "a")))
+      `shouldSucceedWith`
+      (forall [tvarBinding tvA, tvarBinding tvB] functionType,
+       tFn
+       (tNameBinding (Identifier "x"))
+       (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "a") tvarA)
+       functionType)
 
   describe "inferDefinition" $ do
 
-    it "infers (def n (+ 1 1))" $
+    it "infers 'n = 1 + 1'" $
       inferDefinition predef (uDefinition (Identifier "n") Nothing (uOp
                                                               Add
                                                               (uLiteral (uInt 1))

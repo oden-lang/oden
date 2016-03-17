@@ -117,20 +117,54 @@ recordInt =
    (Poly.RExtension missing (Identifier "foo") typeInt (Poly.REmpty missing)))
   [Core.FieldInitializer missing (Identifier "foo") (Core.Symbol missing (Identifier "x") typeInt)]
 
-fieldAccessPoly :: Core.Expr Poly.Type
-fieldAccessPoly =
+polyRecordIntAndRowVariable :: Poly.Type
+polyRecordIntAndRowVariable =
+  Poly.TRecord
+  missing
+  (Poly.RExtension
+   missing
+   (Identifier "a")
+   typeInt
+   tvarA)
+
+polyRecordInt :: Poly.Type
+polyRecordInt =
+  Poly.TRecord
+  missing
+  (Poly.RExtension
+   missing
+   (Identifier "a")
+   typeInt
+   (Poly.REmpty missing))
+
+polyRecordIntAndString :: Poly.Type
+polyRecordIntAndString =
+  Poly.TRecord
+  missing
+  (Poly.RExtension
+   missing
+   (Identifier "a")
+   typeInt
+   (Poly.RExtension
+    missing
+    (Identifier "b")
+    typeString
+    (Poly.REmpty missing)))
+
+fieldAccessPoly :: Poly.Type -> Core.Expr Poly.Type
+fieldAccessPoly recordType =
   Core.Fn
   missing
   (Core.NameBinding missing (Identifier "x"))
   (Core.RecordFieldAccess
    missing
-   (Core.Symbol missing (Identifier "x") (Poly.RExtension missing (Identifier "a") tvarA tvarB))
+   (Core.Symbol missing (Identifier "x") recordType)
    (Identifier "a")
-   tvarA)
+   typeInt)
   (Poly.TFn
    missing
-   (Poly.TRecord missing (Poly.RExtension missing (Identifier "a") tvarA tvarB))
-   tvarA)
+   recordType
+   typeInt)
 
 fieldAccessOnlyIntType :: Mono.Type
 fieldAccessOnlyIntType =
@@ -139,22 +173,34 @@ fieldAccessOnlyIntType =
   (Mono.TRecord missing (Mono.RExtension missing (Identifier "a") monoInt (Mono.REmpty missing)))
   monoInt
 
-fieldAccessIntAndStringType :: Mono.Type
-fieldAccessIntAndStringType =
-  Mono.TFn
+monoRecordEmpty :: Mono.Type
+monoRecordEmpty = Mono.TRecord missing (Mono.REmpty missing)
+
+monoRecordInt :: Mono.Type
+monoRecordInt =
+  Mono.TRecord
   missing
-  (Mono.TRecord
+  (Mono.RExtension
    missing
+   (Identifier "a")
+   monoInt
+   (Mono.REmpty missing))
+
+monoRecordIntAndString :: Mono.Type
+monoRecordIntAndString =
+  Mono.TRecord
+  missing
+  (Mono.RExtension
+   missing
+   (Identifier "a")
+   monoInt
    (Mono.RExtension
     missing
-    (Identifier "a")
-    monoInt
-    (Mono.RExtension
-     missing
-     (Identifier "b")
-     monoString
-     (Mono.REmpty missing))))
-  monoInt
+    (Identifier "b")
+    monoString
+    (Mono.REmpty missing)))
+
+monoFieldAccess r = Mono.TFn missing r monoInt
 
 fieldAccessWrongLabelType :: Mono.Type
 fieldAccessWrongLabelType =
@@ -162,21 +208,6 @@ fieldAccessWrongLabelType =
   missing
   (Mono.TRecord missing (Mono.RExtension missing (Identifier "b") monoInt (Mono.REmpty missing)))
   monoInt
-
-fieldAccessOnlyInt :: Core.Expr Poly.Type
-fieldAccessOnlyInt =
-  Core.Fn
-  missing
-  (Core.NameBinding missing (Identifier "x"))
-  (Core.RecordFieldAccess
-   missing
-   (Core.Symbol missing (Identifier "x") (Poly.RExtension missing (Identifier "a") typeInt (Poly.REmpty missing)))
-   (Identifier "a")
-   typeInt)
-  (Poly.TFn
-   missing
-   (Poly.TRecord missing (Poly.RExtension missing (Identifier "a") typeInt (Poly.REmpty missing)))
-   typeInt)
 
 spec :: Spec
 spec =
@@ -192,9 +223,9 @@ spec =
     it "instantiates record initializer with int field" $
       instantiate recordPoly recordIntType `shouldSucceedWith` recordInt
     it "instantiates record field access with only an int field" $
-      instantiate fieldAccessPoly fieldAccessOnlyIntType `shouldSucceedWith` fieldAccessOnlyInt
+      instantiate (fieldAccessPoly polyRecordIntAndRowVariable) (monoFieldAccess monoRecordInt) `shouldSucceedWith` (fieldAccessPoly polyRecordInt)
     it "instantiates record field access with both int and string field" $
-      instantiate fieldAccessPoly fieldAccessIntAndStringType `shouldSucceedWith` fieldAccessOnlyInt
+      instantiate (fieldAccessPoly polyRecordIntAndRowVariable) (monoFieldAccess monoRecordIntAndString) `shouldSucceedWith` (fieldAccessPoly polyRecordIntAndString)
     it "fails on mismatching row labels" $
       shouldFail $
-        instantiate fieldAccessPoly fieldAccessWrongLabelType
+        instantiate (fieldAccessPoly polyRecordIntAndRowVariable) fieldAccessWrongLabelType
