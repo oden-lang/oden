@@ -1,5 +1,9 @@
 module Oden.Assertions where
 
+import Oden.Pretty
+
+import Text.PrettyPrint
+
 import           Test.Hspec
 
 isLeft :: Either a b -> Bool
@@ -22,3 +26,22 @@ shouldFail res = res `shouldSatisfy` isLeft
 
 shouldFailWith :: (Eq a, Show a, Eq e, Show e) => Either e a -> e -> Expectation
 res `shouldFailWith` err = res `shouldSatisfy` (== Left err)
+
+-- PRETTY PRINTING RESULTS
+
+newtype PrettyWrapper a = PrettyWrapper a deriving (Eq)
+
+instance Pretty a => Show (PrettyWrapper a) where
+  show (PrettyWrapper x) = render $ pp x
+
+shouldSucceed' :: (Eq a, Pretty a, Show e) => Either e a -> Expectation
+shouldSucceed' = shouldSucceed . (PrettyWrapper <$>)
+
+shouldSucceedWith' :: (Eq v, Pretty v, Show e) => Either e v -> v -> Expectation
+shouldSucceedWith' res expected = (PrettyWrapper <$> res) `shouldSucceedWith` PrettyWrapper expected
+
+shouldFail' :: (Eq a, Pretty a, Show e) => Either e a -> Expectation
+shouldFail' = shouldFail . (PrettyWrapper <$>)
+
+shouldFailWith' :: (Eq a, Pretty a, Eq e, Show e) => Either e a -> e -> Expectation
+shouldFailWith' res expected = (PrettyWrapper <$> res) `shouldFailWith` expected

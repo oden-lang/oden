@@ -3,7 +3,7 @@ module Oden.Infer.Fixtures where
 import           Oden.Core              as Core
 import           Oden.Core.Operator
 import qualified Oden.Core.Untyped      as Untyped
-import           Oden.Environment
+import           Oden.Environment       hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.Environment as IE
 import           Oden.Metadata
@@ -12,6 +12,8 @@ import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 import           Oden.Type.Signature
+
+import qualified Data.Set as Set
 
 missing :: Metadata SourceInfo
 missing = Metadata Missing
@@ -22,20 +24,17 @@ predefined = Metadata Predefined
 tvA = TV "a"
 tvB = TV "b"
 tvC = TV "c"
+tvD = TV "d"
 
-tvarA :: Type
 tvarA = TVar predefined tvA
-
-tvarB :: Type
 tvarB = TVar predefined tvB
-
-tvarC :: Type
 tvarC = TVar predefined tvC
+tvarD = TVar predefined tvD
 
 typeAny = TAny missing
 
 scheme:: Type -> Scheme
-scheme= Forall (Metadata Predefined) []
+scheme t = Forall (Metadata Predefined) (map (TVarBinding missing) $ Set.toList (ftv t)) t
 
 typeFn :: Type -> Type -> Type
 typeFn = TFn missing
@@ -60,6 +59,9 @@ tsUnit = TSUnit Missing
 tsVar = TSSymbol Missing . Identifier
 tsSymbol = TSSymbol Missing
 tsFn = TSFn Missing
+tsRecord = TSRecord Missing
+tsRowEmpty = TSRowEmpty Missing
+tsRowExt = TSRowExtension Missing
 
 implicit = TypeSignature Missing []
 explicit = TypeSignature Missing

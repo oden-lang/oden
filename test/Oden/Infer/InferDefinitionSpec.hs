@@ -114,3 +114,22 @@ spec = describe "inferDefinition" $ do
         (uDefinition
          (Identifier "f")
          (Just $ implicit (tsFn (tsSymbol (Identifier "int")) (tsSymbol (Identifier "any")))) countToZero)
+
+  it "infers record field access fn definition with type signature" $
+    let recordType = typeRecord (rowExt (Identifier "foo") tvarA tvarB)
+        functionType = typeFn recordType tvarA in
+    inferDefinition
+    predef
+    (uDefinition
+     (Identifier "f")
+     (Just $ explicit [varBinding "a", varBinding "b"] (tsFn (tsRecord (tsRowExt (Identifier "foo") (tsVar "a") (tsVar "b"))) (tsVar "a")))
+     (uFn
+      (uNameBinding (Identifier "x")) (uMemberAccess (uSymbol (Identifier "x")) (Identifier "foo"))))
+    `shouldSucceedWith`
+    tDefinition
+    (Identifier "f")
+    (forall [tvarBinding tvA, tvarBinding tvB] functionType,
+     tFn
+     (tNameBinding (Identifier "x"))
+     (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "foo") tvarA)
+     functionType)

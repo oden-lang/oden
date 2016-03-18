@@ -131,3 +131,41 @@ spec =
         scheme twoFieldRow `subsumedBy` expr
         `shouldFailWith`
         SubsumptionError Missing twoFieldRow oneFieldRow
+
+    it "record with row variable is subsumed by other row variable record" $
+      let firstRow = RExtension missing (Identifier "foo") typeInt tvarA
+          secondRow = RExtension missing (Identifier "foo") typeInt tvarB
+          expr = Symbol missing (Identifier "x") secondRow in
+        scheme firstRow `subsumedBy` expr
+        `shouldSucceedWith`
+        (scheme firstRow, expr)
+
+    it "record with row variable is subsumed by multi-field record" $
+      let firstRow = RExtension missing (Identifier "foo") typeInt tvarA
+          twoFieldRow = RExtension missing (Identifier "bar") typeString (RExtension missing (Identifier "foo") typeInt (REmpty missing))
+          expr = Symbol missing (Identifier "x") twoFieldRow in
+        scheme firstRow `subsumedBy` expr
+        `shouldSucceedWith`
+        (scheme firstRow, expr)
+
+    it "record with row variable is subsumed by multi-field record with row variable" $
+      let firstRow = RExtension missing (Identifier "foo") typeInt tvarA
+          twoFieldRow = RExtension missing (Identifier "bar") typeString (RExtension missing (Identifier "foo") typeInt tvarB)
+          expr = Symbol missing (Identifier "x") twoFieldRow in
+        scheme firstRow `subsumedBy` expr
+        `shouldSucceedWith`
+        (scheme firstRow, expr)
+
+    it "{ foo: int | b } -> { foo: int | b } is subsumed by a -> a" $
+      let row = RExtension missing (Identifier "bar") typeString (RExtension missing (Identifier "foo") typeInt tvarB)
+          expr t = Symbol missing (Identifier "x") (TFn missing t t) in
+        scheme (TFn missing row row) `subsumedBy` (expr tvarA)
+        `shouldSucceedWith'`
+        (scheme (TFn missing row row), expr row)
+
+    it "{ foo: c | d } -> c is subsumed by a -> b" $
+      let row = (RExtension missing (Identifier "foo") tvarC tvarD)
+          expr d r = Symbol missing (Identifier "x") (TFn missing d r) in
+        scheme (TFn missing row tvarC) `subsumedBy` (expr tvarA tvarB)
+        `shouldSucceedWith'`
+        (scheme (TFn missing row tvarC), expr row tvarC)

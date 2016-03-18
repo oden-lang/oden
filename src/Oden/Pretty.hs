@@ -1,13 +1,18 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Oden.Pretty where
 
 import           Oden.Core
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Operator
 import           Oden.Identifier
+import           Oden.Compiler.Monomorphization
 import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 import           Oden.Type.Signature
+
+import           Data.Set              (toList)
 
 import           Text.PrettyPrint
 
@@ -120,9 +125,38 @@ instance Pretty t => Pretty (Expr t) where
     pp pkgAlias <> text "." <> pp name
 
 instance Pretty r => Pretty (Range r) where
-  pp (Range e1 e2) = brackets $ pp e1 <+> (text ":") <+> pp e2
-  pp (RangeTo e) = brackets $ (text ":") <+> pp e
-  pp (RangeFrom e) = brackets $ pp e <+> (text ":")
+  pp (Range e1 e2) = brackets $ pp e1 <+> text ":" <+> pp e2
+  pp (RangeTo e) = brackets $ text ":" <+> pp e
+  pp (RangeFrom e) = brackets $ pp e <+> text ":"
+
+instance Pretty CanonicalExpr where
+  pp (scheme, expr) = pp expr <+> text ":" <+> pp scheme
+
+instance Pretty Definition where
+  pp (Definition _ name (scheme, expr)) =
+    pp name <+> text "::" <+> pp scheme $+$
+    pp name <+> text "=" <+> pp expr
+  pp (ForeignDefinition _ name scheme) =
+    text "// (foreign)" $+$
+    text "//" <+> pp name <+> text "::" <+> pp scheme
+  pp (TypeDefinition _ name _ type') =
+    text "type" <+> pp name <+> equals <+> pp type'
+
+instance Pretty PackageName where
+  pp parts = hcat (punctuate (text "/") (map text parts))
+
+instance Pretty PackageDeclaration where
+  pp (PackageDeclaration _ name) = text "package" <+> pp name
+
+instance Pretty ImportedPackage where
+  pp (ImportedPackage _ _ (Package (PackageDeclaration _ pkgName) _ _)) =
+    text "import" <+> pp pkgName
+
+instance Pretty Package where
+  pp (Package decl imports defs) =
+    pp decl $+$
+    vcat (map pp imports) $+$
+    vcat (map pp defs)
 
 instance Pretty Poly.TVar where
   pp (Poly.TV s) = text s
@@ -131,7 +165,7 @@ instance Pretty Poly.TVarBinding where
   pp (Poly.TVarBinding _ v) = pp v
 
 instance Pretty QualifiedName where
-  pp (FQN pkg identifier) = hcat (punctuate (text ".") ((map text pkg) ++ [pp identifier]))
+  pp (FQN pkg identifier) = hcat (punctuate (text ".") (map text pkg ++ [pp identifier]))
 
 instance Pretty Poly.Type where
   pp (Poly.TAny _) = text "any"
@@ -152,18 +186,16 @@ instance Pretty Poly.Type where
   pp r@Poly.RExtension{} = parens (ppFields r)
 
 ppFields :: Poly.Type -> Doc
-ppFields Poly.REmpty{} = empty
-ppFields r = getPairs r
+ppFields r =
+  case Poly.getLeafRow r of
+    var@Poly.TVar{} -> printFields r <+> text "|" <+> pp var
+    _ -> printFields r
   where
-  getPairs (Poly.RExtension _ label type' Poly.REmpty{}) =
-    pp label <> colon <+> pp type'
-  getPairs (Poly.RExtension _ label type' tv@Poly.TVar{}) =
-    pp label <> colon <+> pp type' <+> text "|" <+> pp tv
-  getPairs (Poly.RExtension _ label type' row) =
-    pp label <> colon <+> pp type' <> comma <+> getPairs row
-  getPairs _ = empty
+  printFields = hcat . punctuate (text ", ") . map printField . Poly.rowToList
+  printField (label, type') = pp label <> colon <+> pp type'
 
 instance Pretty Poly.Scheme where
+  pp (Poly.Forall _ [] t) = pp t
   pp (Poly.Forall _ vs t) = text "forall" <+> hsep (map pp vs) <> text "." <+> pp t
 
 ppMonoFields :: Mono.Type -> Doc
@@ -196,7 +228,6 @@ instance Pretty Mono.Type where
 instance Pretty (SignatureVarBinding a) where
   pp (SignatureVarBinding _ s) = pp s
 
-
 instance Pretty (SignatureExpr a) where
   pp (TSUnit _) = text "()"
   pp (TSSymbol _ i) = pp i
@@ -217,3 +248,21 @@ instance Pretty (TypeSignature a) where
   pp (TypeSignature _ [] expr) = pp expr
   pp (TypeSignature _ vars expr) =
     text "forall" <+> hsep (map pp vars) <> text "." <+> pp expr
+
+instance Pretty InstantiatedDefinition where
+  pp (InstantiatedDefinition polyName _si name expr) =
+    text "//" <+> pp polyName $+$
+    pp name <+> text "::" <+> pp (typeOf expr) $+$
+    pp name <+> text "=" <+> pp expr
+
+instance Pretty MonomorphedDefinition where
+  pp (MonomorphedDefinition _ name _ expr) =
+    pp name <+> text "::" <+> pp (typeOf expr) $+$
+    pp name <+> text "=" <+> pp expr
+
+instance Pretty MonomorphedPackage where
+  pp (MonomorphedPackage decl imports is ms) =
+    pp decl $+$
+    vcat (map pp imports) $+$
+    vcat (map pp $ toList is) $+$
+    vcat (map pp $ toList ms)

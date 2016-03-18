@@ -89,13 +89,22 @@ unifies si r1@RExtension{} r2@RExtension{} = do
 
   -- Unify the common field with matching labels.
   substs <- sequence (Map.elems (Map.intersectionWith (unifies si) f1 f2))
+
   -- For both rows, unify the leaf row (possibly a row variable) with unique
-  -- fields in the other row.
-  rowVariable1Subst <- unifies si (rowFromList $ Map.assocs onlyInR2) (getLeafRow r1)
-  rowVariable2Subst <- unifies si (rowFromList $ Map.assocs onlyInR1) (getLeafRow r2)
+  -- fields in the other row. In case both leafs are row variables, just unify
+  -- those.
+  leafSubst <- case (getLeafRow r1, getLeafRow r2) of
+    (leaf1@TVar{}, leaf2@TVar{}) -> unifies si leaf1 leaf2
+    (leaf1, leaf2) ->
+      compose <$> unifyFieldsWithLeaf onlyInR2 leaf1
+              <*> unifyFieldsWithLeaf onlyInR1 leaf2
 
   -- Return all substitutions.
-  return $ foldl1 compose (rowVariable1Subst : rowVariable2Subst : substs)
+  return $ foldl1 compose (leafSubst : substs)
+
+  where
+  unifyFieldsWithLeaf fields leaf = unifies si (rowFromList $ Map.assocs fields) leaf
+
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2
 
 -- Unification solver

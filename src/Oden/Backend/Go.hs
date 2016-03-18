@@ -5,7 +5,6 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 
 import           Data.List             (sortOn)
-import qualified Data.Map              as Map
 import qualified Data.Set              as Set
 
 import           Numeric
@@ -151,13 +150,15 @@ codegenType (Mono.TVariadicFn _ as v r) = do
   vc <- codegenType v
   rc <- codegenType r
   return $ func empty (hcat (punctuate (comma <+> space) (as' ++ [vc <> text "..."]))) rc empty
-codegenType (Mono.TRecord _ row) = do
+codegenType (Mono.TRecord _ row) = codegenType row
+codegenType (Mono.TNamed _ _ t) = codegenType t
+codegenType Mono.REmpty{} = return $ text "struct{}"
+codegenType row@Mono.RExtension{} = do
   let fields = sortOn fst (Mono.rowToList row)
   (text "struct" <>) . block . vcat <$> (mapM codegenField fields)
   where codegenField ((Identifier name), t) = do
           tc <- codegenType t
           return $ safeName name <+> tc
-codegenType (Mono.TNamed _ _ t) = codegenType t
 
 showGoString :: Show a => a -> String
 showGoString s = gsub ([re|(\\)(\d+)|]) toHex (show s)

@@ -33,22 +33,24 @@ readPackage fname = do
   liftEither $ parsePackage fname contents
 
 validatePkg :: Core.Package -> CLI ()
-validatePkg pkg' = do
-  warnings <- liftEither (validate pkg')
-  mapM_ logWarning warnings
+validatePkg pkg' = liftEither (validate pkg') >>= mapM_ logWarning
 
 logCompiledFiles :: [CompiledFile] -> CLI ()
 logCompiledFiles [_] = liftIO $ putStrLn "Compiled 1 Go source file."
 logCompiledFiles files = liftIO $ putStrLn $ "Compiled " ++ show (length files) ++ " Go source files."
 
-compileFile :: SourceFile -> CLI MonomorphedPackage
-compileFile (OdenSourceFile fname _) = do
+inferFile :: SourceFile -> CLI Core.Package
+inferFile (OdenSourceFile fname _) = do
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
   untypedPkg <- liftEither' (explodePackage syntaxPkg)
-  (untypedPkgWithImports, warnings) <- liftIO (resolveImports Go.importer untypedPkg) >>= liftEither
-  mapM_ logWarning warnings
-  inferredPkg <- liftEither (inferPackage untypedPkgWithImports)
+  (untypedPkgWithImports, warnings') <- liftIO (resolveImports Go.importer untypedPkg) >>= liftEither
+  mapM_ logWarning warnings'
+  liftEither (inferPackage untypedPkgWithImports)
+
+compileFile :: SourceFile -> CLI MonomorphedPackage
+compileFile sourceFile = do
+  inferredPkg <- inferFile sourceFile
   validatePkg inferredPkg
   liftEither (compile inferredPkg)
 

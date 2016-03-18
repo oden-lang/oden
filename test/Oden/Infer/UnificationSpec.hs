@@ -72,3 +72,19 @@ spec =
         unify withRowVariable withTwoFields
         `shouldSucceedWith`
         Subst (singleton (TV "a") (RExtension missing (Identifier "bar") typeInt (REmpty missing)))
+
+    it "unifies fns of records and fields from fn to tvar" $
+      let rowFn = TFn missing (TRecord missing (RExtension missing (Identifier "bar") tvarA (TVar missing (TV "r")))) tvarA
+          varFn = TFn missing tvarB tvarC in
+      unify rowFn varFn
+      `shouldSucceedWith`
+      Subst (fromList [(TV "b", TRecord missing (RExtension missing (Identifier "bar") tvarC (TVar missing (TV "r")))),
+                       (TV "a", tvarC)])
+
+    it "unifies fns of records and fields from tvar to fn" $
+      let rowFn = TFn missing (TRecord missing (RExtension missing (Identifier "bar") tvarA (TVar missing (TV "r")))) tvarA
+          varFn = TFn missing tvarB tvarC in
+      unify varFn rowFn
+      `shouldSucceedWith`
+      Subst (fromList [(TV "b", TRecord missing (RExtension missing (Identifier "bar") tvarA (TVar missing (TV "r")))),
+                       (TV "c", tvarA)])

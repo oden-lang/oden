@@ -17,7 +17,6 @@ import qualified Data.Set        as Set
 data ValidationError = Redefinition SourceInfo Identifier
                      | ValueDiscarded (Expr Type)
                      | DuplicatedRecordFieldName SourceInfo Identifier
-                     | InvalidRow Type
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValidationWarning -- There's no warnings defined yet.

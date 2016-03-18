@@ -5,7 +5,6 @@ module Oden.Compiler.TypeEncoder (
 import           Control.Monad.State
 import           Control.Monad.Writer
 import           Data.List             (intercalate, sortOn)
-import qualified Data.Map              as Map
 
 import           Oden.Identifier
 import           Oden.QualifiedName    (QualifiedName(..))
@@ -74,6 +73,14 @@ writeType (Mono.TSlice _ t) = do
 writeType (Mono.TRecord _ row) = do
   tell "record"
   pad
+  writeType row
+writeType (Mono.TNamed _ n t) = do
+  writeQualified n
+  withIncreasedLevel (writeType t)
+writeType Mono.REmpty{} = tell "emptyrow"
+writeType row@Mono.RExtension{} = do
+  tell "row"
+  pad
   foldl writeField (return ()) (sortOn fst (Mono.rowToList row))
   where
   writeField a (identifier, t) = do
@@ -83,9 +90,6 @@ writeType (Mono.TRecord _ row) = do
       pad
       writeType t
     pad
-writeType (Mono.TNamed _ n t) = do
-  writeQualified n
-  withIncreasedLevel (writeType t)
 
 writeTypeInstance :: Identifier -> Mono.Type -> TypeEncoder ()
 writeTypeInstance identifier typeInstance = do

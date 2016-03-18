@@ -130,11 +130,11 @@ lookupTypeIn :: TypingEnvironment -> Metadata SourceInfo -> Identifier -> Infer 
 lookupTypeIn _ si (Identifier "any") = return (TAny si)
 lookupTypeIn env (Metadata si) identifier =
   case Environment.lookup identifier env of
-    Nothing                          -> throwError $ NotInScope si identifier
-    Just Package{}                   -> throwError $ InvalidPackageReference si identifier
-    Just (Local _ _ _)               -> throwError $ ValueUsedAsType si identifier
-    Just (Type _ _ _ t) -> return t
-    Just (QuantifiedType _ _ t)      -> return t
+    Nothing                     -> throwError $ NotInScope si identifier
+    Just Package{}              -> throwError $ InvalidPackageReference si identifier
+    Just (Local _ _ _)          -> throwError $ ValueUsedAsType si identifier
+    Just (Type _ _ _ t)         -> return t
+    Just (QuantifiedType _ _ t) -> return t
 
 -- | Lookup a type in the environment.
 lookupType :: Metadata SourceInfo -> Identifier -> Infer Type
@@ -410,6 +410,7 @@ resolveTypeSignature (TypeSignature si bindings expr) = do
   return (Forall (Metadata si) (map toVarBinding bindings) t, envWithBindings)
   where
   extendWithBinding env' (SignatureVarBinding si' v) = do
+    --return $ env' `extend` (v, QuantifiedType (Metadata si') v (TVar (Metadata si') (TV varName)))
     tv <- fresh (Metadata si')
     return $ env' `extend` (v, QuantifiedType (Metadata si') v tv)
   toVarBinding (SignatureVarBinding si' (Identifier v)) = TVarBinding (Metadata si') (TV v)
@@ -422,9 +423,9 @@ type ShouldCloseOver = Bool
 -- | Infer the untyped definition in the Infer monad, returning a typed
 -- version. Resolves type signatures of optionally type-annotated definitions.
 inferDef :: Untyped.Definition -> Infer (Core.Definition, ShouldCloseOver)
-inferDef (Untyped.Definition si name s expr) = do
+inferDef (Untyped.Definition si name signature expr) = do
   env <- ask
-  case s of
+  case signature of
     Nothing -> do
       tv <- fresh si
       let recScheme = Forall si [] tv

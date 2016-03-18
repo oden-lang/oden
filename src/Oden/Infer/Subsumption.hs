@@ -5,7 +5,6 @@ module Oden.Infer.Subsumption (
 ) where
 
 import Oden.Core as Core
-import Oden.Identifier
 import Oden.Infer.Substitution
 import Oden.Metadata
 import Oden.Type.Kind
@@ -19,7 +18,6 @@ import           Control.Monad.Except
 import qualified Data.Map               as Map
 
 data SubsumptionError = SubsumptionError SourceInfo Type Type
-                      | InvalidRowError SourceInfo Type
                       deriving (Show, Eq)
 
 type Subsume a = StateT (Map.Map TVar Type) (Except SubsumptionError) a
