@@ -370,25 +370,26 @@ spec = do
        (TSFn (src 1 16) (TSSymbol (src 1 16) (Identifier "a")) (TSSymbol (src 1 21) (Identifier "a"))))
 
     it "parses type signature with row variable record" $
-      parseTopLevel "foo :: forall a. { x: T, y: T | a }"
+      parseTopLevel "foo :: forall a r. { x: a, y: a | r }"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
       (Identifier "foo")
       (TypeSignature
        (src 1 8)
-       [SignatureVarBinding (src 1 15) (Identifier "a")]
+       [SignatureVarBinding (src 1 15) (Identifier "a"),
+        SignatureVarBinding (src 1 17) (Identifier "r")]
        (TSRecord
-        (src 1 18)
+        (src 1 20)
         (TSRowExtension
-         (src 1 20)
+         (src 1 22)
          (Identifier "x")
-         (TSSymbol (src 1 23) (Identifier "T"))
+         (TSSymbol (src 1 25) (Identifier "a"))
          (TSRowExtension
-           (src 1 26)
+           (src 1 28)
            (Identifier "y")
-           (TSSymbol (src 1 29) (Identifier "T"))
-           (TSSymbol (src 1 33) (Identifier "a"))))))
+           (TSSymbol (src 1 31) (Identifier "a"))
+           (TSSymbol (src 1 35) (Identifier "r"))))))
 
     it "parses record definition without type parameters" $
       parseTopLevel "type S = {\n  x: T\n}"
