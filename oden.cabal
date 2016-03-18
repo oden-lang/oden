@@ -84,16 +84,17 @@ executable cli
     Oden.CLI.Build,
     Oden.CLI.Run
   build-depends:
-      base          == 4.*,
-      text          >= 1.2   && <1.3,
-      mtl           >= 2.2   && <2.3,
-      transformers  >= 0.4.2 && <0.5,
-      containers    >= 0.4   && <0.6,
-      temporary,
-      process,
-      filepath,
-      directory,
-      oden
+    base          == 4.*,
+    text          >= 1.2   && <1.3,
+    mtl           >= 2.2   && <2.3,
+    pretty        >= 1.1   && <1.2,
+    transformers  >= 0.4.2 && <0.5,
+    containers    >= 0.4   && <0.6,
+    temporary,
+    process,
+    filepath,
+    directory,
+    oden
   default-language:    Haskell2010
   main-is:             Main.hs
   hs-source-dirs:      cli

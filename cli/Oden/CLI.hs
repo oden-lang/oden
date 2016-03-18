@@ -90,6 +90,7 @@ commandsInfo = unlines [
     "  build    compile all source files in the Oden path",
     "  run      run a specific Oden file as main",
     "  lint     check an Oden file for errors and warnings",
+    "  print    compile and print the package in the given file",
     ""
   ]
 

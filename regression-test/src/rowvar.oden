@@ -1,0 +1,11 @@
+package rowvar/main
+
+import fmt
+
+//getBar :: forall a r. { bar: a | r } -> a
+getBar(r) = r.bar
+
+main() = {
+  fmt.Println(getBar({ bar = 123 }))
+  fmt.Println(getBar({ bar = 123, baz = "not ok" }))
+}

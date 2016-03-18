@@ -38,8 +38,8 @@ instance Pretty Untyped.Expr where
   pp (Untyped.UnaryOp _ op e) = pp op <+> pp e
   pp (Untyped.BinaryOp _ op e1 e2) = parens (pp e1 <+> pp op <+> pp e2)
   pp (Untyped.Application _ f a) = pp f <> commaSepParens a
-  pp (Untyped.Fn _ n b) = text "fn" <+> pp n <+> rArr <+> pp b
-  pp (Untyped.NoArgFn _ b) = text "fn" <+> rArr <+> pp b
+  pp (Untyped.Fn _ n b) = parens (pp n) <+> rArr <+> pp b
+  pp (Untyped.NoArgFn _ b) = parens empty <+> rArr <+> pp b
   pp (Untyped.Let _ n e b) =
     text "let" <+> pp n <+> equals <+> pp e <+> text "in" <+> pp b
   pp (Untyped.Literal _ (Untyped.Int n)) = integer n
@@ -96,8 +96,8 @@ instance Pretty t => Pretty (Expr t) where
   pp (Application _ f a _) = pp f <> text "(" <> pp a <> text ")"
   pp (NoArgApplication _ f _) = pp f <> text "()"
   pp (UncurriedFnApplication _ f as _) = pp f <> commaSepParens as
-  pp (Fn _ n b _) = text "fn" <+> pp n <+> rArr <+> pp b
-  pp (NoArgFn _ b _) = text "fn" <+> rArr <+> pp b
+  pp (Fn _ n b _) = parens (pp n) <+> rArr <+> pp b
+  pp (NoArgFn _ b _) = parens empty <+> rArr <+> pp b
   pp (Let _ n e b _) =
     text "let" <+> pp n <+> equals <+> pp e <+> text "in" <+> pp b
   pp (Literal _ (Int n) _) = integer n
