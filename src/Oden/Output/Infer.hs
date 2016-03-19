@@ -8,22 +8,19 @@ import Oden.Output
 import Oden.Output.Unification ()
 import Oden.Pretty
 import Oden.SourceInfo
-import Oden.Type.Polymorphic
 
 instance OdenOutput TypeError where
   outputType _ = Error
 
   name (UnificationError e)                                 = name e
-  name (InvalidPackageReference _ _)                        = "Infer.InvalidPackageReference"
+  name InvalidPackageReference{}                        = "Infer.InvalidPackageReference"
   name (NotInScope _ _)                                     = "Infer.NotInScope"
-  name (MemberNotInPackage _ _ _)                           = "Infer.MemberNotInPackage"
-  name (PackageNotInScope _ _)                              = "Infer.PackageNotInScope"
-  name (ArgumentCountMismatch _ _ _)                        = "Infer.ArgumentCountMismatch"
+  name MemberNotInPackage{}                           = "Infer.MemberNotInPackage"
+  name PackageNotInScope{}                              = "Infer.PackageNotInScope"
+  name ArgumentCountMismatch{}                        = "Infer.ArgumentCountMismatch"
   name (TypeSignatureSubsumptionError _ SubsumptionError{}) = "Infer.TypeSignatureSubsumptionError"
-  name (ValueUsedAsType _ _)                                = "Infer.ValueUsedAsType"
-  name (TypeIsNotAnExpression _ _)                          = "Infer.TypeIsNotAnExpression"
-  name (InvalidTypeInRecordInitializer _ _)                 = "Infer.InvalidTypeInRecordInitializer"
-  name (RecordInitializerFieldCountMismatch _ _ _)          = "Infer.RecordInitializerFieldCountMismatch"
+  name ValueUsedAsType{}                                = "Infer.ValueUsedAsType"
+  name TypeIsNotAnExpression{}                          = "Infer.TypeIsNotAnExpression"
 
   header (UnificationError e) s                             = header e s
   header (InvalidPackageReference _ p) s = text "Invalid reference to package" <+> code s (pp p)
@@ -32,7 +29,7 @@ instance OdenOutput TypeError where
   header (MemberNotInPackage _ p m) s = code s (pp m) <+> text "is not a member of package" <+> code s (pp p)
   header (ArgumentCountMismatch _ as ps) _ | length as > length ps =
     text "Function is applied to too few arguments"
-  header (ArgumentCountMismatch _ _ _) _ =
+  header ArgumentCountMismatch{} _ =
     text "Function is applied to too many arguments"
   header (TypeSignatureSubsumptionError n SubsumptionError{}) s =
     text "Type signature for" <+> code s (pp n)
@@ -43,16 +40,12 @@ instance OdenOutput TypeError where
   header (TypeIsNotAnExpression _ n) s =
     text "The type" <+> code s (pp n)
     <+> text "is not an expression"
-  header (InvalidTypeInRecordInitializer _ t) s =
-    text "Type" <+> code s (pp t) <+> text "cannot be initialized as a struct"
-  header (RecordInitializerFieldCountMismatch _ _ _) _ =
-    text "Record is initialized with too many values"
 
   details (UnificationError e) s = details e s
-  details (InvalidPackageReference _ _) _ = text "Packages cannot be referenced as values"
-  details (NotInScope _ _) _ = empty
-  details (PackageNotInScope _ _) _ = empty
-  details (MemberNotInPackage _ _ _) _ = empty
+  details InvalidPackageReference{} _ = text "Packages cannot be referenced as values"
+  details NotInScope{} _ = empty
+  details PackageNotInScope{} _ = empty
+  details MemberNotInPackage{} _ = empty
   details (ArgumentCountMismatch _ as1 as2) s =
     text "Expected:" <+> vcat (map (code s . pp) as1)
     $+$ text "Actual:" <+> vcat (map (code s . pp) as2)
@@ -61,12 +54,6 @@ instance OdenOutput TypeError where
     text "Type" <+> code s (pp t1) <+> text "does not subsume" <+> code s (pp t2)
   details ValueUsedAsType{} _ = empty
   details TypeIsNotAnExpression{} _ = empty
-  details (InvalidTypeInRecordInitializer _ t@TNamed{}) s =
-    code s (pp t) <+> text "is a type alias for" <+> code s (pp (underlying t))
-  details InvalidTypeInRecordInitializer{} _ = empty
-  details (RecordInitializerFieldCountMismatch _ structType types) s =
-    text "Record:" <+> (code s (pp structType))
-    $+$ text "Initialized with:" <+> vcat (map (code s . pp) types)
 
   sourceInfo (UnificationError e)                                        = sourceInfo e
   sourceInfo (ArgumentCountMismatch e _ _)                               = Just (getSourceInfo e)
@@ -77,5 +64,3 @@ instance OdenOutput TypeError where
   sourceInfo (TypeSignatureSubsumptionError _ (SubsumptionError si _ _)) = Just si
   sourceInfo (ValueUsedAsType si _)                                      = Just si
   sourceInfo (TypeIsNotAnExpression si _)                                = Just si
-  sourceInfo (InvalidTypeInRecordInitializer si _)                       = Just si
-  sourceInfo (RecordInitializerFieldCountMismatch si _ _)                = Just si

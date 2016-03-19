@@ -29,9 +29,9 @@ instance Pretty Untyped.NameBinding where
   pp (Untyped.NameBinding _ identifier) = pp identifier
 
 instance Pretty Untyped.Range where
-  pp (Untyped.Range e1 e2) = brackets $ pp e1 <+> (text ":") <+> pp e2
-  pp (Untyped.RangeTo e) = brackets $ (text ":") <+> pp e
-  pp (Untyped.RangeFrom e) = brackets $ pp e <+> (text ":")
+  pp (Untyped.Range e1 e2) = brackets $ pp e1 <+> text ":" <+> pp e2
+  pp (Untyped.RangeTo e) = brackets $ text ":" <+> pp e
+  pp (Untyped.RangeFrom e) = brackets $ pp e <+> text ":"
 
 instance Pretty Untyped.FieldInitializer where
   pp (Untyped.FieldInitializer _ label expr) = pp label <+> text "=" <+> pp expr

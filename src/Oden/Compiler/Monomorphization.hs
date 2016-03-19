@@ -106,7 +106,7 @@ getMonomorphicIn env ident t = do
         Nothing -> instantiateDefinition key sc pe
     Definition (Core.Definition _ pn _) -> return pn
     -- Types cannot be referred to at this stage.
-    Definition (Core.TypeDefinition _ _ _ _) -> throwError $ NotInScope ident
+    Definition Core.TypeDefinition{} -> throwError $ NotInScope ident
     LetBinding (Core.NameBinding _ boundIdentifier) expr ->
       getMonomorphicLetBinding boundIdentifier t (Core.typeOf expr)
     FunctionArgument (Core.NameBinding _ boundIdentifier) ->
@@ -136,122 +136,138 @@ getMonoType e = toMonomorphic (Metadata $ getSourceInfo e) (Core.typeOf e)
 
 -- | Return a monomorphic version of a polymorphic expression.
 monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
-monomorph e@(Core.Symbol si ident _) = do
-  env <- ask
-  mt <- getMonoType e
-  m <- getMonomorphicIn env ident mt
-  return (Core.Symbol si m mt)
-monomorph e@(Core.Subscript si s i _) = do
-  mt <- getMonoType e
-  ms <- monomorph s
-  mi <- monomorph i
-  return (Core.Subscript si ms mi mt)
-monomorph e@(Core.Subslice si s (Core.Range e1 e2) _) = do
-  mt <- getMonoType e
-  ms <- monomorph s
-  me1 <- monomorph e1
-  me2 <- monomorph e2
-  return (Core.Subslice si ms (Core.Range me1 me2) mt)
-monomorph e@(Core.Subslice si s (Core.RangeTo i) _) = do
-  mt <- getMonoType e
-  ms <- monomorph s
-  mi <- monomorph i
-  return (Core.Subslice si ms (Core.RangeTo mi) mt)
-monomorph e@(Core.Subslice si s (Core.RangeFrom i) _) = do
-  mt <- getMonoType e
-  ms <- monomorph s
-  mi <- monomorph i
-  return (Core.Subslice si ms (Core.RangeFrom mi) mt)
-monomorph e@(Core.UnaryOp si o e1 _) = do
-  mt <- getMonoType e
-  me <- monomorph e1
-  return (Core.UnaryOp si o me mt)
-monomorph e@(Core.BinaryOp si o e1 e2 _) = do
-  mt <- getMonoType e
-  me1 <- monomorph e1
-  me2 <- monomorph e2
-  return (Core.BinaryOp si o me1 me2 mt)
-monomorph e@(Core.Application si f p _) = do
-  mt <- getMonoType e
-  mf <- monomorph f
-  mp <- monomorph p
-  return (Core.Application si mf mp mt)
-monomorph e@(Core.NoArgApplication si f _) = do
-  mt <- getMonoType e
-  mf <- monomorph f
-  return (Core.NoArgApplication si mf mt)
-monomorph e@(Core.UncurriedFnApplication si f ps _) = do
-  mt <- getMonoType e
-  mf <- monomorph f
-  mps <- mapM monomorph ps
-  return (Core.UncurriedFnApplication si mf mps mt)
-monomorph e@(Core.Fn si param@(Core.NameBinding _ identifier) b _) = do
-  mt <- getMonoType e
-  mb <- withIdentifier identifier (FunctionArgument param) (monomorph b)
-  return (Core.Fn si param mb mt)
-monomorph e@(Core.NoArgFn si b _) = do
-  mt <- getMonoType e
-  mb <- monomorph b
-  return (Core.NoArgFn si mb mt)
-monomorph e@(Core.Slice si es _) = do
-  mt <- getMonoType e
-  mes <- mapM monomorph es
-  return (Core.Slice si mes mt)
-monomorph e@(Core.Block si es _) = do
-  mt <- getMonoType e
-  mes <- mapM monomorph es
-  return (Core.Block si mes mt)
-monomorph e@(Core.Literal si l _) = do
-  mt <- getMonoType e
-  return (Core.Literal si l mt)
-monomorph e@(Core.Tuple si f s r _) = do
-  mt <- getMonoType e
-  mf <- monomorph f
-  ms <- monomorph s
-  mr <- mapM monomorph r
-  return (Core.Tuple si mf ms mr mt)
-monomorph e@(Core.If si cond then' else' _) = do
-  mt <- getMonoType e
-  mCond <- monomorph cond
-  mThen <- monomorph then'
-  mElse <- monomorph else'
-  return (Core.If si mCond mThen mElse mt)
-monomorph (Core.Let si b@(Core.NameBinding bsi identifier) expr body _) = do
-  (mBody, allRefs) <- listen (withIdentifier identifier (LetBinding b expr) (monomorph body))
-  let (refs, other) = Map.partition (isReferenceTo b) allRefs
-  tell other
-  insts <- mapM (monomorphReference expr si bsi) (Map.elems refs)
-  return (unwrapLetInstances insts mBody)
-  where
-  isReferenceTo :: Core.NameBinding -> LetReference -> Bool
-  isReferenceTo (Core.NameBinding _ identifier') (LetReference letted _ _) =
-    identifier' == letted
-monomorph e@(Core.RecordInitializer si _ fields) = do
-  monoType <- getMonoType e
-  monoFields <- mapM monomorphField fields
-  return (Core.RecordInitializer si monoType monoFields)
-  where
-  monomorphField (Core.FieldInitializer fsi label expr) =
-    Core.FieldInitializer fsi label <$> monomorph expr
-monomorph e@(Core.RecordFieldAccess si expr name _) = do
-  monoType <- getMonoType e
-  monoExpr <- monomorph expr
-  return (Core.RecordFieldAccess si monoExpr name monoType)
-monomorph (Core.PackageMemberAccess si pkgAlias name polyType) = do
-  env <- ask
-  monoType <- toMonomorphic si polyType
-  binding <- lookupIn env pkgAlias
-  case binding of
-    Package _ _ pkgEnv -> do
-      m <- getMonomorphicIn pkgEnv name monoType
-      return (Core.PackageMemberAccess si pkgAlias m monoType)
-    _ -> error "cannot access member in non-existing package"
+monomorph e = case e of
+  Core.Symbol si ident _ -> do
+    env <- ask
+    mt <- getMonoType e
+    m <- getMonomorphicIn env ident mt
+    return (Core.Symbol si m mt)
+
+  Core.Subscript sourceInfo sliceExpr indexExpr polyType ->
+    Core.Subscript sourceInfo <$> monomorph sliceExpr
+                              <*> monomorph indexExpr
+                              <*> toMonomorphic sourceInfo polyType
+
+  Core.Subslice sourceInfo sliceExpr (Core.Range lowerExpr upperExpr) polyType ->
+    Core.Subslice sourceInfo <$> monomorph sliceExpr
+                             <*> (Core.Range <$> monomorph lowerExpr <*> monomorph upperExpr)
+                             <*> toMonomorphic sourceInfo polyType
+
+  Core.Subslice sourceInfo sliceExpr (Core.RangeTo indexExpr) polyType ->
+    Core.Subslice sourceInfo <$> monomorph sliceExpr
+                             <*> (Core.RangeTo <$> monomorph indexExpr)
+                             <*> toMonomorphic sourceInfo polyType
+
+  Core.Subslice sourceInfo sliceExpr (Core.RangeFrom indexExpr) polyType ->
+    Core.Subslice sourceInfo <$> monomorph sliceExpr
+                             <*> (Core.RangeFrom <$> monomorph indexExpr)
+                             <*> toMonomorphic sourceInfo polyType
+
+  Core.UnaryOp si o e1 _ -> do
+    mt <- getMonoType e
+    me <- monomorph e1
+    return (Core.UnaryOp si o me mt)
+
+  Core.BinaryOp si o e1 e2 _ -> do
+    mt <- getMonoType e
+    me1 <- monomorph e1
+    me2 <- monomorph e2
+    return (Core.BinaryOp si o me1 me2 mt)
+
+  Core.Application si f p _ -> do
+    mt <- getMonoType e
+    mf <- monomorph f
+    mp <- monomorph p
+    return (Core.Application si mf mp mt)
+
+  Core.NoArgApplication si f _ -> do
+    mt <- getMonoType e
+    mf <- monomorph f
+    return (Core.NoArgApplication si mf mt)
+
+  Core.UncurriedFnApplication si f ps _ -> do
+    mt <- getMonoType e
+    mf <- monomorph f
+    mps <- mapM monomorph ps
+    return (Core.UncurriedFnApplication si mf mps mt)
+
+  Core.Fn si param@(Core.NameBinding _ identifier) b _ -> do
+    mt <- getMonoType e
+    mb <- withIdentifier identifier (FunctionArgument param) (monomorph b)
+    return (Core.Fn si param mb mt)
+
+  Core.NoArgFn si b _ -> do
+    mt <- getMonoType e
+    mb <- monomorph b
+    return (Core.NoArgFn si mb mt)
+
+  Core.Slice si es _ -> do
+    mt <- getMonoType e
+    mes <- mapM monomorph es
+    return (Core.Slice si mes mt)
+
+  Core.Block si es _ -> do
+    mt <- getMonoType e
+    mes <- mapM monomorph es
+    return (Core.Block si mes mt)
+
+  Core.Literal si l _ -> do
+    mt <- getMonoType e
+    return (Core.Literal si l mt)
+
+  Core.Tuple si f s r _ -> do
+    mt <- getMonoType e
+    mf <- monomorph f
+    ms <- monomorph s
+    mr <- mapM monomorph r
+    return (Core.Tuple si mf ms mr mt)
+
+  Core.If si cond then' else' _ -> do
+    mt <- getMonoType e
+    mCond <- monomorph cond
+    mThen <- monomorph then'
+    mElse <- monomorph else'
+    return (Core.If si mCond mThen mElse mt)
+
+  Core.Let si b@(Core.NameBinding bsi identifier) expr body _ -> do
+    (mBody, allRefs) <- listen (withIdentifier identifier (LetBinding b expr) (monomorph body))
+    let (refs, other) = Map.partition (isReferenceTo b) allRefs
+    tell other
+    insts <- mapM (monomorphReference expr si bsi) (Map.elems refs)
+    return (unwrapLetInstances insts mBody)
+    where
+    isReferenceTo :: Core.NameBinding -> LetReference -> Bool
+    isReferenceTo (Core.NameBinding _ identifier') (LetReference letted _ _) =
+      identifier' == letted
+
+  Core.RecordInitializer si _ fields -> do
+    monoType <- getMonoType e
+    monoFields <- mapM monomorphField fields
+    return (Core.RecordInitializer si monoType monoFields)
+    where
+    monomorphField (Core.FieldInitializer fsi label expr) =
+      Core.FieldInitializer fsi label <$> monomorph expr
+
+  Core.RecordFieldAccess si expr name _ -> do
+    monoType <- getMonoType e
+    monoExpr <- monomorph expr
+    return (Core.RecordFieldAccess si monoExpr name monoType)
+
+  Core.PackageMemberAccess si pkgAlias name polyType -> do
+    env <- ask
+    monoType <- toMonomorphic si polyType
+    binding <- lookupIn env pkgAlias
+    case binding of
+      Package _ _ pkgEnv -> do
+        m <- getMonomorphicIn pkgEnv name monoType
+        return (Core.PackageMemberAccess si pkgAlias m monoType)
+      _ -> error "cannot access member in non-existing package"
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
 monomorphReference :: Core.Expr Poly.Type
-                   -> (Metadata SourceInfo) -- Let expression source info.
-                   -> (Metadata SourceInfo) -- Let binding source info.
+                   -> Metadata SourceInfo -- Let expression source info.
+                   -> Metadata SourceInfo -- Let binding source info.
                    -> LetReference
                    -> Monomorph LetInstance
 

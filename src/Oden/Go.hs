@@ -138,10 +138,6 @@ convertType (Signature False Nothing args _) = do
   as <- mapM convertType args
   Right (Poly.TUncurriedFn missing as typeUnit)
 convertType (Signature True Nothing [] []) = Left "Variadic functions with no arguments"
-convertType (Signature True Nothing args []) = do
-  as <- mapM convertType (init args)
-  v <- convertType (last args)
-  Right (Poly.TVariadicFn missing as v typeUnit)
 convertType (Signature True Nothing args [ret]) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)

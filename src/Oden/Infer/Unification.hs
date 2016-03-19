@@ -103,7 +103,7 @@ unifies si r1@RExtension{} r2@RExtension{} = do
   return $ foldl1 compose (leafSubst : substs)
 
   where
-  unifyFieldsWithLeaf fields leaf = unifies si (rowFromList $ Map.assocs fields) leaf
+  unifyFieldsWithLeaf fields = unifies si (rowFromList $ Map.assocs fields)
 
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2
 

@@ -15,7 +15,7 @@ data SignatureExpr s = TSUnit s
                      | TSApp s (SignatureExpr s) (SignatureExpr s)
                      | TSFn s (SignatureExpr s) (SignatureExpr s)
                      | TSNoArgFn s (SignatureExpr s)
-                     | TSTuple s (SignatureExpr s) (SignatureExpr s) [(SignatureExpr s)]
+                     | TSTuple s (SignatureExpr s) (SignatureExpr s) [SignatureExpr s]
                      | TSSlice s (SignatureExpr s)
                      | TSRowEmpty s
                      | TSRowExtension s Identifier (SignatureExpr s) (SignatureExpr s)

@@ -84,8 +84,6 @@ data TypeError
   | InvalidPackageReference SourceInfo Identifier
   | ValueUsedAsType SourceInfo Identifier
   | TypeIsNotAnExpression SourceInfo Identifier
-  | InvalidTypeInRecordInitializer SourceInfo Type
-  | RecordInitializerFieldCountMismatch SourceInfo Type [Type]
   deriving (Show, Eq)
 
 -- | Run the inference monad.
@@ -132,7 +130,7 @@ lookupTypeIn env (Metadata si) identifier =
   case Environment.lookup identifier env of
     Nothing                     -> throwError $ NotInScope si identifier
     Just Package{}              -> throwError $ InvalidPackageReference si identifier
-    Just (Local _ _ _)          -> throwError $ ValueUsedAsType si identifier
+    Just Local{}                -> throwError $ ValueUsedAsType si identifier
     Just (Type _ _ _ t)         -> return t
     Just (QuantifiedType _ _ t) -> return t
 
@@ -165,7 +163,7 @@ fresh :: Metadata SourceInfo -> Infer Type
 fresh si = do
     s <- get
     put s{count = count s + 1}
-    return $ TVar si (TV ("_t" ++ (show $ count s)))
+    return $ TVar si (TV ("_t" ++ show (count s)))
 
 -- | Create a type based on scheme but with all fresh type variables.
 instantiate :: Scheme -> Infer Type
@@ -207,31 +205,28 @@ infer expr = case expr of
     uni (getSourceInfo it) (Core.typeOf it) (TCon si (nameInUniverse "int"))
     return (Core.Subscript si st it tv)
 
-  Untyped.Subslice si s (Untyped.Range e1 e2) -> do
-    st <- infer s
-    e1t <- infer e1
-    e2t <- infer e2
-    tv <- fresh si
-    uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
-    uni (getSourceInfo e1t) (Core.typeOf e1t) (universeType si "int")
-    uni (getSourceInfo e2t) (Core.typeOf e2t) (universeType si "int")
-    return (Core.Subslice si st (Core.Range e1t e2t) (TSlice si tv))
+  Untyped.Subslice si s range ->
+    case range of
+      (Untyped.Range lowerExpr upperExpr) -> do
+        st <- infer s
+        lowerExprTyped <- infer lowerExpr
+        upperExprTyped <- infer upperExpr
+        tv <- fresh si
+        uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
+        uni (getSourceInfo upperExprTyped) (Core.typeOf lowerExprTyped) (universeType si "int")
+        uni (getSourceInfo upperExprTyped) (Core.typeOf upperExprTyped) (universeType si "int")
+        return (Core.Subslice si st (Core.Range lowerExprTyped upperExprTyped) (TSlice si tv))
+      (Untyped.RangeTo upperExpr) -> inferUnboundedRange Core.RangeTo upperExpr
+      (Untyped.RangeFrom lowerExpr) -> inferUnboundedRange Core.RangeFrom lowerExpr
 
-  Untyped.Subslice si s (Untyped.RangeTo e) -> do
-    st <- infer s
-    et <- infer e
-    tv <- fresh si
-    uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
-    uni (getSourceInfo et) (Core.typeOf et) (universeType si "int")
-    return (Core.Subslice si st (Core.RangeTo et) (TSlice si tv))
-
-  Untyped.Subslice si s (Untyped.RangeFrom e) -> do
-    st <- infer s
-    et <- infer e
-    tv <- fresh si
-    uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
-    uni (getSourceInfo et) (Core.typeOf et) (universeType si "int")
-    return (Core.Subslice si st (Core.RangeFrom et) (TSlice si tv))
+    where
+    inferUnboundedRange f boundExpr = do
+      st <- infer s
+      boundExprTyped <- infer boundExpr
+      tv <- fresh si
+      uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
+      uni (getSourceInfo boundExprTyped) (Core.typeOf boundExprTyped) (universeType si "int")
+      return (Core.Subslice si st (f boundExprTyped) (TSlice si tv))
 
   Untyped.UnaryOp si o e -> do
     rt <- case o of

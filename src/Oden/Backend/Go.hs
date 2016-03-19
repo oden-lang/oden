@@ -155,8 +155,8 @@ codegenType (Mono.TNamed _ _ t) = codegenType t
 codegenType Mono.REmpty{} = return $ text "struct{}"
 codegenType row@Mono.RExtension{} = do
   let fields = sortOn fst (Mono.rowToList row)
-  (text "struct" <>) . block . vcat <$> (mapM codegenField fields)
-  where codegenField ((Identifier name), t) = do
+  (text "struct" <>) . block . vcat <$> mapM codegenField fields
+  where codegenField (Identifier name, t) = do
           tc <- codegenType t
           return $ safeName name <+> tc
 
@@ -196,7 +196,7 @@ codegenRange (RangeTo e) = do
   return $ brackets $ text ":" <+> ec
 codegenRange (RangeFrom e) = do
   ec <- codegenExpr e
-  return $ brackets $ ec <+> (text ":")
+  return $ brackets $ ec <+> text ":"
 
 codegenFieldInitializer :: FieldInitializer Mono.Type -> Codegen Doc
 codegenFieldInitializer (FieldInitializer _ label expr) = do
@@ -255,7 +255,7 @@ codegenExpr (Literal _ (Bool False) _) = return $ text "false"
 codegenExpr (Literal _ (String s) _) = return $ text (showGoString s)
 codegenExpr (Literal _ Unit{} _) = return $ text "struct{}{}"
 codegenExpr (Tuple _ f s r t) =
-  (<>) <$> codegenType t <*> (braces . hcat . punctuate (comma <+> space) <$> (mapM codegenExpr (f:s:r)))
+  (<>) <$> codegenType t <*> (braces . hcat . punctuate (comma <+> space) <$> mapM codegenExpr (f:s:r))
 codegenExpr (If _ condExpr thenExpr elseExpr t) = do
   tc <- codegenType t
   condc <- codegenExpr condExpr
@@ -264,7 +264,7 @@ codegenExpr (If _ condExpr thenExpr elseExpr t) = do
   return $ parens (func empty empty tc (braces (text "if" <+> condc <+> thenc <+> text "else" <+> elsec)))
            <> parens empty
 codegenExpr (Slice _ exprs t) =
-  (<>) <$> codegenType t <*> (braces . hcat . punctuate (comma <+> space) <$> (mapM codegenExpr exprs))
+  (<>) <$> codegenType t <*> (braces . hcat . punctuate (comma <+> space) <$> mapM codegenExpr exprs)
 codegenExpr (Block _ [] t) = do
   tc <- codegenType t
   return $ parens
@@ -309,9 +309,9 @@ codegenInstance :: InstantiatedDefinition -> Codegen Doc
 codegenInstance (InstantiatedDefinition (Identifier defName) si (Identifier name) expr) = do
   let comment = text "/*"
                 $+$ text "Name:" <+> text defName
-                $+$ text "Defined at:" <+> (text $ show $ getSourceInfo expr)
-                $+$ text "Instantiated with type:" <+> (pp $ typeOf expr)
-                $+$ text "Instantiated at:" <+> (text $ show $ unwrap si)
+                $+$ text "Defined at:" <+> text (show $ getSourceInfo expr)
+                $+$ text "Instantiated with type:" <+> pp (typeOf expr)
+                $+$ text "Instantiated at:" <+> text (show $ unwrap si)
                 $+$ text "*/"
   (comment $+$) <$> codegenTopLevel name (typeOf expr) expr
 
@@ -326,7 +326,7 @@ codegenImport (ImportedPackage _ identifier (Package (PackageDeclaration _ pkgNa
 
 codegenPackage :: MonomorphedPackage -> Codegen Doc
 codegenPackage (MonomorphedPackage (PackageDeclaration _ name) imports is ms) = do
-  importsCode <- (mapM codegenImport imports)
+  importsCode <- mapM codegenImport imports
   isc <- mapM codegenInstance (Set.toList is)
   msc <- mapM codegenMonomorphed (Set.toList ms)
   return $ text "package" <+> text (last name)
