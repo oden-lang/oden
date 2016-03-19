@@ -8,7 +8,11 @@ if [ -z $command ]; then
 fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 ODEN=$DIR/../dist/build/cli/cli
+if ! `which $ODEN` ; then
+  ODEN=$DIR/../dist/oden/bin/oden
+fi
 
 cd $DIR
 tests=$(find src -name *.oden)
@@ -22,8 +26,8 @@ print_err() {
 }
 
 for test in $tests; do
-  tmp_oden_path=$(mktemp -d -t oden)
-  tmp_go_path=$(mktemp -d -t oden_out)
+  tmp_oden_path=$(mktemp -d -t oden.XXXXXXXXXX)
+  tmp_go_path=$(mktemp -d -t oden_out.XXXXXXXXXX)
   tmp_src_file=$tmp_oden_path/$test
 
   mkdir -p $(dirname $tmp_src_file)
@@ -32,7 +36,7 @@ for test in $tests; do
   oden_out=$($ODEN -p$tmp_oden_path -o$tmp_go_path build 2>&1)
   oden_return=$?
 
-  go_out_file=$()$(mktemp -t go_out)
+  go_out_file=$()$(mktemp -t go_out.XXXXXXXXXX)
   GOPATH=$tmp_go_path go run $(find $tmp_go_path -name *.go) > $go_out_file 2>&1
   go_return=$?
 
