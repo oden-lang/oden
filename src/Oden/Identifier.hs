@@ -12,7 +12,7 @@ newtype Identifier = Identifier String deriving (Show, Eq, Ord)
 
 data IdentifierValidationError = Empty
                                | IllegalStart Char
-                               | IllegalCharacters [Char]
+                               | IllegalCharacters String
 
 errorMessage :: IdentifierValidationError -> String
 errorMessage Empty =

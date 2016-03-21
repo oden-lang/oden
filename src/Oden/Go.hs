@@ -17,12 +17,14 @@ import           Oden.Go.Types              as G
 import           Oden.Identifier
 import           Oden.Imports
 import           Oden.Metadata
+import           Oden.Predefined
 import           Oden.QualifiedName         (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
-import           Oden.Type.Basic
 
 import           Control.Applicative        hiding (Const)
+import           Control.Monad
+
 import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.ByteString.Lazy.Char8 (pack)
@@ -113,10 +115,10 @@ missing = Metadata Missing
 convertType :: G.Type -> Either String Poly.Type
 -- TODO: Add "Untyped constant" concept in Oden type system
 -- and/or consider how macros would relate to this.
-convertType (Basic "bool" False) = return (Poly.TBasic missing TBool)
-convertType (Basic "int" False) = return (Poly.TBasic missing TInt)
-convertType (Basic "rune" False) = return (Poly.TBasic missing TInt)
-convertType (Basic "string" False) = return (Poly.TBasic missing TString)
+convertType (Basic "bool" False) = return typeBool
+convertType (Basic "int" False) = return typeInt
+convertType (Basic "rune" False) = return typeInt
+convertType (Basic "string" False) = return typeString
 convertType (Basic "nil" False) = Left "nil constants"
 convertType (Basic n False) = Left ("Basic type: " ++ n)
 convertType (Basic n True) = Left ("Basic untyped: " ++ n)
@@ -127,19 +129,15 @@ convertType Interface{} = Right $ Poly.TAny missing
 convertType (Signature _ (Just _) _ _) = Left "Methods (functions with receivers)"
 convertType (Signature False Nothing args []) = do
   as <- mapM convertType args
-  Right (Poly.TUncurriedFn missing as (Poly.TUnit missing))
+  Right (Poly.TUncurriedFn missing as typeUnit)
 convertType (Signature False Nothing args [ret]) = do
   as <- mapM convertType args
   r <- convertType ret
   Right (Poly.TUncurriedFn missing as r)
 convertType (Signature False Nothing args _) = do
   as <- mapM convertType args
-  Right (Poly.TUncurriedFn missing as (Poly.TUnit missing))
+  Right (Poly.TUncurriedFn missing as typeUnit)
 convertType (Signature True Nothing [] []) = Left "Variadic functions with no arguments"
-convertType (Signature True Nothing args []) = do
-  as <- mapM convertType (init args)
-  v <- convertType (last args)
-  Right (Poly.TVariadicFn missing as v (Poly.TUnit missing))
 convertType (Signature True Nothing args [ret]) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
@@ -148,19 +146,17 @@ convertType (Signature True Nothing args [ret]) = do
 convertType (Signature True Nothing args _) = do
   as <- mapM convertType (init args)
   v <- convertType (last args)
-  Right (Poly.TVariadicFn missing as v (Poly.TUnit missing))
+  Right (Poly.TVariadicFn missing as v typeUnit)
 -- convertType (Signature _ Nothing _ _) = Left "Functions with multiple return values"
-convertType (Named pkgName n (Struct fields)) = do
-  fields' <- mapM convertField fields
-  return (Poly.TNamed missing (FQN pkgName (Identifier n)) (Poly.TStruct missing fields'))
-  where
-  convertField (StructField name goType) = Poly.TStructField missing (Identifier name) <$> convertType goType
+convertType (Named pkgName n t@Struct{}) =
+  Poly.TNamed missing (FQN pkgName (Identifier n)) <$> convertType t
 convertType (Named _ _ t) = convertType t
 convertType (Struct fields) = do
-  fields' <- mapM convertStructField fields
-  return (Poly.TStruct missing fields')
+  fields' <- foldM convertField (Poly.REmpty (Metadata Missing)) fields
+  return (Poly.TRecord missing fields')
   where
-  convertStructField (StructField fieldName goType) = Poly.TStructField missing (Identifier fieldName) <$> convertType goType
+  convertField row (StructField name goType) =
+    Poly.RExtension missing (Identifier name) <$> convertType goType <*> return row
 convertType (Unsupported n) = Left n
 
 objectsToPackage :: Core.PackageName

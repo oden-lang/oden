@@ -7,10 +7,10 @@ import           Oden.Compiler.Monomorphization
 import qualified Oden.Core             as Core
 import           Oden.Identifier
 import           Oden.Metadata
+import           Oden.QualifiedName
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
-import           Oden.Type.Basic
 
 import           Oden.Assertions
 
@@ -26,11 +26,11 @@ tvA = Poly.TV "a"
 a :: Poly.Type
 a = Poly.TVar missing tvA
 
-typeInt = Poly.TBasic missing TInt
-typeBool = Poly.TBasic missing TBool
+typeInt = Poly.TCon missing (nameInUniverse "int")
+typeBool = Poly.TCon missing (nameInUniverse "bool")
 
-monoInt = Mono.TBasic missing TInt
-monoBool = Mono.TBasic missing TBool
+monoInt = Mono.TCon missing (nameInUniverse "int")
+monoBool = Mono.TCon missing (nameInUniverse "bool")
 
 identityDef :: Core.Definition
 identityDef =
@@ -175,7 +175,7 @@ sliceLenMonomorphed =
     (Core.UncurriedFnApplication
      missing
      (Core.Symbol missing (Identifier "len") (Mono.TUncurriedFn missing [Mono.TSlice missing monoBool] monoInt))
-     [Core.Slice missing [Core.Literal missing (Core.Bool True) monoBool] (Mono.TSlice missing (Mono.TBasic missing TBool))]
+     [Core.Slice missing [Core.Literal missing (Core.Bool True) monoBool] (Mono.TSlice missing monoBool)]
      monoInt)
 
 letWithShadowing :: Core.Definition

@@ -2,7 +2,6 @@
 
 module Oden.Parser where
 
-import           Control.Monad (void)
 import qualified Data.Text.Lazy        as L
 import           Text.Parsec
 import           Text.Parsec.Text.Lazy (Parser)
@@ -112,12 +111,16 @@ let' = do
   body <- expr
   return (Let si bindings body)
 
-structInitializer :: Parser Expr
-structInitializer = do
+fieldInitializer :: Parser FieldInitializer
+fieldInitializer = FieldInitializer <$> currentSourceInfo
+                                    <*> identifier
+                                    <*> (reservedOp "=" *> expr)
+
+recordInitializer :: Parser Expr
+recordInitializer = do
   si <- currentSourceInfo
-  t <- type'
-  args <- bracesList expr
-  return (StructInitializer si t args)
+  fields <- bracesList fieldInitializer
+  return (RecordInitializer si fields)
 
 emptyBrackets :: Parser ()
 emptyBrackets = do
@@ -150,7 +153,7 @@ termNoSlice =
   <|> slice
   <|> bool
   <|> try number
-  <|> try structInitializer
+  <|> try recordInitializer
   <|> symbol
   <|> block
   <|> unitExprOrTuple
@@ -187,7 +190,7 @@ type' = do
         <|> noArgFn
         <|> identified TSSymbol
         <|> unitExprOrTupleType
-        <|> structType
+        <|> recordType
   noArgFn = TSNoArgFn <$> currentSourceInfo <*> (rArrow *> type')
   unitExprOrTupleType = do
     si <- currentSourceInfo
@@ -198,17 +201,18 @@ type' = do
       (f:s:r) -> return (TSTuple si f s r)
   slice' = TSSlice <$> currentSourceInfo
                    <*> (emptyBrackets *> braces type')
-  structType = TSStruct <$> currentSourceInfo
-                        <*> braces (structFieldType `sepBy1` structFieldSeparator)
-  structFieldType = do
+  recordType :: Parser (SignatureExpr SourceInfo)
+  recordType = do
     si <- currentSourceInfo
-    n <- identifier
-    TSStructField si n <$> type'
-
-  structFieldSeparator = do
-    spaces
-    optional (comma <|> void newline)
-    whitespace
+    braces $ do
+      fields <- recordFieldType `sepBy1` comma
+      leaf <- try (pipe *> type') <|> return (TSRowEmpty si)
+      return $ TSRecord si (foldr ($) leaf fields)
+  recordFieldType :: Parser (SignatureExpr SourceInfo -> SignatureExpr SourceInfo)
+  recordFieldType =
+    TSRowExtension <$> currentSourceInfo
+                   <*> identifier
+                   <*> (reservedOp ":" *> type')
 
 expr :: Parser Expr
 expr = Ex.buildExpressionParser table subscriptExpr

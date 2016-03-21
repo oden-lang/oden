@@ -6,6 +6,7 @@ module Oden.Compiler.Instantiate (
 
 import           Control.Monad.Except
 import           Control.Monad.State
+
 import qualified Data.Map              as Map hiding (foldl)
 
 import qualified Oden.Core             as Core
@@ -23,30 +24,22 @@ type Instantiate a = StateT Substitutions (Except InstantiateError) a
 
 monoToPoly :: Mono.Type -> Poly.Type
 monoToPoly (Mono.TAny si) = Poly.TAny si
-monoToPoly (Mono.TUnit si) = Poly.TUnit si
-monoToPoly (Mono.TBasic si b) = Poly.TBasic si b
 monoToPoly (Mono.TTuple si f s r) = Poly.TTuple si (monoToPoly f) (monoToPoly s) (map monoToPoly r)
-monoToPoly (Mono.TCon si d r) = Poly.TCon si (monoToPoly d) (monoToPoly r)
+monoToPoly (Mono.TCon si n) = Poly.TCon si n
 monoToPoly (Mono.TNoArgFn si f) = Poly.TNoArgFn si (monoToPoly f)
 monoToPoly (Mono.TFn si f p) = Poly.TFn si (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TUncurriedFn si as r) = Poly.TUncurriedFn si (map monoToPoly as) (monoToPoly r)
 monoToPoly (Mono.TVariadicFn si as v r) = Poly.TVariadicFn si (map monoToPoly as) (monoToPoly v) (monoToPoly r)
 monoToPoly (Mono.TSlice si t) = Poly.TSlice si (monoToPoly t)
-monoToPoly (Mono.TStruct si fs) = Poly.TStruct si (map fieldMonoToPoly fs)
-  where fieldMonoToPoly (Mono.TStructField si' n mt) =
-          Poly.TStructField si' n (monoToPoly mt)
+monoToPoly (Mono.TRecord si row) = Poly.TRecord si (monoToPoly row)
 monoToPoly (Mono.TNamed si n t) = Poly.TNamed si n (monoToPoly t)
+monoToPoly (Mono.REmpty si) = Poly.REmpty si
+monoToPoly (Mono.RExtension si label polyType row) =
+  Poly.RExtension si label (monoToPoly polyType) (monoToPoly row)
 
 getSubstitutions :: Poly.Type -> Mono.Type -> Either InstantiateError Substitutions
-getSubstitutions Poly.TUnit{} Mono.TUnit{} = return Map.empty
-getSubstitutions p@(Poly.TBasic _ pb) m@(Mono.TBasic _ mb) =
-  if pb == mb
-  then Right Map.empty
-  else Left (TypeMismatch (getSourceInfo m) p m)
-getSubstitutions (Poly.TCon _ pd pr) (Mono.TCon _ md mr) = do
-  ds <- getSubstitutions pd md
-  rs <- getSubstitutions pr mr
-  return (ds `mappend` rs)
+getSubstitutions (Poly.TCon _ pn) (Mono.TCon _ mn)
+  | pn == mn = Right Map.empty
 getSubstitutions (Poly.TNoArgFn _ pf) (Mono.TNoArgFn _ mf) =
   getSubstitutions pf mf
 getSubstitutions (Poly.TFn _ pf pp) (Mono.TFn _ mf mp) = do
@@ -70,17 +63,38 @@ getSubstitutions (Poly.TTuple _ pf ps pr) (Mono.TTuple _ mf ms mr) = do
   return (foldl mappend f (s:r))
 getSubstitutions (Poly.TSlice _ p) (Mono.TSlice _ m) =
   getSubstitutions p m
-getSubstitutions (Poly.TStruct _ polyFields) (Mono.TStruct _ monoFields) =
-  foldM getFieldSubstitutions Map.empty (zip polyFields monoFields)
-  where
-  getFieldSubstitutions subst (Poly.TStructField _ _ pt, Mono.TStructField _ _ mt) =
-    (subst `mappend`) <$> getSubstitutions pt mt
-getSubstitutions poly mono = Left (TypeMismatch (getSourceInfo mono) poly mono)
+
+getSubstitutions (Poly.TRecord _ polyRow) (Mono.TRecord _ monoRow) =
+  getSubstitutions polyRow monoRow
+
+getSubstitutions polyRow@(Poly.RExtension (Metadata _psi) _ _ _) monoRow@(Mono.RExtension (Metadata msi) _ _ _) = do
+
+  -- Extract the fields in each rows.
+  let polyFields = Map.fromList (Poly.rowToList polyRow)
+      monoFields = Map.fromList (Mono.rowToList monoRow)
+      onlyInPoly = polyFields `Map.difference` monoFields
+      onlyInMono = monoFields `Map.difference` polyFields
+
+  unless (Map.null onlyInPoly) $
+    throwError (TypeMismatch msi polyRow monoRow)
+
+  -- Get substitutions the common fields.
+  substs <- sequence (Map.elems (Map.intersectionWith getSubstitutions polyFields monoFields))
+
+  -- Retrieve leaf rows.
+  let polyLeaf = Poly.getLeafRow polyRow
+
+  -- Only the polymorphic leaf (possible a row variable) with the remaining
+  -- monomorphic fields.
+  leafSubst <- getSubstitutions polyLeaf (Mono.rowFromList $ Map.assocs onlyInMono)
+
+  return (foldl mappend leafSubst substs)
+
+getSubstitutions Poly.REmpty{} Mono.REmpty{} = return Map.empty
+getSubstitutions poly mono = throwError (TypeMismatch (getSourceInfo mono) poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
 replace (Poly.TAny si) = return (Poly.TAny si)
-replace (Poly.TUnit si) = return (Poly.TUnit si)
-replace (Poly.TBasic si b) = return (Poly.TBasic si b)
 replace (Poly.TTuple si f s r) =
   Poly.TTuple si <$> replace f <*> replace s <*> mapM replace r
 replace (Poly.TVar (Metadata si) v) = do
@@ -88,7 +102,7 @@ replace (Poly.TVar (Metadata si) v) = do
   case Map.lookup v s of
     Just mono -> return (setSourceInfo si mono)
     Nothing -> throwError (SubstitutionFailed si v (Map.keys s))
-replace (Poly.TCon si d r) = Poly.TCon si <$> replace d <*> replace r
+replace (Poly.TCon si n) = return (Poly.TCon si n)
 replace (Poly.TNoArgFn si t) = Poly.TNoArgFn si <$> replace t
 replace (Poly.TFn si ft pt) = Poly.TFn si <$> replace ft <*> replace pt
 replace (Poly.TUncurriedFn si ft pt) =
@@ -96,10 +110,17 @@ replace (Poly.TUncurriedFn si ft pt) =
 replace (Poly.TVariadicFn si ft vt pt) =
   Poly.TVariadicFn si <$> mapM replace ft <*> replace vt <*> replace pt
 replace (Poly.TSlice si t) = Poly.TSlice si <$> replace t
-replace (Poly.TStruct si fs) = Poly.TStruct si <$> mapM replaceField fs
-  where replaceField (Poly.TStructField si' n t) =
-          Poly.TStructField si' n <$> replace t
+replace (Poly.TRecord si r) = Poly.TRecord si <$> replace r
 replace (Poly.TNamed si n t) = Poly.TNamed si n <$> replace t
+replace (Poly.REmpty si) = return $ Poly.REmpty si
+replace (Poly.RExtension si label type' row) =
+  Poly.RExtension si label <$> replace type'
+                           <*> replace row
+
+instantiateField :: Core.FieldInitializer Poly.Type
+                -> Instantiate (Core.FieldInitializer Poly.Type)
+instantiateField (Core.FieldInitializer si label expr) =
+  Core.FieldInitializer si label <$> instantiateExpr expr
 
 instantiateExpr :: Core.Expr Poly.Type
                 -> Instantiate (Core.Expr Poly.Type)
@@ -168,10 +189,10 @@ instantiateExpr (Core.Slice si es t) =
 instantiateExpr (Core.Block si es t) =
   Core.Block si <$> mapM instantiateExpr es
                 <*> replace t
-instantiateExpr (Core.StructInitializer si t vs) =
-  Core.StructInitializer si <$> replace t <*> mapM instantiateExpr vs
-instantiateExpr (Core.StructFieldAccess si expr name t) =
-  Core.StructFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
+instantiateExpr (Core.RecordInitializer si t fields) =
+  Core.RecordInitializer si <$> replace t <*> mapM instantiateField fields
+instantiateExpr (Core.RecordFieldAccess si expr name t) =
+  Core.RecordFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
 instantiateExpr (Core.PackageMemberAccess si pkgAlias name t) =
   Core.PackageMemberAccess si pkgAlias name <$> replace t
 

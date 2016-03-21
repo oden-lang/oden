@@ -33,7 +33,8 @@ reservedOps = [
   "-",
   "*",
   "/",
-  "::"
+  "::",
+  "|"
   ]
 
 nameFirst :: Parser Char
@@ -113,6 +114,9 @@ rArrow = reservedOp "->"
 
 equals :: Parser ()
 equals = reservedOp "="
+
+pipe :: Parser ()
+pipe = reservedOp "|"
 
 packageName :: Parser [String]
 packageName = part `sepBy` char '/'

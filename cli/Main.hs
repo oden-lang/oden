@@ -7,6 +7,7 @@ import Oden.CLI
 import Oden.CLI.Build
 import Oden.CLI.Run
 import Oden.CLI.Lint
+import Oden.CLI.PrintPackage
 
 import           Control.Monad.Reader
 import           Control.Monad.Except
@@ -32,4 +33,6 @@ main = do
     Right (opts, ["build"]) ->  exec opts build
     Right (opts, ["run", path]) -> exec opts (run path)
     Right (opts, ["lint", path]) -> exec opts (lint path)
+    Right (opts, ["print-inferred", path]) -> exec opts (printInferred path)
+    Right (opts, ["print-compiled", path]) -> exec opts (printCompiled path)
     Right _ -> putStrLn help

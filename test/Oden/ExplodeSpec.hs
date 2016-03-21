@@ -117,10 +117,10 @@ spec = do
       (snd <$> explodeTopLevel [TypeDefinition
                                 (src 1 1)
                                 (Identifier "S")
-                                (TSStruct (src 1 2) [TSStructField (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t"))])])
+                                (TSRecord (src 1 2) (TSRowExtension (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t")) (TSRowEmpty (src 1 2))))])
       `shouldSucceedWith`
       [U.TypeDefinition
        ignored
        (FQN ["pkg"] (Identifier "S"))
        []
-       (TSStruct (src 1 2) [TSStructField (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t"))])]
+       (TSRecord (src 1 2) (TSRowExtension (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t")) (TSRowEmpty (src 1 2))))]

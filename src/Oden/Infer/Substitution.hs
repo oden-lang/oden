@@ -27,25 +27,19 @@ union :: Subst -> Subst -> Subst
 class FTV a => Substitutable a where
   apply :: Subst -> a -> a
 
-instance FTV Poly.StructField where
-  ftv (TStructField _ _ t) = ftv t
-
-instance Substitutable Poly.StructField where
-  apply s (TStructField si n t) = TStructField si n (apply s t)
-
 instance Substitutable Type where
   apply _ (TAny si)               = TAny si
-  apply _ (TUnit si)              = TUnit si
   apply s (TTuple si f s' r)      = TTuple si (apply s f) (apply s s') (apply s r)
-  apply _ (TBasic si b)           = TBasic si b
-  apply s (TCon si a ts)          = TCon si a (apply s ts)
+  apply _ (TCon si n)             = TCon si n
   apply (Subst s) t@(TVar _ a)    = Map.findWithDefault t a s
   apply s (TNoArgFn si t)         = TNoArgFn si (apply s t)
   apply s (TFn si t1 t2)          = TFn si (apply s t1) (apply s t2)
   apply s (TUncurriedFn si as r)  = TUncurriedFn si (map (apply s) as) (apply s r)
   apply s (TVariadicFn si as v r) = TVariadicFn si (map (apply s) as) (apply s v) (apply s r)
   apply s (TSlice si t)           = TSlice si (apply s t)
-  apply s (TStruct si fs)         = TStruct si (map (apply s) fs)
+  apply s (TRecord si r)          = TRecord si (apply s r)
+  apply _ (REmpty si)             = REmpty si
+  apply s (RExtension si l t r)   = RExtension si l (apply s t) (apply s r)
   apply s (TNamed si n t)         = TNamed si n (apply s t)
 
 instance Substitutable Scheme where
@@ -58,6 +52,12 @@ instance FTV Core.CanonicalExpr where
 
 instance Substitutable Core.CanonicalExpr where
   apply s (sc, expr) = (apply s sc, apply s expr)
+
+instance FTV (Core.FieldInitializer Type) where
+  ftv (FieldInitializer _ _ expr) = ftv expr
+
+instance Substitutable (Core.FieldInitializer Type) where
+  apply s (FieldInitializer si label expr) = FieldInitializer si label (apply s expr)
 
 instance FTV (Core.Expr Type) where
   ftv = ftv . Core.typeOf
@@ -81,8 +81,8 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.If si c tb fb t)                        = Core.If si (apply s c) (apply s tb) (apply s fb) (apply s t)
   apply s (Core.Slice si es t)                          = Core.Slice si (apply s es) (apply s t)
   apply s (Core.Block si es t)                          = Core.Block si (apply s es) (apply s t)
-  apply s (Core.StructInitializer si t vs)              = Core.StructInitializer si (apply s t) (apply s vs)
-  apply s (Core.StructFieldAccess si expr name t)       = Core.StructFieldAccess si (apply s expr) name (apply s t)
+  apply s (Core.RecordInitializer si t fs)              = Core.RecordInitializer si (apply s t) (apply s fs)
+  apply s (Core.RecordFieldAccess si expr name t)       = Core.RecordFieldAccess si (apply s expr) name (apply s t)
   apply s (Core.PackageMemberAccess si pkgAlias name t) = Core.PackageMemberAccess si pkgAlias name (apply s t)
 
 instance Substitutable a => Substitutable [a] where

@@ -32,4 +32,6 @@ dist/oden-0.2.0-osx.tar.gz: gzip compressed data, ...
 $ make test
 # or...
 $ make watch-tests
+# or run only tests matching a string
+$ TEST_PATTERN="Oden.Type.Polymorphic" make watch-test
 ```

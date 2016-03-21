@@ -4,6 +4,11 @@ OS=$(shell tools/get_os.sh)
 DIST_NAME=oden-$(VERSION)-$(OS)
 DIST_ARCHIVE=dist/$(DIST_NAME).tar.gz
 
+TEST_FLAG=
+ifneq ($(strip $(TEST_PATTERN)),)
+	TEST_FLAG=-m "$(TEST_PATTERN)"
+endif
+
 IMPORTER_SRC=$(shell find go/src/oden -name '*.go')
 
 NODEMON=node_modules/.bin/nodemon
@@ -29,11 +34,22 @@ $(TMP):
 
 .PHONY: test
 test:
-	cabal exec runhaskell -- -isrc -itest test/Spec.hs
+	cabal exec runhaskell -- -isrc -itest test/Spec.hs $(TEST_FLAG)
+
+.PHONY: regression-test
+regression-test:
+	regression-test/run-regression-tests.sh validate
+
+.PHONY: lint
+lint:
+	hlint src cli
+
+.PHONY: ci-test
+ci-test: test regression-test lint
 
 .PHONY: watch-test
 watch-test: $(NODEMON)
-	$(NODEMON) --watch src --watch test -e hs --exec make test
+	$(NODEMON) --watch src --watch test -e hs --exec 'make test || exit 1'
 
 $(NODEMON):
 	npm install nodemon

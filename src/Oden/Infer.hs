@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TupleSections    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Oden.Infer (
-  Constraint,
   TypeError(..),
   Subst(..),
   TypeBinding(..),
@@ -13,8 +13,8 @@ module Oden.Infer (
   constraintsExpr
 ) where
 
+import           Control.Arrow           (left)
 import           Control.Monad.Except
-import           Control.Monad.Identity
 import           Control.Monad.RWS       hiding ((<>))
 
 import qualified Data.Map                as Map
@@ -28,11 +28,11 @@ import           Oden.Identifier
 import           Oden.Infer.Environment
 import           Oden.Infer.Substitution
 import           Oden.Infer.Subsumption
+import           Oden.Infer.Unification
 import           Oden.Metadata
 import           Oden.Predefined
-import           Oden.QualifiedName      (QualifiedName(..))
+import           Oden.QualifiedName      (QualifiedName(..), nameInUniverse)
 import           Oden.SourceInfo
-import           Oden.Type.Basic
 import           Oden.Type.Polymorphic
 import           Oden.Type.Signature
 
@@ -56,20 +56,6 @@ data InferState = InferState { count :: Int }
 initInfer :: InferState
 initInfer = InferState { count = 0 }
 
-type Constraint = (SourceInfo, Type, Type)
-
-type Unifier = (Subst, [Constraint])
-
--- | Constraint solver monad.
-type Solve a = ExceptT TypeError Identity a
-
-
-instance FTV Constraint where
-  ftv (_, t1, t2) = ftv t1 `Set.union` ftv t2
-
-instance Substitutable Constraint where
-  apply s (si, t1, t2) = (si, apply s t1, apply s t2)
-
 instance FTV TypeBinding where
   ftv (Package _ _ e)        = ftv e
   ftv (Local _ _ d)          = ftv d
@@ -89,24 +75,16 @@ instance Substitutable TypingEnvironment where
   apply s (Environment env) = Environment $ Map.map (apply s) env
 
 data TypeError
-  = UnificationFail SourceInfo Type Type
-  | InfiniteType SourceInfo TVar Type
+  = UnificationError UnificationError
   | PackageNotInScope SourceInfo Identifier
   | NotInScope SourceInfo Identifier
   | MemberNotInPackage SourceInfo Identifier Identifier
-  | UnificationMismatch SourceInfo [Type] [Type]
   | ArgumentCountMismatch (Core.Expr Type) [Type] [Type]
   | TypeSignatureSubsumptionError Identifier SubsumptionError
   | InvalidPackageReference SourceInfo Identifier
   | ValueUsedAsType SourceInfo Identifier
   | TypeIsNotAnExpression SourceInfo Identifier
-  | InvalidTypeInStructInitializer SourceInfo Type
-  | StructInitializerFieldCountMismatch SourceInfo Type [Type]
   deriving (Show, Eq)
-
--------------------------------------------------------------------------------
--- Inference
--------------------------------------------------------------------------------
 
 -- | Run the inference monad.
 runInfer :: TypingEnvironment -> Infer a -> Either TypeError (a, [Constraint])
@@ -119,7 +97,7 @@ inferExpr :: TypingEnvironment
           -> Either TypeError Core.CanonicalExpr
 inferExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
-  subst <- runSolve cs
+  subst <- left UnificationError $ runSolve cs
   return $ closeOver (apply subst te)
 
 -- | Return the internal constraints used in solving for the type of an
@@ -129,7 +107,7 @@ constraintsExpr :: TypingEnvironment
                 -> Either TypeError ([Constraint], Subst, Core.Expr Type, Scheme)
 constraintsExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
-  subst <- runSolve cs
+  subst <- left UnificationError $ runSolve cs
   let (sc, te') = closeOver $ apply subst te
   return (cs, subst, te', sc)
 
@@ -148,16 +126,13 @@ inEnv (x, sc) = local (`extend` (x, sc))
 
 lookupTypeIn :: TypingEnvironment -> Metadata SourceInfo -> Identifier -> Infer Type
 lookupTypeIn _ si (Identifier "any") = return (TAny si)
-lookupTypeIn _ si (Identifier "int") = return (TBasic si TInt)
-lookupTypeIn _ si (Identifier "bool") = return (TBasic si TBool)
-lookupTypeIn _ si (Identifier "string") = return (TBasic si TString)
 lookupTypeIn env (Metadata si) identifier =
   case Environment.lookup identifier env of
-    Nothing                          -> throwError $ NotInScope si identifier
-    Just Package{}                   -> throwError $ InvalidPackageReference si identifier
-    Just (Local _ _ _)               -> throwError $ ValueUsedAsType si identifier
-    Just (Type _ typeIdentifier _ t) -> return $ TNamed (Metadata si) typeIdentifier t
-    Just (QuantifiedType _ _ t)      -> return t
+    Nothing                     -> throwError $ NotInScope si identifier
+    Just Package{}              -> throwError $ InvalidPackageReference si identifier
+    Just Local{}                -> throwError $ ValueUsedAsType si identifier
+    Just (Type _ _ _ t)         -> return t
+    Just (QuantifiedType _ _ t) -> return t
 
 -- | Lookup a type in the environment.
 lookupType :: Metadata SourceInfo -> Identifier -> Infer Type
@@ -188,7 +163,7 @@ fresh :: Metadata SourceInfo -> Infer Type
 fresh si = do
     s <- get
     put s{count = count s + 1}
-    return $ TVar si (TV ("_t" ++ (show $ count s)))
+    return $ TVar si (TV ("_t" ++ show (count s)))
 
 -- | Create a type based on scheme but with all fresh type variables.
 instantiate :: Scheme -> Infer Type
@@ -204,6 +179,9 @@ generalize :: TypingEnvironment -> Core.Expr Type -> Core.CanonicalExpr
 generalize env expr  = (Forall (Metadata $ getSourceInfo expr) bindings (Core.typeOf expr), expr)
     where bindings = map (TVarBinding $ Metadata Missing) (Set.toList $ ftv expr `Set.difference` ftv env)
 
+universeType :: Metadata SourceInfo -> String -> Type
+universeType si n = TCon si (nameInUniverse n)
+
 -- | The heart of the inferencer. Takes an untyped expression and returns the
 -- inferred typed expression. Constraints are collected in the 'Infer' monad
 -- and substitutions are made before the inference is complete, so the
@@ -211,72 +189,69 @@ generalize env expr  = (Forall (Metadata $ getSourceInfo expr) bindings (Core.ty
 infer :: Untyped.Expr -> Infer (Core.Expr Type)
 infer expr = case expr of
   Untyped.Literal si Untyped.Unit ->
-    return (Core.Literal si Core.Unit (TUnit si))
+    return (Core.Literal si Core.Unit (TCon si (nameInUniverse "unit")))
   Untyped.Literal si (Untyped.Int n) ->
-    return (Core.Literal si (Core.Int n) (TBasic si TInt))
+    return (Core.Literal si (Core.Int n) (TCon si (nameInUniverse "int")))
   Untyped.Literal si (Untyped.Bool b) ->
-    return (Core.Literal si (Core.Bool b) (TBasic si TBool))
+    return (Core.Literal si (Core.Bool b) (TCon si (nameInUniverse "bool")))
   Untyped.Literal si (Untyped.String s) ->
-    return (Core.Literal si (Core.String s) (TBasic si TString))
+    return (Core.Literal si (Core.String s) (TCon si (nameInUniverse "string")))
 
   Untyped.Subscript si s i -> do
     st <- infer s
     it <- infer i
     tv <- fresh si
     uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
-    uni (getSourceInfo it) (Core.typeOf it) (TBasic si TInt)
+    uni (getSourceInfo it) (Core.typeOf it) (TCon si (nameInUniverse "int"))
     return (Core.Subscript si st it tv)
 
-  Untyped.Subslice si s (Untyped.Range e1 e2) -> do
-    st <- infer s
-    e1t <- infer e1
-    e2t <- infer e2
-    tv <- fresh si
-    uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
-    uni (getSourceInfo e1t) (Core.typeOf e1t) (TBasic si TInt)
-    uni (getSourceInfo e2t) (Core.typeOf e2t) (TBasic si TInt)
-    return (Core.Subslice si st (Core.Range e1t e2t) (TSlice si tv))
+  Untyped.Subslice si s range ->
+    case range of
+      (Untyped.Range lowerExpr upperExpr) -> do
+        st <- infer s
+        lowerExprTyped <- infer lowerExpr
+        upperExprTyped <- infer upperExpr
+        tv <- fresh si
+        uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
+        uni (getSourceInfo upperExprTyped) (Core.typeOf lowerExprTyped) (universeType si "int")
+        uni (getSourceInfo upperExprTyped) (Core.typeOf upperExprTyped) (universeType si "int")
+        return (Core.Subslice si st (Core.Range lowerExprTyped upperExprTyped) (TSlice si tv))
+      (Untyped.RangeTo upperExpr) -> inferUnboundedRange Core.RangeTo upperExpr
+      (Untyped.RangeFrom lowerExpr) -> inferUnboundedRange Core.RangeFrom lowerExpr
 
-  Untyped.Subslice si s (Untyped.RangeTo e) -> do
-    st <- infer s
-    et <- infer e
-    tv <- fresh si
-    uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
-    uni (getSourceInfo et) (Core.typeOf et) (TBasic si TInt)
-    return (Core.Subslice si st (Core.RangeTo et) (TSlice si tv))
-
-  Untyped.Subslice si s (Untyped.RangeFrom e) -> do
-    st <- infer s
-    et <- infer e
-    tv <- fresh si
-    uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
-    uni (getSourceInfo et) (Core.typeOf et) (TBasic si TInt)
-    return (Core.Subslice si st (Core.RangeFrom et) (TSlice si tv))
+    where
+    inferUnboundedRange f boundExpr = do
+      st <- infer s
+      boundExprTyped <- infer boundExpr
+      tv <- fresh si
+      uni (getSourceInfo st) (Core.typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
+      uni (getSourceInfo boundExprTyped) (Core.typeOf boundExprTyped) (universeType si "int")
+      return (Core.Subslice si st (f boundExprTyped) (TSlice si tv))
 
   Untyped.UnaryOp si o e -> do
     rt <- case o of
-              Positive   -> return (TBasic si TInt)
-              Negative -> return (TBasic si TInt)
-              Not    -> return (TBasic si TBool)
+              Positive   -> return (universeType si "int")
+              Negative -> return (universeType si "int")
+              Not    -> return (universeType si "bool")
     te <- infer e
     uni (getSourceInfo te) (Core.typeOf te) rt
     return (Core.UnaryOp si o te rt)
 
   Untyped.BinaryOp si o e1 e2 -> do
     (ot, rt) <- case o of
-                    Add               -> return (TBasic si TInt, TBasic si TInt)
-                    Subtract          -> return (TBasic si TInt, TBasic si TInt)
-                    Multiply          -> return (TBasic si TInt, TBasic si TInt)
-                    Divide            -> return (TBasic si TInt, TBasic si TInt)
+                    Add               -> return (universeType si "int", universeType si "int")
+                    Subtract          -> return (universeType si "int", universeType si "int")
+                    Multiply          -> return (universeType si "int", universeType si "int")
+                    Divide            -> return (universeType si "int", universeType si "int")
                     Equals            -> do tv <- fresh si
-                                            return (tv, TBasic si TBool)
-                    Concat            -> return (TBasic si TString, TBasic si TString)
-                    LessThan          -> return (TBasic si TInt, TBasic si TBool)
-                    GreaterThan       -> return (TBasic si TInt, TBasic si TBool)
-                    LessThanEqual     -> return (TBasic si TInt, TBasic si TBool)
-                    GreaterThanEqual  -> return (TBasic si TInt, TBasic si TBool)
-                    And               -> return (TBasic si TBool, TBasic si TBool)
-                    Or                -> return (TBasic si TBool, TBasic si TBool)
+                                            return (tv, universeType si "bool")
+                    Concat            -> return (universeType si "string", universeType si "string")
+                    LessThan          -> return (universeType si "int", universeType si "bool")
+                    GreaterThan       -> return (universeType si "int", universeType si "bool")
+                    LessThanEqual     -> return (universeType si "int", universeType si "bool")
+                    GreaterThanEqual  -> return (universeType si "int", universeType si "bool")
+                    And               -> return (universeType si "bool", universeType si "bool")
+                    Or                -> return (universeType si "bool", universeType si "bool")
     te1 <- infer e1
     te2 <- infer e2
     uni (getSourceInfo te1) (Core.typeOf te1) ot
@@ -293,11 +268,11 @@ infer expr = case expr of
       Just (Package _ _ pkgEnv) -> do
         valueType <- lookupValueIn pkgEnv si memberName
         return (Core.PackageMemberAccess si name memberName valueType)
-      Just _ -> inferStructFieldAccess si expr' memberName
+      Just _ -> inferRecordFieldAccess si expr' memberName
       Nothing -> throwError $ NotInScope (unwrap symbolSourceInfo) name
 
   Untyped.MemberAccess si expr' fieldName ->
-    inferStructFieldAccess si expr' fieldName
+    inferRecordFieldAccess si expr' fieldName
 
   Untyped.Fn si (Untyped.NameBinding bsi a) b -> do
     tv <- fresh bsi
@@ -361,7 +336,7 @@ infer expr = case expr of
     tcond <- infer cond
     ttr <- infer tr
     tfl <- infer fl
-    uni (getSourceInfo tcond) (Core.typeOf tcond) (TBasic si TBool)
+    uni (getSourceInfo tcond) (Core.typeOf tcond) (universeType si "bool")
     uni (getSourceInfo ttr) (Core.typeOf ttr) (Core.typeOf tfl)
     return (Core.If si tcond ttr tfl (Core.typeOf ttr))
 
@@ -382,41 +357,31 @@ infer expr = case expr of
     tv <- fresh si
     tes <- mapM infer es
     case tes of
-      [] -> uni (unwrap si) tv (TUnit si)
+      [] -> uni (unwrap si) tv (universeType si "unit")
       _ -> uni (unwrap si) tv (Core.typeOf (last tes))
     return (Core.Block si tes tv)
 
-  Untyped.StructInitializer si ts values -> do
-    t <- resolveType ts
-    typedValues <- mapM infer values
-    case underlying t of
-      TStruct _ fields -> do
-        let typedExpr = Core.StructInitializer si t typedValues
-
-        -- Make sure the struct has at least as many values as being used in
-        -- the initialization.
-        when (length values > length fields) $
-          throwError $
-            StructInitializerFieldCountMismatch (unwrap si) t (map Core.typeOf typedValues)
-
-        zipWithM_ unifyField fields typedValues
-        return typedExpr
-        where
-        unifyField (TStructField fsi _ ft) te = uni (unwrap fsi) ft (Core.typeOf te)
-      _ -> throwError $ InvalidTypeInStructInitializer (unwrap si) t
+  Untyped.RecordInitializer si fields -> do
+    (fieldInitializers, row) <- foldM unifyFields ([], REmpty si) fields
+    return (Core.RecordInitializer si (TRecord si row) fieldInitializers)
+    where
+    unifyFields (typedFields, row) (Untyped.FieldInitializer fsi label expr') = do
+      typedExpr <- infer expr'
+      return (Core.FieldInitializer fsi label typedExpr : typedFields, RExtension fsi label (Core.typeOf typedExpr) row)
 
   where
-  inferStructFieldAccess si expr' fieldName = do
-    tv <- fresh si
+  inferRecordFieldAccess si expr' label = do
+    fieldType <- fresh si
+    recordExtType <- fresh si
     typedExpr <- infer expr'
     uni (getSourceInfo typedExpr)
         (Core.typeOf typedExpr)
-        (TStruct (Metadata $ getSourceInfo typedExpr) [TStructField si fieldName tv])
-    return (Core.StructFieldAccess si typedExpr fieldName tv)
+        (TRecord (Metadata $ getSourceInfo typedExpr) (RExtension si label fieldType recordExtType))
+    return (Core.RecordFieldAccess si typedExpr label fieldType)
 
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr SourceInfo -> Infer Type
-resolveType (TSUnit si) = return (TUnit (Metadata si))
+resolveType (TSUnit si) = return (universeType (Metadata si) "unit")
 resolveType (TSSymbol si i) = lookupType (Metadata si) i
 resolveType (TSApp _si _e1 _e2) = error "Type constructor application not implemented yet."
 resolveType (TSFn si de re) = TFn (Metadata si) <$> resolveType de <*> resolveType re
@@ -425,10 +390,11 @@ resolveType (TSTuple si fe se re) = TTuple (Metadata si) <$> resolveType fe
                                                          <*> resolveType se
                                                          <*> mapM resolveType re
 resolveType (TSSlice si e) = TSlice (Metadata si) <$> resolveType e
-resolveType (TSStruct si fields) = TStruct (Metadata si) <$> mapM resolveStructFieldType fields
-  where
-  resolveStructFieldType (TSStructField fsi name expr) =
-    TStructField (Metadata fsi) name <$> resolveType expr
+resolveType (TSRowEmpty si) = return $ REmpty (Metadata si)
+resolveType (TSRowExtension si label type' row) =
+  RExtension (Metadata si) label <$> resolveType type'
+                                 <*> resolveType row
+resolveType (TSRecord si r) = TRecord (Metadata si) <$> resolveType r
 
 -- | Tries to resolve a user-supplied type signature to an actual type scheme.
 resolveTypeSignature :: TypeSignature SourceInfo -> Infer (Scheme, TypingEnvironment)
@@ -439,6 +405,7 @@ resolveTypeSignature (TypeSignature si bindings expr) = do
   return (Forall (Metadata si) (map toVarBinding bindings) t, envWithBindings)
   where
   extendWithBinding env' (SignatureVarBinding si' v) = do
+    --return $ env' `extend` (v, QuantifiedType (Metadata si') v (TVar (Metadata si') (TV varName)))
     tv <- fresh (Metadata si')
     return $ env' `extend` (v, QuantifiedType (Metadata si') v tv)
   toVarBinding (SignatureVarBinding si' (Identifier v)) = TVarBinding (Metadata si') (TV v)
@@ -451,9 +418,9 @@ type ShouldCloseOver = Bool
 -- | Infer the untyped definition in the Infer monad, returning a typed
 -- version. Resolves type signatures of optionally type-annotated definitions.
 inferDef :: Untyped.Definition -> Infer (Core.Definition, ShouldCloseOver)
-inferDef (Untyped.Definition si name s expr) = do
+inferDef (Untyped.Definition si name signature expr) = do
   env <- ask
-  case s of
+  case signature of
     Nothing -> do
       tv <- fresh si
       let recScheme = Forall si [] tv
@@ -484,12 +451,12 @@ inferDefinition env def = do
 
   case def' of
     Core.Definition si name (_, te) | shouldCloseOver -> do
-      subst <- runSolve cs
+      subst <- left UnificationError $ runSolve cs
       let canonical'@(sc, _) = closeOver (apply subst te)
           env' = env `extend` (name, Local si name sc)
       return (env', Core.Definition si name canonical')
     Core.Definition si name canonical -> do
-      subst <- runSolve cs
+      subst <- left UnificationError $ runSolve cs
       let canonical'@(sc, _) = normalize (apply subst canonical)
           env' = env `extend` (name, Local si name sc)
       return (env', Core.Definition si name canonical')
@@ -527,82 +494,3 @@ normalize (Forall si _ exprType, te) =
     wrapTvar (tv1, tv2) = (tv1, TVar (Metadata Missing) tv2)
     -- The new set of type variables bindings for the canonical expression.
     newBindings = map (TVarBinding (Metadata Missing) . snd) substPairs
-
--------------------------------------------------------------------------------
--- Constraint Solver
--------------------------------------------------------------------------------
-
--- | Run the constraint solver
-runSolve :: [Constraint] -> Either TypeError Subst
-runSolve cs = runIdentity $ runExceptT $ solver st
-  where st = (emptySubst, cs)
-
--- | Unifies the corresponding types in the lists (like a zip).
-unifyMany :: SourceInfo -> [Type] -> [Type] -> Solve Subst
-unifyMany _ [] [] = return emptySubst
-unifyMany si (t1 : ts1) (t2 : ts2) =
-  do su1 <- unifies si t1 t2
-     su2 <- unifyMany si (apply su1 ts1) (apply su1 ts2)
-     return (su2 `compose` su1)
-unifyMany si t1 t2 = throwError $ UnificationMismatch si t1 t2
-
--- | Unify two types, returning the resulting substitution. Order matters in
--- some cases as the first type is the one being subsumed by the second, e.g.
--- when unifying with TAny.
-unifies :: SourceInfo -> Type -> Type -> Solve Subst
-unifies _ (TVar _ v) t = v `bind` t
-unifies _ t (TVar _ v) = v `bind` t
-unifies _ TAny{} _ = return emptySubst
-unifies si t1@(TBasic _ b1) t2@(TBasic _ b2)
-  | b1 == b2 = return emptySubst
-  | otherwise = throwError $ UnificationFail si t1 t2
-unifies _ TUnit{} TUnit{} = return emptySubst
-unifies _ t1@TCon{} t2@TCon{}
-  | t1 == t2  = return emptySubst
-  | otherwise = throwError $ UnificationFail (getSourceInfo t1) t1 t2
-unifies si (TFn _ t1 t2) (TFn _ t3 t4) = unifyMany si [t1, t2] [t3, t4]
-unifies si (TNoArgFn _ t1) (TNoArgFn _ t2) = unifies si t1 t2
-unifies si (TUncurriedFn _ as1 r1) (TUncurriedFn _ as2 r2) = do
-  a <- unifyMany si as1 as2
-  r <- unifies si r1 r2
-  return (a `compose` r)
-unifies si (TVariadicFn _ as1 v1 r1) (TVariadicFn _ as2 v2 r2) = do
-  a <- unifyMany si as1 as2
-  v <- unifies si v1 v2
-  r <- unifies si r1 r2
-  return (a `compose` v `compose` r)
-unifies si (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
-  f <- unifies si f1 f2
-  s <- unifies si s1 s2
-  r <- unifyMany si r1 r2
-  return (f `compose` s `compose` r)
-unifies si (TSlice _ t1) (TSlice _ t2) = unifies si t1 t2
-unifies si (TNamed _ n1 t1) (TNamed _ n2 t2)
-  | n1 == n2 = unifies si t1 t2
-unifies si t1 (TNamed _ _ t2) = unifies si t1 t2
-unifies si (TNamed _ _ t1) t2 = unifies si t1 t2
-unifies si (TStruct _ fs1) (TStruct _ fs2) =
-  unifyMany si (map getStructFieldType fs1) (map getStructFieldType fs2)
-unifies si t1 t2 = throwError $ UnificationFail si t1 t2
-
--- Unification solver
-solver :: Unifier -> Solve Subst
-solver (su, cs) =
-  case cs of
-    [] -> return su
-    ((si, t1, t2): cs0) -> do
-      su1  <- unifies si t1 t2
-      solver (su1 `compose` su, apply su1 cs0)
-
--- | Create a substitution from the 'TVar' to the 'Type', as long as the 'TVar'
--- does not occur in the 'Type'. In that case we have an infinite type, which
--- is an error.
-bind ::  TVar -> Type -> Solve Subst
-bind a (TVar _ v) | v == a = return emptySubst
-bind a t
-  | occursCheck a t = throwError $ InfiniteType (getSourceInfo t) a t
-  | otherwise       = return (Subst $ Map.singleton a t)
-
--- | Check if the 'TVar' occurs in the 'Type'.
-occursCheck ::  Substitutable a => TVar -> a -> Bool
-occursCheck a t = a `Set.member` ftv t

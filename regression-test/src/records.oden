@@ -1,0 +1,37 @@
+package records/main
+
+import fmt
+
+type Foo = { name: string }
+type Bar = { foo: Foo }
+
+// Construct nested record, type is inferred.
+bar = {
+  foo = {
+    name = "mono"
+  }
+}
+
+// Accepts nested record, as defined by 'Bar' and 'Foo' above.
+printFooName :: Bar -> ()
+printFooName(x) = fmt.Println(x.foo.name)
+
+// Accept any record with a name field.
+anyTypeOfName :: forall a. a -> { name: a }
+anyTypeOfName(name) = { name = name }
+
+// Construct a record with a string name.
+poly = anyTypeOfName("poly")
+
+// Return name field from any record type with at least that field. Type is
+// inferred.
+getName(x) = x.name
+
+main() = {
+  printFooName(bar)
+  fmt.Println(poly.name)
+  fmt.Println(getName({
+    name = "passing a record like this",
+    age = 42
+  }))
+}

@@ -11,11 +11,12 @@ import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 
+import           Data.List
 import qualified Data.Set        as Set
 
 data ValidationError = Redefinition SourceInfo Identifier
                      | ValueDiscarded (Expr Type)
-                     | DuplicatedStructFieldName SourceInfo Identifier
+                     | DuplicatedRecordFieldName SourceInfo Identifier
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValidationWarning -- There's no warnings defined yet.
@@ -80,11 +81,11 @@ validateExpr (Block _ exprs _) = do
   where
   warnOnDiscarded :: Expr Type -> Validate ()
   warnOnDiscarded expr = case typeOf expr of
-    TUnit{} -> return ()
+    (TCon _ (FQN [] (Identifier "unit"))) -> return ()
     _ -> throwError (ValueDiscarded expr)
-validateExpr StructInitializer{} = return ()
-validateExpr (StructFieldAccess _ expr _ _) = validateExpr expr
-validateExpr (PackageMemberAccess _ _ _ _) = return ()
+validateExpr RecordInitializer{} = return ()
+validateExpr (RecordFieldAccess _ expr _ _) = validateExpr expr
+validateExpr PackageMemberAccess{} = return ()
 
 validateRange :: Range Type -> Validate()
 validateRange (Range e1 e2) = do
@@ -95,10 +96,10 @@ validateRange (RangeTo e) =
 validateRange (RangeFrom e) =
   validateExpr e
 
-repeated :: [StructField] -> [StructField]
+repeated :: [(Identifier, Type)] -> [(Identifier, Type)]
 repeated fields = snd (foldl check (Set.empty, []) fields)
   where
-  check (names, fields') f@(TStructField _ n _)
+  check (names, fields') f@(n, _)
     | n `Set.member` names = (names, fields'++ [f])
     | otherwise            = (Set.insert n names, fields')
 
@@ -108,10 +109,10 @@ validateType (TNoArgFn _ r) = validateType r
 validateType (TFn _ d r) = mapM_ validateType [d, r]
 validateType (TSlice _ t) = validateType t
 validateType (TNamed _ _ t) = validateType t
-validateType (TStruct _ fs) =
-  case repeated fs of
+validateType r@RExtension{} =
+  case repeated $ sortOn fst $ rowToList r of
+    ((name, _):_) -> throwError (DuplicatedRecordFieldName (getSourceInfo r) name)
     [] -> return ()
-    (TStructField (Metadata si) name _:_) -> throwError (DuplicatedStructFieldName si name)
 validateType _ = return ()
 
 validatePackage :: Package -> Validate ()

@@ -11,6 +11,9 @@ import qualified Oden.Type.Polymorphic as Poly
 data NameBinding = NameBinding (Metadata SourceInfo) Identifier
                  deriving (Show, Eq, Ord)
 
+data FieldInitializer t = FieldInitializer (Metadata SourceInfo) Identifier (Expr t)
+                        deriving (Show, Eq, Ord)
+
 data Expr t = Symbol (Metadata SourceInfo) Identifier t
             | Subscript (Metadata SourceInfo) (Expr t) (Expr t) t
             | Subslice (Metadata SourceInfo) (Expr t) (Range t) t
@@ -27,8 +30,8 @@ data Expr t = Symbol (Metadata SourceInfo) Identifier t
             | If (Metadata SourceInfo) (Expr t) (Expr t) (Expr t) t
             | Slice (Metadata SourceInfo) [Expr t] t
             | Block (Metadata SourceInfo) [Expr t] t
-            | StructInitializer (Metadata SourceInfo) t [Expr t]
-            | StructFieldAccess (Metadata SourceInfo) (Expr t) Identifier t
+            | RecordInitializer (Metadata SourceInfo) t [FieldInitializer t]
+            | RecordFieldAccess (Metadata SourceInfo) (Expr t) Identifier t
             | PackageMemberAccess (Metadata SourceInfo) Identifier Identifier t
             deriving (Show, Eq, Ord)
 
@@ -49,8 +52,8 @@ instance HasSourceInfo (Expr t) where
   getSourceInfo (Slice (Metadata si) _ _)                    = si
   getSourceInfo (Tuple (Metadata si) _ _ _ _)                = si
   getSourceInfo (Block (Metadata si) _ _)                    = si
-  getSourceInfo (StructInitializer (Metadata si) _ _)        = si
-  getSourceInfo (StructFieldAccess (Metadata si) _ _ _)      = si
+  getSourceInfo (RecordInitializer (Metadata si) _ _)        = si
+  getSourceInfo (RecordFieldAccess (Metadata si) _ _ _)      = si
   getSourceInfo (PackageMemberAccess (Metadata si) _ _ _)    = si
 
   setSourceInfo si (Symbol _ i t)                      = Symbol (Metadata si) i t
@@ -69,8 +72,8 @@ instance HasSourceInfo (Expr t) where
   setSourceInfo si (Slice _ e t)                       = Slice (Metadata si) e t
   setSourceInfo si (Tuple _ f s r t)                   = Tuple (Metadata si) f s r t
   setSourceInfo si (Block _ e t)                       = Block (Metadata si) e t
-  setSourceInfo si (StructInitializer _ t vs)          = StructInitializer (Metadata si) t vs
-  setSourceInfo si (StructFieldAccess _ expr name t)   = StructFieldAccess (Metadata si) expr name t
+  setSourceInfo si (RecordInitializer _ t vs)          = RecordInitializer (Metadata si) t vs
+  setSourceInfo si (RecordFieldAccess _ expr name t)   = RecordFieldAccess (Metadata si) expr name t
   setSourceInfo si (PackageMemberAccess _ pkgAlias name t) = PackageMemberAccess (Metadata si) pkgAlias name t
 
 typeOf :: Expr t -> t
@@ -90,8 +93,8 @@ typeOf (If _ _ _ _ t) = t
 typeOf (Tuple _ _ _ _ t) = t
 typeOf (Slice _ _ t) = t
 typeOf (Block _ _ t) = t
-typeOf (StructInitializer _ t _) = t
-typeOf (StructFieldAccess _ _ _ t) = t
+typeOf (RecordInitializer _ t _) = t
+typeOf (RecordFieldAccess _ _ _ t) = t
 typeOf (PackageMemberAccess _ _ _ t) = t
 
 data Literal = Int Integer

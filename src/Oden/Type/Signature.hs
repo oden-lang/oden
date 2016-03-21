@@ -9,19 +9,17 @@ module Oden.Type.Signature where
 
 import Oden.Identifier
 
--- | The name and type pair for a struct field.
-data TSStructField s = TSStructField s Identifier (SignatureExpr s)
-                     deriving (Show, Eq, Ord)
-
 -- | A type expression used in type signatures and type annotations.
 data SignatureExpr s = TSUnit s
                      | TSSymbol s Identifier
                      | TSApp s (SignatureExpr s) (SignatureExpr s)
                      | TSFn s (SignatureExpr s) (SignatureExpr s)
                      | TSNoArgFn s (SignatureExpr s)
-                     | TSTuple s (SignatureExpr s) (SignatureExpr s) [(SignatureExpr s)]
+                     | TSTuple s (SignatureExpr s) (SignatureExpr s) [SignatureExpr s]
                      | TSSlice s (SignatureExpr s)
-                     | TSStruct s [TSStructField s]
+                     | TSRowEmpty s
+                     | TSRowExtension s Identifier (SignatureExpr s) (SignatureExpr s)
+                     | TSRecord s (SignatureExpr s)
                      deriving (Show, Eq, Ord)
 
 -- | A type variable binding in an explicit quantification.

@@ -11,6 +11,9 @@ data NameBinding = NameBinding SourceInfo Identifier
 data LetPair = LetPair SourceInfo NameBinding Expr
              deriving (Show, Eq, Ord)
 
+data FieldInitializer = FieldInitializer SourceInfo Identifier Expr
+                      deriving (Show, Eq, Ord)
+
 data Expr = Symbol SourceInfo Identifier
           | Subscript SourceInfo Expr [Subscript]
           | UnaryOp SourceInfo UnaryOperator Expr
@@ -23,7 +26,7 @@ data Expr = Symbol SourceInfo Identifier
           | Slice SourceInfo [Expr]
           | Tuple SourceInfo Expr Expr [Expr]
           | Block SourceInfo [Expr]
-          | StructInitializer SourceInfo (SignatureExpr SourceInfo) [Expr]
+          | RecordInitializer SourceInfo [FieldInitializer]
           | MemberAccess SourceInfo Expr Expr
           deriving (Show, Eq, Ord)
 
@@ -40,7 +43,7 @@ instance HasSourceInfo Expr where
   getSourceInfo (Slice si _)               = si
   getSourceInfo (Tuple si _ _ _)           = si
   getSourceInfo (Block si _)               = si
-  getSourceInfo (StructInitializer si _ _) = si
+  getSourceInfo (RecordInitializer si _)   = si
   getSourceInfo (MemberAccess si _ _)      = si
 
   setSourceInfo si (Symbol _ i)                   = Symbol si i
@@ -55,7 +58,7 @@ instance HasSourceInfo Expr where
   setSourceInfo si (Slice _ e)                    = Slice si e
   setSourceInfo si (Tuple _ f s r)                = Tuple si f s r
   setSourceInfo si (Block _ e)                    = Block si e
-  setSourceInfo si (StructInitializer _ e vs)     = StructInitializer si e vs
+  setSourceInfo si (RecordInitializer _ fs)       = RecordInitializer si fs
   setSourceInfo si (MemberAccess _ pkgAlias name) = MemberAccess si pkgAlias name
 
 data Subscript = Singular Expr
@@ -75,7 +78,7 @@ type PackageName = [String]
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                           deriving (Show, Eq, Ord)
 
-data StructFieldExpr = StructFieldExpr SourceInfo Identifier (SignatureExpr SourceInfo)
+data RecordFieldExpr = RecordFieldExpr SourceInfo Identifier (SignatureExpr SourceInfo)
                      deriving (Show, Eq, Ord)
 
 data TopLevel = ImportDeclaration SourceInfo PackageName
