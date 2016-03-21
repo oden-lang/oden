@@ -24,7 +24,7 @@ install:
 - travis_retry cabal update
 - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config;
   fi
-- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cabal install alex; cabal install happy; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cabal install alex-3.1.4; cabal install happy-1.19.5; fi
 - cabal install hlint
 - cabal sandbox init
 - cabal install --enable-tests --only-dependencies
