@@ -13,11 +13,11 @@ bar = {
 }
 
 // Accepts nested record, as defined by 'Bar' and 'Foo' above.
-printFooName :: Bar -> ()
+printFooName : Bar -> ()
 printFooName(x) = fmt.Println(x.foo.name)
 
 // Accept any record with a name field.
-anyTypeOfName :: forall a. a -> { name: a }
+anyTypeOfName : forall a. a -> { name: a }
 anyTypeOfName(name) = { name = name }
 
 // Construct a record with a string name.

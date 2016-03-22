@@ -7,5 +7,5 @@ result = {
   42
 }
 
-main :: -> ()
+main : -> ()
 main() = fmt.Println(result)

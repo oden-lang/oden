@@ -316,80 +316,74 @@ spec = do
 
   describe "parseTopLevel" $ do
     it "parses type signature" $
-      parseTopLevel "x :: int"
+      parseTopLevel "x : int"
       `shouldSucceedWith`
-      TypeSignatureDeclaration (src 1 1) (Identifier "x") (TypeSignature (src 1 6) [] (TSSymbol (src 1 6) (Identifier "int")))
+      TypeSignatureDeclaration (src 1 1) (Identifier "x") (TypeSignature (src 1 5) [] (TSSymbol (src 1 5) (Identifier "int")))
 
-    it "parses unquantified type signature" $
-      parseTopLevel "x :: int -> int"
+    it "parses fn type signature" $
+      parseTopLevel "x : int -> int"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
       (Identifier "x")
-      (TypeSignature (src 1 6) [] (TSFn (src 1 6) (TSSymbol (src 1 6) (Identifier "int")) (TSSymbol (src 1 13) (Identifier "int"))))
+      (TypeSignature (src 1 5) [] (TSFn (src 1 5) (TSSymbol (src 1 5) (Identifier "int")) (TSSymbol (src 1 12) (Identifier "int"))))
 
     it "parses type signature with no-arg fn" $
-      parseTopLevel "x :: -> ()"
+      parseTopLevel "x : -> ()"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
       (Identifier "x")
-      (TypeSignature (src 1 6) [] (TSNoArgFn (src 1 6) (TSUnit (src 1 9))))
+      (TypeSignature (src 1 5) [] (TSNoArgFn (src 1 5) (TSUnit (src 1 8))))
 
     it "parses type signature with int slice" $
-      parseTopLevel "x :: []{int}"
+      parseTopLevel "x : []{int}"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
       (Identifier "x")
-      (TypeSignature (src 1 6) [] (TSSlice (src 1 6) (TSSymbol (src 1 9) (Identifier "int"))))
+      (TypeSignature (src 1 5) [] (TSSlice (src 1 5) (TSSymbol (src 1 8) (Identifier "int"))))
 
     it "parses type signature with string slice" $
-      parseTopLevel "x :: []{string}"
+      parseTopLevel "x : []{string}"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
       (Identifier "x")
-      (TypeSignature (src 1 6) [] (TSSlice (src 1 6) (TSSymbol (src 1 9) (Identifier "string"))))
-
-
-    it "parses unquantified polymorphic type signature" $
-      parseTopLevel "x :: a -> a"
-      `shouldSucceedWith`
-      TypeSignatureDeclaration (src 1 1) (Identifier "x") (TypeSignature (src 1 6) [] (TSFn (src 1 6) (TSSymbol (src 1 6) (Identifier "a")) (TSSymbol (src 1 11) (Identifier "a"))))
+      (TypeSignature (src 1 5) [] (TSSlice (src 1 5) (TSSymbol (src 1 8) (Identifier "string"))))
 
     it "parses polymorphic quantified type signature" $
-      parseTopLevel "x :: forall a. a -> a"
+      parseTopLevel "x : forall a. a -> a"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
       (Identifier "x")
       (TypeSignature
-       (src 1 6)
-       [SignatureVarBinding (src 1 13) (Identifier "a")]
-       (TSFn (src 1 16) (TSSymbol (src 1 16) (Identifier "a")) (TSSymbol (src 1 21) (Identifier "a"))))
+       (src 1 5)
+       [SignatureVarBinding (src 1 12) (Identifier "a")]
+       (TSFn (src 1 15) (TSSymbol (src 1 15) (Identifier "a")) (TSSymbol (src 1 20) (Identifier "a"))))
 
     it "parses type signature with row variable record" $
-      parseTopLevel "foo :: forall a r. { x: a, y: a | r }"
+      parseTopLevel "foo : forall a r. { x: a, y: a | r }"
       `shouldSucceedWith`
       TypeSignatureDeclaration
       (src 1 1)
       (Identifier "foo")
       (TypeSignature
-       (src 1 8)
-       [SignatureVarBinding (src 1 15) (Identifier "a"),
-        SignatureVarBinding (src 1 17) (Identifier "r")]
+       (src 1 7)
+       [SignatureVarBinding (src 1 14) (Identifier "a"),
+        SignatureVarBinding (src 1 16) (Identifier "r")]
        (TSRecord
-        (src 1 20)
+        (src 1 19)
         (TSRowExtension
-         (src 1 22)
+         (src 1 21)
          (Identifier "x")
-         (TSSymbol (src 1 25) (Identifier "a"))
+         (TSSymbol (src 1 24) (Identifier "a"))
          (TSRowExtension
-           (src 1 28)
+           (src 1 27)
            (Identifier "y")
-           (TSSymbol (src 1 31) (Identifier "a"))
-           (TSSymbol (src 1 35) (Identifier "r"))))))
+           (TSSymbol (src 1 30) (Identifier "a"))
+           (TSSymbol (src 1 34) (Identifier "r"))))))
 
     it "parses record definition without type parameters" $
       parseTopLevel "type S = {\n  x: T\n}"

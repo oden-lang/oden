@@ -2,11 +2,11 @@ package letreuse/main
 
 import fmt
 
-id :: forall a. a -> a
+id : forall a. a -> a
 id(x) = let t = (v) -> v in t(x)
 
-id2 :: forall a. a -> a
+id2 : forall a. a -> a
 id2(x) = let t = (v) -> id(v) in t(id(x))
 
-main :: -> ()
+main : -> ()
 main() = fmt.Println(id2(1))

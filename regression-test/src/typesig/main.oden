@@ -4,10 +4,10 @@ import fmt
 
 identityNoTypeSig(x) = x
 
-identityExplicit :: forall a. a -> a
+identityExplicit : forall a. a -> a
 identityExplicit(x) = x
 
-theMessage :: string
+theMessage : string
 theMessage = "Type signatures work!"
 
 main() = fmt.Println(

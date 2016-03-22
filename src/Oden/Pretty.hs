@@ -134,11 +134,11 @@ instance Pretty CanonicalExpr where
 
 instance Pretty Definition where
   pp (Definition _ name (scheme, expr)) =
-    pp name <+> text "::" <+> pp scheme $+$
+    pp name <+> text ":" <+> pp scheme $+$
     pp name <+> text "=" <+> pp expr
   pp (ForeignDefinition _ name scheme) =
     text "// (foreign)" $+$
-    text "//" <+> pp name <+> text "::" <+> pp scheme
+    text "//" <+> pp name <+> text ":" <+> pp scheme
   pp (TypeDefinition _ name _ type') =
     text "type" <+> pp name <+> equals <+> pp type'
 
@@ -252,12 +252,12 @@ instance Pretty (TypeSignature a) where
 instance Pretty InstantiatedDefinition where
   pp (InstantiatedDefinition polyName _si name expr) =
     text "//" <+> pp polyName $+$
-    pp name <+> text "::" <+> pp (typeOf expr) $+$
+    pp name <+> text ":" <+> pp (typeOf expr) $+$
     pp name <+> text "=" <+> pp expr
 
 instance Pretty MonomorphedDefinition where
   pp (MonomorphedDefinition _ name _ expr) =
-    pp name <+> text "::" <+> pp (typeOf expr) $+$
+    pp name <+> text ":" <+> pp (typeOf expr) $+$
     pp name <+> text "=" <+> pp expr
 
 instance Pretty MonomorphedPackage where

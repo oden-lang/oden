@@ -301,7 +301,7 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
   typeSignature = do
     si <- currentSourceInfo
     i <- identifier
-    reservedOp "::"
+    reservedOp ":"
     TypeSignatureDeclaration si i <$> signature
   valueDef si n = do
     equals
