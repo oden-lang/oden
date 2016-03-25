@@ -210,19 +210,19 @@ codegenFieldInitializer (FieldInitializer _ label expr) = do
 
 -- | Generates a call to an uncurried function
 codegenRawUncurredFnApplication :: Expr Mono.Type -> [Expr Mono.Type] -> Codegen Doc
-codegenRawUncurredFnApplication f ps =
+codegenRawUncurredFnApplication f args =
   case typeOf f of
     Mono.TVariadicFn{} ->
-      let nonVariadicParams = init ps
-          slice = last ps
-      in do fc <-codegenExpr f
-            pc <- mapM codegenExpr nonVariadicParams
+      let nonVariadicArgs = init args
+          slice = last args
+      in do fc <- codegenExpr f
+            ac <- mapM codegenExpr nonVariadicArgs
             sc <- codegenExpr slice
-            return $ fc <> parens (hcat (punctuate (comma <+> space) (pc ++ [sc <> text "..."])))
+            return $ fc <> parens (hcat (punctuate (comma <+> space) (ac ++ [sc <> text "..."])))
     _ -> do
       fc <- codegenExpr f
-      pc <- mapM codegenExpr ps
-      return $ fc <> parens (hcat (punctuate (comma <+> space) pc))
+      ac <- mapM codegenExpr args
+      return $ fc <> parens (hcat (punctuate (comma <+> space) ac))
 
 -- | Generates an anonymous function that will take arguments
 -- | of the specified types and return a tuple containing those values
@@ -232,12 +232,25 @@ codegenToTupleWrapper t1 t2 tr =
     ts = t1:t2:tr
     argNames = take (length ts) $ map (\x -> "_" ++ show (x::Int)) [0..]
   in do
-    fnArgs <- mapM (\(n, t) -> funcArg n t) (zip argNames ts)
+    fnArgs <- zipWithM funcArg argNames ts
     fnType <- codegenType (Mono.TTuple (Metadata Missing) t1 t2 tr)
     let fnBody = braces $ text "return" <+>
                           fnType <+>
                           braces (hcat (punctuate comma (map text argNames)))
     return $ func empty (hcat (punctuate comma fnArgs)) fnType fnBody
+
+-- | Generates a call to an uncurried function with multiple return values,
+-- returning a tuple.
+codegenTupleWrappedUncurriedFnApplication :: Expr Mono.Type   -- the function expr
+                                          -> [Expr Mono.Type] -- function application arguments
+                                          -> Mono.Type        -- first return type
+                                          -> Mono.Type        -- second return type
+                                          -> [Mono.Type]      -- rest of the return types
+                                          -> Codegen Doc
+codegenTupleWrappedUncurriedFnApplication f args t1 t2 tr = do
+  fnCall <- codegenRawUncurredFnApplication f args
+  wrapperFn <- codegenToTupleWrapper t1 t2 tr
+  return $ wrapperFn <+> parens fnCall
 
 codegenExpr :: Expr Mono.Type -> Codegen Doc
 codegenExpr (Symbol _ i _) =
@@ -257,19 +270,17 @@ codegenExpr (BinaryOp _ o e1 e2 _) = do
 codegenExpr (Application _ f p _) =
   (<>) <$> codegenExpr f <*> (parens <$> codegenExpr p)
 
-codegenExpr (UncurriedFnApplication _ f ps _) =
+codegenExpr (UncurriedFnApplication _ f args _) =
   case typeOf f of
+
     -- If there are more return values, we convert them to a tuple
-    Mono.TUncurriedFn _ _ (t1:t2:tr) -> do
-      fnCall <- codegenRawUncurredFnApplication f ps
-      wrapperFn <- codegenToTupleWrapper t1 t2 tr
-      return $ wrapperFn <+> (parens fnCall)
-    Mono.TVariadicFn _ _ _ (t1:t2:tr) -> do
-      fnCall <- codegenRawUncurredFnApplication f ps
-      wrapperFn <- codegenToTupleWrapper t1 t2 tr
-      return $ wrapperFn <+> (parens fnCall)
+    Mono.TUncurriedFn _ _ (t1:t2:tr) ->
+      codegenTupleWrappedUncurriedFnApplication f args t1 t2 tr
+    Mono.TVariadicFn _ _ _ (t1:t2:tr) ->
+      codegenTupleWrappedUncurriedFnApplication f args t1 t2 tr
+
     -- Otherwise, just generate the call
-    _ -> codegenRawUncurredFnApplication f ps
+    _ -> codegenRawUncurredFnApplication f args
 
 codegenExpr (NoArgApplication _ f _) =
   (<> parens empty) <$> codegenExpr f
