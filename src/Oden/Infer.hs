@@ -288,12 +288,12 @@ infer expr = case expr of
     tf <- infer f
     case Core.typeOf tf of
       t@TUncurriedFn{} -> do
-        uni (getSourceInfo tf) t (TUncurriedFn (Metadata $ getSourceInfo tf) [] tv)
+        uni (getSourceInfo tf) t (TUncurriedFn (Metadata $ getSourceInfo tf) [] [tv])
         return (Core.UncurriedFnApplication si tf [] tv)
       -- No-param application of variadic function is automatically transformed
       -- to application of empty slice.
       t@(TVariadicFn _ [] variadicArg _) -> do
-        uni (getSourceInfo tf) t (TVariadicFn (Metadata $ getSourceInfo tf) [] variadicArg tv)
+        uni (getSourceInfo tf) t (TVariadicFn (Metadata $ getSourceInfo tf) [] variadicArg [tv])
         return (Core.UncurriedFnApplication si tf [Core.Slice (Metadata $ getSourceInfo variadicArg) [] variadicArg] tv)
       TVariadicFn _ nonVariadicArgs _ _ ->
         throwError (ArgumentCountMismatch tf nonVariadicArgs [])
@@ -303,26 +303,44 @@ infer expr = case expr of
 
   Untyped.Application si f ps -> do
     tf <- infer f
+
     case Core.typeOf tf of
-      t@TUncurriedFn{} -> do
-        tv <- fresh (Metadata $ getSourceInfo t)
+      -- Uncurried non-variadic functions with a single return value
+      t@(TUncurriedFn _ _ [_]) -> do
+        tv <- fresh si
         tps <- mapM infer ps
-        uni (getSourceInfo tf) t (TUncurriedFn si (map Core.typeOf tps) tv)
+        uni (getSourceInfo tf) t (TUncurriedFn si (map Core.typeOf tps) [tv])
         return (Core.UncurriedFnApplication si tf tps tv)
-      t@(TVariadicFn _ nonVariadicTypes variadicType _) -> do
-        tv <- fresh (Metadata $ getSourceInfo t)
-        nonVariadicParams <- mapM infer (take (length nonVariadicTypes) ps)
-        variadicParams <- mapM infer (drop (length nonVariadicTypes) ps)
-        let sliceSi = if null variadicParams then Missing else getSourceInfo (head variadicParams)
-        let allParams = nonVariadicParams ++ [Core.Slice (Metadata sliceSi) variadicParams variadicType]
-        uni (getSourceInfo tf) t (TVariadicFn (Metadata $ getSourceInfo tf) (map Core.typeOf nonVariadicParams) variadicType tv)
-        return (Core.UncurriedFnApplication si tf allParams tv)
-      t ->
+
+      -- Uncurried non-variadic functions with multiple return values
+      TUncurriedFn _ as (r1:r2:rs) -> do
+        tv <- fresh si
+        tps <- mapM infer ps
+        uni (getSourceInfo tf) (TUncurriedFn (Metadata $ getSourceInfo tf) as [TTuple si r1 r2 rs])
+                               (TUncurriedFn (Metadata $ getSourceInfo tf) (map Core.typeOf tps) [tv])
+        return (Core.UncurriedFnApplication si tf tps tv)
+
+      -- Uncurried variadic functions with a single return value
+      TVariadicFn _ nonVariadicTypes variadicType [firstReturnType] ->
+        inferVariadicFnApplication si tf nonVariadicTypes variadicType firstReturnType [] ps
+
+      -- Uncurried variadic functions with multiple return values
+      TVariadicFn _ nonVariadicTypes variadicType (firstReturnType : restReturnTypes) ->
+        inferVariadicFnApplication si tf nonVariadicTypes variadicType firstReturnType restReturnTypes ps
+
+      -- No-arg functions
+      t | null ps -> do
+        tv <- fresh si
+        uni (getSourceInfo tf) t (TNoArgFn (Metadata $ getSourceInfo tf) tv)
+        return (Core.NoArgApplication si tf tv)
+
+      -- Everything else, i.e. functions with a single argument and one return value
+      _ ->
         foldM app tf ps
         where
         app :: Core.Expr Type -> Untyped.Expr -> Infer (Core.Expr Type)
         app tf' p = do
-          tv <- fresh (Metadata $ getSourceInfo t)
+          tv <- fresh si
           tp <- infer p
           uni (getSourceInfo tf) (Core.typeOf tf') (TFn (Metadata $ getSourceInfo tf) (Core.typeOf tp) tv)
           return (Core.Application si tf' tp tv)
@@ -378,6 +396,34 @@ infer expr = case expr of
         (Core.typeOf typedExpr)
         (TRecord (Metadata $ getSourceInfo typedExpr) (RExtension si label fieldType recordExtType))
     return (Core.RecordFieldAccess si typedExpr label fieldType)
+
+  -- | Takes an inferred function "tf", its types and the untyped arguments to
+  -- apply and infers and unifies the function application. If theres more than
+  -- one return value it infers is as a tuple return value.
+  inferVariadicFnApplication si tf nonVariadicTypes variadicType firstReturnType restReturnTypes args = do
+    tv <- fresh si
+    nonVariadicArgs <- mapM infer (take (length nonVariadicTypes) args)
+    variadicArgs <- mapM infer (drop (length nonVariadicTypes) args)
+    let sliceSi = if null variadicArgs then Missing else getSourceInfo (head variadicArgs)
+    let allParams = nonVariadicArgs ++ [Core.Slice (Metadata sliceSi) variadicArgs variadicType]
+    case restReturnTypes of
+      (secondReturnType : rs) ->
+        uni (getSourceInfo tf)
+            (TVariadicFn
+             (Metadata $ getSourceInfo tf)
+             nonVariadicTypes
+             variadicType
+             [TTuple si firstReturnType secondReturnType rs])
+            (TVariadicFn
+             (Metadata $ getSourceInfo tf)
+             (map Core.typeOf nonVariadicArgs)
+             variadicType
+             [tv])
+      _ ->
+        uni (getSourceInfo tf)
+            (Core.typeOf tf)
+            (TVariadicFn (Metadata $ getSourceInfo tf) (map Core.typeOf nonVariadicArgs) variadicType [tv])
+    return (Core.UncurriedFnApplication si tf allParams tv)
 
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr SourceInfo -> Infer Type
