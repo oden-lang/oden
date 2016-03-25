@@ -25,22 +25,22 @@ spec :: Spec
 spec = do
   describe "explodeExpr" $ do
     it "converts symbol" $
-      explodeExpr (Symbol (src 1 1) (Identifier "x"))
+       explodeExpr (Symbol (src 1 1) (Identifier "x"))
       `shouldSucceedWith`
       U.Symbol ignored (Identifier "x")
 
     it "converts int literal" $
-      explodeExpr (Literal (src 1 1) (Int 1))
+       explodeExpr (Literal (src 1 1) (Int 1))
       `shouldSucceedWith`
       U.Literal ignored (U.Int 1)
 
     it "converts bool literal" $
-      explodeExpr (Literal (src 1 1) (Bool True))
+       explodeExpr (Literal (src 1 1) (Bool True))
       `shouldSucceedWith`
       U.Literal ignored (U.Bool True)
 
     it "converts fn application with no params" $
-      explodeExpr (Application
+       explodeExpr (Application
                    (src 1 1)
                    (Fn (src 1 1) [] (Symbol (src 1 3) (Identifier "x")))
                    [])
@@ -50,7 +50,7 @@ spec = do
       (U.NoArgFn ignored (U.Symbol ignored (Identifier "x"))) []
 
     it "converts fn application with multiple params" $
-      explodeExpr (Application
+       explodeExpr (Application
                    (src 1 1)
                    (Fn
                     (src 1 1)
