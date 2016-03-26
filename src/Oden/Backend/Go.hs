@@ -130,12 +130,12 @@ codegenType (Mono.TUncurriedFn _ as [r]) = do
 codegenType (Mono.TUncurriedFn _ as rs) = do
   as' <- mapM codegenType as
   rcs <- mapM codegenType rs
-  return $ func empty (hcat (punctuate (comma <+> space) as')) (braces (hcat (punctuate (text ",") rcs))) empty
+  return $ func empty (hcat (punctuate (comma <+> space) as')) (parens (hcat (punctuate (text ",") rcs))) empty
 codegenType (Mono.TVariadicFn _ as v rs) = do
   as' <- mapM codegenType as
   vc <- codegenType v
   rcs <- mapM codegenType rs
-  return $ func empty (hcat (punctuate (comma <+> space) (as' ++ [vc <> text "..."]))) (braces (hcat (punctuate (text ",") rcs))) empty
+  return $ func empty (hcat (punctuate (comma <+> space) (as' ++ [vc <> text "..."]))) (parens (hcat (punctuate (text ",") rcs))) empty
 codegenType (Mono.TRecord _ row) = codegenType row
 codegenType (Mono.TNamed _ _ t) = codegenType t
 codegenType Mono.REmpty{} = return $ text "struct{}"

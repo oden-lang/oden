@@ -12,6 +12,7 @@ import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 import           Oden.Type.Signature
 
+import           Data.List             (intersperse)
 import           Data.Set              (toList)
 
 import           Text.PrettyPrint
@@ -175,10 +176,10 @@ instance Pretty Poly.Type where
   pp (Poly.TCon _ n) = pp n
   pp (Poly.TNoArgFn _ t) = rArr <+> pp t
   pp (Poly.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
-  pp (Poly.TUncurriedFn _ as [r]) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
-  pp (Poly.TUncurriedFn _ as rs) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> braces (hsep (punctuate (text "&") (map pp rs)))
-  pp (Poly.TVariadicFn _ as v [r]) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
-  pp (Poly.TVariadicFn _ as v rs) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> braces (hsep (punctuate (text "&") (map pp rs)))
+  pp (Poly.TUncurriedFn _ as [r]) = hsep (intersperse (text "&") (map pp as)) <+> rArr <+> pp r
+  pp (Poly.TUncurriedFn _ as rs) = hsep (intersperse (text "&") (map pp as)) <+> rArr <+> commaSepParens rs
+  pp (Poly.TVariadicFn _ as v [r]) = hsep (intersperse (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
+  pp (Poly.TVariadicFn _ as v rs) = hsep (intersperse (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> commaSepParens rs
   pp (Poly.TSlice _ t) =
     text "[]" <> braces (pp t)
   pp (Poly.TNamed _ n _) = pp n

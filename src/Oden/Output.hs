@@ -30,6 +30,12 @@ escape OutputSettings{monochrome = False} ns = text ("\ESC[" ++ intercalate ";" 
 strCode :: OutputSettings -> String -> Doc
 strCode settings a = code settings (text a)
 
+pluralize :: String -> Int -> Doc
+pluralize str 1     = text str
+pluralize str _
+  | last str == 's' = text str
+  | otherwise       = text (str ++ "s")
+
 code :: OutputSettings -> Doc -> Doc
 code settings d =
   escape settings [1, 34] <> contents <> escape settings [0]

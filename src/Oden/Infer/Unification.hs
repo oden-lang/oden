@@ -24,6 +24,7 @@ data UnificationError = UnificationFail SourceInfo Type Type
                       | RowFieldUnificationFail SourceInfo (Identifier, Type) (Identifier, Type)
                       | InfiniteType SourceInfo TVar Type
                       | UnificationMismatch SourceInfo [Type] [Type]
+                      | ParameterCountMismatch SourceInfo Type Type [Type] [Type]
                       deriving (Show, Eq)
 
 type Constraint = (SourceInfo, Type, Type)
@@ -57,10 +58,13 @@ unifies _ (TCon _ n1) (TCon _ n2)
   | n1 == n2 = return emptySubst
 unifies si (TFn _ t1 t2) (TFn _ t3 t4) = unifyMany si [t1, t2] [t3, t4]
 unifies si (TNoArgFn _ t1) (TNoArgFn _ t2) = unifies si t1 t2
-unifies si (TUncurriedFn _ as1 rs1) (TUncurriedFn _ as2 rs2) = do
-  a <- unifyMany si as1 as2
-  r <- unifyMany si rs1 rs2
-  return (a `compose` r)
+unifies si f1@(TUncurriedFn _ as1 rs1) f2@(TUncurriedFn _ as2 rs2)
+  | length as1 /= length as2 = throwError (ParameterCountMismatch si f1 f2 as1 as2)
+  | length rs1 /= length rs2 = throwError (UnificationFail si f1 f2)
+  | otherwise = do
+    a <- unifyMany si as1 as2
+    r <- unifyMany si rs1 rs2
+    return (a `compose` r)
 unifies si (TVariadicFn _ as1 v1 rs1) (TVariadicFn _ as2 v2 rs2) = do
   a <- unifyMany si as1 as2
   v <- unifies si v1 v2

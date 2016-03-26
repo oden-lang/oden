@@ -283,27 +283,8 @@ infer expr = case expr of
     tf <- infer f
     return (Core.NoArgFn si tf (TNoArgFn si (Core.typeOf tf)))
 
-  Untyped.Application si f [] -> do
-    tv <- fresh si
-    tf <- infer f
-    case Core.typeOf tf of
-      t@TUncurriedFn{} -> do
-        uni (getSourceInfo tf) t (TUncurriedFn (Metadata $ getSourceInfo tf) [] [tv])
-        return (Core.UncurriedFnApplication si tf [] tv)
-      -- No-param application of variadic function is automatically transformed
-      -- to application of empty slice.
-      t@(TVariadicFn _ [] variadicArg _) -> do
-        uni (getSourceInfo tf) t (TVariadicFn (Metadata $ getSourceInfo tf) [] variadicArg [tv])
-        return (Core.UncurriedFnApplication si tf [Core.Slice (Metadata $ getSourceInfo variadicArg) [] variadicArg] tv)
-      TVariadicFn _ nonVariadicArgs _ _ ->
-        throwError (ArgumentCountMismatch tf nonVariadicArgs [])
-      t -> do
-        uni (getSourceInfo tf) t (TNoArgFn (Metadata $ getSourceInfo tf) tv)
-        return (Core.NoArgApplication si tf tv)
-
   Untyped.Application si f ps -> do
     tf <- infer f
-
     case Core.typeOf tf of
       -- Uncurried non-variadic functions with a single return value
       t@(TUncurriedFn _ _ [_]) -> do
