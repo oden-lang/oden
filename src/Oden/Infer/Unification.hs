@@ -24,7 +24,6 @@ data UnificationError = UnificationFail SourceInfo Type Type
                       | RowFieldUnificationFail SourceInfo (Identifier, Type) (Identifier, Type)
                       | InfiniteType SourceInfo TVar Type
                       | UnificationMismatch SourceInfo [Type] [Type]
-                      | ParameterCountMismatch SourceInfo Type Type [Type] [Type]
                       deriving (Show, Eq)
 
 type Constraint = (SourceInfo, Type, Type)
