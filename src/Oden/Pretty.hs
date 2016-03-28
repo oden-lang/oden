@@ -101,8 +101,8 @@ instance Pretty t => Pretty (Expr t) where
   pp (BinaryOp _ op e1 e2 _) = parens (pp e1 <+> pp op <+> pp e2)
   pp (Application _ f a _) = pp f <> text "(" <> pp a <> text ")"
   pp (NoArgApplication _ f _) = pp f <> text "()"
-  pp (UncurriedFnApplication _ f as _) = pp f <> commaSepParens as
-  pp (Fn _ n b _) = parens (pp n) <+> rArr <+> pp b
+  pp (ForeignFnApplication _ f as _) = pp f <> commaSepParens as
+  pp (Fn _ n b _) = parens (parens (pp n) <+> rArr <+> pp b)
   pp (NoArgFn _ b _) = parens empty <+> rArr <+> pp b
   pp (Let _ n e b _) =
     text "let" <+> pp n <+> equals <+> pp e <+> text "in" <+> pp b
@@ -176,10 +176,10 @@ instance Pretty Poly.Type where
   pp (Poly.TCon _ n) = pp n
   pp (Poly.TNoArgFn _ t) = rArr <+> pp t
   pp (Poly.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
-  pp (Poly.TUncurriedFn _ as [r]) = hsep (intersperse (text "&") (map pp as)) <+> rArr <+> pp r
-  pp (Poly.TUncurriedFn _ as rs) = hsep (intersperse (text "&") (map pp as)) <+> rArr <+> commaSepParens rs
-  pp (Poly.TVariadicFn _ as v [r]) = hsep (intersperse (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
-  pp (Poly.TVariadicFn _ as v rs) = hsep (intersperse (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> commaSepParens rs
+  pp (Poly.TUncurriedFn _ as [r]) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp as)) <+> rArr <+> pp r
+  pp (Poly.TUncurriedFn _ as rs) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp as)) <+> rArr <+> commaSepParens rs
+  pp (Poly.TVariadicFn _ as v [r]) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
+  pp (Poly.TVariadicFn _ as v rs) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> commaSepParens rs
   pp (Poly.TSlice _ t) =
     text "[]" <> braces (pp t)
   pp (Poly.TNamed _ n _) = pp n
@@ -218,12 +218,12 @@ instance Pretty Mono.Type where
   pp (Mono.TCon _ n) = pp n
   pp (Mono.TNoArgFn _ t) = rArr <+> pp t
   pp (Mono.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
-  pp (Mono.TUncurriedFn _ as [r]) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
-  pp (Mono.TUncurriedFn _ as rs) = hsep (punctuate (text "&") (map pp as)) <+> rArr <+> parens (hsep (punctuate (text ", ") (map pp rs)))
-  pp (Mono.TVariadicFn _ as v [r]) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
-  pp (Mono.TVariadicFn _ as v rs) = hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> parens (hsep (punctuate (text ", ") (map pp rs)))
+  pp (Mono.TUncurriedFn _ as [r]) = text "<foreign>" <+> hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
+  pp (Mono.TUncurriedFn _ as rs) = text "<foreign>" <+> hsep (punctuate (text "&") (map pp as)) <+> rArr <+> parens (hsep (punctuate (text ", ") (map pp rs)))
+  pp (Mono.TVariadicFn _ as v [r]) = text "<foreign>" <+> hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
+  pp (Mono.TVariadicFn _ as v rs) = text "<foreign>" <+> hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> parens (hsep (punctuate (text ", ") (map pp rs)))
   pp (Mono.TSlice _ t) =
-    text "!" <> braces (pp t)
+    text "[]" <> braces (pp t)
   pp (Mono.TNamed _ n _) = pp n
   pp (Mono.TRecord _ r) = braces (ppMonoFields r)
   pp Mono.REmpty{} = braces empty

@@ -75,7 +75,9 @@ unifies si (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   s <- unifies si s1 s2
   r <- unifyMany si r1 r2
   return (f `compose` s `compose` r)
-unifies si (TSlice _ t1) (TSlice _ t2) = unifies si t1 t2
+unifies si (TSlice _ t1@TVar{}) (TSlice _ t2) = unifies si t1 t2
+unifies si (TSlice _ t1) (TSlice _ t2@TVar{}) = unifies si t1 t2
+unifies _ (TSlice _ t1) (TSlice _ t2) | t1 == t2 = return emptySubst
 unifies si (TNamed _ n1 t1) (TNamed _ n2 t2)
   | n1 == n2 = unifies si t1 t2
 unifies si t1 (TNamed _ _ t2) = unifies si t1 t2

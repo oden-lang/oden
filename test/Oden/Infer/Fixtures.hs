@@ -95,7 +95,7 @@ tSymbol                 = Symbol missing
 tOp                     = BinaryOp missing
 tApplication            = Application missing
 tNoArgApplication       = NoArgApplication missing
-tUncurriedFnApplication = UncurriedFnApplication missing
+tForeignFnApplication   = ForeignFnApplication missing
 tFn                     = Fn missing
 tNoArgFn                = NoArgFn missing
 tLet                    = Let missing
@@ -128,11 +128,11 @@ predefAndMax =  predef `extend` (Identifier "max",
 
 predefAndMaxVariadic :: TypingEnvironment
 predefAndMaxVariadic = predef `extend` (Identifier "max",
-                                        Local predefined (Identifier "max") $ forall [] (typeVariadic [] typeInt [typeInt]))
+                                        Local predefined (Identifier "max") $ forall [] (typeVariadic [] (TSlice missing typeInt) [typeInt]))
 
 predefAndIdentityAny :: TypingEnvironment
 predefAndIdentityAny = predef `extend` (Identifier "identity",
-                                        Local predefined (Identifier "identity") $ forall [] (typeUncurried [typeAny] [typeAny]))
+                                        Local predefined (Identifier "identity") $ forall [] (typeFn typeAny typeAny))
 
 fooBarPkgEnv :: TypingEnvironment
 fooBarPkgEnv = predef `extend` (Identifier "foo",

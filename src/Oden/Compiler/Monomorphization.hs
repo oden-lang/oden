@@ -185,11 +185,11 @@ monomorph e = case e of
     mf <- monomorph f
     return (Core.NoArgApplication si mf mt)
 
-  Core.UncurriedFnApplication si f ps _ -> do
+  Core.ForeignFnApplication si f ps _ -> do
     mt <- getMonoType e
     mf <- monomorph f
     mps <- mapM monomorph ps
-    return (Core.UncurriedFnApplication si mf mps mt)
+    return (Core.ForeignFnApplication si mf mps mt)
 
   Core.Fn si param@(Core.NameBinding _ identifier) b _ -> do
     mt <- getMonoType e

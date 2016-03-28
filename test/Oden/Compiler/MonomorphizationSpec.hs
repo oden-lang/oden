@@ -160,10 +160,10 @@ sliceLenDef =
     missing
     (Identifier "slice-len")
     (Poly.Forall missing [] typeInt,
-     Core.UncurriedFnApplication
+     Core.Application
       missing
       (Core.Symbol missing (Identifier "len") (Poly.TUncurriedFn missing [Poly.TSlice missing typeBool] [typeInt]))
-      [Core.Slice missing [Core.Literal missing (Core.Bool True) typeBool] (Poly.TSlice missing typeBool)]
+      (Core.Slice missing [Core.Literal missing (Core.Bool True) typeBool] (Poly.TSlice missing typeBool))
       typeInt)
 
 sliceLenMonomorphed :: MonomorphedDefinition
@@ -172,10 +172,10 @@ sliceLenMonomorphed =
     missing
     (Identifier "slice-len")
     monoInt
-    (Core.UncurriedFnApplication
+    (Core.Application
      missing
      (Core.Symbol missing (Identifier "len") (Mono.TUncurriedFn missing [Mono.TSlice missing monoBool] [monoInt]))
-     [Core.Slice missing [Core.Literal missing (Core.Bool True) monoBool] (Mono.TSlice missing monoBool)]
+     (Core.Slice missing [Core.Literal missing (Core.Bool True) monoBool] (Mono.TSlice missing monoBool))
      monoInt)
 
 letWithShadowing :: Core.Definition

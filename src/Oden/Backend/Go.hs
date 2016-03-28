@@ -259,7 +259,7 @@ codegenExpr (BinaryOp _ o e1 e2 _) = do
 codegenExpr (Application _ f p _) =
   (<>) <$> codegenExpr f <*> (parens <$> codegenExpr p)
 
-codegenExpr (UncurriedFnApplication _ f args _) =
+codegenExpr (ForeignFnApplication _ f args _) =
   case typeOf f of
 
     -- Go functions that return unit are (almost always) void functions

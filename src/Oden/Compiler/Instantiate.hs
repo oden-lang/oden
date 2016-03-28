@@ -157,10 +157,10 @@ instantiateExpr (Core.Application si f p t) =
 instantiateExpr (Core.NoArgApplication si f t) =
   Core.NoArgApplication si <$> instantiateExpr f
                            <*> replace t
-instantiateExpr (Core.UncurriedFnApplication si f ps t) =
-  Core.UncurriedFnApplication si <$> instantiateExpr f
-                                 <*> mapM instantiateExpr ps
-                                 <*> replace t
+instantiateExpr (Core.ForeignFnApplication si f ps t) =
+  Core.ForeignFnApplication si <$> instantiateExpr f
+                               <*> mapM instantiateExpr ps
+                               <*> replace t
 instantiateExpr (Core.Fn si a b t) =
   Core.Fn si a <$> instantiateExpr b
                <*> replace t

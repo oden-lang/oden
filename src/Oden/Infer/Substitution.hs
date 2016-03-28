@@ -72,7 +72,7 @@ instance Substitutable (Core.Expr Type) where
   apply s (Core.BinaryOp si o e1 e2 t)                  = Core.BinaryOp si o (apply s e1) (apply s e2) (apply s t)
   apply s (Core.Application si f p t)                   = Core.Application si (apply s f) (apply s p) (apply s t)
   apply s (Core.NoArgApplication si f t)                = Core.NoArgApplication si (apply s f) (apply s t)
-  apply s (Core.UncurriedFnApplication si f p t)        = Core.UncurriedFnApplication si (apply s f) (apply s p) (apply s t)
+  apply s (Core.ForeignFnApplication si f p t)          = Core.ForeignFnApplication si (apply s f) (apply s p) (apply s t)
   apply s (Core.Fn si x b t)                            = Core.Fn si x (apply s b) (apply s t)
   apply s (Core.NoArgFn si b t)                         = Core.NoArgFn si (apply s b) (apply s t)
   apply s (Core.Let si x e b t)                         = Core.Let si x (apply s e) (apply s b) (apply s t)

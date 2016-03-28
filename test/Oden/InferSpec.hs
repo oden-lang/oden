@@ -138,9 +138,9 @@ spec = describe "inferExpr" $ do
        [uLiteral (uBool False)])
     `shouldSucceedWith`
     (forall [] typeAny,
-     tUncurriedFnApplication
-      (tSymbol (Identifier "identity") (typeUncurried [typeAny] [typeAny]))
-      [tLiteral (tBool False) typeBool]
+     tApplication
+      (tSymbol (Identifier "identity") (typeFn typeAny typeAny))
+      (tLiteral (tBool False) typeBool)
       typeAny)
 
   it "infers 1 + 1" $
@@ -168,12 +168,12 @@ spec = describe "inferExpr" $ do
         [uLiteral (uBool False)]])
     `shouldSucceedWith`
     (forall [] typeAny,
-     tUncurriedFnApplication
-      (tSymbol (Identifier "identity") (typeUncurried [typeAny] [typeAny]))
-      [tUncurriedFnApplication
-       (tSymbol (Identifier "identity") (typeUncurried [typeAny] [typeAny]))
-       [tLiteral (tBool False) typeBool]
-       typeAny]
+     tApplication
+      (tSymbol (Identifier "identity") (typeFn typeAny typeAny))
+      (tApplication
+       (tSymbol (Identifier "identity") (typeFn typeAny typeAny))
+       (tLiteral (tBool False) typeBool)
+       typeAny)
       typeAny)
 
   it "infers let" $
@@ -211,42 +211,75 @@ spec = describe "inferExpr" $ do
                           (tSymbol (Identifier "x") tvarA)
                           tvarA) (typeFn tvarA tvarA))
 
-  it "infers single-arg uncurried func application" $
+  it "infers single-arg foreign func application" $
     inferExpr predef (uApplication (uSymbol (Identifier "len")) [uSlice [uLiteral (uBool True)]])
     `shouldSucceedWith`
     (forall [] typeInt,
-     tUncurriedFnApplication (Core.Symbol missing (Identifier "len") (TUncurriedFn missing [TSlice predefined typeBool] [typeInt]))
-                            [Core.Slice missing [Core.Literal missing (tBool True) typeBool] (typeSlice typeBool)]
+     tApplication
+     (tFn (tNameBinding (Identifier "_g0"))
+      (tForeignFnApplication
+       (Core.Symbol missing (Identifier "len") (TUncurriedFn missing [TSlice predefined typeBool] [typeInt]))
+       [tSymbol (Identifier "_g0") (TSlice predefined typeBool)]
+       typeInt)
+      (typeFn (TSlice predefined typeBool) typeInt))
+     (Core.Slice missing [Core.Literal missing (tBool True) typeBool] (typeSlice typeBool))
      typeInt)
 
-  it "infers single-arg uncurried func application" $
+  it "infers multi-arg foreign func application" $
     inferExpr predefAndMax (uApplication (uSymbol (Identifier "max"))
                                                 [uLiteral (uInt 0)
                                                 ,uLiteral (uInt 1)])
     `shouldSucceedWith`
     (forall [] typeInt,
-     tUncurriedFnApplication (tSymbol (Identifier "max") (typeUncurried [typeInt, typeInt] [typeInt]))
-                            [tLiteral (tInt 0) typeInt
-                            ,tLiteral (tInt 1) typeInt]
+     tApplication
+     (tApplication
+      (tFn
+       (tNameBinding (Identifier "_g0"))
+       (tFn
+        (tNameBinding (Identifier "_g1"))
+        (tForeignFnApplication
+         (tSymbol (Identifier "max") (typeUncurried [typeInt, typeInt] [typeInt]))
+         [tSymbol (Identifier "_g0") typeInt, tSymbol (Identifier "_g1") typeInt]
+         typeInt)
+        (typeFn typeInt typeInt))
+       (typeFn typeInt (typeFn typeInt typeInt)))
+      (tLiteral (tInt 0) typeInt)
+      (typeFn typeInt typeInt))
+     (tLiteral (tInt 1) typeInt)
      typeInt)
 
   it "infers variadic func application" $
-    inferExpr predefAndMaxVariadic (uApplication (uSymbol (Identifier "max"))
-                                                        [uLiteral (uInt 0)
-                                                        ,uLiteral (uInt 1)])
+    inferExpr predefAndMaxVariadic (uApplication
+                                    (uSymbol (Identifier "max"))
+                                    [uSlice
+                                     [uLiteral (uInt 0)
+                                     ,uLiteral (uInt 1)]])
     `shouldSucceedWith`
     (forall [] typeInt,
-     tUncurriedFnApplication (tSymbol (Identifier "max") (typeVariadic [] typeInt [typeInt]))
-                            [tSlice [tLiteral (tInt 0) typeInt
-                                        ,tLiteral (tInt 1) typeInt] typeInt]
+     tApplication
+     (tFn
+      (tNameBinding (Identifier "_g0"))
+      (tForeignFnApplication
+       (tSymbol (Identifier "max") (typeVariadic [] (TSlice missing typeInt) [typeInt]))
+       [tSymbol (Identifier "_g0") (TSlice missing typeInt)]
+       typeInt)
+      (typeFn (TSlice missing typeInt) typeInt))
+     (tSlice [tLiteral (tInt 0) typeInt, tLiteral (tInt 1) typeInt] (TSlice missing typeInt))
      typeInt)
 
   it "infers variadic no-arg func application" $
-    inferExpr predefAndMaxVariadic (uApplication (uSymbol (Identifier "max")) [])
+    inferExpr predefAndMaxVariadic (uApplication (uSymbol (Identifier "max")) [uSlice []])
     `shouldSucceedWith`
     (forall [] typeInt,
-     tUncurriedFnApplication (tSymbol (Identifier "max") (typeVariadic [] typeInt [typeInt]))
-                            [tSlice [] typeInt]
+     tApplication
+     (tFn
+      (tNameBinding (Identifier "_g0"))
+      (tForeignFnApplication
+       (tSymbol (Identifier "max") (typeVariadic [] (TSlice missing typeInt) [typeInt]))
+       [tSymbol (Identifier "_g0") (TSlice missing typeInt)]
+       typeInt)
+      (typeFn (TSlice missing typeInt) typeInt))
+     (tSlice [] (TSlice missing typeInt))
      typeInt)
 
   it "infers record initializer" $

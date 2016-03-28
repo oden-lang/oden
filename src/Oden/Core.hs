@@ -21,7 +21,7 @@ data Expr t = Symbol (Metadata SourceInfo) Identifier t
             | BinaryOp (Metadata SourceInfo) BinaryOperator (Expr t) (Expr t) t
             | Application (Metadata SourceInfo) (Expr t) (Expr t) t
             | NoArgApplication (Metadata SourceInfo) (Expr t) t
-            | UncurriedFnApplication (Metadata SourceInfo) (Expr t) [Expr t] t
+            | ForeignFnApplication (Metadata SourceInfo) (Expr t) [Expr t] t
             | Fn (Metadata SourceInfo) NameBinding (Expr t) t
             | NoArgFn (Metadata SourceInfo) (Expr t) t
             | Let (Metadata SourceInfo) NameBinding (Expr t) (Expr t) t
@@ -43,7 +43,7 @@ instance HasSourceInfo (Expr t) where
   getSourceInfo (BinaryOp (Metadata si) _ _ _ _)             = si
   getSourceInfo (Application (Metadata si) _ _ _)            = si
   getSourceInfo (NoArgApplication (Metadata si) _ _)         = si
-  getSourceInfo (UncurriedFnApplication (Metadata si) _ _ _) = si
+  getSourceInfo (ForeignFnApplication (Metadata si) _ _ _) = si
   getSourceInfo (Fn (Metadata si) _ _ _)                     = si
   getSourceInfo (NoArgFn (Metadata si) _ _)                  = si
   getSourceInfo (Let (Metadata si) _ _ _ _)                  = si
@@ -63,7 +63,7 @@ instance HasSourceInfo (Expr t) where
   setSourceInfo si (BinaryOp _ p l r t)                = BinaryOp (Metadata si) p l r t
   setSourceInfo si (Application _ f a t)               = Application (Metadata si) f a t
   setSourceInfo si (NoArgApplication _ f t)            = NoArgApplication (Metadata si) f t
-  setSourceInfo si (UncurriedFnApplication _ f a t)    = UncurriedFnApplication (Metadata si) f a t
+  setSourceInfo si (ForeignFnApplication _ f a t)    = ForeignFnApplication (Metadata si) f a t
   setSourceInfo si (Fn _ n b t)                        = Fn (Metadata si) n b t
   setSourceInfo si (NoArgFn _ b t)                     = NoArgFn (Metadata si) b t
   setSourceInfo si (Let _ n v b t)                     = Let (Metadata si) n v b t
@@ -84,7 +84,7 @@ typeOf (UnaryOp _ _ _ t) = t
 typeOf (BinaryOp _ _ _ _ t) = t
 typeOf (Application _ _ _ t) = t
 typeOf (NoArgApplication _ _ t) = t
-typeOf (UncurriedFnApplication _ _ _ t) = t
+typeOf (ForeignFnApplication _ _ _ t) = t
 typeOf (Fn _ _ _ t) = t
 typeOf (NoArgFn _ _ t) = t
 typeOf (Let _ _ _ _ t) = t

@@ -54,7 +54,7 @@ validateExpr (Application _ f arg _) = do
   validateExpr arg
 validateExpr (NoArgApplication _ f _) =
   validateExpr f
-validateExpr (UncurriedFnApplication _ f args _) = do
+validateExpr (ForeignFnApplication _ f args _) = do
   validateExpr f
   mapM_ validateExpr args
 validateExpr (Fn _ (NameBinding si name) body _) =  do
