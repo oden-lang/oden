@@ -15,11 +15,9 @@ data Type
   | TSlice (Metadata SourceInfo) Type
   | TRecord (Metadata SourceInfo) Type
   | TNamed (Metadata SourceInfo) QualifiedName Type
-  | TUncurriedFn (Metadata SourceInfo) [Type] [Type]
-  | TVariadicFn (Metadata SourceInfo) [Type] Type [Type]
-  -- Row
   | REmpty (Metadata SourceInfo)
   | RExtension (Metadata SourceInfo) Identifier Type Type
+  | TForeignFn (Metadata SourceInfo) Bool [Type] [Type]
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
@@ -28,8 +26,7 @@ instance HasSourceInfo Type where
   getSourceInfo (TFn (Metadata si) _ _)           = si
   getSourceInfo (TNoArgFn (Metadata si) _)        = si
   getSourceInfo (TCon (Metadata si) _)            = si
-  getSourceInfo (TUncurriedFn (Metadata si) _ _)  = si
-  getSourceInfo (TVariadicFn (Metadata si) _ _ _) = si
+  getSourceInfo (TForeignFn (Metadata si) _ _ _)  = si
   getSourceInfo (TSlice (Metadata si) _)          = si
   getSourceInfo (TRecord (Metadata si) _)         = si
   getSourceInfo (TNamed (Metadata si) _ _)        = si
@@ -41,8 +38,7 @@ instance HasSourceInfo Type where
   setSourceInfo si (TFn _ a r)           = TFn (Metadata si) a r
   setSourceInfo si (TNoArgFn _ r)        = TNoArgFn (Metadata si) r
   setSourceInfo si (TCon _ n)            = TCon (Metadata si) n
-  setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn (Metadata si) a r
-  setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn (Metadata si) a v r
+  setSourceInfo si (TForeignFn _ v p r)  = TForeignFn (Metadata si) v p r
   setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
   setSourceInfo si (TRecord _ fs)        = TRecord (Metadata si) fs
   setSourceInfo si (TNamed _ n t)        = TNamed (Metadata si) n t

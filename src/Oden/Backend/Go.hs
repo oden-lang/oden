@@ -4,7 +4,7 @@ module Oden.Backend.Go where
 import           Control.Monad.Except
 import           Control.Monad.Reader
 
-import           Data.List             (sortOn)
+import           Data.List             (sortOn, find)
 import qualified Data.Set              as Set
 
 import           Numeric
@@ -123,19 +123,11 @@ codegenType (Mono.TFn _ d r) = do
 codegenType (Mono.TSlice _ t) = do
   tc <- codegenType t
   return $ text "[]" <> tc
-codegenType (Mono.TUncurriedFn _ as [r]) = do
-  as' <- mapM codegenType as
-  rc <- codegenType r
-  return $ func empty (hcat (punctuate (comma <+> space) as')) rc empty
-codegenType (Mono.TUncurriedFn _ as rs) = do
-  as' <- mapM codegenType as
+codegenType (Mono.TForeignFn _ isVariadic ps rs) = do
+  let variadicDots = if isVariadic then text "..." else empty
+  ps' <- mapM codegenType ps
   rcs <- mapM codegenType rs
-  return $ func empty (hcat (punctuate (comma <+> space) as')) (parens (hcat (punctuate (text ",") rcs))) empty
-codegenType (Mono.TVariadicFn _ as v rs) = do
-  as' <- mapM codegenType as
-  vc <- codegenType v
-  rcs <- mapM codegenType rs
-  return $ func empty (hcat (punctuate (comma <+> space) (as' ++ [vc <> text "..."]))) (parens (hcat (punctuate (text ",") rcs))) empty
+  return $ func empty (hcat (punctuate (comma <+> space) (ps' ++ [variadicDots]))) (parens (hcat (punctuate (text ",") rcs))) empty
 codegenType (Mono.TRecord _ row) = codegenType row
 codegenType (Mono.TNamed _ _ t) = codegenType t
 codegenType Mono.REmpty{} = return $ text "struct{}"
@@ -190,11 +182,11 @@ codegenFieldInitializer (FieldInitializer _ label expr) = do
   ec <- codegenExpr expr
   return (lc <> colon <+> ec)
 
--- | Generates a call to an uncurried function
-codegenRawUncurredFnApplication :: Expr Mono.Type -> [Expr Mono.Type] -> Codegen Doc
-codegenRawUncurredFnApplication f args =
+-- | Generates a call to an foreign function
+codegenRawForeignFnApplication :: Expr Mono.Type -> [Expr Mono.Type] -> Codegen Doc
+codegenRawForeignFnApplication f args =
   case typeOf f of
-    Mono.TVariadicFn{} ->
+    (Mono.TForeignFn _ True _ _) ->
       let nonVariadicArgs = init args
           slice = last args
       in do fc <- codegenExpr f
@@ -221,16 +213,16 @@ codegenToTupleWrapper t1 t2 tr =
                           braces (hcat (punctuate comma (map text argNames)))
     return $ func empty (hcat (punctuate comma fnArgs)) fnType fnBody
 
--- | Generates a call to an uncurried function with multiple return values,
+-- | Generates a call to an foreign function with multiple return values,
 -- returning a tuple.
-codegenTupleWrappedUncurriedFnApplication :: Expr Mono.Type   -- the function expr
+codegenTupleWrappedForeignFnApplication :: Expr Mono.Type   -- the function expr
                                           -> [Expr Mono.Type] -- function application arguments
                                           -> Mono.Type        -- first return type
                                           -> Mono.Type        -- second return type
                                           -> [Mono.Type]      -- rest of the return types
                                           -> Codegen Doc
-codegenTupleWrappedUncurriedFnApplication f args t1 t2 tr = do
-  fnCall <- codegenRawUncurredFnApplication f args
+codegenTupleWrappedForeignFnApplication f args t1 t2 tr = do
+  fnCall <- codegenRawForeignFnApplication f args
   wrapperFn <- codegenToTupleWrapper t1 t2 tr
   return $ wrapperFn <+> parens fnCall
 
@@ -264,21 +256,15 @@ codegenExpr (ForeignFnApplication _ f args _) =
 
     -- Go functions that return unit are (almost always) void functions
     -- we wrap them to make the call to them return unit
-    Mono.TUncurriedFn _ _ [t] | isUniverseTypeConstructor "unit" t -> do
-      fnCall <- codegenRawUncurredFnApplication f args
-      return $ voidToUnitWrapper fnCall
-    Mono.TVariadicFn _ _ _ [t] | isUniverseTypeConstructor "unit" t -> do
-      fnCall <- codegenRawUncurredFnApplication f args
+    Mono.TForeignFn _ _ _ [t] | isUniverseTypeConstructor "unit" t -> do
+      fnCall <- codegenRawForeignFnApplication f args
       return $ voidToUnitWrapper fnCall
 
-    -- If there are multiple return values, we convert them to a tuple
-    Mono.TUncurriedFn _ _ (t1:t2:tr) ->
-      codegenTupleWrappedUncurriedFnApplication f args t1 t2 tr
-    Mono.TVariadicFn _ _ _ (t1:t2:tr) ->
-      codegenTupleWrappedUncurriedFnApplication f args t1 t2 tr
+    Mono.TForeignFn _ _ _ (t1:t2:tr) ->
+      codegenTupleWrappedForeignFnApplication f args t1 t2 tr
 
     -- Otherwise, just generate the call
-    _ -> codegenRawUncurredFnApplication f args
+    _ -> codegenRawForeignFnApplication f args
 
 codegenExpr (NoArgApplication _ f _) =
   (<> parens empty) <$> codegenExpr f
@@ -370,14 +356,35 @@ codegenImport (ImportedPackage _ identifier (Package (PackageDeclaration _ pkgNa
   ic <- codegenIdentifier identifier
   return $ text "import" <+> ic <+> doubleQuotes (hcat (punctuate (text "/") (map text pkgName)))
 
+-- | Return the import alias name for the fmt package and possibly the code for
+-- importing fmt (if not imported by the user).
+getFmtImport :: [ImportedPackage] -> (String, Doc)
+getFmtImport pkgs =
+  case find isFmtPackage pkgs of
+    Just (ImportedPackage _ (Identifier alias) _) -> (alias, empty)
+    Nothing -> ("fmt", text "import \"fmt\"")
+  where
+  isFmtPackage (ImportedPackage _ _ (Package (PackageDeclaration _ ["fmt"]) _ _)) = True
+  isFmtPackage _ = False
+
 codegenPackage :: MonomorphedPackage -> Codegen Doc
 codegenPackage (MonomorphedPackage (PackageDeclaration _ name) imports is ms) = do
   importsCode <- mapM codegenImport imports
+
+  let (fmtAlias, fmtImport) = getFmtImport imports
+      printlnFn = text $ "func println(x interface{}) { " ++ fmtAlias ++ ".Println(x) }"
+      printFn = text $ "func print(x interface{}) { " ++ fmtAlias ++ ".Print(x) }"
+
   isc <- mapM codegenInstance (Set.toList is)
   msc <- mapM codegenMonomorphed (Set.toList ms)
   return $ text "package" <+> text (last name)
            $+$ vcat importsCode
+           $+$ text "/* Oden - Bootstrapping Prelude */"
+           $+$ fmtImport
+           $+$ vcat [printFn, printlnFn]
+           $+$ text "/* Oden - Instances */"
            $+$ vcat isc
+           $+$ text "/* Oden - Monomorphed */"
            $+$ vcat msc
 
 toFilePath :: GoBackend -> PackageName -> Codegen FilePath

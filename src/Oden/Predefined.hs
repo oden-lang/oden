@@ -22,9 +22,11 @@ typeString = TCon predefined (nameInUniverse "string")
 typeBool = TCon predefined (nameInUniverse "bool")
 typeUnit = TCon predefined (nameInUniverse "unit")
 
-functions :: [(Identifier, Scheme)]
-functions = [
-  (Identifier "len", Forall predefined [TVarBinding predefined (TV "a")] (TUncurriedFn predefined [TSlice predefined (TVar predefined (TV "a"))] [typeInt]))
+foreignFns :: [(Identifier, Scheme)]
+foreignFns = [
+  (Identifier "len", Forall predefined [TVarBinding predefined (TV "a")] (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
+  (Identifier "print", Forall predefined [] (TForeignFn predefined False [TAny predefined] [typeUnit])),
+  (Identifier "println", Forall predefined [] (TForeignFn predefined False [TAny predefined] [typeUnit]))
   ]
 
 types :: [(String, Type)]
@@ -40,7 +42,7 @@ universe =
   Core.Package
   (Core.PackageDeclaration (Metadata Missing) [])
   []
-  (map toForeignDef functions ++ map toTypeDef types)
+  (map toForeignDef foreignFns ++ map toTypeDef types)
     where
     toTypeDef (s, t) = Core.TypeDefinition predefined (nameInUniverse s) [] t
     toForeignDef (i, s) = Core.ForeignDefinition predefined i s

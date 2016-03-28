@@ -218,7 +218,7 @@ spec = describe "inferExpr" $ do
      tApplication
      (tFn (tNameBinding (Identifier "_g0"))
       (tForeignFnApplication
-       (Core.Symbol missing (Identifier "len") (TUncurriedFn missing [TSlice predefined typeBool] [typeInt]))
+       (Core.Symbol missing (Identifier "len") (typeForeign False [TSlice predefined typeBool] [typeInt]))
        [tSymbol (Identifier "_g0") (TSlice predefined typeBool)]
        typeInt)
       (typeFn (TSlice predefined typeBool) typeInt))
@@ -238,7 +238,7 @@ spec = describe "inferExpr" $ do
        (tFn
         (tNameBinding (Identifier "_g1"))
         (tForeignFnApplication
-         (tSymbol (Identifier "max") (typeUncurried [typeInt, typeInt] [typeInt]))
+         (tSymbol (Identifier "max") (typeForeign False [typeInt, typeInt] [typeInt]))
          [tSymbol (Identifier "_g0") typeInt, tSymbol (Identifier "_g1") typeInt]
          typeInt)
         (typeFn typeInt typeInt))
@@ -260,7 +260,7 @@ spec = describe "inferExpr" $ do
      (tFn
       (tNameBinding (Identifier "_g0"))
       (tForeignFnApplication
-       (tSymbol (Identifier "max") (typeVariadic [] (TSlice missing typeInt) [typeInt]))
+       (tSymbol (Identifier "max") (typeForeign True [TSlice missing typeInt] [typeInt]))
        [tSymbol (Identifier "_g0") (TSlice missing typeInt)]
        typeInt)
       (typeFn (TSlice missing typeInt) typeInt))
@@ -275,7 +275,7 @@ spec = describe "inferExpr" $ do
      (tFn
       (tNameBinding (Identifier "_g0"))
       (tForeignFnApplication
-       (tSymbol (Identifier "max") (typeVariadic [] (TSlice missing typeInt) [typeInt]))
+       (tSymbol (Identifier "max") (typeForeign True [TSlice missing typeInt] [typeInt]))
        [tSymbol (Identifier "_g0") (TSlice missing typeInt)]
        typeInt)
       (typeFn (TSlice missing typeInt) typeInt))

@@ -50,9 +50,9 @@ spec = describe "inferDefinition" $ do
                             (uFn (uNameBinding (Identifier "x")) (uSymbol (Identifier "x"))))
 
   it "infers definition with type signature" $
-    inferDefinition empty (uDefinition (Identifier "x") (Just $ implicit (tsSymbol (Identifier "any"))) (uLiteral (uInt 1)))
+    inferDefinition predef (uDefinition (Identifier "x") (Just $ implicit (tsSymbol (Identifier "int"))) (uLiteral (uInt 1)))
     `shouldSucceedWith`
-    tDefinition (Identifier "x") (forall [] typeAny, tLiteral (tInt 1) typeInt)
+    tDefinition (Identifier "x") (forall [] typeInt, tLiteral (tInt 1) typeInt)
 
   it "infers polymorphic definition with type signature" $
     inferDefinition empty (uDefinition (Identifier "id")
@@ -68,12 +68,11 @@ spec = describe "inferDefinition" $ do
                                                 (Just $ implicit (tsSymbol (Identifier "bool")))
                                                 (uLiteral (uInt 1)))
 
-  it "any subsumes int" $
+  it "any is subsumed by int (maybe this will be supported in the future)" $
+    shouldFail $
       inferDefinition empty (uDefinition (Identifier "some-number")
                                                 (Just $ implicit (tsSymbol (Identifier "any")))
                                                 (uLiteral (uInt 1)))
-      `shouldSucceedWith`
-      tDefinition (Identifier "some-number") (forall [] typeAny, tLiteral (tInt 1) typeInt)
 
 
   it "infers twice function with correct type signature" $
@@ -113,7 +112,8 @@ spec = describe "inferDefinition" $ do
         predef
         (uDefinition
          (Identifier "f")
-         (Just $ implicit (tsFn (tsSymbol (Identifier "int")) (tsSymbol (Identifier "any")))) countToZero)
+         (Just $ implicit (tsFn (tsSymbol (Identifier "int")) (tsSymbol (Identifier "any"))))
+         countToZero)
 
   it "infers record field access fn definition with type signature" $
     let recordType = typeRecord (rowExt (Identifier "foo") tvarA tvarB)

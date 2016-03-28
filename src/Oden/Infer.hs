@@ -182,25 +182,19 @@ generalize env expr  = (Forall (Metadata $ getSourceInfo expr) bindings (Core.ty
 universeType :: Metadata SourceInfo -> String -> Type
 universeType si n = TCon si (nameInUniverse n)
 
-wrapForeign :: (Metadata SourceInfo) -> Core.Expr Type -> Type -> Infer (Core.Expr Type)
+wrapForeign :: Metadata SourceInfo -> Core.Expr Type -> Type -> Infer (Core.Expr Type)
 wrapForeign si expr t =
   case t of
-    TUncurriedFn _ [] returnTypes -> do
+    TForeignFn _ _ [] returnTypes -> do
       let wrappedReturnType = wrapReturnTypes returnTypes
           innerExpr = Core.ForeignFnApplication si expr [] wrappedReturnType
       return $ Core.NoArgFn si innerExpr (TNoArgFn si wrappedReturnType)
-    TUncurriedFn _ parameterTypes returnTypes -> do
+    TForeignFn _ _ parameterTypes returnTypes -> do
       let generatedNames = map (Identifier . ("_g" ++) . show) [(0 :: Int)..]
           namesAndTypes = zip generatedNames parameterTypes
           wrappedReturnType = wrapReturnTypes returnTypes
           innerExpr = Core.ForeignFnApplication si expr (map (uncurry $ Core.Symbol si) namesAndTypes) wrappedReturnType
-      fst <$> (foldM wrapInFn (innerExpr, wrappedReturnType) (reverse namesAndTypes))
-    TVariadicFn _ parameterTypes variadicType returnTypes -> do
-      let generatedNames = map (Identifier . ("_g" ++) . show) [(0 :: Int)..]
-          namesAndTypes = zip generatedNames (parameterTypes ++ [variadicType])
-          wrappedReturnType = wrapReturnTypes returnTypes
-          innerExpr = Core.ForeignFnApplication si expr (map (uncurry $ Core.Symbol si) namesAndTypes) wrappedReturnType
-      fst <$> (foldM wrapInFn (innerExpr, wrappedReturnType) (reverse namesAndTypes))
+      fst <$> foldM wrapInFn (innerExpr, wrappedReturnType) (reverse namesAndTypes)
     _ -> return expr
   where
   wrapInFn (expr', returnType) (name, type') =
@@ -315,18 +309,12 @@ infer expr = case expr of
     tf <- infer f
     case Core.typeOf tf of
 
-      -- Uncurried variadic functions with a single return value
-      -- TVariadicFn _ nonVariadicTypes variadicType [firstReturnType] ->
-      --   inferVariadicFnApplication si tf nonVariadicTypes variadicType firstReturnType [] ps
-
-      -- -- Uncurried variadic functions with multiple return values
-      -- TVariadicFn _ nonVariadicTypes variadicType (firstReturnType : restReturnTypes) ->
-      --   inferVariadicFnApplication si tf nonVariadicTypes variadicType firstReturnType restReturnTypes ps
-
       -- No-arg functions
       t | null ps -> do
         tv <- fresh si
-        uni (getSourceInfo tf) t (TNoArgFn (Metadata $ getSourceInfo tf) tv)
+        uni (getSourceInfo tf)
+          t
+          (TNoArgFn (Metadata $ getSourceInfo tf) tv)
         return (Core.NoArgApplication si tf tv)
 
       -- Everything else, i.e. functions with a single argument and one return value
@@ -337,7 +325,9 @@ infer expr = case expr of
         app tf' p = do
           tv <- fresh si
           tp <- infer p
-          uni (getSourceInfo tf) (Core.typeOf tf') (TFn (Metadata $ getSourceInfo tf) (Core.typeOf tp) tv)
+          uni (getSourceInfo tf)
+              (Core.typeOf tf')
+              (TFn (Metadata $ getSourceInfo tf) (Core.typeOf tp) tv)
           return (Core.Application si tf' tp tv)
 
   Untyped.Let si (Untyped.NameBinding bsi n) e b -> do
@@ -388,37 +378,9 @@ infer expr = case expr of
     recordExtType <- fresh si
     typedExpr <- infer expr'
     uni (getSourceInfo typedExpr)
-        (Core.typeOf typedExpr)
         (TRecord (Metadata $ getSourceInfo typedExpr) (RExtension si label fieldType recordExtType))
+        (Core.typeOf typedExpr)
     return (Core.RecordFieldAccess si typedExpr label fieldType)
-
-  -- | Takes an inferred function "tf", its types and the untyped arguments to
-  -- apply and infers and unifies the function application. If theres more than
-  -- one return value it infers is as a tuple return value.
-  -- inferVariadicFnApplication si tf nonVariadicTypes variadicType firstReturnType restReturnTypes args = do
-  --   tv <- fresh si
-  --   nonVariadicArgs <- mapM infer (take (length nonVariadicTypes) args)
-  --   variadicArgs <- mapM infer (drop (length nonVariadicTypes) args)
-  --   let sliceSi = if null variadicArgs then Missing else getSourceInfo (head variadicArgs)
-  --   let allParams = nonVariadicArgs ++ [Core.Slice (Metadata sliceSi) variadicArgs variadicType]
-  --   case restReturnTypes of
-  --     (secondReturnType : rs) ->
-  --       uni (getSourceInfo tf)
-  --           (TVariadicFn
-  --            (Metadata $ getSourceInfo tf)
-  --            nonVariadicTypes
-  --            variadicType
-  --            [TTuple si firstReturnType secondReturnType rs])
-  --           (TVariadicFn
-  --            (Metadata $ getSourceInfo tf)
-  --            (map Core.typeOf nonVariadicArgs)
-  --            variadicType
-  --            [tv])
-  --     _ ->
-  --       uni (getSourceInfo tf)
-  --           (Core.typeOf tf)
-  --           (TVariadicFn (Metadata $ getSourceInfo tf) (map Core.typeOf nonVariadicArgs) variadicType [tv])
-  --   return (Core.UncurriedFnApplication si tf allParams tv)
 
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr SourceInfo -> Infer Type
@@ -472,7 +434,7 @@ inferDef (Untyped.Definition si name signature expr) = do
       (recScheme@(Forall _ _ recType), envWithBindings) <- resolveTypeSignature ts
       let recursiveEnv = envWithBindings  `extend` (name, Local si name recScheme)
       te <- local (const recursiveEnv) (infer expr)
-      uni (getSourceInfo te) recType (Core.typeOf te)
+      uni (getSourceInfo te) (Core.typeOf te) recType
       case recScheme `subsumedBy` te of
         Left e -> throwError $ TypeSignatureSubsumptionError name e
         Right canonical -> return (Core.Definition si name canonical, False)

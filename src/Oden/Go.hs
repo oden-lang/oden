@@ -126,19 +126,12 @@ convertType (G.Array _ _) = Left "Arrays"
 convertType (Slice t) = Poly.TSlice missing <$> convertType t
 convertType Interface{} = Right $ Poly.TAny missing
 convertType (Signature _ (Just _) _ _) = Left "Methods (functions with receivers)"
-convertType (Signature False Nothing args ret) = do
+convertType (Signature isVariadic Nothing args ret) = do
   as <- mapM convertType args
   case mapM convertType ret of
-    Left _ -> Right (Poly.TUncurriedFn missing as [typeUnit])   -- unsupported return types
-    Right [] -> Right (Poly.TUncurriedFn missing as [typeUnit]) -- no return type
-    Right rs -> Right (Poly.TUncurriedFn missing as rs)
-convertType (Signature True Nothing args ret) = do
-  as <- mapM convertType (init args)
-  v <- convertType (last args)
-  case mapM convertType ret of
-    Left _ -> Right (Poly.TVariadicFn missing as v [typeUnit]) -- unsupported return type
-    Right [] -> Right (Poly.TVariadicFn missing as v [typeUnit]) -- no return type
-    Right rs -> Right (Poly.TVariadicFn missing as v rs)
+    Left _ -> Right (Poly.TForeignFn missing isVariadic as [typeUnit])   -- unsupported return types
+    Right [] -> Right (Poly.TForeignFn missing isVariadic as [typeUnit]) -- no return type
+    Right rs -> Right (Poly.TForeignFn missing isVariadic as rs)
 convertType (Named pkgName n t@Struct{}) =
   Poly.TNamed missing (FQN pkgName (Identifier n)) <$> convertType t
 convertType (Named _ _ t) = convertType t

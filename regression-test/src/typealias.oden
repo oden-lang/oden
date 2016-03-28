@@ -14,6 +14,6 @@ first(p) = p((x, y) -> x)
 p : IntPair
 p = pair(1, 2)
 
-main() = fmt.Println(first(p))
+main() = println(first(p))
 
 

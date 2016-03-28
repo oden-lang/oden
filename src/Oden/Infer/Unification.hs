@@ -58,18 +58,10 @@ unifies _ (TCon _ n1) (TCon _ n2)
   | n1 == n2 = return emptySubst
 unifies si (TFn _ t1 t2) (TFn _ t3 t4) = unifyMany si [t1, t2] [t3, t4]
 unifies si (TNoArgFn _ t1) (TNoArgFn _ t2) = unifies si t1 t2
-unifies si f1@(TUncurriedFn _ as1 rs1) f2@(TUncurriedFn _ as2 rs2)
-  | length as1 /= length as2 = throwError (ParameterCountMismatch si f1 f2 as1 as2)
-  | length rs1 /= length rs2 = throwError (UnificationFail si f1 f2)
-  | otherwise = do
-    a <- unifyMany si as1 as2
-    r <- unifyMany si rs1 rs2
-    return (a `compose` r)
-unifies si (TVariadicFn _ as1 v1 rs1) (TVariadicFn _ as2 v2 rs2) = do
-  a <- unifyMany si as1 as2
-  v <- unifies si v1 v2
+unifies si (TForeignFn _ v1 ps1 rs1) (TForeignFn _ v2 ps2 rs2) | v1 == v2 = do
+  p <- unifyMany si ps1 ps2
   r <- unifyMany si rs1 rs2
-  return (a `compose` v `compose` r)
+  return (r `compose` p)
 unifies si (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   f <- unifies si f1 f2
   s <- unifies si s1 s2
@@ -102,14 +94,11 @@ unifies si r1@RExtension{} r2@RExtension{} = do
   leafSubst <- case (getLeafRow r1, getLeafRow r2) of
     (leaf1@TVar{}, leaf2@TVar{}) -> unifies si leaf1 leaf2
     (leaf1, leaf2) ->
-      compose <$> unifyFieldsWithLeaf onlyInR2 leaf1
-              <*> unifyFieldsWithLeaf onlyInR1 leaf2
+      compose <$> unifies si leaf1 (rowFromList $ Map.assocs onlyInR2)
+              <*> unifies si leaf2 (rowFromList $ Map.assocs onlyInR1)
 
   -- Return all substitutions.
   return $ foldl1 compose (leafSubst : substs)
-
-  where
-  unifyFieldsWithLeaf fields = unifies si (rowFromList $ Map.assocs fields)
 
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2
 

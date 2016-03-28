@@ -1,12 +1,9 @@
 // package declaration
 package main
 
-// import declaration
-import fmt
-
 identityString(x) = "" ++ x
 
 result = identityString("Hello") ++ ", world!"
 
 // main function definition, must have type (-> unit)
-main() = fmt.Println(result)
+main() = println(result)

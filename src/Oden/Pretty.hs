@@ -176,10 +176,7 @@ instance Pretty Poly.Type where
   pp (Poly.TCon _ n) = pp n
   pp (Poly.TNoArgFn _ t) = rArr <+> pp t
   pp (Poly.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
-  pp (Poly.TUncurriedFn _ as [r]) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp as)) <+> rArr <+> pp r
-  pp (Poly.TUncurriedFn _ as rs) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp as)) <+> rArr <+> commaSepParens rs
-  pp (Poly.TVariadicFn _ as v [r]) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
-  pp (Poly.TVariadicFn _ as v rs) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> commaSepParens rs
+  pp (Poly.TForeignFn _ _ ps rs) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp ps)) <+> rArr <+> ppReturns rs
   pp (Poly.TSlice _ t) =
     text "[]" <> braces (pp t)
   pp (Poly.TNamed _ n _) = pp n
@@ -210,6 +207,10 @@ ppMonoFields r = getPairs r
     pp label <> colon <+> pp type' <> comma <+> getPairs row
   getPairs _ = empty
 
+ppReturns :: Pretty p => [p] -> Doc
+ppReturns [r] = pp r
+ppReturns rs = commaSepParens rs
+
 instance Pretty Mono.Type where
   pp (Mono.TAny _) = text "any"
   pp (Mono.TTuple _ f s r) =
@@ -218,10 +219,7 @@ instance Pretty Mono.Type where
   pp (Mono.TCon _ n) = pp n
   pp (Mono.TNoArgFn _ t) = rArr <+> pp t
   pp (Mono.TFn _ tf ta) = pp tf <+> rArr <+> pp ta
-  pp (Mono.TUncurriedFn _ as [r]) = text "<foreign>" <+> hsep (punctuate (text "&") (map pp as)) <+> rArr <+> pp r
-  pp (Mono.TUncurriedFn _ as rs) = text "<foreign>" <+> hsep (punctuate (text "&") (map pp as)) <+> rArr <+> parens (hsep (punctuate (text ", ") (map pp rs)))
-  pp (Mono.TVariadicFn _ as v [r]) = text "<foreign>" <+> hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> pp r
-  pp (Mono.TVariadicFn _ as v rs) = text "<foreign>" <+> hsep (punctuate (text "&") (map pp as ++ [pp v <> text "*"])) <+> rArr <+> parens (hsep (punctuate (text ", ") (map pp rs)))
+  pp (Mono.TForeignFn _ _ ps rs) = text "<foreign>" <+> hsep (intersperse (text "&") (map pp ps)) <+> rArr <+> ppReturns rs
   pp (Mono.TSlice _ t) =
     text "[]" <> braces (pp t)
   pp (Mono.TNamed _ n _) = pp n

@@ -8,4 +8,4 @@ first(p) = p((x, y) -> x)
 
 p = pair("a", "b")
 
-main() = fmt.Println(first(p))
+main() = println(first(p))

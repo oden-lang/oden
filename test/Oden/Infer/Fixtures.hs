@@ -48,8 +48,7 @@ typeSlice = TSlice missing
 intSlice = typeSlice typeInt
 
 typeNoArgFn = TNoArgFn missing
-typeUncurried = TUncurriedFn missing
-typeVariadic = TVariadicFn missing
+typeForeign = TForeignFn missing
 
 typeRecord = TRecord missing
 emptyRow = REmpty missing
@@ -124,11 +123,11 @@ predefAndStringLength =  predef `extend` (Identifier "stringLength",
 
 predefAndMax :: TypingEnvironment
 predefAndMax =  predef `extend` (Identifier "max",
-                                 Local predefined (Identifier "max") $ forall [] (typeUncurried [typeInt, typeInt] [typeInt]))
+                                 Local predefined (Identifier "max") $ forall [] (typeForeign False [typeInt, typeInt] [typeInt]))
 
 predefAndMaxVariadic :: TypingEnvironment
 predefAndMaxVariadic = predef `extend` (Identifier "max",
-                                        Local predefined (Identifier "max") $ forall [] (typeVariadic [] (TSlice missing typeInt) [typeInt]))
+                                        Local predefined (Identifier "max") $ forall [] (typeForeign True [TSlice missing typeInt] [typeInt]))
 
 predefAndIdentityAny :: TypingEnvironment
 predefAndIdentityAny = predef `extend` (Identifier "identity",

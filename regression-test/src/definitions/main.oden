@@ -6,4 +6,4 @@ hello = "Hello"
 
 helloWorld = hello ++ ", world!"
 
-main() = fmt.Println(helloWorld)
+main() = println(helloWorld)

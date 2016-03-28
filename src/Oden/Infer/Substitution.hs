@@ -28,19 +28,18 @@ class FTV a => Substitutable a where
   apply :: Subst -> a -> a
 
 instance Substitutable Type where
-  apply _ (TAny si)               = TAny si
-  apply s (TTuple si f s' r)      = TTuple si (apply s f) (apply s s') (apply s r)
-  apply _ (TCon si n)             = TCon si n
-  apply (Subst s) t@(TVar _ a)    = Map.findWithDefault t a s
-  apply s (TNoArgFn si t)         = TNoArgFn si (apply s t)
-  apply s (TFn si t1 t2)          = TFn si (apply s t1) (apply s t2)
-  apply s (TUncurriedFn si as r)  = TUncurriedFn si (map (apply s) as) (apply s r)
-  apply s (TVariadicFn si as v r) = TVariadicFn si (map (apply s) as) (apply s v) (apply s r)
-  apply s (TSlice si t)           = TSlice si (apply s t)
-  apply s (TRecord si r)          = TRecord si (apply s r)
-  apply _ (REmpty si)             = REmpty si
-  apply s (RExtension si l t r)   = RExtension si l (apply s t) (apply s r)
-  apply s (TNamed si n t)         = TNamed si n (apply s t)
+  apply _ (TAny si)                     = TAny si
+  apply s (TTuple si f s' r)            = TTuple si (apply s f) (apply s s') (apply s r)
+  apply _ (TCon si n)                   = TCon si n
+  apply (Subst s) t@(TVar _ a)          = Map.findWithDefault t a s
+  apply s (TNoArgFn si t)               = TNoArgFn si (apply s t)
+  apply s (TFn si t1 t2)                = TFn si (apply s t1) (apply s t2)
+  apply s (TForeignFn si variadic as r) = TForeignFn si variadic (map (apply s) as) (apply s r)
+  apply s (TSlice si t)                 = TSlice si (apply s t)
+  apply s (TRecord si r)                = TRecord si (apply s r)
+  apply _ (REmpty si)                   = REmpty si
+  apply s (RExtension si l t r)         = RExtension si l (apply s t) (apply s r)
+  apply s (TNamed si n t)               = TNamed si n (apply s t)
 
 instance Substitutable Scheme where
   apply (Subst s) (Forall si as t) =

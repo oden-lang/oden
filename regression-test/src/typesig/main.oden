@@ -10,6 +10,6 @@ identityExplicit(x) = x
 theMessage : string
 theMessage = "Type signatures work!"
 
-main() = fmt.Println(
+main() = println(
   identityExplicit(
       identityNoTypeSig(theMessage)))

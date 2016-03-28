@@ -51,17 +51,15 @@ data Type
   -- | A name for a type, introduced by type definitions.
   | TNamed (Metadata SourceInfo) QualifiedName Type
 
-  -- For foreign definitions:
-
-  -- | A function that can have multiple arguments (no currying).
-  | TUncurriedFn (Metadata SourceInfo) [Type] [Type]
-  -- | A variadic function.
-  | TVariadicFn (Metadata SourceInfo) [Type] Type [Type]
-
   -- | The empty row.
   | REmpty (Metadata SourceInfo)
   -- | A row extension (label and type extending another row).
   | RExtension (Metadata SourceInfo) Identifier Type Type
+
+  -- | A foreign function. The last argument can be variadic (typed as a slice)
+  -- and the function can have multiple return values (treated as a tuple by
+  -- the type system and automatically wrapped into a tuple by codegen).
+  | TForeignFn (Metadata SourceInfo) Bool [Type] [Type]
 
   deriving (Show, Eq, Ord)
 
@@ -75,24 +73,22 @@ instance HasSourceInfo Type where
   getSourceInfo (TSlice (Metadata si) _)          = si
   getSourceInfo (TRecord (Metadata si) _)         = si
   getSourceInfo (TNamed (Metadata si) _ _)        = si
-  getSourceInfo (TUncurriedFn (Metadata si) _ _)  = si
-  getSourceInfo (TVariadicFn (Metadata si) _ _ _) = si
   getSourceInfo (REmpty (Metadata si))            = si
   getSourceInfo (RExtension (Metadata si) _ _ _)  = si
+  getSourceInfo (TForeignFn (Metadata si) _ _ _)  = si
 
   setSourceInfo si (TAny _)              = TAny (Metadata si)
   setSourceInfo si (TVar _ v)            = TVar (Metadata si) v
   setSourceInfo si (TTuple _ f s r)      = TTuple (Metadata si) f s r
-  setSourceInfo si (TFn _ a r)           = TFn (Metadata si) a r
+  setSourceInfo si (TFn _ p r)           = TFn (Metadata si) p r
   setSourceInfo si (TNoArgFn _ r)        = TNoArgFn (Metadata si) r
   setSourceInfo si (TCon _ n)            = TCon (Metadata si) n
   setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
   setSourceInfo si (TRecord _ fs)        = TRecord (Metadata si) fs
   setSourceInfo si (TNamed _ n t)        = TNamed (Metadata si) n t
-  setSourceInfo si (TUncurriedFn _ a r)  = TUncurriedFn (Metadata si) a r
-  setSourceInfo si (TVariadicFn _ a v r) = TVariadicFn (Metadata si) a v r
   setSourceInfo si REmpty{}              = REmpty (Metadata si)
   setSourceInfo si (RExtension _ l t r)  = RExtension (Metadata si) l t r
+  setSourceInfo si (TForeignFn _ v p r)  = TForeignFn (Metadata si) v p r
 
 -- | A type variable binding.
 data TVarBinding = TVarBinding (Metadata SourceInfo) TVar
@@ -141,13 +137,9 @@ toMonomorphic (TCon si n) = Right $ Mono.TCon si n
 toMonomorphic (TNoArgFn si t) = Mono.TNoArgFn si <$> toMonomorphic t
 toMonomorphic (TFn si tx ty) = Mono.TFn si <$> toMonomorphic tx
                                            <*> toMonomorphic ty
-toMonomorphic (TUncurriedFn si a rs) =
-  Mono.TUncurriedFn si <$> mapM toMonomorphic a
-                       <*> mapM toMonomorphic rs
-toMonomorphic (TVariadicFn si a v rs) =
-  Mono.TVariadicFn si <$> mapM toMonomorphic a
-                      <*> toMonomorphic v
-                      <*> mapM toMonomorphic rs
+toMonomorphic (TForeignFn si variadic parameters returns) =
+  Mono.TForeignFn si variadic <$> mapM toMonomorphic parameters
+                              <*> mapM toMonomorphic returns
 toMonomorphic (TSlice si t) = Mono.TSlice si <$> toMonomorphic t
 toMonomorphic (TRecord si row) = Mono.TRecord si <$> toMonomorphic row
 toMonomorphic (TNamed si n t) = Mono.TNamed si n <$> toMonomorphic t
@@ -167,11 +159,9 @@ isPolymorphicType (TTuple _ f s r) = any isPolymorphicType (f:s:r)
 isPolymorphicType (TVar _ _) = True
 isPolymorphicType TCon{} = False
 isPolymorphicType (TNoArgFn _ a) = isPolymorphicType a
-isPolymorphicType (TFn _ a b) = isPolymorphicType a || isPolymorphicType b
-isPolymorphicType (TUncurriedFn _ a r) =
-  any isPolymorphicType a || any isPolymorphicType r
-isPolymorphicType (TVariadicFn _ a v r) =
-  any isPolymorphicType a || isPolymorphicType v || any isPolymorphicType r
+isPolymorphicType (TFn _ p r) = isPolymorphicType p || isPolymorphicType r
+isPolymorphicType (TForeignFn _ _ p r) =
+  any isPolymorphicType p || any isPolymorphicType r
 isPolymorphicType (TSlice _ a) = isPolymorphicType a
 isPolymorphicType (TRecord _ r) = isPolymorphicType r
 isPolymorphicType (TNamed _ _ t) = isPolymorphicType t
@@ -194,8 +184,7 @@ instance FTV Type where
   ftv (TVar _ a)                 = Set.singleton a
   ftv (TFn _ t1 t2)              = ftv t1 `Set.union` ftv t2
   ftv (TNoArgFn _ t)             = ftv t
-  ftv (TUncurriedFn _ as rs)     = ftv (as ++ rs)
-  ftv (TVariadicFn _ as v rs)    = ftv (v:(as ++ rs))
+  ftv (TForeignFn _ _ ps rs)     = ftv (ps ++ rs)
   ftv (TSlice _ t)               = ftv t
   ftv (TRecord _ r)              = ftv r
   ftv (TNamed _ _ t)             = ftv t

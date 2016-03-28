@@ -8,4 +8,4 @@ fib(n) = if n == 1 then 0 else {
   }
 }
 
-main() = fmt.Println(fib(10))
+main() = println(fib(10))

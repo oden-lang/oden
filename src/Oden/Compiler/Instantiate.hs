@@ -24,12 +24,13 @@ type Instantiate a = StateT Substitutions (Except InstantiateError) a
 
 monoToPoly :: Mono.Type -> Poly.Type
 monoToPoly (Mono.TAny si) = Poly.TAny si
-monoToPoly (Mono.TTuple si f s r) = Poly.TTuple si (monoToPoly f) (monoToPoly s) (map monoToPoly r)
+monoToPoly (Mono.TTuple si f s r) =
+  Poly.TTuple si (monoToPoly f) (monoToPoly s) (map monoToPoly r)
 monoToPoly (Mono.TCon si n) = Poly.TCon si n
 monoToPoly (Mono.TNoArgFn si f) = Poly.TNoArgFn si (monoToPoly f)
 monoToPoly (Mono.TFn si f p) = Poly.TFn si (monoToPoly f) (monoToPoly p)
-monoToPoly (Mono.TUncurriedFn si as r) = Poly.TUncurriedFn si (map monoToPoly as) (map monoToPoly r)
-monoToPoly (Mono.TVariadicFn si as v r) = Poly.TVariadicFn si (map monoToPoly as) (monoToPoly v) (map monoToPoly r)
+monoToPoly (Mono.TForeignFn si variadic as r) =
+  Poly.TForeignFn si variadic (map monoToPoly as) (map monoToPoly r)
 monoToPoly (Mono.TSlice si t) = Poly.TSlice si (monoToPoly t)
 monoToPoly (Mono.TRecord si row) = Poly.TRecord si (monoToPoly row)
 monoToPoly (Mono.TNamed si n t) = Poly.TNamed si n (monoToPoly t)
@@ -47,15 +48,10 @@ getSubstitutions (Poly.TFn _ pf pp) (Mono.TFn _ mf mp) = do
   ps <- getSubstitutions pp mp
   return (fs `mappend` ps)
 getSubstitutions (Poly.TVar _ v) mono = Right (Map.singleton v (monoToPoly mono))
-getSubstitutions (Poly.TUncurriedFn _ pas prs) (Mono.TUncurriedFn _ mas mrs) = do
+getSubstitutions (Poly.TForeignFn _ _ pas prs) (Mono.TForeignFn _ _ mas mrs) = do
   as <- zipWithM getSubstitutions pas mas
   rs <- zipWithM getSubstitutions prs mrs
-  return (mconcat (rs ++ as))
-getSubstitutions (Poly.TVariadicFn _ pas pv prs) (Mono.TVariadicFn _ mas mv mrs) = do
-  as <- zipWithM getSubstitutions pas mas
-  rs <- zipWithM getSubstitutions prs mrs
-  v <- getSubstitutions pv mv
-  return (mconcat (v:(as ++ rs)))
+  return (mconcat (as ++ rs))
 getSubstitutions (Poly.TTuple _ pf ps pr) (Mono.TTuple _ mf ms mr) = do
   f <- getSubstitutions pf mf
   s <- getSubstitutions ps ms
@@ -105,10 +101,8 @@ replace (Poly.TVar (Metadata si) v) = do
 replace (Poly.TCon si n) = return (Poly.TCon si n)
 replace (Poly.TNoArgFn si t) = Poly.TNoArgFn si <$> replace t
 replace (Poly.TFn si ft pt) = Poly.TFn si <$> replace ft <*> replace pt
-replace (Poly.TUncurriedFn si ft pt) =
-  Poly.TUncurriedFn si <$> mapM replace ft <*> mapM replace pt
-replace (Poly.TVariadicFn si ft vt pt) =
-  Poly.TVariadicFn si <$> mapM replace ft <*> replace vt <*> mapM replace pt
+replace (Poly.TForeignFn si variadic ft pt) =
+  Poly.TForeignFn si variadic <$> mapM replace ft <*> mapM replace pt
 replace (Poly.TSlice si t) = Poly.TSlice si <$> replace t
 replace (Poly.TRecord si r) = Poly.TRecord si <$> replace r
 replace (Poly.TNamed si n t) = Poly.TNamed si n <$> replace t

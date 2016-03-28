@@ -9,4 +9,4 @@ id2 : forall a. a -> a
 id2(x) = let t = (v) -> id(v) in t(id(x))
 
 main : -> ()
-main() = fmt.Println(id2(1))
+main() = println(id2(1))

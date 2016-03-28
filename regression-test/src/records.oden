@@ -14,7 +14,7 @@ bar = {
 
 // Accepts nested record, as defined by 'Bar' and 'Foo' above.
 printFooName : Bar -> ()
-printFooName(x) = fmt.Println(x.foo.name)
+printFooName(x) = println(x.foo.name)
 
 // Accept any record with a name field.
 anyTypeOfName : forall a. a -> { name: a }
@@ -29,8 +29,8 @@ getName(x) = x.name
 
 main() = {
   printFooName(bar)
-  fmt.Println(poly.name)
-  fmt.Println(getName({
+  println(poly.name)
+  println(getName({
     name = "passing a record like this",
     age = 42
   }))

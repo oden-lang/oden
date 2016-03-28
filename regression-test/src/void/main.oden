@@ -4,6 +4,6 @@ import fmt
 
 main() =
   let
-    x = fmt.Print("unit: ")
+    x = print("unit: ")
   in
-    fmt.Println(x)
+    println(x)

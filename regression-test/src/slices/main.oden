@@ -4,5 +4,7 @@ import fmt
 
 main : -> ()
 main() = let x = -200 in {
-  fmt.Println(-x, []{"OK"})
+  print(-x)
+  print(" ")
+  println([]{"OK"})
 }

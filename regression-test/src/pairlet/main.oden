@@ -7,5 +7,5 @@ pair(x, y, f) = f(x, y)
 first(p) = p((x, y) -> x)
 
 main() = {
-  fmt.Println(let p = pair("a", 1) in first(p))
+  println(let p = pair("a", 1) in first(p))
 }

@@ -12,15 +12,15 @@ pair(x, y) = (x, y)
 
 main : -> ()
 main() = {
-  fmt.Println(stuff)
+  println(stuff)
 
   if (1, 2, 3) == (1, 2, 3) then {
-    fmt.Println("Equality works.")
+    println("Equality works.")
   } else {
-    fmt.Println("OMG no!")
+    println("OMG no!")
   }
 
-  fmt.Println(pair(2, "hello") == (2, "hello"))
+  println(pair(2, "hello") == (2, "hello"))
 
   nothing
 }

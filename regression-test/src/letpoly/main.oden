@@ -4,4 +4,4 @@ import fmt
 
 identity(x) = x
 
-main() = fmt.Println(let id = identity(identity) in id("a"))
+main() = println(let id = identity(identity) in id("a"))

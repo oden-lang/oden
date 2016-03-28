@@ -3,9 +3,9 @@ package blocks/main
 import fmt
 
 result = {
-  fmt.Println("Calculating...")
+  println("Calculating...")
   42
 }
 
 main : -> ()
-main() = fmt.Println(result)
+main() = println(result)

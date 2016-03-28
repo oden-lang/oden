@@ -6,4 +6,4 @@ identity(x) = x
 
 applyTo1(x) = x(1)
 
-main() = fmt.Println((identity(applyTo1))((x) -> x * 2))
+main() = println((identity(applyTo1))((x) -> x * 2))
