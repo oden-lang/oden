@@ -23,6 +23,8 @@ import qualified Oden.Type.Polymorphic      as Poly
 
 import           Control.Applicative        hiding (Const)
 import           Control.Monad
+import           Control.Monad.Except
+import           Control.Monad.State
 
 import           Data.Aeson
 import           Data.Aeson.Types
@@ -111,27 +113,38 @@ decodeResponse pkgName s = either (Left . PackageImportError pkgName) Right $ do
 missing :: Metadata SourceInfo
 missing = Metadata Missing
 
-convertType :: G.Type -> Either String Poly.Type
+type Converter = StateT Int (Except String)
+
+fresh :: Converter Poly.TVar
+fresh = do
+  n <- get
+  modify (+ 1)
+  return (Poly.TV ("_g" ++ show n))
+
+convertType :: G.Type -> Converter Poly.Type
 -- TODO: Add "Untyped constant" concept in Oden type system
 -- and/or consider how macros would relate to this.
 convertType (Basic "bool" False) = return typeBool
 convertType (Basic "int" False) = return typeInt
 convertType (Basic "rune" False) = return typeInt
 convertType (Basic "string" False) = return typeString
-convertType (Basic "nil" False) = Left "nil constants"
-convertType (Basic n False) = Left ("Basic type: " ++ n)
-convertType (Basic n True) = Left ("Basic untyped: " ++ n)
-convertType (Pointer _) = Left "Pointers"
-convertType (G.Array _ _) = Left "Arrays"
+convertType (Basic "nil" False) = throwError "nil constants"
+convertType (Basic n False) = throwError ("Basic type: " ++ n)
+convertType (Basic n True) = throwError ("Basic untyped: " ++ n)
+convertType (Pointer _) = throwError "Pointers"
+convertType (G.Array _ _) = throwError "Arrays"
 convertType (Slice t) = Poly.TSlice missing <$> convertType t
-convertType Interface{} = Right $ Poly.TVar missing (Poly.TV "a") -- TODO: generate fresh names
-convertType (Signature _ (Just _) _ _) = Left "Methods (functions with receivers)"
-convertType (Signature isVariadic Nothing args ret) = do
-  as <- mapM convertType args
-  case mapM convertType ret of
-    Left _ -> Right (Poly.TForeignFn missing isVariadic as [typeUnit])   -- unsupported return types
-    Right [] -> Right (Poly.TForeignFn missing isVariadic as [typeUnit]) -- no return type
-    Right rs -> Right (Poly.TForeignFn missing isVariadic as rs)
+convertType Interface{} = do
+  t <- fresh
+  return $ Poly.TVar missing t
+convertType (Signature _ (Just _) _ _) = throwError "Methods (functions with receivers)"
+convertType (Signature isVariadic Nothing params ret) = do
+  ps <- mapM convertType params
+  catchError (wrapReturns ps <$> mapM convertType ret)
+             (const $ return (Poly.TForeignFn missing isVariadic ps [typeUnit]))
+  where
+  wrapReturns ps [] = Poly.TForeignFn missing isVariadic ps [typeUnit] -- no return type
+  wrapReturns ps rs = Poly.TForeignFn missing isVariadic ps rs
 convertType (Named pkgName n t@Struct{}) =
   Poly.TNamed missing (FQN pkgName (Identifier n)) <$> convertType t
 convertType (Named _ _ t) = convertType t
@@ -141,7 +154,7 @@ convertType (Struct fields) = do
   where
   convertField row (StructField name goType) =
     Poly.RExtension missing (Identifier name) <$> convertType goType <*> return row
-convertType (Unsupported n) = Left n
+convertType (Unsupported n) = throwError n
 
 objectsToPackage :: Core.PackageName
              -> [PackageObject]
@@ -152,15 +165,15 @@ objectsToPackage pkgName objs =
   (allDefs, allMessages) = foldl addObject ([], []) objs
   addObject (defs, msgs) (NamedType name goType) =
     let identifier = Identifier name in
-    case convertType goType of
+    case runExcept (runStateT (convertType goType) 0) of
          Left u -> (defs, (identifier, u) : msgs)
-         Right type' ->
+         Right (type', _) ->
            (Core.TypeDefinition missing (FQN pkgName identifier) [] type' : defs, msgs)
   addObject (defs, msgs) obj =
     let n = Identifier (nameOf obj)
-    in case convertType (typeOf obj) of
+    in case runExcept (runStateT (convertType $ typeOf obj) 0) of
          Left u -> (defs, (n, u) : msgs)
-         Right ct ->
+         Right (ct, _) ->
            let sc = Poly.Forall missing [] ct
            in (Core.ForeignDefinition missing n sc : defs, msgs)
 
