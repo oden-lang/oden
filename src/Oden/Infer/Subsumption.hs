@@ -46,7 +46,6 @@ collectSubstitutions (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   collectSubstitutions f1 f2
   collectSubstitutions s1 s2
   zipWithM_ collectSubstitutions r1 r2
-collectSubstitutions TAny{} _ = return ()
 collectSubstitutions (TRecord _ r1) (TRecord _ r2) =
   collectSubstitutions r1 r2
 collectSubstitutions r1 r2 | kindOf r1 == Row && kindOf r2 == Row = do

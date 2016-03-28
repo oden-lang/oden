@@ -31,8 +31,6 @@ tvarB = TVar predefined tvB
 tvarC = TVar predefined tvC
 tvarD = TVar predefined tvD
 
-typeAny = TAny missing
-
 scheme:: Type -> Scheme
 scheme t = Forall (Metadata Predefined) (map (TVarBinding missing) $ Set.toList (ftv t)) t
 
@@ -128,10 +126,6 @@ predefAndMax =  predef `extend` (Identifier "max",
 predefAndMaxVariadic :: TypingEnvironment
 predefAndMaxVariadic = predef `extend` (Identifier "max",
                                         Local predefined (Identifier "max") $ forall [] (typeForeign True [TSlice missing typeInt] [typeInt]))
-
-predefAndIdentityAny :: TypingEnvironment
-predefAndIdentityAny = predef `extend` (Identifier "identity",
-                                        Local predefined (Identifier "identity") $ forall [] (typeFn typeAny typeAny))
 
 fooBarPkgEnv :: TypingEnvironment
 fooBarPkgEnv = predef `extend` (Identifier "foo",

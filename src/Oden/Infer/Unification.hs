@@ -47,13 +47,10 @@ unifyMany si (t1 : ts1) (t2 : ts2) =
      return (su2 `compose` su1)
 unifyMany si t1 t2 = throwError $ UnificationMismatch si t1 t2
 
--- | Unify two types, returning the resulting substitution. Order matters in
--- some cases as the first type is the one being subsumed by the second, e.g.
--- when unifying with TAny.
+-- | Unify two types, returning the resulting substitution.
 unifies :: SourceInfo -> Type -> Type -> Solve Subst
 unifies _ (TVar _ v) t = v `bind` t
 unifies _ t (TVar _ v) = v `bind` t
-unifies _ TAny{} _ = return emptySubst
 unifies _ (TCon _ n1) (TCon _ n2)
   | n1 == n2 = return emptySubst
 unifies si (TFn _ t1 t2) (TFn _ t3 t4) = unifyMany si [t1, t2] [t3, t4]

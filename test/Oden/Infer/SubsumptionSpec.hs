@@ -17,27 +17,6 @@ spec :: Spec
 spec =
   describe "subsumedBy" $ do
 
-    it "any is subsumed by any" $
-      scheme typeAny `subsumedBy` Literal (Metadata Predefined) Unit typeAny
-      `shouldSucceedWith`
-      (scheme typeAny, Literal (Metadata Predefined) Unit typeAny)
-
-    it "any is subsumed by int" $
-      scheme typeAny `subsumedBy` Literal (Metadata Predefined) Unit typeUnit
-      `shouldSucceedWith`
-      (scheme typeAny, Literal (Metadata Predefined) Unit typeUnit)
-
-    it "int is not subsumed by any" $
-      shouldFail (scheme typeInt `subsumedBy` Literal (Metadata Predefined) Unit typeAny)
-
-    it "tvar is not subsumed by any" $
-      shouldFail (scheme tvarA `subsumedBy` Literal (Metadata Predefined) Unit typeAny)
-
-    it "any is subsumed by tvar" $
-      scheme typeAny `subsumedBy` Literal (Metadata Predefined) Unit tvarA
-      `shouldSucceedWith`
-      (scheme typeAny, Literal (Metadata Predefined) Unit typeAny)
-
     it "tvar is subsumed by same tvar" $
       scheme tvarA `subsumedBy` Literal (Metadata Predefined) Unit tvarA
       `shouldSucceedWith`

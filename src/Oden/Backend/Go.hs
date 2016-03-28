@@ -112,7 +112,6 @@ codegenType (Mono.TTuple _ f s r) = do
   codegenTupleField n t = do
     tc <- codegenType t
     return $ text ("_" ++ show n) <+> tc
-codegenType Mono.TAny{} = return $ text "interface{}"
 codegenType (Mono.TNoArgFn _ f) = do
   fc <- codegenType f
   return $func empty empty fc empty

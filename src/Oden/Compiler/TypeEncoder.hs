@@ -36,7 +36,6 @@ writeQualified (FQN pkgs name) = do
   tell (intercalate "_" parts)
 
 writeType :: Mono.Type -> TypeEncoder ()
-writeType (Mono.TAny _) = tell "any"
 writeType (Mono.TCon _ n) = writeQualified n
 writeType (Mono.TTuple _ f s r) = do
   tell "tupleof"

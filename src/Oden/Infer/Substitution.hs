@@ -28,7 +28,6 @@ class FTV a => Substitutable a where
   apply :: Subst -> a -> a
 
 instance Substitutable Type where
-  apply _ (TAny si)                     = TAny si
   apply s (TTuple si f s' r)            = TTuple si (apply s f) (apply s s') (apply s r)
   apply _ (TCon si n)                   = TCon si n
   apply (Subst s) t@(TVar _ a)          = Map.findWithDefault t a s

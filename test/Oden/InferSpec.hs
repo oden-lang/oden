@@ -130,19 +130,6 @@ spec = describe "inferExpr" $ do
      (tLiteral (tBool True) typeBool)
      typeBool)
 
-  it "infers fn application with any-type" $
-    inferExpr
-      predefAndIdentityAny
-      (uApplication
-       (uSymbol (Identifier "identity"))
-       [uLiteral (uBool False)])
-    `shouldSucceedWith`
-    (forall [] typeAny,
-     tApplication
-      (tSymbol (Identifier "identity") (typeFn typeAny typeAny))
-      (tLiteral (tBool False) typeBool)
-      typeAny)
-
   it "infers 1 + 1" $
     inferExpr
       predef
@@ -157,24 +144,6 @@ spec = describe "inferExpr" $ do
       (tLiteral (tInt 1) typeInt)
       (tLiteral (tInt 1) typeInt)
       typeInt)
-
-  it "infers fn application with any-type with multiple \"instances\"" $
-    inferExpr
-      predefAndIdentityAny
-      (uApplication
-       (uSymbol (Identifier "identity"))
-       [uApplication
-        (uSymbol (Identifier "identity"))
-        [uLiteral (uBool False)]])
-    `shouldSucceedWith`
-    (forall [] typeAny,
-     tApplication
-      (tSymbol (Identifier "identity") (typeFn typeAny typeAny))
-      (tApplication
-       (tSymbol (Identifier "identity") (typeFn typeAny typeAny))
-       (tLiteral (tBool False) typeBool)
-       typeAny)
-      typeAny)
 
   it "infers let" $
     inferExpr empty (uLet (uNameBinding (Identifier "x")) (uLiteral (uInt 1)) (uSymbol (Identifier "x")))

@@ -33,9 +33,8 @@ newtype TVar = TV String
 
 -- | A polymorphic type.
 data Type
-  = TAny (Metadata SourceInfo)
   -- | A type variable.
-  | TVar (Metadata SourceInfo) TVar
+  = TVar (Metadata SourceInfo) TVar
   -- | A tuple, with at least two elements.
   | TTuple (Metadata SourceInfo) Type Type [Type]
   -- | A type constructor.
@@ -64,7 +63,6 @@ data Type
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
-  getSourceInfo (TAny (Metadata si))              = si
   getSourceInfo (TVar (Metadata si) _)            = si
   getSourceInfo (TTuple (Metadata si) _ _ _)      = si
   getSourceInfo (TFn (Metadata si) _ _)           = si
@@ -77,7 +75,6 @@ instance HasSourceInfo Type where
   getSourceInfo (RExtension (Metadata si) _ _ _)  = si
   getSourceInfo (TForeignFn (Metadata si) _ _ _)  = si
 
-  setSourceInfo si (TAny _)              = TAny (Metadata si)
   setSourceInfo si (TVar _ v)            = TVar (Metadata si) v
   setSourceInfo si (TTuple _ f s r)      = TTuple (Metadata si) f s r
   setSourceInfo si (TFn _ p r)           = TFn (Metadata si) p r
@@ -127,7 +124,6 @@ getLeafRow e = e
 -- | Converts a polymorphic 'Type' to a monomorphic 'Mono.Type'
 -- and fails if there's any 'TVar' in the type.
 toMonomorphic :: Type -> Either String Mono.Type
-toMonomorphic (TAny si) = Right (Mono.TAny si)
 toMonomorphic (TTuple si f s r) =
   Mono.TTuple si <$> toMonomorphic f
                  <*> toMonomorphic s
@@ -154,7 +150,6 @@ isPolymorphic (Forall _ tvars _) = not (null tvars)
 -- TODO: Use 'toMonomorphic' here and check if it's a Left or Right value?
 -- | Predicate returning if there's any 'TVar' in the 'Type'.
 isPolymorphicType :: Type -> Bool
-isPolymorphicType TAny{} = False
 isPolymorphicType (TTuple _ f s r) = any isPolymorphicType (f:s:r)
 isPolymorphicType (TVar _ _) = True
 isPolymorphicType TCon{} = False
@@ -178,7 +173,6 @@ class FTV a where
   ftv :: a -> Set.Set TVar
 
 instance FTV Type where
-  ftv TAny{}                     = Set.empty
   ftv (TTuple _ f s r)           = ftv (f:s:r)
   ftv TCon{}                     = Set.empty
   ftv (TVar _ a)                 = Set.singleton a

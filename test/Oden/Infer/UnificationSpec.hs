@@ -40,15 +40,6 @@ spec =
       `shouldSucceedWith`
       Subst (singleton (TV "a") tvarB)
 
-    it "unifies []{any} with []{any}" $
-      unify (TSlice missing (TAny missing)) (TSlice missing (TAny missing))
-      `shouldSucceedWith`
-      emptySubst
-
-    it "does not unify []{any} with []{string}" $
-      shouldFail $
-        unify (TSlice missing (TAny missing)) (TSlice missing typeString)
-
     it "unifies { foo: int } with a" $
       let oneFieldRow = RExtension missing (Identifier "foo") typeInt (REmpty missing) in
         unify oneFieldRow tvarA

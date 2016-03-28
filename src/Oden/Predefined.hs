@@ -25,8 +25,8 @@ typeUnit = TCon predefined (nameInUniverse "unit")
 foreignFns :: [(Identifier, Scheme)]
 foreignFns = [
   (Identifier "len", Forall predefined [TVarBinding predefined (TV "a")] (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
-  (Identifier "print", Forall predefined [] (TForeignFn predefined False [TAny predefined] [typeUnit])),
-  (Identifier "println", Forall predefined [] (TForeignFn predefined False [TAny predefined] [typeUnit]))
+  (Identifier "print", Forall predefined [TVarBinding predefined (TV "a")] (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit])),
+  (Identifier "println", Forall predefined [TVarBinding predefined (TV "a")] (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit]))
   ]
 
 types :: [(String, Type)]

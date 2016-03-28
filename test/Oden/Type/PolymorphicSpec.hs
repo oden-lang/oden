@@ -20,13 +20,13 @@ typeInt = TCon missing (nameInUniverse "int")
 spec = do
   describe "underlying" $ do
     it "returns unnamed types as-is" $
-      underlying (TAny missing) `shouldBe` (TAny missing)
+      underlying typeInt `shouldBe` typeInt
 
     it "returns the underlying named type one level down" $
-      underlying (named "A" $ TAny missing) `shouldBe` (TAny missing)
+      underlying (named "A" typeInt) `shouldBe` typeInt
 
     it "returns the underlying named type one level down" $
-      underlying (named "A" $ named "B" $ TAny missing) `shouldBe` (TAny missing)
+      underlying (named "A" $ named "B" typeInt) `shouldBe` typeInt
 
   describe "rowToList" $ do
     it "return an empty list for an empty row" $

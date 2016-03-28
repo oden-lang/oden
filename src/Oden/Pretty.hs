@@ -169,7 +169,6 @@ instance Pretty QualifiedName where
   pp (FQN pkg identifier) = hcat (punctuate (text ".") (map text pkg ++ [pp identifier]))
 
 instance Pretty Poly.Type where
-  pp (Poly.TAny _) = text "any"
   pp (Poly.TTuple _ f s r) = commaSepParens (f:s:r)
   pp (Poly.TVar _ v) = pp v
   pp (Poly.TCon _ (FQN [] (Identifier "unit"))) = text "()"
@@ -212,7 +211,6 @@ ppReturns [r] = pp r
 ppReturns rs = commaSepParens rs
 
 instance Pretty Mono.Type where
-  pp (Mono.TAny _) = text "any"
   pp (Mono.TTuple _ f s r) =
     brackets (hcat (punctuate (text ", ") (map pp (f:s:r))))
   pp (Mono.TCon _ (FQN [] (Identifier "unit"))) = text "()"

@@ -124,7 +124,7 @@ convertType (Basic n True) = Left ("Basic untyped: " ++ n)
 convertType (Pointer _) = Left "Pointers"
 convertType (G.Array _ _) = Left "Arrays"
 convertType (Slice t) = Poly.TSlice missing <$> convertType t
-convertType Interface{} = Right $ Poly.TAny missing
+convertType Interface{} = Right $ Poly.TVar missing (Poly.TV "a") -- TODO: generate fresh names
 convertType (Signature _ (Just _) _ _) = Left "Methods (functions with receivers)"
 convertType (Signature isVariadic Nothing args ret) = do
   as <- mapM convertType args

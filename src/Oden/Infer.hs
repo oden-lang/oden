@@ -115,8 +115,7 @@ constraintsExpr env ex = do
 closeOver :: Core.Expr Type -> Core.CanonicalExpr
 closeOver = normalize . generalize empty
 
--- | Unify two types. Order matters in some cases as the first type is the one
--- being subsumed by the second, e.g. when unifying with TAny.
+-- | Unify two types.
 uni :: SourceInfo -> Type -> Type -> Infer ()
 uni si t1 t2 = tell [(si, t1, t2)]
 
@@ -125,7 +124,6 @@ inEnv :: (Identifier, TypeBinding) -> Infer a -> Infer a
 inEnv (x, sc) = local (`extend` (x, sc))
 
 lookupTypeIn :: TypingEnvironment -> Metadata SourceInfo -> Identifier -> Infer Type
-lookupTypeIn _ si (Identifier "any") = return (TAny si)
 lookupTypeIn env (Metadata si) identifier =
   case Environment.lookup identifier env of
     Nothing                     -> throwError $ NotInScope si identifier

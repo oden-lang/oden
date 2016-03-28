@@ -7,8 +7,7 @@ import           Oden.QualifiedName
 import           Oden.SourceInfo
 
 data Type
-  = TAny (Metadata SourceInfo)
-  | TTuple (Metadata SourceInfo) Type Type [Type]
+  = TTuple (Metadata SourceInfo) Type Type [Type]
   | TCon (Metadata SourceInfo) QualifiedName
   | TNoArgFn (Metadata SourceInfo) Type
   | TFn (Metadata SourceInfo) Type Type
@@ -21,7 +20,6 @@ data Type
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
-  getSourceInfo (TAny (Metadata si))              = si
   getSourceInfo (TTuple (Metadata si) _ _ _)      = si
   getSourceInfo (TFn (Metadata si) _ _)           = si
   getSourceInfo (TNoArgFn (Metadata si) _)        = si
@@ -33,7 +31,6 @@ instance HasSourceInfo Type where
   getSourceInfo (REmpty (Metadata si))            = si
   getSourceInfo (RExtension (Metadata si) _ _ _)  = si
 
-  setSourceInfo si (TAny _)              = TAny (Metadata si)
   setSourceInfo si (TTuple _ f s r)      = TTuple (Metadata si) f s r
   setSourceInfo si (TFn _ a r)           = TFn (Metadata si) a r
   setSourceInfo si (TNoArgFn _ r)        = TNoArgFn (Metadata si) r

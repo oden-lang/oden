@@ -23,7 +23,6 @@ type Substitutions = Map.Map Poly.TVar Poly.Type
 type Instantiate a = StateT Substitutions (Except InstantiateError) a
 
 monoToPoly :: Mono.Type -> Poly.Type
-monoToPoly (Mono.TAny si) = Poly.TAny si
 monoToPoly (Mono.TTuple si f s r) =
   Poly.TTuple si (monoToPoly f) (monoToPoly s) (map monoToPoly r)
 monoToPoly (Mono.TCon si n) = Poly.TCon si n
@@ -90,7 +89,6 @@ getSubstitutions Poly.REmpty{} Mono.REmpty{} = return Map.empty
 getSubstitutions poly mono = throwError (TypeMismatch (getSourceInfo mono) poly mono)
 
 replace :: Poly.Type -> Instantiate Poly.Type
-replace (Poly.TAny si) = return (Poly.TAny si)
 replace (Poly.TTuple si f s r) =
   Poly.TTuple si <$> replace f <*> replace s <*> mapM replace r
 replace (Poly.TVar (Metadata si) v) = do
