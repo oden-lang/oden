@@ -2,7 +2,7 @@ module Oden.Output.Parser where
 
 import qualified Data.Set as Set
 
-import Text.PrettyPrint
+import Text.PrettyPrint.Leijen
 import Text.Parsec hiding (unexpected)
 import Text.Parsec.Error
 

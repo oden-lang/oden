@@ -1,6 +1,6 @@
 module Oden.Output.Backend where
 
-import           Text.PrettyPrint
+import           Text.PrettyPrint.Leijen
 
 import           Oden.Backend
 import           Oden.Output

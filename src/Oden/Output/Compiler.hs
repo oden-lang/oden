@@ -1,12 +1,12 @@
 module Oden.Output.Compiler where
 
-import           Text.PrettyPrint
+import           Text.PrettyPrint.Leijen
 
 import           Oden.Compiler
 import           Oden.Compiler.Monomorphization
 import           Oden.Output
-import           Oden.Output.Instantiate ()
-import           Oden.Pretty
+import           Oden.Output.Instantiate        ()
+import           Oden.Pretty                    ()
 
 instance OdenOutput MonomorphError where
   outputType _ = Error
@@ -14,8 +14,8 @@ instance OdenOutput MonomorphError where
   name (UnexpectedPolyType _ _)         = "Compiler.Monomorph.UnexpectedPolyType"
   name (MonomorphInstantiateError err)  = name err
 
-  header (NotInScope i) s                   = code s (pp i) <+> text "is not in scope"
-  header (UnexpectedPolyType _ e) s         = text "Unexpected polymorphic type" <+> code s (pp e)
+  header (NotInScope i) s                   = code s (pretty i) <+> text "is not in scope"
+  header (UnexpectedPolyType _ e) s         = text "Unexpected polymorphic type" <+> code s (pretty e)
   header (MonomorphInstantiateError err) s  = header err s
 
   details (MonomorphInstantiateError e) s = details e s

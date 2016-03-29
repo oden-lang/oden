@@ -5,7 +5,7 @@ import           Oden.SourceInfo
 
 import           Control.Monad.Reader
 import           Data.List
-import           Text.PrettyPrint
+import           Text.PrettyPrint.Leijen hiding (line, column)
 
 data OutputSettings = OutputSettings { markdown   :: Bool
                                      , monochrome :: Bool }
@@ -67,7 +67,11 @@ format e = do
   pos <- formatSourceInfo e
   t <- formatOutputType e
   wl <- wikiLink e
-  return (pos <+> t <+> header e s $+$ nest 2 (details e s) $+$ wl)
+  return (vcat [
+      pos <+> t <+> header e s,
+      nest 2 (details e s),
+      wl
+    ])
 
 print :: OdenOutput e => OutputSettings -> e -> String
-print settings e = render $ runReader (format e) settings
+print settings e = displayS (renderPretty 0.4 120 $ runReader (format e) settings) ""
