@@ -1,7 +1,5 @@
 package unicode/main
 
-import fmt
-
 main() = {
   println("As a [Swede], \229äö is what I want to write. \\\\ \"oh yeah\"")
 }

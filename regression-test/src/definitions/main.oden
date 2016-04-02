@@ -1,7 +1,5 @@
 package definitions/main
 
-import fmt
-
 hello = "Hello"
 
 helloWorld = hello ++ ", world!"

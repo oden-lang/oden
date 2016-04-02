@@ -1,7 +1,5 @@
 package unit/main
 
-import fmt
-
 testing = ()
 
 main() = println("wtf...")

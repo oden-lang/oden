@@ -1,7 +1,5 @@
 package typesig/main
 
-import fmt
-
 identityNoTypeSig(x) = x
 
 identityExplicit : forall a. a -> a

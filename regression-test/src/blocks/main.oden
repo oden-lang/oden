@@ -1,7 +1,5 @@
 package blocks/main
 
-import fmt
-
 result = {
   println("Calculating...")
   42

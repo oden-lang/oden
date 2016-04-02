@@ -1,7 +1,5 @@
 package tuples/main
 
-import fmt
-
 nothing = ()
 
 stuff : (int, (), string)

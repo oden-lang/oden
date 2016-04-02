@@ -1,7 +1,5 @@
 package pair/main
 
-import fmt
-
 pair(x, y, f) = f(x, y)
 
 first(p) = p((x, y) -> x)

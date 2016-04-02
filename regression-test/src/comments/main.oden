@@ -1,7 +1,5 @@
 package comments/main
 
-import fmt
-
 /* this is a multiline comment */
 // this is a single line comment
 

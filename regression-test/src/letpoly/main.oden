@@ -1,7 +1,5 @@
 package letpoly/main
 
-import fmt
-
 identity(x) = x
 
 main() = println(let id = identity(identity) in id("a"))

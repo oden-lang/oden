@@ -1,7 +1,5 @@
 package slices/main
 
-import fmt
-
 main : -> ()
 main() = let x = -200 in {
   print(-x)

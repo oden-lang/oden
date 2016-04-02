@@ -1,7 +1,5 @@
 package typealias/main
 
-import fmt
-
 // Oden does not support polymorphic type definitions yet.
 type IntPair = (int -> int -> int) -> int
 
