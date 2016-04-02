@@ -37,7 +37,7 @@ instance Substitutable Type where
   apply s (TSlice si t)                 = TSlice si (apply s t)
   apply s (TRecord si r)                = TRecord si (apply s r)
   apply _ (REmpty si)                   = REmpty si
-  apply s (RExtension si l t r)         = RExtension si l (apply s t) (apply s r)
+  apply s (RExtension si l t r)         = uniqueRow (RExtension si l (apply s t) (apply s r))
   apply s (TNamed si n t)               = TNamed si n (apply s t)
 
 instance Substitutable Scheme where

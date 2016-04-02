@@ -3,13 +3,13 @@ module Oden.InferSpec where
 import           Test.Hspec
 
 import qualified Oden.Core             as Core
-import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Operator
+import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Environment
 import           Oden.Identifier
 import           Oden.Infer            (inferExpr)
-import           Oden.Infer.Environment
 import           Oden.Predefined
+import           Oden.Pretty           ()
 import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
@@ -48,19 +48,45 @@ spec = describe "inferExpr" $ do
       [tLiteral tUnit typeUnit]
       tupleType)
 
-  it "infers struct member access" $
+  it "infers record member access" $
     inferExpr empty (uFn
                      (uNameBinding (Identifier "x"))
                      (uMemberAccess
                       (uSymbol (Identifier "x"))
                       (Identifier "y")))
     `shouldSucceedWith`
-    let structType = TRecord missing (RExtension missing (Identifier "y") tvarA tvarB) in
-      (forall [tvarBinding tvA, tvarBinding tvB] (typeFn structType tvarA),
+    let recordType = TRecord missing (RExtension missing (Identifier "y") tvarA tvarB) in
+      (forall [tvarBinding tvA, tvarBinding tvB] (typeFn recordType tvarA),
       tFn
       (tNameBinding (Identifier "x"))
-      (tFieldAccess (tSymbol (Identifier "x") structType) (Identifier "y") tvarA)
-      (typeFn structType tvarA))
+      (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "y") tvarA)
+      (typeFn recordType tvarA))
+
+  it "infers multiple record member accesses" $
+    inferExpr empty (uFn
+                     (uNameBinding (Identifier "x"))
+                     (Untyped.Tuple
+                      missing
+                      (uMemberAccess
+                       (uSymbol (Identifier "x"))
+                       (Identifier "y"))
+                      (uMemberAccess
+                       (uSymbol (Identifier "x"))
+                       (Identifier "z"))
+                      []))
+    `shouldSucceedWith'`
+    let recordType = TRecord missing (RExtension missing (Identifier "y") tvarA (RExtension missing (Identifier "z") tvarC tvarB))
+        tupleType = TTuple missing tvarA tvarC [] in
+      (forall [tvarBinding tvA, tvarBinding tvB, tvarBinding tvC] (typeFn recordType tupleType),
+      tFn
+      (tNameBinding (Identifier "x"))
+      (Core.Tuple
+       missing
+       (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "y") tvarA)
+       (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "z") tvarC)
+       []
+       tupleType)
+      (typeFn recordType (TTuple missing tvarA tvarC [])))
 
   it "infers package member access" $
     inferExpr fooBarPkgEnv (uMemberAccess (uSymbol (Identifier "foo")) (Identifier "Bar"))
@@ -252,13 +278,13 @@ spec = describe "inferExpr" $ do
      typeInt)
 
   it "infers record initializer" $
-    let structType = TRecord missing (RExtension missing (Identifier "msg") typeString (REmpty missing)) in
+    let recordType = TRecord missing (RExtension missing (Identifier "msg") typeString (REmpty missing)) in
       inferExpr predef (Untyped.RecordInitializer
                         missing
                         [Untyped.FieldInitializer missing (Identifier "msg") (Untyped.Literal missing (Untyped.String "hello"))])
       `shouldSucceedWith`
-      (forall [] structType,
-       Core.RecordInitializer missing structType [Core.FieldInitializer missing (Identifier "msg") (Core.Literal missing (Core.String "hello") typeString)])
+      (forall [] recordType,
+       Core.RecordInitializer missing recordType [Core.FieldInitializer missing (Identifier "msg") (Core.Literal missing (Core.String "hello") typeString)])
 
   it "infers record field access fn" $
     let recordType = typeRecord (rowExt (Identifier "a") tvarA tvarB)

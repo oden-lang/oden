@@ -10,6 +10,7 @@ module Oden.Type.Polymorphic (
   rowToList,
   rowFromList,
   getLeafRow,
+  uniqueRow,
   toMonomorphic,
   isPolymorphic,
   isPolymorphicType,
@@ -21,11 +22,12 @@ module Oden.Type.Polymorphic (
 
 import           Oden.Identifier
 import           Oden.Metadata
-import qualified Oden.Type.Monomorphic as Mono
-import           Oden.SourceInfo
 import           Oden.QualifiedName
+import           Oden.SourceInfo
+import qualified Oden.Type.Monomorphic as Mono
 
-import qualified Data.Set               as Set
+import           Data.List             (nub)
+import qualified Data.Set              as Set
 
 -- | Wrapper for type variable names.
 newtype TVar = TV String
@@ -113,9 +115,15 @@ rowToList :: Type -> [(Identifier, Type)]
 rowToList (RExtension _ label type' row) = (label, type') : rowToList row
 rowToList _ = []
 
-rowFromList :: [(Identifier, Type)] -> Type
-rowFromList ((label, type') : fields) = RExtension (Metadata Missing) label type' (rowFromList fields)
-rowFromList _ = REmpty (Metadata Missing)
+rowFromList :: [(Identifier, Type)] -> Type -> Type
+rowFromList ((label, type') : fields) leaf = RExtension (Metadata Missing) label type' (rowFromList fields leaf)
+rowFromList _ leaf = leaf
+
+uniqueRow :: Type -> Type
+uniqueRow row =
+  let leaf = getLeafRow row
+      deduplicated = nub (rowToList row)
+  in rowFromList deduplicated leaf
 
 getLeafRow :: Type -> Type
 getLeafRow (RExtension _ _ _ row) = getLeafRow row

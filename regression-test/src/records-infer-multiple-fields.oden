@@ -1,0 +1,21 @@
+package main
+
+a = {
+  p1 = "p1",
+  p2 = "p2",
+  p3 = {
+    p4 = "p4",
+    p5 = "p5"
+  }
+}
+
+
+describe : { p1: string, p2: string, p3: { p4: string, p5: string } } -> ()
+describe(thing) = {
+  println(thing.p1)
+  println(thing.p2)
+  println(thing.p3.p4)
+  println(thing.p3.p5)
+}
+
+main() = describe(a)

@@ -17,6 +17,7 @@ import qualified Data.Set                as Set
 
 import           Oden.Identifier
 import           Oden.Infer.Substitution
+import           Oden.Metadata
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
@@ -88,10 +89,12 @@ unifies si r1@RExtension{} r2@RExtension{} = do
   -- fields in the other row. In case both leafs are row variables, just unify
   -- those.
   leafSubst <- case (getLeafRow r1, getLeafRow r2) of
-    (leaf1@TVar{}, leaf2@TVar{}) -> unifies si leaf1 leaf2
+    (leaf1@TVar{}, leaf2@TVar{}) ->
+      compose <$> unifies si leaf1 (rowFromList (Map.assocs onlyInR2) leaf2)
+              <*> unifies si leaf2 (rowFromList (Map.assocs onlyInR1) leaf1)
     (leaf1, leaf2) ->
-      compose <$> unifies si leaf1 (rowFromList $ Map.assocs onlyInR2)
-              <*> unifies si leaf2 (rowFromList $ Map.assocs onlyInR1)
+      compose <$> unifies si leaf1 (rowFromList (Map.assocs onlyInR2) (REmpty (Metadata si)))
+              <*> unifies si leaf2 (rowFromList (Map.assocs onlyInR1) (REmpty (Metadata si)))
 
   -- Return all substitutions.
   return $ foldl1 compose (leafSubst : substs)
