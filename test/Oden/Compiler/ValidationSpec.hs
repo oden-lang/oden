@@ -4,6 +4,7 @@ import           Test.Hspec
 
 import           Oden.Compiler.Validation
 import           Oden.Core
+import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -16,6 +17,7 @@ missing :: Metadata SourceInfo
 missing = Metadata Missing
 
 typeUnit, typeString :: Type
+typeInt = TCon (Metadata Predefined) (FQN [] (Identifier "int"))
 typeUnit = TCon (Metadata Predefined) (FQN [] (Identifier "unit"))
 typeString = TCon (Metadata Predefined) (FQN [] (Identifier "string"))
 
@@ -27,6 +29,10 @@ unitExpr = Literal missing Unit typeUnit
 
 strExpr :: Expr Type
 strExpr = Literal missing (String "hello") typeString
+
+intExpr :: Integer -> Expr Type
+intExpr n = Literal missing (Int n) typeInt
+
 
 letExpr :: Identifier -> Expr Type -> Expr Type -> Expr Type
 letExpr n value body = Let missing (NameBinding missing n) value body (typeOf body)
@@ -120,3 +126,16 @@ spec =
         ])
       `shouldFailWith`
       Redefinition Missing (Identifier "foo")
+
+    it "throws an error on literal division by zero" $
+      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+            Definition
+            missing
+            (Identifier "foo")
+            (canonical divisionByZeroExpr)
+        ])
+      `shouldFailWith`
+      DivisionByZero divisionByZeroExpr
+      where
+        divisionByZeroExpr = BinaryOp missing Divide (intExpr 1) (intExpr 0) typeInt
+

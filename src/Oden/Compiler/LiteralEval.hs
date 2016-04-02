@@ -6,8 +6,6 @@ import Oden.Core.Operator
 evaluate :: Expr t -> Maybe Literal
 evaluate Symbol{} = Nothing
 
--- Should probably be possible to evalute literal
--- expressions with literal slices and subslices as well.
 evaluate Subscript{} = Nothing
 evaluate Subslice{} = Nothing
 
@@ -64,8 +62,8 @@ evaluate (Literal _ l _) = Just l
 
 evaluate (If _ p e1 e2 _) = do
   (Bool b) <- evaluate p
-  if b then (evaluate e1)
-       else (evaluate e2)
+  if b then evaluate e1
+       else evaluate e2
 
 evaluate Slice{} = Nothing
 evaluate Tuple{} = Nothing
