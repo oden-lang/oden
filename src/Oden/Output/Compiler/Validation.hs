@@ -14,7 +14,9 @@ instance OdenOutput ValidationError where
   name Redefinition{}              = "Compiler.Validation.Redefinition"
   name ValueDiscarded{}            = "Compiler.Validation.ValueDiscarded"
   name DuplicatedRecordFieldName{} = "Compiler.Validation.DuplicatedRecordFieldName"
-  name DivisionByZero {}           = "Compiler.Validation.DivisionByZero"
+  name DivisionByZero{}            = "Compiler.Validation.DivisionByZero"
+  name NegativeSliceIndex{}        = "Compiler.Validation.NegativeSliceIndex"
+  name InvalidSubslice{}         = "Compiler.Validation.InvalidSubslice"
 
   header (Redefinition _ i) s =
     code s (pretty i) <+> text "is already defined"
@@ -24,18 +26,30 @@ instance OdenOutput ValidationError where
     <+> text "discarded"
   header (DuplicatedRecordFieldName _ n) _ =
     text "Duplicate struct field name" <+> pretty n
-  header (DivisionByZero e) s = text "Division by zero: "
-                                <+> code s (pretty e)
+  header (DivisionByZero e) s =
+    text "Division by zero: "
+    <+> code s (pretty e)
+  header (NegativeSliceIndex e) s =
+    text "Negative index: "
+    <+> code s (pretty e)
+  header (InvalidSubslice _ r) s =
+    text "Invalid subslice range "
+    <+> code s (pretty r)
+
 
   details Redefinition{} _              = text "Shadowing is not allowed"
   details ValueDiscarded{} _            = empty
   details DuplicatedRecordFieldName{} _ = empty
   details DivisionByZero{} _            = empty
+  details NegativeSliceIndex{} _        = text "Indices must be >= 0"
+  details InvalidSubslice{} _           = text "Ranges must go from smaller to bigger"
 
   sourceInfo (Redefinition si _) = Just si
   sourceInfo (ValueDiscarded e) = Just (getSourceInfo e)
   sourceInfo (DuplicatedRecordFieldName si _) = Just si
   sourceInfo (DivisionByZero e)  = Just (getSourceInfo e)
+  sourceInfo (NegativeSliceIndex e) = Just (getSourceInfo e)
+  sourceInfo (InvalidSubslice si _) = Just si
 
 instance OdenOutput ValidationWarning where
   outputType _ = Warning
