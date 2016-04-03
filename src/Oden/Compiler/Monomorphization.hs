@@ -78,7 +78,7 @@ addInstanceName key name =
 
 addInstance :: InstantiatedDefinition -> Monomorph ()
 addInstance inst =
-  modify (\s -> s { instances = (instances s ++ [inst]) })
+  modify (\s -> s { instances = instances s ++ [inst] })
 
 addMonomorphed :: Identifier -> MonomorphedDefinition -> Monomorph ()
 addMonomorphed identifier def =
