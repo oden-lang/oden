@@ -50,7 +50,8 @@ data LetReference = LetReference Identifier Mono.Type Identifier
 -- was used.
 data LetInstance = LetInstance (Metadata SourceInfo) Core.NameBinding (Core.Expr Mono.Type)
 
-data MonomorphState = MonomorphState { instances   :: Map (Identifier, Mono.Type) InstantiatedDefinition
+data MonomorphState = MonomorphState { instanceNames :: Map (Identifier, Mono.Type) Identifier
+                                     , instances   :: [InstantiatedDefinition]
                                      , monomorphed :: Map Identifier MonomorphedDefinition
                                      }
 
@@ -71,9 +72,13 @@ lookupIn env identifier =
 withIdentifier :: Identifier -> Binding -> Monomorph a -> Monomorph a
 withIdentifier identifier binding = local (`extend` (identifier, binding))
 
-addInstance :: (Identifier, Mono.Type) -> InstantiatedDefinition -> Monomorph ()
-addInstance key inst =
-  modify (\s -> s { instances = Map.insert key inst (instances s) })
+addInstanceName :: (Identifier, Mono.Type) -> Identifier -> Monomorph ()
+addInstanceName key name =
+  modify (\s -> s { instanceNames = Map.insert key name (instanceNames s) })
+
+addInstance :: InstantiatedDefinition -> Monomorph ()
+addInstance inst =
+  modify (\s -> s { instances = (instances s ++ [inst]) })
 
 addMonomorphed :: Identifier -> MonomorphedDefinition -> Monomorph ()
 addMonomorphed identifier def =
@@ -88,8 +93,12 @@ instantiateDefinition key@(pn, t) _ pe = do
   case instantiate pe t of
     Left err -> throwError (MonomorphInstantiateError err)
     Right expr -> do
+      -- First add the name to the state to avoid endless loops for polymorphic
+      -- recursive functions that would monomorph themselves.
+      addInstanceName key identifier
       me <- monomorph expr
-      addInstance key (InstantiatedDefinition pn (Metadata $ getSourceInfo t) identifier me)
+      -- ... then add the actual instance.
+      addInstance (InstantiatedDefinition pn (Metadata $ getSourceInfo t) identifier me)
       return identifier
 
 getMonomorphicIn :: CompileEnvironment -> Identifier -> Mono.Type -> Monomorph Identifier
@@ -100,9 +109,9 @@ getMonomorphicIn env ident t = do
     Definition Core.ForeignDefinition{} -> return ident
     Definition (Core.Definition _ _ (sc, pe)) | Poly.isPolymorphic sc -> do
       let key = (ident, t)
-      is <- gets instances
+      is <- gets instanceNames
       case Map.lookup key is of
-        Just (InstantiatedDefinition _ _ identifier _) -> return identifier
+        Just name -> return name
         Nothing -> instantiateDefinition key sc pe
     Definition (Core.Definition _ pn _) -> return pn
     -- Types cannot be referred to at this stage.
@@ -320,10 +329,11 @@ monomorphDefinitions (Core.ForeignDefinition{} : defs) =
 monomorphPackage :: Core.Package -> Either MonomorphError MonomorphedPackage
 monomorphPackage self@(Core.Package pkgDecl imports definitions) = do
   let environment = fromPackage universe `merge` fromPackage self `merge` fromPackages imports
-  let st = MonomorphState { instances = Map.empty
+  let st = MonomorphState { instanceNames = Map.empty
+                          , instances = []
                           , monomorphed = Map.empty
                           }
   (_, s, _) <- runExcept $ runRWST (monomorphDefinitions definitions) environment st
-  let is = Set.fromList (Map.elems (instances s))
+  let is = Set.fromList (instances s)
       ms = Set.fromList (Map.elems (monomorphed s))
   return (MonomorphedPackage pkgDecl imports is ms)
