@@ -93,3 +93,9 @@ spec =
       `shouldSucceedWith`
       Subst (fromList [(TV "b", TRecord missing (RExtension missing (Identifier "bar") tvarA (TVar missing (TV "r")))),
                        (TV "c", tvarA)])
+
+    it "unifies slices of functions from tvar to tvar" $
+      unify (typeSlice (typeFn typeString typeString))
+            (typeSlice (typeFn tvarA tvarB))
+      `shouldSucceedWith`
+      Subst (fromList [(TV "a", typeString), (TV "b", typeString)])
