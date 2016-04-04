@@ -1,22 +1,28 @@
 module Oden.Compiler.Validation where
 
-import           Oden.Core             as Core
+import           Oden.Core                 as Core
+import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName    (QualifiedName(..))
+import           Oden.QualifiedName        (QualifiedName (..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
+
+import           Oden.Compiler.LiteralEval
 
 import           Control.Monad.Except
 import           Control.Monad.Reader
 import           Control.Monad.State
 
 import           Data.List
-import qualified Data.Set        as Set
+import qualified Data.Set                  as Set
 
 data ValidationError = Redefinition SourceInfo Identifier
                      | ValueDiscarded (Expr Type)
                      | DuplicatedRecordFieldName SourceInfo Identifier
+                     | DivisionByZero (Expr Type)
+                     | NegativeSliceIndex (Expr Type)
+                     | InvalidSubslice SourceInfo (Range Type)
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValidationWarning -- There's no warnings defined yet.
@@ -36,16 +42,44 @@ errorIfDefined name (Metadata si) = do
 withIdentifier :: Identifier -> Validate a -> Validate a
 withIdentifier = local . Set.insert
 
+validateSliceIndex :: Expr Type -> Validate ()
+validateSliceIndex e = do
+  validateExpr e
+  case evaluate e of
+    Just (Int n) | n < 0 -> throwError $ NegativeSliceIndex e
+    _ -> return ()
+
+
+validateRange :: Range Type -> Validate ()
+validateRange r@(Range e1 e2) = do
+  validateSliceIndex e1
+  validateSliceIndex e2
+  case (evaluate e1, evaluate e2) of
+    (Just (Int v1), Just (Int v2)) |
+      v1 > v2 -> throwError $ InvalidSubslice (getSourceInfo e1) r
+    _ -> return ()
+validateRange (RangeTo e) =
+  validateSliceIndex e
+validateRange (RangeFrom e) =
+  validateSliceIndex e
+
+
 validateExpr :: Expr Type -> Validate ()
 validateExpr Symbol{} = return ()
 validateExpr (Subscript _ s i _) = do
   validateExpr s
-  validateExpr i
+  validateSliceIndex i
 validateExpr (Subslice _ s r _) = do
   validateExpr s
   validateRange r
 validateExpr (UnaryOp _ _ rhs _) =
   validateExpr rhs
+validateExpr e@(BinaryOp _ Divide lhs rhs _) = do
+  validateExpr lhs
+  validateExpr rhs
+  case evaluate rhs of
+    Just (Int 0) -> throwError $ DivisionByZero e
+    _ -> return ()
 validateExpr (BinaryOp _ _ lhs rhs _) = do
   validateExpr lhs
   validateExpr rhs
@@ -87,14 +121,6 @@ validateExpr RecordInitializer{} = return ()
 validateExpr (RecordFieldAccess _ expr _ _) = validateExpr expr
 validateExpr PackageMemberAccess{} = return ()
 
-validateRange :: Range Type -> Validate()
-validateRange (Range e1 e2) = do
-  validateExpr e1
-  validateExpr e2
-validateRange (RangeTo e) =
-  validateExpr e
-validateRange (RangeFrom e) =
-  validateExpr e
 
 repeated :: [(Identifier, Type)] -> [(Identifier, Type)]
 repeated fields = snd (foldl check (Set.empty, []) fields)

@@ -4,6 +4,7 @@ import           Test.Hspec
 
 import           Oden.Compiler.Validation
 import           Oden.Core
+import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -15,9 +16,11 @@ import           Oden.Assertions
 missing :: Metadata SourceInfo
 missing = Metadata Missing
 
-typeUnit, typeString :: Type
+typeUnit, typeString, typeInt, typeIntSlice :: Type
 typeUnit = TCon (Metadata Predefined) (FQN [] (Identifier "unit"))
 typeString = TCon (Metadata Predefined) (FQN [] (Identifier "string"))
+typeInt = TCon (Metadata Predefined) (FQN [] (Identifier "int"))
+typeIntSlice = TSlice missing typeInt
 
 canonical :: Expr Type -> CanonicalExpr
 canonical e = (Forall missing [] (typeOf e), e)
@@ -28,6 +31,10 @@ unitExpr = Literal missing Unit typeUnit
 strExpr :: Expr Type
 strExpr = Literal missing (String "hello") typeString
 
+intExpr :: Integer -> Expr Type
+intExpr n = Literal missing (Int n) typeInt
+
+
 letExpr :: Identifier -> Expr Type -> Expr Type -> Expr Type
 letExpr n value body = Let missing (NameBinding missing n) value body (typeOf body)
 
@@ -36,6 +43,8 @@ fnExpr n body = Fn missing (NameBinding missing n) body (TFn missing typeString 
 
 block :: [Expr Type] -> Expr Type
 block exprs = Block missing exprs (typeOf (last exprs))
+
+divisionByZeroExpr = BinaryOp missing Divide (intExpr 1) (intExpr 0) typeInt
 
 spec :: Spec
 spec =
@@ -120,3 +129,72 @@ spec =
         ])
       `shouldFailWith`
       Redefinition Missing (Identifier "foo")
+
+    it "throws an error on literal division by zero" $
+      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+            Definition
+            missing
+            (Identifier "foo")
+            (canonical divisionByZeroExpr)
+        ])
+      `shouldFailWith`
+      DivisionByZero divisionByZeroExpr
+
+    it "throws an error on negative subscript" $
+      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+            Definition
+            missing
+            (Identifier "foo")
+            (canonical $
+              Subscript missing
+                (Symbol missing (Identifier "s") typeIntSlice)
+                (intExpr (-1))
+                typeInt)
+        ])
+      `shouldFailWith`
+      NegativeSliceIndex (intExpr (-1))
+
+    it "throws an error on subslice from negative index" $
+      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+            Definition
+            missing
+            (Identifier "foo")
+            (canonical $
+              Subslice missing
+                (Symbol missing (Identifier "s") typeIntSlice)
+                (RangeFrom (intExpr (-1)))
+                typeInt)
+        ])
+      `shouldFailWith`
+      NegativeSliceIndex (intExpr (-1))
+
+    it "throws an error on subslice to negative index" $
+      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+            Definition
+            missing
+            (Identifier "foo")
+            (canonical $
+              Subslice missing
+                (Symbol missing (Identifier "s") typeIntSlice)
+                (RangeTo (intExpr (-1)))
+                typeInt)
+        ])
+      `shouldFailWith`
+      NegativeSliceIndex (intExpr (-1))
+
+    it "throws an error on subslice from higher to lower index" $
+      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+            Definition
+            missing
+            (Identifier "foo")
+            (canonical $
+              Subslice missing
+                (Symbol missing (Identifier "s") typeIntSlice)
+                (Range (intExpr 10) (intExpr 5))
+                typeInt)
+        ])
+      `shouldFailWith`
+      InvalidSubslice Missing (Range (intExpr 10) (intExpr 5))
+
+
+
