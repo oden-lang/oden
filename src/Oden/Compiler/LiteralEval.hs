@@ -1,7 +1,7 @@
 module Oden.Compiler.LiteralEval where
 
-import Oden.Core
-import Oden.Core.Operator
+import           Oden.Core
+import           Oden.Core.Operator
 
 evaluate :: Expr t -> Maybe Literal
 evaluate Symbol{} = Nothing

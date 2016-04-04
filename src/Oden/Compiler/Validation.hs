@@ -1,10 +1,10 @@
 module Oden.Compiler.Validation where
 
-import           Oden.Core             as Core
+import           Oden.Core                 as Core
 import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName    (QualifiedName(..))
+import           Oden.QualifiedName        (QualifiedName (..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
@@ -15,7 +15,7 @@ import           Control.Monad.Reader
 import           Control.Monad.State
 
 import           Data.List
-import qualified Data.Set        as Set
+import qualified Data.Set                  as Set
 
 data ValidationError = Redefinition SourceInfo Identifier
                      | ValueDiscarded (Expr Type)
@@ -50,7 +50,7 @@ validateSliceIndex e = do
     _ -> return ()
 
 
-validateRange :: Range Type -> Validate()
+validateRange :: Range Type -> Validate ()
 validateRange r@(Range e1 e2) = do
   validateSliceIndex e1
   validateSliceIndex e2
