@@ -6,6 +6,8 @@ import           Oden.Scanner
 import           Oden.CLI
 import           Oden.CLI.Build
 
+import           Oden.Core
+
 import           Control.Monad.Reader
 
 import           Text.PrettyPrint.Leijen
@@ -17,6 +19,14 @@ printInferred :: FilePath -> CLI ()
 printInferred path = do
   pkg <- inferFile (OdenSourceFile path ["main"])
   liftIO $ putStrLn $ render $ pretty pkg
+
+printTypes :: FilePath -> CLI ()
+printTypes path = do
+  (Package _ _ definitions) <- inferFile (OdenSourceFile path ["main"])
+  liftIO $ putStrLn $ render $ vcat $ map prettyScheme definitions
+  where
+    prettyScheme (Definition _ name (scheme, _)) = pretty name <+> text ":" <+> pretty scheme
+    prettyScheme _ = empty
 
 printCompiled :: FilePath -> CLI ()
 printCompiled path = do

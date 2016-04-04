@@ -35,4 +35,5 @@ main = do
     Right (opts, ["lint", path]) -> exec opts (lint path)
     Right (opts, ["print-inferred", path]) -> exec opts (printInferred path)
     Right (opts, ["print-compiled", path]) -> exec opts (printCompiled path)
+    Right (opts, ["print-types", path]) -> exec opts (printTypes path)
     Right _ -> putStrLn help
