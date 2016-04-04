@@ -1,5 +1,3 @@
 package let/main
 
-import fmt
-
 main() = println(let name = "Foo" in name ++ "!")

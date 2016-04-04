@@ -1,7 +1,5 @@
 package higherorder/main
 
-import fmt
-
 identity(x) = x
 
 applyTo1(x) = x(1)

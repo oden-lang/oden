@@ -1,7 +1,5 @@
 package records/main
 
-import fmt
-
 type Foo = { name: string }
 type Bar = { foo: Foo }
 

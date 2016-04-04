@@ -1,7 +1,5 @@
 package numbers/main
 
-import fmt
-
 plus(x, y) = x + y
 
 plus1 = plus(1)

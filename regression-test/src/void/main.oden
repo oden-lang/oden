@@ -1,7 +1,5 @@
 package void/main
 
-import fmt
-
 main() =
   let
     x = print("unit: ")

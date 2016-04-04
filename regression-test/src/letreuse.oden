@@ -1,7 +1,5 @@
 package letreuse/main
 
-import fmt
-
 id : forall a. a -> a
 id(x) = let t = (v) -> v in t(x)
 
