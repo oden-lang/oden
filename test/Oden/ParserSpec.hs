@@ -47,6 +47,11 @@ spec = do
       `shouldSucceedWith`
       Literal (src 1 1) (Int 123)
 
+    it "parses float64 literal" $
+      parseExpr "1.123"
+      `shouldSucceedWith`
+      Literal (src 1 1) (Float64 1.123)
+
     it "parses false literal" $
       parseExpr "false"
       `shouldSucceedWith`

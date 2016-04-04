@@ -1,6 +1,7 @@
 module Oden.Predefined (
   universe,
   typeInt,
+  typeFloat64,
   typeString,
   typeBool,
   typeUnit
@@ -16,8 +17,9 @@ import qualified Oden.Core as Core
 predefined :: Metadata SourceInfo
 predefined = Metadata Predefined
 
-typeInt, typeString, typeBool, typeUnit :: Type
+typeInt, typeFloat64, typeString, typeBool, typeUnit :: Type
 typeInt = TCon predefined (nameInUniverse "int")
+typeFloat64 = TCon predefined (nameInUniverse "float64")
 typeString = TCon predefined (nameInUniverse "string")
 typeBool = TCon predefined (nameInUniverse "bool")
 typeUnit = TCon predefined (nameInUniverse "unit")

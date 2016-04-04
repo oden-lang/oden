@@ -67,6 +67,8 @@ explodeExpr' (Literal si (Bool b)) =
   return $ Untyped.Literal (Metadata si) (Untyped.Bool b)
 explodeExpr' (Literal si (Int i)) =
   return $ Untyped.Literal (Metadata si) (Untyped.Int i)
+explodeExpr' (Literal si (Float64 i)) =
+  return $ Untyped.Literal (Metadata si) (Untyped.Float64 i)
 explodeExpr' (Literal si (String s)) =
   return $ Untyped.Literal (Metadata si) (Untyped.String s)
 explodeExpr' (Literal si Unit) =

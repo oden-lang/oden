@@ -67,6 +67,7 @@ genType :: Mono.Type -> Codegen GT.Type
 genType t@Mono.TCon{}
   | isUniverseTypeConstructor "unit" t = return $ GT.Struct []
   | isUniverseTypeConstructor "int" t = return $ GT.Basic (GI.Identifier "int") False
+  | isUniverseTypeConstructor "float64" t = return $ GT.Basic (GI.Identifier "float64") False
   | isUniverseTypeConstructor "bool" t = return $ GT.Basic (GI.Identifier "bool") False
   | isUniverseTypeConstructor "string" t = return $ GT.Basic (GI.Identifier "string") False
   | otherwise = throwError (UnexpectedError $ "Unsupported type constructor: " ++ show t)
@@ -273,6 +274,7 @@ genExpr expr = case expr of
 
   Literal _ lit _ -> case lit of
     Int n      -> return $ literalExpr $ AST.BasicLiteral $ AST.IntLiteral n
+    Float64 n  -> return $ literalExpr $ AST.BasicLiteral $ AST.FloatLiteral n
     Bool True  -> return $ operandName (GI.Identifier "true")
     Bool False -> return $ operandName (GI.Identifier "false")
     String s   -> return $ literalExpr $ AST.BasicLiteral $ AST.StringLiteral $ AST.InterpretedStringLiteral s

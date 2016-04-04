@@ -67,6 +67,7 @@ instance HasSourceInfo Expr where
   setSourceInfo si (MemberAccess _ expr n)        = MemberAccess (Metadata si) expr n
 
 data Literal = Int Integer
+             | Float64 Double
              | Bool Bool
              | String String
              | Unit

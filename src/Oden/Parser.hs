@@ -16,16 +16,15 @@ import           Oden.Type.Signature
 import           Oden.SourceInfo
 import           Oden.Core.Operator
 
-sign :: Parser (Integer -> Integer)
+sign :: Num a => Parser (a -> a)
 sign = (char '-' >> return negate)
        <|> (char '+' >> return id)
        <|> return id
 
-integer :: Parser Integer
-integer = do
+signed :: Num a => Parser a -> Parser a
+signed p = do
   f <- sign
-  n <- Tok.natural lexer
-  return (f n)
+  f <$> p
 
 currentSourceInfo :: Parser SourceInfo
 currentSourceInfo = do
@@ -45,11 +44,17 @@ identified f = f <$> currentSourceInfo <*> identifier
 symbol :: Parser Expr
 symbol = identified Symbol
 
-number :: Parser Expr
-number = do
+int :: Parser Expr
+int = do
   si <- currentSourceInfo
-  n <- integer
+  n <- signed (Tok.natural lexer)
   return (Literal si (Int (fromIntegral n)))
+
+float64 :: Parser Expr
+float64 = do
+  si <- currentSourceInfo
+  n <- signed (Tok.float lexer)
+  return (Literal si (Float64 n))
 
 stringLiteral :: Parser Expr
 stringLiteral = do
@@ -152,7 +157,8 @@ termNoSlice =
   <|> stringLiteral
   <|> slice
   <|> bool
-  <|> try number
+  <|> try float64
+  <|> try int
   <|> try recordInitializer
   <|> symbol
   <|> block

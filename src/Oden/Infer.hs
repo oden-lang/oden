@@ -212,6 +212,8 @@ infer expr = case expr of
     return (Core.Literal si Core.Unit (TCon si (nameInUniverse "unit")))
   Untyped.Literal si (Untyped.Int n) ->
     return (Core.Literal si (Core.Int n) (TCon si (nameInUniverse "int")))
+  Untyped.Literal si (Untyped.Float64 n) ->
+    return (Core.Literal si (Core.Float64 n) (TCon si (nameInUniverse "float64")))
   Untyped.Literal si (Untyped.Bool b) ->
     return (Core.Literal si (Core.Bool b) (TCon si (nameInUniverse "bool")))
   Untyped.Literal si (Untyped.String s) ->

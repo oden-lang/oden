@@ -134,6 +134,7 @@ convertType :: G.Type -> Converter Poly.Type
 -- TODO: Add, or map, "Untyped constant" concept to Oden type system.
 convertType (Basic (GI.Identifier "bool") False) = return typeBool
 convertType (Basic (GI.Identifier "int") False) = return typeInt
+convertType (Basic (GI.Identifier "float64") False) = return typeFloat64
 convertType (Basic (GI.Identifier "rune") False) = return typeInt
 convertType (Basic (GI.Identifier "string") False) = return typeString
 convertType (Basic (GI.Identifier "nil") False) = throwError "nil constants"

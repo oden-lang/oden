@@ -98,6 +98,7 @@ typeOf (RecordFieldAccess _ _ _ t) = t
 typeOf (PackageMemberAccess _ _ _ t) = t
 
 data Literal = Int Integer
+             | Float64 Double
              | Bool Bool
              | String String
              | Unit

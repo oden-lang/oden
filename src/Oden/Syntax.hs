@@ -68,6 +68,7 @@ data Subscript = Singular Expr
                deriving (Show, Eq, Ord)
 
 data Literal = Int Integer
+             | Float64 Double
              | Bool Bool
              | String String
              | Unit

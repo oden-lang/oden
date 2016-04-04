@@ -10,7 +10,7 @@ data StringLiteral = RawStringLiteral String
                    deriving (Show, Eq)
 
 data BasicLiteral = IntLiteral Integer
-                  | FloatLiteral Float
+                  | FloatLiteral Double
                   | RuneLiteral Char
                   | StringLiteral StringLiteral
                   deriving (Show, Eq)
