@@ -154,7 +154,7 @@ instance Pretty ImportedPackage where
 
 instance Pretty Package where
   pretty (Package decl imports defs) =
-    vcat (pretty decl : map pretty imports ++ map pretty defs)
+    vcat (punctuate line (pretty decl : map pretty imports ++ map pretty defs))
 
 instance Pretty Poly.TVar where
   pretty (Poly.TV s) = text s
@@ -261,7 +261,7 @@ instance Pretty MonomorphedDefinition where
 
 instance Pretty MonomorphedPackage where
   pretty (MonomorphedPackage decl imports is ms) =
-    vcat (pretty decl
-          : map pretty imports
-          ++ map pretty (toList is)
-          ++ map pretty (toList ms))
+    vcat (punctuate line parts)
+    where parts = pretty decl : map pretty imports
+                              ++ map pretty (toList is)
+                              ++ map pretty (toList ms)
