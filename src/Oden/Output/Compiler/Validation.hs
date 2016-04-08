@@ -16,7 +16,8 @@ instance OdenOutput ValidationError where
   name DuplicatedRecordFieldName{} = "Compiler.Validation.DuplicatedRecordFieldName"
   name DivisionByZero{}            = "Compiler.Validation.DivisionByZero"
   name NegativeSliceIndex{}        = "Compiler.Validation.NegativeSliceIndex"
-  name InvalidSubslice{}         = "Compiler.Validation.InvalidSubslice"
+  name InvalidSubslice{}           = "Compiler.Validation.InvalidSubslice"
+  name UnusedImport{}              = "Compiler.Validation.UnusedImport"
 
   header (Redefinition _ i) s =
     code s (pretty i) <+> text "is already defined"
@@ -35,6 +36,8 @@ instance OdenOutput ValidationError where
   header (InvalidSubslice _ r) s =
     text "Invalid subslice range "
     <+> code s (pretty r)
+  header (UnusedImport _ _ pkg) s =
+    text "Package" <+> code s (pretty pkg) <+> text "imported but not used"
 
 
   details Redefinition{} _              = text "Shadowing is not allowed"
@@ -43,13 +46,15 @@ instance OdenOutput ValidationError where
   details DivisionByZero{} _            = empty
   details NegativeSliceIndex{} _        = text "Indices must be >= 0"
   details InvalidSubslice{} _           = text "Ranges must go from smaller to bigger"
+  details UnusedImport{} _              = empty
 
-  sourceInfo (Redefinition si _) = Just si
-  sourceInfo (ValueDiscarded e) = Just (getSourceInfo e)
+  sourceInfo (Redefinition si _)              = Just si
+  sourceInfo (ValueDiscarded e)               = Just (getSourceInfo e)
   sourceInfo (DuplicatedRecordFieldName si _) = Just si
-  sourceInfo (DivisionByZero e)  = Just (getSourceInfo e)
-  sourceInfo (NegativeSliceIndex e) = Just (getSourceInfo e)
-  sourceInfo (InvalidSubslice si _) = Just si
+  sourceInfo (DivisionByZero e)               = Just (getSourceInfo e)
+  sourceInfo (NegativeSliceIndex e)           = Just (getSourceInfo e)
+  sourceInfo (InvalidSubslice si _)           = Just si
+  sourceInfo (UnusedImport si _ _)            = Just si
 
 instance OdenOutput ValidationWarning where
   outputType _ = Warning

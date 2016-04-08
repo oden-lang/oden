@@ -46,9 +46,11 @@ block exprs = Block missing exprs (typeOf (last exprs))
 
 divisionByZeroExpr = BinaryOp missing Divide (intExpr 1) (intExpr 0) typeInt
 
+emptyPkg = Package (PackageDeclaration missing ["empty", "pkg"]) [] []
+
 spec :: Spec
-spec =
-  describe "validate" $ do
+spec = do
+  describe "validateExpr" $ do
 
     it "warns on discarded value in block" $
       validate (Package (PackageDeclaration missing ["mypkg"]) [] [
@@ -196,5 +198,25 @@ spec =
       `shouldFailWith`
       InvalidSubslice Missing (Range (intExpr 10) (intExpr 5))
 
+  describe "validatePackage" $ do
 
+    it "throws an error on unused imports" $
+      validate (Package (PackageDeclaration missing ["mypkg"]) [
+          ImportedPackage missing (Identifier "foo") emptyPkg
+        ] [])
+      `shouldFailWith`
+      UnusedImport Missing ["empty", "pkg"] (Identifier "foo")
 
+    it "does not throw errors for used imports" $
+      validate (Package (PackageDeclaration missing ["mypkg"]) [
+          ImportedPackage missing (Identifier "other") emptyPkg
+        ] [
+            Definition
+            missing
+            (Identifier "foo")
+            (canonical (PackageMemberAccess missing (Identifier "other") (Identifier "s") typeInt))
+        ])
+      `shouldSucceedWith`
+      []
+
+    it "throws an error on duplicate imports" $ pending

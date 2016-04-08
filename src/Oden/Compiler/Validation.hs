@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Oden.Compiler.Validation where
 
 import           Oden.Core                 as Core
@@ -10,9 +11,8 @@ import           Oden.Type.Polymorphic
 
 import           Oden.Compiler.LiteralEval
 
+import           Control.Monad.RWS
 import           Control.Monad.Except
-import           Control.Monad.Reader
-import           Control.Monad.State
 
 import           Data.List
 import qualified Data.Set                  as Set
@@ -23,15 +23,24 @@ data ValidationError = Redefinition SourceInfo Identifier
                      | DivisionByZero (Expr Type)
                      | NegativeSliceIndex (Expr Type)
                      | InvalidSubslice SourceInfo (Range Type)
+                     | UnusedImport SourceInfo PackageName Identifier
                      deriving (Show, Eq, Ord)
 
 data ValidationWarning = ValidationWarning -- There's no warnings defined yet.
                        deriving (Show, Eq, Ord)
 
-type Validate = ReaderT
+data ValidationState = ValidationState { packageReferences :: Set.Set Identifier }
+
+initState :: ValidationState
+initState = ValidationState {
+  packageReferences = Set.empty
+}
+
+type Validate = RWST
                 (Set.Set Identifier)
-                (StateT [ValidationWarning]
-                        (Except ValidationError))
+                [ValidationWarning]
+                ValidationState
+                (Except ValidationError)
 
 errorIfDefined :: Identifier -> Metadata SourceInfo -> Validate ()
 errorIfDefined name (Metadata si) = do
@@ -41,6 +50,11 @@ errorIfDefined name (Metadata si) = do
 
 withIdentifier :: Identifier -> Validate a -> Validate a
 withIdentifier = local . Set.insert
+
+addPackageReference :: Identifier -> Validate ()
+addPackageReference name = do
+  refs <- gets packageReferences
+  modify (\s -> s { packageReferences = Set.insert name refs })
 
 validateSliceIndex :: Expr Type -> Validate ()
 validateSliceIndex e = do
@@ -119,8 +133,7 @@ validateExpr (Block _ exprs _) = do
     _ -> throwError (ValueDiscarded expr)
 validateExpr RecordInitializer{} = return ()
 validateExpr (RecordFieldAccess _ expr _ _) = validateExpr expr
-validateExpr PackageMemberAccess{} = return ()
-
+validateExpr (PackageMemberAccess _ alias _ _) = addPackageReference alias
 
 repeated :: [(Identifier, Type)] -> [(Identifier, Type)]
 repeated fields = snd (foldl check (Set.empty, []) fields)
@@ -142,8 +155,17 @@ validateType r@RExtension{} =
 validateType _ = return ()
 
 validatePackage :: Package -> Validate ()
-validatePackage (Package _ _ definitions) = validateDefs definitions
+validatePackage (Package _ imports definitions) = do
+  -- Validates all definitions and expressions recursively. Also collects usage
+  -- of imported packages.
+  validateDefs definitions
+  -- When package usage is collected we can validate the imports.
+  mapM_ validateImport imports
   where
+  validateImport (ImportedPackage (Metadata sourceInfo) alias (Package (PackageDeclaration _ pkg) _ _)) = do
+    refs <- gets packageReferences
+    unless (alias `Set.member` refs) $
+      throwError (UnusedImport sourceInfo pkg alias)
   validateDefs (Definition si name (_, expr):defs) = do
     errorIfDefined name si
     withIdentifier name $ do
@@ -157,4 +179,4 @@ validatePackage (Package _ _ definitions) = validateDefs definitions
 
 validate :: Package -> Either ValidationError [ValidationWarning]
 validate pkg =
-  runExcept (execStateT (runReaderT (validatePackage pkg) Set.empty) [])
+  runExcept (snd <$> evalRWST (validatePackage pkg) Set.empty initState)
