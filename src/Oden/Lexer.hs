@@ -17,6 +17,7 @@ reservedNames = [
     "package",
     "import",
     "type",
+    "protocol",
     "let",
     "in",
     "if",

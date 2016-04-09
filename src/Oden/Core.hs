@@ -7,6 +7,7 @@ import           Oden.Metadata
 import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic as Poly
+import           Oden.Type.Protocol
 
 data NameBinding = NameBinding (Metadata SourceInfo) Identifier
                  deriving (Show, Eq, Ord)
@@ -113,6 +114,7 @@ type CanonicalExpr = (Poly.Scheme, Expr Poly.Type)
 data Definition = Definition (Metadata SourceInfo) Identifier CanonicalExpr
                 | ForeignDefinition (Metadata SourceInfo) Identifier Poly.Scheme
                 | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] Poly.Type
+                | ProtocolDefinition Protocol
                 deriving (Show, Eq, Ord)
 
 type PackageName = [String]

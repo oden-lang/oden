@@ -82,6 +82,7 @@ data RecordField = RecordField (Metadata SourceInfo) Identifier (SignatureExpr S
 
 data Definition = Definition (Metadata SourceInfo) Identifier (Maybe (TypeSignature SourceInfo)) Expr
                 | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] (SignatureExpr SourceInfo)
+                | ProtocolDefinition (Metadata SourceInfo) QualifiedName (SignatureVarBinding SourceInfo) [ProtocolMethodSignature SourceInfo]
                 deriving (Show, Eq, Ord)
 
 type PackageName = [String]

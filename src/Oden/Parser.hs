@@ -285,19 +285,19 @@ pkgDecl = do
   return (PackageDeclaration si pkg)
 
 topLevel :: Parser TopLevel
-topLevel = import' <|> typeDef <|> try typeSignature <|> def
+topLevel = import' <|> typeDef <|> protocolDef <|> try typeSignature <|> def
   where
   tvarBinding = SignatureVarBinding <$> currentSourceInfo <*> identifier
-  explicitlyQuantifiedType = do
+  signatureWithForall = do
     si <- currentSourceInfo
     reservedOp "forall"
     bindings <- many1 tvarBinding
     reservedOp "."
     TypeSignature si bindings <$> type'
-  implicitlyQuantifiedType = do
+  signatureWithoutForall = do
     si <- currentSourceInfo
     TypeSignature si [] <$> type'
-  signature = try explicitlyQuantifiedType <|> implicitlyQuantifiedType
+  signature = try signatureWithForall <|> signatureWithoutForall
   typeSignature = do
     si <- currentSourceInfo
     i <- identifier
@@ -322,6 +322,17 @@ topLevel = import' <|> typeDef <|> try typeSignature <|> def
     n <- identifier
     equals
     TypeDefinition si n <$> type'
+  protocolMethod = do
+    si <- currentSourceInfo
+    i <- identifier
+    reservedOp ":"
+    ProtocolMethodSignature si i <$> signature
+  protocolDef =
+    ProtocolDefinition
+      <$> currentSourceInfo
+      <*> (reserved "protocol" *> identifier)
+      <*> parens tvarBinding
+      <*> braces (many protocolMethod)
 
 package :: Parser Package
 package = Package <$> pkgDecl <*> topLevel `sepBy` topSeparator

@@ -87,6 +87,7 @@ data TopLevel = ImportDeclaration SourceInfo PackageName
               | FnDefinition SourceInfo Identifier [NameBinding] Expr
               -- TODO: Add support for type parameters
               | TypeDefinition SourceInfo Identifier (SignatureExpr SourceInfo)
+              | ProtocolDefinition SourceInfo Identifier (SignatureVarBinding SourceInfo) [ProtocolMethodSignature SourceInfo]
               deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]

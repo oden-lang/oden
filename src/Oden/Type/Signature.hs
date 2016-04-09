@@ -30,3 +30,6 @@ data SignatureVarBinding s = SignatureVarBinding s Identifier
 -- quantification.
 data TypeSignature s = TypeSignature s [SignatureVarBinding s] (SignatureExpr s)
                      deriving (Show, Eq, Ord)
+
+data ProtocolMethodSignature s = ProtocolMethodSignature s Identifier (TypeSignature s)
+                               deriving (Show, Eq, Ord)
