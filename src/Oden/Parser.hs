@@ -217,10 +217,13 @@ type' = do
 expr :: Parser Expr
 expr = Ex.buildExpressionParser table subscriptExpr
 
-memberAccess :: Ex.Assoc -> Op Expr
-memberAccess = Ex.Infix $ do
-  reservedOp "."
-  return (\expr' name -> MemberAccess (getSourceInfo expr') expr' name)
+infixExpr :: String
+          -> (SourceInfo -> Expr -> Expr -> Expr)
+          -> Ex.Assoc
+          -> Op Expr
+infixExpr op f = Ex.Infix $ do
+  reservedOp op
+  return (\expr' name -> f (getSourceInfo expr') expr' name)
 
 application :: Op Expr
 application = Ex.Postfix $ do
@@ -243,7 +246,8 @@ prefixOp x o = Ex.Prefix $ do
 table :: Operators Expr
 table = [
     [
-      memberAccess Ex.AssocLeft
+      infixExpr "." MemberAccess Ex.AssocLeft,
+      infixExpr "::" ProtocolMethodReference Ex.AssocLeft
     ],
     [
       application

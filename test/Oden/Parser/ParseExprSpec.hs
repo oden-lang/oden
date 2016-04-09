@@ -40,6 +40,14 @@ spec = describe "parseExpr" $ do
       (Symbol (src 1 5) (Identifier "bar")))
     (Symbol (src 1 9) (Identifier "baz"))
 
+  it "parses protocol method reference" $
+    parseExpr "Foo::bar"
+    `shouldSucceedWith`
+    ProtocolMethodReference
+    (src 1 1)
+    (Symbol (src 1 1) (Identifier "Foo"))
+    (Symbol (src 1 6) (Identifier "bar"))
+
   it "parses integer literal" $
     parseExpr "123"
     `shouldSucceedWith`
@@ -223,6 +231,17 @@ spec = describe "parseExpr" $ do
       [Symbol (src 1 5) (Identifier "y")])
     (Symbol (src 1 8) (Identifier "Bar"))
     -}
+
+  it "parses protocol method application" $
+    parseExpr "Foo::bar(y)"
+    `shouldSucceedWith`
+    Application
+    (src 1 9)
+    (ProtocolMethodReference
+      (src 1 1)
+      (Symbol (src 1 1) (Identifier "Foo"))
+      (Symbol (src 1 6) (Identifier "bar")))
+    [Symbol (src 1 10) (Identifier "y")]
 
   it "parses single-arg fn application" $
     parseExpr "x(y)"
