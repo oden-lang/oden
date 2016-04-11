@@ -10,6 +10,7 @@ import           Control.Monad.State
 import qualified Data.Map              as Map hiding (foldl)
 
 import qualified Oden.Core             as Core
+import           Oden.Core.Expr
 import           Oden.Metadata
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
@@ -104,97 +105,100 @@ replace (Poly.TForeignFn si variadic ft pt) =
 replace (Poly.TSlice si t) = Poly.TSlice si <$> replace t
 replace (Poly.TRecord si r) = Poly.TRecord si <$> replace r
 replace (Poly.TNamed si n t) = Poly.TNamed si n <$> replace t
+replace (Poly.TConstrained constraints t) = Poly.TConstrained constraints <$> replace t
 replace (Poly.REmpty si) = return $ Poly.REmpty si
 replace (Poly.RExtension si label type' row) =
   Poly.RExtension si label <$> replace type'
                            <*> replace row
 
-instantiateField :: Core.FieldInitializer Poly.Type
-                -> Instantiate (Core.FieldInitializer Poly.Type)
-instantiateField (Core.FieldInitializer si label expr) =
-  Core.FieldInitializer si label <$> instantiateExpr expr
+instantiateField :: FieldInitializer Core.UnresolvedMethodReference Poly.Type
+                -> Instantiate (FieldInitializer Core.UnresolvedMethodReference Poly.Type)
+instantiateField (FieldInitializer si label expr) =
+  FieldInitializer si label <$> instantiateExpr expr
 
-instantiateExpr :: Core.Expr Poly.Type
-                -> Instantiate (Core.Expr Poly.Type)
-instantiateExpr (Core.Symbol si i t) =
-  Core.Symbol si i <$> replace t
-instantiateExpr (Core.Subscript si s i t) =
-  Core.Subscript si <$> instantiateExpr s
+instantiateExpr :: Core.TypedExpr
+                -> Instantiate Core.TypedExpr
+instantiateExpr (Symbol si i t) =
+  Symbol si i <$> replace t
+instantiateExpr (Subscript si s i t) =
+  Subscript si <$> instantiateExpr s
                     <*> instantiateExpr i
                     <*> replace t
 
-instantiateExpr (Core.Subslice si s (Core.Range e1 e2) t) =
-  Core.Subslice si <$> instantiateExpr s
-                   <*> (Core.Range <$> instantiateExpr e1 <*> instantiateExpr e2)
+instantiateExpr (Subslice si s (Range e1 e2) t) =
+  Subslice si <$> instantiateExpr s
+                   <*> (Range <$> instantiateExpr e1 <*> instantiateExpr e2)
                    <*> replace t
-instantiateExpr (Core.Subslice si s (Core.RangeTo e) t) =
-  Core.Subslice si <$> instantiateExpr s
-                   <*> (Core.RangeTo <$> instantiateExpr e)
+instantiateExpr (Subslice si s (RangeTo e) t) =
+  Subslice si <$> instantiateExpr s
+                   <*> (RangeTo <$> instantiateExpr e)
                    <*> replace t
-instantiateExpr (Core.Subslice si s (Core.RangeFrom e) t) =
-  Core.Subslice si <$> instantiateExpr s
-                   <*> (Core.RangeFrom <$> instantiateExpr e)
+instantiateExpr (Subslice si s (RangeFrom e) t) =
+  Subslice si <$> instantiateExpr s
+                   <*> (RangeFrom <$> instantiateExpr e)
                    <*> replace t
 
-instantiateExpr (Core.UnaryOp si o e t) =
-  Core.UnaryOp si o <$> instantiateExpr e <*> replace t
-instantiateExpr (Core.BinaryOp si o e1 e2 t) =
-  Core.BinaryOp si o <$> instantiateExpr e1
+instantiateExpr (UnaryOp si o e t) =
+  UnaryOp si o <$> instantiateExpr e <*> replace t
+instantiateExpr (BinaryOp si o e1 e2 t) =
+  BinaryOp si o <$> instantiateExpr e1
                      <*> instantiateExpr e2
                      <*> replace t
-instantiateExpr (Core.Application si f p t) =
-  Core.Application si <$> instantiateExpr f
+instantiateExpr (Application si f p t) =
+  Application si <$> instantiateExpr f
                       <*> instantiateExpr p
                       <*> replace t
-instantiateExpr (Core.NoArgApplication si f t) =
-  Core.NoArgApplication si <$> instantiateExpr f
+instantiateExpr (NoArgApplication si f t) =
+  NoArgApplication si <$> instantiateExpr f
                            <*> replace t
-instantiateExpr (Core.ForeignFnApplication si f ps t) =
-  Core.ForeignFnApplication si <$> instantiateExpr f
+instantiateExpr (ForeignFnApplication si f ps t) =
+  ForeignFnApplication si <$> instantiateExpr f
                                <*> mapM instantiateExpr ps
                                <*> replace t
-instantiateExpr (Core.Fn si a b t) =
-  Core.Fn si a <$> instantiateExpr b
+instantiateExpr (Fn si a b t) =
+  Fn si a <$> instantiateExpr b
                <*> replace t
-instantiateExpr (Core.NoArgFn si b t) =
-  Core.NoArgFn si <$> instantiateExpr b
+instantiateExpr (NoArgFn si b t) =
+  NoArgFn si <$> instantiateExpr b
                   <*> replace t
-instantiateExpr (Core.Let si name e b t) =
-  Core.Let si name <$> instantiateExpr e
+instantiateExpr (Let si name e b t) =
+  Let si name <$> instantiateExpr e
                    <*> instantiateExpr b
                    <*> replace t
-instantiateExpr (Core.Literal si l t) =
-  Core.Literal si l <$> replace t
-instantiateExpr (Core.If si c tb eb t) =
-  Core.If si <$> instantiateExpr c
+instantiateExpr (Literal si l t) =
+  Literal si l <$> replace t
+instantiateExpr (If si c tb eb t) =
+  If si <$> instantiateExpr c
              <*> instantiateExpr tb
              <*> instantiateExpr eb
              <*> replace t
-instantiateExpr (Core.Tuple si fe se rs t) =
-  Core.Tuple si <$> instantiateExpr fe
+instantiateExpr (Tuple si fe se rs t) =
+  Tuple si <$> instantiateExpr fe
                 <*> instantiateExpr se
                 <*> mapM instantiateExpr rs
                 <*> replace t
-instantiateExpr (Core.Slice si es t) =
-  Core.Slice si <$> mapM instantiateExpr es
+instantiateExpr (Slice si es t) =
+  Slice si <$> mapM instantiateExpr es
                 <*> replace t
-instantiateExpr (Core.Block si es t) =
-  Core.Block si <$> mapM instantiateExpr es
+instantiateExpr (Block si es t) =
+  Block si <$> mapM instantiateExpr es
                 <*> replace t
-instantiateExpr (Core.RecordInitializer si t fields) =
-  Core.RecordInitializer si <$> replace t <*> mapM instantiateField fields
-instantiateExpr (Core.RecordFieldAccess si expr name t) =
-  Core.RecordFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
-instantiateExpr (Core.PackageMemberAccess si pkgAlias name t) =
-  Core.PackageMemberAccess si pkgAlias name <$> replace t
+instantiateExpr (RecordInitializer si t fields) =
+  RecordInitializer si <$> replace t <*> mapM instantiateField fields
+instantiateExpr (RecordFieldAccess si expr name t) =
+  RecordFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
+instantiateExpr (PackageMemberAccess si pkgAlias name t) =
+  PackageMemberAccess si pkgAlias name <$> replace t
+instantiateExpr (MethodReference si ref t) =
+  MethodReference si ref <$> replace t
 
 -- | Given a polymorphically typed expression and a monomorphic type, return
 -- the expression with all types substitued for monomorphic ones. If there's
 -- a mismatch an error is thrown.
-instantiate :: Core.Expr Poly.Type
+instantiate :: Core.TypedExpr
             -> Mono.Type
-            -> Either InstantiateError (Core.Expr Poly.Type)
+            -> Either InstantiateError Core.TypedExpr
 instantiate expr mono = do
-  subst <- getSubstitutions (Core.typeOf expr) mono
+  subst <- getSubstitutions (typeOf expr) mono
   (expr', _) <- runExcept (runStateT (instantiateExpr expr) subst)
   return expr'

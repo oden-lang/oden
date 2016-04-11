@@ -1,6 +1,7 @@
 module Oden.Infer.Fixtures where
 
 import           Oden.Core              as Core
+import           Oden.Core.Expr
 import           Oden.Core.Operator
 import qualified Oden.Core.Untyped      as Untyped
 import           Oden.Environment       hiding (map)
@@ -32,7 +33,7 @@ tvarC = TVar predefined tvC
 tvarD = TVar predefined tvD
 
 scheme:: Type -> Scheme
-scheme t = Forall (Metadata Predefined) (map (TVarBinding missing) $ Set.toList (ftv t)) t
+scheme t = Forall predefined (map (TVarBinding missing) $ Set.toList (ftv t)) Set.empty t
 
 typeFn :: Type -> Type -> Type
 typeFn = TFn missing
@@ -117,22 +118,41 @@ predef = fromPackage universe
 
 predefAndStringLength :: TypingEnvironment
 predefAndStringLength =  predef `extend` (Identifier "stringLength",
-                                          Local predefined (Identifier "stringLength") $ forall [] (typeFn typeString typeInt))
+                                          Local predefined (Identifier "stringLength") $ scheme (typeFn typeString typeInt))
 
 predefAndMax :: TypingEnvironment
 predefAndMax =  predef `extend` (Identifier "max",
-                                 Local predefined (Identifier "max") $ forall [] (typeForeign False [typeInt, typeInt] [typeInt]))
+                                 Local predefined (Identifier "max") $ scheme (typeForeign False [typeInt, typeInt] [typeInt]))
 
 predefAndMaxVariadic :: TypingEnvironment
 predefAndMaxVariadic = predef `extend` (Identifier "max",
-                                        Local predefined (Identifier "max") $ forall [] (typeForeign True [TSlice missing typeInt] [typeInt]))
+                                        Local predefined (Identifier "max") $ scheme (typeForeign True [TSlice missing typeInt] [typeInt]))
+testableProtocolMethod =
+  ProtocolMethod
+  predefined
+  (Identifier "test")
+  (Forall predefined [] Set.empty (TFn predefined tvarA typeBool))
+
+testableProtocol =
+  Protocol
+  predefined
+  (FQN [] (Identifier "Testable"))
+  (TVar predefined tvA)
+  [testableProtocolMethod]
+
+predefAndTestableProtocol :: TypingEnvironment
+predefAndTestableProtocol =
+  predef
+  `extend`
+  (Identifier "Testable",
+   ProtocolBinding predefined (Identifier "Testable") testableProtocol)
 
 fooBarPkgEnv :: TypingEnvironment
 fooBarPkgEnv = predef `extend` (Identifier "foo",
                                 IE.Package missing
                                 (Identifier "foo")
                                 (fromList [(Identifier "Bar",
-                                            Local predefined (Identifier "Bar") $ forall [] typeInt)]))
+                                            Local predefined (Identifier "Bar") $ scheme typeInt)]))
 
 booleanOp :: Type
 booleanOp = typeFn typeBool (typeFn typeBool typeBool)
@@ -164,7 +184,7 @@ countToZeroTyped :: Definition
 countToZeroTyped =
   tDefinition
    (Identifier "f")
-   (forall [] (typeFn typeInt typeInt),
+   (scheme (typeFn typeInt typeInt),
     tFn
     (tNameBinding (Identifier "x"))
     (tIf
@@ -199,7 +219,7 @@ twiceUntyped =
 
 twiceTyped :: Definition
 twiceTyped =
-  tDefinition (Identifier "twice") (forall [tvarBinding tvA] (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
+  tDefinition (Identifier "twice") (scheme (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
                            tFn
                            (tNameBinding (Identifier "f"))
                            (tFn

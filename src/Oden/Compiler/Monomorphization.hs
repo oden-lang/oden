@@ -15,6 +15,7 @@ import           Oden.Compiler.Environment
 import           Oden.Compiler.Instantiate
 import           Oden.Compiler.TypeEncoder
 import qualified Oden.Core                 as Core
+import           Oden.Core.Expr
 import           Oden.Identifier
 import           Oden.Environment                as Environment
 import           Oden.Metadata
@@ -23,11 +24,15 @@ import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
-data MonomorphedDefinition = MonomorphedDefinition (Metadata SourceInfo) Identifier Mono.Type (Core.Expr Mono.Type)
+-- TODO: Change method reference to be resolved at this stage.
+type MonoTypedExpr = Expr Core.UnresolvedMethodReference Mono.Type
+type MonoTypedRange = Range MonoTypedExpr
+
+data MonomorphedDefinition = MonomorphedDefinition (Metadata SourceInfo) Identifier Mono.Type MonoTypedExpr
                            deriving (Show, Eq, Ord)
 
 data InstantiatedDefinition =
-  InstantiatedDefinition Identifier (Metadata SourceInfo) Identifier (Core.Expr Mono.Type)
+  InstantiatedDefinition Identifier (Metadata SourceInfo) Identifier MonoTypedExpr
   deriving (Show, Eq, Ord)
 
 data MonomorphedPackage = MonomorphedPackage Core.PackageDeclaration
@@ -48,7 +53,7 @@ data LetReference = LetReference Identifier Mono.Type Identifier
 
 -- | A let-bound expression instantiated to a monomorphic type with which it
 -- was used.
-data LetInstance = LetInstance (Metadata SourceInfo) Core.NameBinding (Core.Expr Mono.Type)
+data LetInstance = LetInstance (Metadata SourceInfo) NameBinding MonoTypedExpr
 
 data MonomorphState = MonomorphState { instanceNames :: Map (Identifier, Mono.Type) Identifier
                                      , instances   :: [InstantiatedDefinition]
@@ -86,7 +91,7 @@ addMonomorphed identifier def =
 
 instantiateDefinition :: (Identifier, Mono.Type)
                       -> Poly.Scheme
-                      -> Core.Expr Poly.Type
+                      -> Core.TypedExpr
                       -> Monomorph Identifier
 instantiateDefinition key@(pn, t) _ pe = do
   let identifier = Identifier (encodeTypeInstance pn t)
@@ -116,9 +121,12 @@ getMonomorphicIn env ident t = do
     Definition (Core.Definition _ pn _) -> return pn
     -- Types cannot be referred to at this stage.
     Definition Core.TypeDefinition{} -> throwError $ NotInScope ident
-    LetBinding (Core.NameBinding _ boundIdentifier) expr ->
-      getMonomorphicLetBinding boundIdentifier t (Core.typeOf expr)
-    FunctionArgument (Core.NameBinding _ boundIdentifier) ->
+    -- Protocols cannot be referred to at this stage.
+    Definition Core.ProtocolDefinition{} -> throwError $ NotInScope ident
+
+    LetBinding (NameBinding _ boundIdentifier) expr ->
+      getMonomorphicLetBinding boundIdentifier t (typeOf expr)
+    FunctionArgument (NameBinding _ boundIdentifier) ->
       return boundIdentifier
 
 getMonomorphicLetBinding :: Identifier
@@ -140,141 +148,144 @@ toMonomorphic (Metadata si) pt =
   return
   (Poly.toMonomorphic pt)
 
-getMonoType :: Core.Expr Poly.Type -> Monomorph Mono.Type
-getMonoType e = toMonomorphic (Metadata $ getSourceInfo e) (Core.typeOf e)
+getMonoType :: Core.TypedExpr -> Monomorph Mono.Type
+getMonoType e = toMonomorphic (Metadata $ getSourceInfo e) (typeOf e)
 
 -- | Return a monomorphic version of a polymorphic expression.
-monomorph :: Core.Expr Poly.Type -> Monomorph (Core.Expr Mono.Type)
+monomorph :: Core.TypedExpr -> Monomorph MonoTypedExpr
 monomorph e = case e of
-  Core.Symbol si ident _ -> do
+  Symbol si ident _ -> do
     env <- ask
     mt <- getMonoType e
     m <- getMonomorphicIn env ident mt
-    return (Core.Symbol si m mt)
+    return (Symbol si m mt)
 
-  Core.Subscript sourceInfo sliceExpr indexExpr polyType ->
-    Core.Subscript sourceInfo <$> monomorph sliceExpr
+  Subscript sourceInfo sliceExpr indexExpr polyType ->
+    Subscript sourceInfo <$> monomorph sliceExpr
                               <*> monomorph indexExpr
                               <*> toMonomorphic sourceInfo polyType
 
-  Core.Subslice sourceInfo sliceExpr (Core.Range lowerExpr upperExpr) polyType ->
-    Core.Subslice sourceInfo <$> monomorph sliceExpr
-                             <*> (Core.Range <$> monomorph lowerExpr <*> monomorph upperExpr)
+  Subslice sourceInfo sliceExpr (Range lowerExpr upperExpr) polyType ->
+    Subslice sourceInfo <$> monomorph sliceExpr
+                             <*> (Range <$> monomorph lowerExpr <*> monomorph upperExpr)
                              <*> toMonomorphic sourceInfo polyType
 
-  Core.Subslice sourceInfo sliceExpr (Core.RangeTo indexExpr) polyType ->
-    Core.Subslice sourceInfo <$> monomorph sliceExpr
-                             <*> (Core.RangeTo <$> monomorph indexExpr)
+  Subslice sourceInfo sliceExpr (RangeTo indexExpr) polyType ->
+    Subslice sourceInfo <$> monomorph sliceExpr
+                             <*> (RangeTo <$> monomorph indexExpr)
                              <*> toMonomorphic sourceInfo polyType
 
-  Core.Subslice sourceInfo sliceExpr (Core.RangeFrom indexExpr) polyType ->
-    Core.Subslice sourceInfo <$> monomorph sliceExpr
-                             <*> (Core.RangeFrom <$> monomorph indexExpr)
+  Subslice sourceInfo sliceExpr (RangeFrom indexExpr) polyType ->
+    Subslice sourceInfo <$> monomorph sliceExpr
+                             <*> (RangeFrom <$> monomorph indexExpr)
                              <*> toMonomorphic sourceInfo polyType
 
-  Core.UnaryOp si o e1 _ -> do
+  UnaryOp si o e1 _ -> do
     mt <- getMonoType e
     me <- monomorph e1
-    return (Core.UnaryOp si o me mt)
+    return (UnaryOp si o me mt)
 
-  Core.BinaryOp si o e1 e2 _ -> do
+  BinaryOp si o e1 e2 _ -> do
     mt <- getMonoType e
     me1 <- monomorph e1
     me2 <- monomorph e2
-    return (Core.BinaryOp si o me1 me2 mt)
+    return (BinaryOp si o me1 me2 mt)
 
-  Core.Application si f p _ -> do
+  Application si f p _ -> do
     mt <- getMonoType e
     mf <- monomorph f
     mp <- monomorph p
-    return (Core.Application si mf mp mt)
+    return (Application si mf mp mt)
 
-  Core.NoArgApplication si f _ -> do
+  NoArgApplication si f _ -> do
     mt <- getMonoType e
     mf <- monomorph f
-    return (Core.NoArgApplication si mf mt)
+    return (NoArgApplication si mf mt)
 
-  Core.ForeignFnApplication si f ps _ -> do
+  ForeignFnApplication si f ps _ -> do
     mt <- getMonoType e
     mf <- monomorph f
     mps <- mapM monomorph ps
-    return (Core.ForeignFnApplication si mf mps mt)
+    return (ForeignFnApplication si mf mps mt)
 
-  Core.Fn si param@(Core.NameBinding _ identifier) b _ -> do
+  Fn si param@(NameBinding _ identifier) b _ -> do
     mt <- getMonoType e
     mb <- withIdentifier identifier (FunctionArgument param) (monomorph b)
-    return (Core.Fn si param mb mt)
+    return (Fn si param mb mt)
 
-  Core.NoArgFn si b _ -> do
+  NoArgFn si b _ -> do
     mt <- getMonoType e
     mb <- monomorph b
-    return (Core.NoArgFn si mb mt)
+    return (NoArgFn si mb mt)
 
-  Core.Slice si es _ -> do
+  Slice si es _ -> do
     mt <- getMonoType e
     mes <- mapM monomorph es
-    return (Core.Slice si mes mt)
+    return (Slice si mes mt)
 
-  Core.Block si es _ -> do
+  Block si es _ -> do
     mt <- getMonoType e
     mes <- mapM monomorph es
-    return (Core.Block si mes mt)
+    return (Block si mes mt)
 
-  Core.Literal si l _ -> do
+  Literal si l _ -> do
     mt <- getMonoType e
-    return (Core.Literal si l mt)
+    return (Literal si l mt)
 
-  Core.Tuple si f s r _ -> do
+  Tuple si f s r _ -> do
     mt <- getMonoType e
     mf <- monomorph f
     ms <- monomorph s
     mr <- mapM monomorph r
-    return (Core.Tuple si mf ms mr mt)
+    return (Tuple si mf ms mr mt)
 
-  Core.If si cond then' else' _ -> do
+  If si cond then' else' _ -> do
     mt <- getMonoType e
     mCond <- monomorph cond
     mThen <- monomorph then'
     mElse <- monomorph else'
-    return (Core.If si mCond mThen mElse mt)
+    return (If si mCond mThen mElse mt)
 
-  Core.Let si b@(Core.NameBinding bsi identifier) expr body _ -> do
+  Let si b@(NameBinding bsi identifier) expr body _ -> do
     (mBody, allRefs) <- listen (withIdentifier identifier (LetBinding b expr) (monomorph body))
     let (refs, other) = Map.partition (isReferenceTo b) allRefs
     tell other
     insts <- mapM (monomorphReference expr si bsi) (Map.elems refs)
     return (unwrapLetInstances insts mBody)
     where
-    isReferenceTo :: Core.NameBinding -> LetReference -> Bool
-    isReferenceTo (Core.NameBinding _ identifier') (LetReference letted _ _) =
+    isReferenceTo :: NameBinding -> LetReference -> Bool
+    isReferenceTo (NameBinding _ identifier') (LetReference letted _ _) =
       identifier' == letted
 
-  Core.RecordInitializer si _ fields -> do
+  RecordInitializer si _ fields -> do
     monoType <- getMonoType e
     monoFields <- mapM monomorphField fields
-    return (Core.RecordInitializer si monoType monoFields)
+    return (RecordInitializer si monoType monoFields)
     where
-    monomorphField (Core.FieldInitializer fsi label expr) =
-      Core.FieldInitializer fsi label <$> monomorph expr
+    monomorphField (FieldInitializer fsi label expr) =
+      FieldInitializer fsi label <$> monomorph expr
 
-  Core.RecordFieldAccess si expr name _ -> do
+  RecordFieldAccess si expr name _ -> do
     monoType <- getMonoType e
     monoExpr <- monomorph expr
-    return (Core.RecordFieldAccess si monoExpr name monoType)
+    return (RecordFieldAccess si monoExpr name monoType)
 
-  Core.PackageMemberAccess si pkgAlias name polyType -> do
+  PackageMemberAccess si pkgAlias name polyType -> do
     env <- ask
     monoType <- toMonomorphic si polyType
     binding <- lookupIn env pkgAlias
     case binding of
       Package _ _ pkgEnv -> do
         m <- getMonomorphicIn pkgEnv name monoType
-        return (Core.PackageMemberAccess si pkgAlias m monoType)
+        return (PackageMemberAccess si pkgAlias m monoType)
       _ -> error "cannot access member in non-existing package"
+
+  MethodReference _ ref methodType ->
+    error ("cannot monomorph " ++ show ref ++ " with type `" ++ show methodType ++ "`")
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
-monomorphReference :: Core.Expr Poly.Type
+monomorphReference :: Core.TypedExpr
                    -> Metadata SourceInfo -- Let expression source info.
                    -> Metadata SourceInfo -- Let binding source info.
                    -> LetReference
@@ -282,9 +293,9 @@ monomorphReference :: Core.Expr Poly.Type
 
 -- The let-bound value is monomorphic and does not need to be instantiated.
 monomorphReference e letSourceInfo bindingSourceInfo (LetReference identifier _ _)
-  | not (Poly.isPolymorphicType (Core.typeOf e)) = do
+  | not (Poly.isPolymorphicType (typeOf e)) = do
     me <- monomorph e
-    return (LetInstance letSourceInfo (Core.NameBinding bindingSourceInfo identifier) me)
+    return (LetInstance letSourceInfo (NameBinding bindingSourceInfo identifier) me)
 
 -- The let-bound value is polymorphic and must be instantiated.
 monomorphReference e letSourceInfo bindingSourceInfo (LetReference _ mt mn) =
@@ -292,22 +303,22 @@ monomorphReference e letSourceInfo bindingSourceInfo (LetReference _ mt mn) =
     Left err -> throwError (MonomorphInstantiateError err)
     Right expr -> do
       me <- monomorph expr
-      return (LetInstance letSourceInfo (Core.NameBinding bindingSourceInfo mn) me)
+      return (LetInstance letSourceInfo (NameBinding bindingSourceInfo mn) me)
 
 -- | Creates nested let expressions for each let instance around the body
 -- expression.
 unwrapLetInstances :: [LetInstance]
-                   -> Core.Expr Mono.Type -- Body expression.
-                   -> Core.Expr Mono.Type
+                   -> MonoTypedExpr -- Body expression.
+                   -> MonoTypedExpr
 unwrapLetInstances [] body = body
 unwrapLetInstances (LetInstance si mn me:is) body =
-  Core.Let si mn me (unwrapLetInstances is body) (Core.typeOf body)
+  Let si mn me (unwrapLetInstances is body) (typeOf body)
 
 -- | Monomorphs a definitions and keeps results in the state.
 monomorphDefinitions :: [Core.Definition]
                      -> Monomorph ()
 monomorphDefinitions [] = return ()
-monomorphDefinitions (d@(Core.Definition si identifier (Poly.Forall _ _ st, expr)) : defs) = do
+monomorphDefinitions (d@(Core.Definition si identifier (Poly.Forall _ _ _ st, expr)) : defs) = do
   case Poly.toMonomorphic st of
     Left _ -> return ()
     Right mt -> do
@@ -322,6 +333,10 @@ monomorphDefinitions (Core.TypeDefinition{} : defs) =
 -- Foreign definitions are are already monomorphic and not generated to out
 -- code, so ignore.
 monomorphDefinitions (Core.ForeignDefinition{} : defs) =
+  monomorphDefinitions defs
+-- Protocol definitions are not monomorphed or generated to output code, so
+-- ignore.
+monomorphDefinitions (Core.ProtocolDefinition{} : defs) =
   monomorphDefinitions defs
 
 -- | Monomorphs a package and returns the complete package with instantiated

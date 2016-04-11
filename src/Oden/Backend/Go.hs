@@ -23,6 +23,7 @@ import           Oden.Go.Pretty ()
 import           Oden.Backend
 import           Oden.Compiler.Monomorphization
 import           Oden.Core
+import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
@@ -116,13 +117,13 @@ genUnaryOperator Negative = AST.UnaryNegation
 genUnaryOperator Positive = AST.UnaryPlus
 genUnaryOperator Not = AST.Not
 
-genRange :: Range Mono.Type -> Codegen AST.SliceExpression
+genRange :: MonoTypedRange -> Codegen AST.SliceExpression
 genRange (Range e1 e2) = AST.ClosedSlice <$> genExpr e1 <*> genExpr e2
 genRange (RangeFrom e) = AST.LowerBoundSlice <$> genExpr e
 genRange (RangeTo e) = AST.UpperBoundSlice <$> genExpr e
 
 -- | Generates a call to an foreign function.
-genRawForeignFnApplication :: Expr Mono.Type -> [Expr Mono.Type] -> Codegen AST.PrimaryExpression
+genRawForeignFnApplication :: MonoTypedExpr -> [MonoTypedExpr] -> Codegen AST.PrimaryExpression
 genRawForeignFnApplication f args =
   case typeOf f of
     Mono.TForeignFn _ True _ _ -> do
@@ -170,8 +171,8 @@ genTupleWrapper (fstType, sndType, restTypes) = do
 
 -- | Generates a call to a foreign function with multiple return values,
 -- returning a tuple.
-genTupleWrappedForeignFnApplication :: Expr Mono.Type                      -- the function expr
-                                    -> [Expr Mono.Type]                    -- function application arguments
+genTupleWrappedForeignFnApplication :: MonoTypedExpr                      -- the function expr
+                                    -> [MonoTypedExpr]                    -- function application arguments
                                     -> (Mono.Type, Mono.Type, [Mono.Type]) -- tuple types
                                     -> Codegen AST.Expression
 genTupleWrappedForeignFnApplication f args returnTypes = do
@@ -206,13 +207,13 @@ asPrimaryExpression :: AST.Expression -> AST.PrimaryExpression
 asPrimaryExpression (AST.Expression primaryExpr) = primaryExpr
 asPrimaryExpression nonPrimary = AST.Operand (AST.GroupedExpression nonPrimary)
 
-genPrimaryExpression :: Expr Mono.Type -> Codegen AST.PrimaryExpression
+genPrimaryExpression :: MonoTypedExpr -> Codegen AST.PrimaryExpression
 genPrimaryExpression expr = asPrimaryExpression <$> genExpr expr
 
 returnSingle :: AST.Expression -> AST.Stmt
 returnSingle expr = AST.ReturnStmt [expr]
 
-genExpr :: Expr Mono.Type -> Codegen AST.Expression
+genExpr :: MonoTypedExpr -> Codegen AST.Expression
 genExpr expr = case expr of
   Symbol _ i _ -> (AST.Expression . AST.Operand . AST.OperandName) <$> genIdentifier i
   Subscript _ s i _ ->
@@ -324,10 +325,14 @@ genExpr expr = case expr of
     (AST.Expression . AST.Operand) <$> (AST.QualifiedOperandName <$> genIdentifier pkgAlias
                                                                  <*> genIdentifier name)
 
-genBlock :: Expr Mono.Type -> Codegen AST.Block
+  -- TODO: is this needed? Monomorphed method references can be regular symbols
+  -- at this phase?
+  MethodReference _ _ref _ -> error "invalid protocol method reference in codegen phase"
+
+genBlock :: MonoTypedExpr -> Codegen AST.Block
 genBlock expr = (AST.Block . (:[]) . AST.ReturnStmt . (:[])) <$> genExpr expr
 
-genTopLevel :: Identifier -> Mono.Type -> Expr Mono.Type -> Codegen AST.TopLevelDeclaration
+genTopLevel :: Identifier -> Mono.Type -> MonoTypedExpr -> Codegen AST.TopLevelDeclaration
 genTopLevel (Identifier "main") (Mono.TNoArgFn _ t) (NoArgFn _ body _) | isUniverseTypeConstructor "unit" t = do
   block <- case body of
     Block _ [] _ -> return (AST.Block [])
@@ -351,12 +356,6 @@ genTopLevel name type' expr = do
 
 genInstance :: InstantiatedDefinition -> Codegen AST.TopLevelDeclaration
 genInstance (InstantiatedDefinition (Identifier _defName) _si name expr) =
-  -- let comment = text "/*"
-  --               $+$ text "Name:" <+> text defName
-  --               $+$ text "Defined at:" <+> text (show $ getSourceInfo expr)
-  --               $+$ text "Instantiated with type:" <+> pp (typeOf expr)
-  --               $+$ text "Instantiated at:" <+> text (show $ unwrap si)
-  --               $+$ text "*/"
   genTopLevel name (typeOf expr) expr
 
 genMonomorphed :: MonomorphedDefinition -> Codegen AST.TopLevelDeclaration

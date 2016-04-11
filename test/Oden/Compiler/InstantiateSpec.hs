@@ -4,6 +4,7 @@ import           Test.Hspec
 
 import           Oden.Compiler.Instantiate
 import qualified Oden.Core                 as Core
+import           Oden.Core.Expr
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -36,47 +37,47 @@ monoInt = Mono.TCon missing (nameInUniverse "int")
 monoBool = Mono.TCon missing (nameInUniverse "bool")
 monoString = Mono.TCon missing (nameInUniverse "string")
 
-identityPoly :: Core.Expr Poly.Type
+identityPoly :: Core.TypedExpr
 identityPoly =
-  Core.Fn
+  Fn
   missing
-  (Core.NameBinding missing (Identifier "x"))
-  (Core.Symbol missing (Identifier "x") tvarA)
+  (NameBinding missing (Identifier "x"))
+  (Symbol missing (Identifier "x") tvarA)
   (Poly.TFn missing tvarA tvarA)
 
 identityIntType :: Mono.Type
 identityIntType = Mono.TFn missing monoInt monoInt
 
-identityInt :: Core.Expr Poly.Type
+identityInt :: Core.TypedExpr
 identityInt =
-  Core.Fn
+  Fn
   missing
-  (Core.NameBinding missing (Identifier "x"))
-  (Core.Symbol missing (Identifier "x") typeInt)
+  (NameBinding missing (Identifier "x"))
+  (Symbol missing (Identifier "x") typeInt)
   (Poly.TFn missing typeInt typeInt)
 
 lenType :: Poly.Type
 lenType = Poly.TForeignFn missing False [Poly.TSlice missing tvarA] [typeInt]
 
-lenPoly :: Core.Expr Poly.Type
-lenPoly = Core.Symbol missing (Identifier "len") lenType
+lenPoly :: Core.TypedExpr
+lenPoly = Symbol missing (Identifier "len") lenType
 
 lenIntType :: Mono.Type
 lenIntType = Mono.TForeignFn missing False [Mono.TSlice missing monoInt] [monoInt]
 
-lenInt :: Core.Expr Poly.Type
+lenInt :: Core.TypedExpr
 lenInt =
-  Core.Symbol
+  Symbol
   missing
   (Identifier "len")
   (Poly.TForeignFn missing False [Poly.TSlice missing typeInt] [typeInt])
 
-pairPoly :: Core.Expr Poly.Type
+pairPoly :: Core.TypedExpr
 pairPoly =
-  Core.Tuple
+  Tuple
   missing
-  (Core.Symbol missing (Identifier "x") tvarA)
-  (Core.Symbol missing (Identifier "y") (Poly.TVar missing (Poly.TV "b")))
+  (Symbol missing (Identifier "x") tvarA)
+  (Symbol missing (Identifier "y") (Poly.TVar missing (Poly.TV "b")))
   []
   (Poly.TTuple missing tvarA (Poly.TVar missing (Poly.TV "b")) [])
 
@@ -84,23 +85,23 @@ pairPoly =
 pairIntStringType :: Mono.Type
 pairIntStringType = Mono.TTuple missing monoInt monoString []
 
-pairIntString :: Core.Expr Poly.Type
+pairIntString :: Core.TypedExpr
 pairIntString =
-  Core.Tuple
+  Tuple
   missing
-  (Core.Symbol missing (Identifier "x") typeInt)
-  (Core.Symbol missing (Identifier "y") typeString)
+  (Symbol missing (Identifier "x") typeInt)
+  (Symbol missing (Identifier "y") typeString)
   []
   (Poly.TTuple missing typeInt typeString [])
 
-recordPoly :: Core.Expr Poly.Type
+recordPoly :: Core.TypedExpr
 recordPoly =
-  Core.RecordInitializer
+  RecordInitializer
   missing
   (Poly.TRecord
    missing
    (Poly.RExtension missing (Identifier "foo") tvarA (Poly.REmpty missing)))
-  [Core.FieldInitializer missing (Identifier "foo") (Core.Symbol missing (Identifier "x") tvarA)]
+  [FieldInitializer missing (Identifier "foo") (Symbol missing (Identifier "x") tvarA)]
 
 recordIntType :: Mono.Type
 recordIntType =
@@ -108,14 +109,14 @@ recordIntType =
    missing
    (Mono.RExtension missing (Identifier "foo") monoInt (Mono.REmpty missing)))
 
-recordInt :: Core.Expr Poly.Type
+recordInt :: Core.TypedExpr
 recordInt =
-  Core.RecordInitializer
+  RecordInitializer
   missing
   (Poly.TRecord
    missing
    (Poly.RExtension missing (Identifier "foo") typeInt (Poly.REmpty missing)))
-  [Core.FieldInitializer missing (Identifier "foo") (Core.Symbol missing (Identifier "x") typeInt)]
+  [FieldInitializer missing (Identifier "foo") (Symbol missing (Identifier "x") typeInt)]
 
 polyRecordIntAndRowVariable :: Poly.Type
 polyRecordIntAndRowVariable =
@@ -151,14 +152,14 @@ polyRecordIntAndString =
     typeString
     (Poly.REmpty missing)))
 
-fieldAccessPoly :: Poly.Type -> Core.Expr Poly.Type
+fieldAccessPoly :: Poly.Type -> Core.TypedExpr
 fieldAccessPoly recordType =
-  Core.Fn
+  Fn
   missing
-  (Core.NameBinding missing (Identifier "x"))
-  (Core.RecordFieldAccess
+  (NameBinding missing (Identifier "x"))
+  (RecordFieldAccess
    missing
-   (Core.Symbol missing (Identifier "x") recordType)
+   (Symbol missing (Identifier "x") recordType)
    (Identifier "a")
    typeInt)
   (Poly.TFn

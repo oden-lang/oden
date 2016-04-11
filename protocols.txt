@@ -1,0 +1,8 @@
+TODO:
+
+- [x] Instantiate method references. They should have fresh variables that are
+  constrained to the protocol.
+- [x] Make sure the Scheme gets all the constraints in an expression.
+- [ ] Use Polymorphic.Type instead of TVarBinding as parameter in protocol
+      head.
+- [ ] Substitute all type variables in protocols and constraints.

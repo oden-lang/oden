@@ -288,10 +288,16 @@ pkgDecl = do
   topSeparator
   return (PackageDeclaration si pkg)
 
-topLevel :: Parser TopLevel
-topLevel = import' <|> typeDef <|> protocolDef <|> try typeSignature <|> def
+tvarBinding :: Parser (SignatureVarBinding SourceInfo)
+tvarBinding = SignatureVarBinding <$> currentSourceInfo <*> identifier
+
+namedSignature :: (SourceInfo -> Identifier -> TypeSignature SourceInfo -> a) -> Parser a
+namedSignature f = do
+  si <- currentSourceInfo
+  i <- identifier
+  reservedOp ":"
+  f si i <$> signature
   where
-  tvarBinding = SignatureVarBinding <$> currentSourceInfo <*> identifier
   signatureWithForall = do
     si <- currentSourceInfo
     reservedOp "forall"
@@ -302,11 +308,11 @@ topLevel = import' <|> typeDef <|> protocolDef <|> try typeSignature <|> def
     si <- currentSourceInfo
     TypeSignature si [] <$> type'
   signature = try signatureWithForall <|> signatureWithoutForall
-  typeSignature = do
-    si <- currentSourceInfo
-    i <- identifier
-    reservedOp ":"
-    TypeSignatureDeclaration si i <$> signature
+
+topLevel :: Parser TopLevel
+topLevel = import' <|> typeDef <|> protocolDef <|> try typeSignature <|> def
+  where
+  typeSignature = namedSignature TypeSignatureDeclaration
   valueDef si n = do
     equals
     ValueDefinition si n <$> expr
@@ -326,11 +332,7 @@ topLevel = import' <|> typeDef <|> protocolDef <|> try typeSignature <|> def
     n <- identifier
     equals
     TypeDefinition si n <$> type'
-  protocolMethod = do
-    si <- currentSourceInfo
-    i <- identifier
-    reservedOp ":"
-    ProtocolMethodSignature si i <$> signature
+  protocolMethod = namedSignature ProtocolMethodSignature
   protocolDef =
     ProtocolDefinition
       <$> currentSourceInfo

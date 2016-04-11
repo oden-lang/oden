@@ -1,28 +1,30 @@
 module Oden.Compiler.Environment where
 
 import qualified Oden.Core as Core
+import           Oden.Core.Expr
 import           Oden.Environment hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName
 import           Oden.SourceInfo
-import           Oden.Type.Polymorphic
 
 data Binding = Package (Metadata SourceInfo) Identifier (Environment Binding)
              | Definition Core.Definition
-             | LetBinding Core.NameBinding (Core.Expr Type)
-             | FunctionArgument Core.NameBinding
+             | LetBinding NameBinding Core.TypedExpr
+             | FunctionArgument NameBinding
              deriving (Show, Eq)
 
 type CompileEnvironment = Environment Binding
 
 fromPackage :: Core.Package -> CompileEnvironment
 fromPackage (Core.Package _ _ defs) =
-  fromList (map convert defs)
+  fromList (concatMap convert defs)
   where
-  convert d@(Core.Definition _ n _) = (n, Definition d)
-  convert d@(Core.ForeignDefinition _ n _) = (n, Definition d)
-  convert d@(Core.TypeDefinition _ (FQN _ n) _ _) = (n, Definition d)
+  convert d@(Core.Definition _ n _) = [(n, Definition d)]
+  convert d@(Core.ForeignDefinition _ n _) = [(n, Definition d)]
+  -- All type and protocol usage should already be resolved before the
+  -- compilation phase so we can safely ignore these.
+  convert Core.TypeDefinition{} = []
+  convert Core.ProtocolDefinition{} = []
 
 fromPackages :: [Core.ImportedPackage] -> CompileEnvironment
 fromPackages =

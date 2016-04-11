@@ -27,7 +27,7 @@ spec = describe "inferDefinition" $ do
     `shouldSucceedWith`
     tDefinition
     (Identifier "n")
-    (forall [] typeInt,
+    (scheme typeInt,
      tOp
      Add
      (tLiteral (tInt 1) typeInt)
@@ -37,7 +37,7 @@ spec = describe "inferDefinition" $ do
   it "infers definition without type signature" $
     inferDefinition empty (uDefinition (Identifier "x") Nothing (uLiteral (uInt 1)))
     `shouldSucceedWith`
-    tDefinition (Identifier "x") (forall [] typeInt, tLiteral (tInt 1) typeInt)
+    tDefinition (Identifier "x") (scheme typeInt, tLiteral (tInt 1) typeInt)
 
   it "infers polymorphic definition without type signature" $
     shouldSucceed $
@@ -50,14 +50,14 @@ spec = describe "inferDefinition" $ do
   it "infers definition with type signature" $
     inferDefinition predef (uDefinition (Identifier "x") (Just $ implicit (tsSymbol (Identifier "int"))) (uLiteral (uInt 1)))
     `shouldSucceedWith`
-    tDefinition (Identifier "x") (forall [] typeInt, tLiteral (tInt 1) typeInt)
+    tDefinition (Identifier "x") (scheme typeInt, tLiteral (tInt 1) typeInt)
 
   it "infers polymorphic definition with type signature" $
     inferDefinition empty (uDefinition (Identifier "id")
                                               (Just $ explicit [varBinding "a"] (tsFn (tsVar "a") (tsVar "a")))
                                               (uFn (uNameBinding (Identifier "x")) (uSymbol (Identifier "x"))))
     `shouldSucceedWith`
-    tDefinition (Identifier "id") (forall [tvarBinding tvA] (typeFn tvarA tvarA),
+    tDefinition (Identifier "id") (scheme (typeFn tvarA tvarA),
                           tFn (tNameBinding (Identifier "x")) (tSymbol (Identifier "x") tvarA) (typeFn tvarA tvarA))
 
   it "fails when specified type signature does not unify" $
@@ -126,7 +126,7 @@ spec = describe "inferDefinition" $ do
     `shouldSucceedWith`
     tDefinition
     (Identifier "f")
-    (forall [tvarBinding tvA, tvarBinding tvB] functionType,
+    (scheme functionType,
      tFn
      (tNameBinding (Identifier "x"))
      (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "foo") tvarA)

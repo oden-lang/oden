@@ -3,7 +3,7 @@
 
 module Oden.Infer.Unification (
   UnificationError(..),
-  Constraint,
+  UnifyConstraint(..),
   runSolve,
   unifyMany,
   unifies
@@ -27,15 +27,16 @@ data UnificationError = UnificationFail SourceInfo Type Type
                       | UnificationMismatch SourceInfo [Type] [Type]
                       deriving (Show, Eq)
 
-type Constraint = (SourceInfo, Type, Type)
+data UnifyConstraint = UnifyConstraint SourceInfo Type Type
 
-instance FTV Constraint where
-  ftv (_, t1, t2) = ftv t1 `Set.union` ftv t2
+instance FTV UnifyConstraint where
+  ftv (UnifyConstraint _ t1 t2) = ftv t1 `Set.union` ftv t2
 
-instance Substitutable Constraint where
-  apply s (si, t1, t2) = (si, apply s t1, apply s t2)
+instance Substitutable UnifyConstraint where
+  apply s (UnifyConstraint si t1 t2) =
+    UnifyConstraint si (apply s t1) (apply s t2)
 
--- | Constraint solver monad.
+-- | UnifyConstraint solver monad.
 type Solve a = ExceptT UnificationError Identity a
 
 -- | Unifies the corresponding types in the lists (like a zip).
@@ -49,6 +50,8 @@ unifyMany si t1 t2 = throwError $ UnificationMismatch si t1 t2
 
 -- | Unify two types, returning the resulting substitution.
 unifies :: SourceInfo -> Type -> Type -> Solve Subst
+unifies si (TConstrained _ constrained) t = unifies si constrained t
+unifies si t (TConstrained _ constrained) = unifies si t constrained
 unifies _ (TVar _ v) t = v `bind` t
 unifies _ t (TVar _ v) = v `bind` t
 unifies _ (TCon _ n1) (TCon _ n2)
@@ -100,11 +103,11 @@ unifies si r1@RExtension{} r2@RExtension{} = do
 unifies si t1 t2 = throwError $ UnificationFail si t1 t2
 
 -- Unification solver
-solver :: Subst -> [Constraint] -> Solve Subst
+solver :: Subst -> [UnifyConstraint] -> Solve Subst
 solver su cs =
   case cs of
     [] -> return su
-    ((si, t1, t2): cs0) -> do
+    (UnifyConstraint si t1 t2 : cs0) -> do
       su1  <- unifies si t1 t2
       solver (su1 `compose` su) (apply su1 cs0)
 
@@ -121,6 +124,6 @@ bind a t
 occursCheck ::  Substitutable a => TVar -> a -> Bool
 occursCheck a t = a `Set.member` ftv t
 
--- | Run the constraint solver
-runSolve :: [Constraint] -> Either UnificationError Subst
+-- | Run the UnifyConstraint solver
+runSolve :: [UnifyConstraint] -> Either UnificationError Subst
 runSolve cs = runIdentity $ runExceptT $ solver emptySubst cs

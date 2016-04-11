@@ -7,6 +7,7 @@ import           Oden.Infer.Subsumption
 import           Oden.Output
 import           Oden.Output.Unification ()
 import           Oden.SourceInfo
+import           Oden.Type.Polymorphic
 
 instance OdenOutput TypeError where
   outputType _ = Error
@@ -19,7 +20,10 @@ instance OdenOutput TypeError where
   name ArgumentCountMismatch{}                              = "Infer.ArgumentCountMismatch"
   name (TypeSignatureSubsumptionError _ SubsumptionError{}) = "Infer.TypeSignatureSubsumptionError"
   name ValueUsedAsType{}                                    = "Infer.ValueUsedAsType"
-  name TypeIsNotAnExpression{}                              = "Infer.TypeIsNotAnExpression"
+  name ProtocolUsedAsType{}                                 = "Infer.ProtocolUsedAsType"
+  name NotAnExpression{}                                    = "Infer.NotAnExpression"
+  name NotAProtocol{}                                       = "Infer.NotAProtocol"
+  name NoSuchMethodInProtocol{}                             = "Infer.NoSuchMethodInProtocol"
 
   header (UnificationError e) s                             = header e s
   header (InvalidPackageReference _ p) s = text "Invalid reference to package" <+> code s (pretty p)
@@ -36,9 +40,18 @@ instance OdenOutput TypeError where
   header (ValueUsedAsType _ n) s =
     text "The value" <+> code s (pretty n)
     <+> text "cannot be used as a type"
-  header (TypeIsNotAnExpression _ n) s =
+  header (ProtocolUsedAsType _ n) s =
+    text "The protocol" <+> code s (pretty n)
+    <+> text "cannot be used as a type"
+  header (NotAnExpression _ n) s =
     text "The type" <+> code s (pretty n)
     <+> text "is not an expression"
+  header (NotAProtocol _ n) s =
+    code s (pretty n) <+> text "is not a protocol"
+  header (NoSuchMethodInProtocol _ (Protocol _ protocolName _ _) n) s =
+    code s (pretty n)
+    <+> text "is not a method in"
+    <+> code s (pretty protocolName)
 
   details (UnificationError e) s = details e s
   details InvalidPackageReference{} _ = text "Packages cannot be referenced as values"
@@ -53,7 +66,10 @@ instance OdenOutput TypeError where
   details (TypeSignatureSubsumptionError _ (SubsumptionError _ t1 t2)) s =
     text "Type" <+> code s (pretty t1) <+> text "does not subsume" <+> code s (pretty t2)
   details ValueUsedAsType{} _ = empty
-  details TypeIsNotAnExpression{} _ = empty
+  details ProtocolUsedAsType{} _ = empty
+  details NotAnExpression{} _ = empty
+  details NotAProtocol{} _ = empty
+  details NoSuchMethodInProtocol{} _ = empty
 
   sourceInfo (UnificationError e)                                        = sourceInfo e
   sourceInfo (ArgumentCountMismatch e _ _)                               = Just (getSourceInfo e)
@@ -63,4 +79,7 @@ instance OdenOutput TypeError where
   sourceInfo (InvalidPackageReference si _)                              = Just si
   sourceInfo (TypeSignatureSubsumptionError _ (SubsumptionError si _ _)) = Just si
   sourceInfo (ValueUsedAsType si _)                                      = Just si
-  sourceInfo (TypeIsNotAnExpression si _)                                = Just si
+  sourceInfo (ProtocolUsedAsType si _)                                   = Just si
+  sourceInfo (NotAnExpression si _)                                      = Just si
+  sourceInfo (NotAProtocol si _)                                         = Just si
+  sourceInfo (NoSuchMethodInProtocol si _ _)                             = Just si

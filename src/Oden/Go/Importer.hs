@@ -34,6 +34,7 @@ import           Data.Aeson.Types
 import           Data.ByteString.Lazy.Char8 (pack)
 import qualified Data.HashMap.Strict        as HM
 import           Data.List                  (intercalate)
+import qualified Data.Set                   as Set
 import qualified Data.Text                  as T
 
 import           Foreign.C.String
@@ -182,7 +183,7 @@ objectsToPackage pkgName objs =
     in case runExcept (runStateT (convertType $ typeOf obj) 0) of
          Left u -> (defs, (n, u) : msgs)
          Right (ct, _) ->
-           let sc = Poly.Forall missing [] ct
+           let sc = Poly.Forall missing [] Set.empty ct
            in (Core.ForeignDefinition missing n sc : defs, msgs)
 
 importer :: Importer

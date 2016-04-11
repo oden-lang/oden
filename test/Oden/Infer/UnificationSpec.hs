@@ -10,12 +10,13 @@ import           Oden.Predefined
 import           Oden.Type.Polymorphic
 
 import           Data.Map
+import qualified Data.Set as Set
 
 import           Oden.Assertions
 import           Oden.Infer.Fixtures
 
 unify :: Type -> Type -> Either UnificationError Subst
-unify t1 t2 = runSolve [(getSourceInfo t1, t1, t2)]
+unify t1 t2 = runSolve [UnifyConstraint (getSourceInfo t1) t1 t2]
 
 spec =
   describe "unify" $ do
@@ -99,3 +100,22 @@ spec =
             (typeSlice (typeFn tvarA tvarB))
       `shouldSucceedWith`
       Subst (fromList [(TV "a", typeString), (TV "b", typeString)])
+
+    it "unifies constrained type variables" $
+      unify
+      (TConstrained (Set.singleton $ ProtocolConstraint missing testableProtocol tvarA) $ tvarA)
+      (TConstrained (Set.singleton $ ProtocolConstraint missing testableProtocol tvarB) $ tvarB)
+      `shouldSucceedWith`
+      Subst (singleton (TV "a") tvarB)
+
+    it "unifies constrained functions" $
+      unify (TConstrained Set.empty $ typeFn tvarA tvarB) (TConstrained Set.empty $ typeFn typeInt typeString)
+      `shouldSucceedWith`
+      Subst (fromList [(TV "a", typeInt), (TV "b", typeString)])
+
+    it "unifies nested constrained functions" $
+      unify
+      (TConstrained Set.empty $ TConstrained Set.empty $ typeFn tvarA tvarB)
+      (TConstrained Set.empty $ typeFn typeInt typeString)
+      `shouldSucceedWith`
+      Subst (fromList [(TV "a", typeInt), (TV "b", typeString)])

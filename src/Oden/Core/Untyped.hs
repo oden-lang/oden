@@ -29,42 +29,45 @@ data Expr = Symbol (Metadata SourceInfo) Identifier
           | Block (Metadata SourceInfo) [Expr]
           | RecordInitializer (Metadata SourceInfo) [FieldInitializer]
           | MemberAccess (Metadata SourceInfo) Expr Identifier
+          | ProtocolMethodReference (Metadata SourceInfo) Identifier Identifier
           deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Expr where
-  getSourceInfo (Symbol (Metadata si) _)                   = si
-  getSourceInfo (Subscript (Metadata si) _ _)              = si
-  getSourceInfo (Subslice (Metadata si) _ _)               = si
-  getSourceInfo (UnaryOp (Metadata si) _ _)                = si
-  getSourceInfo (BinaryOp (Metadata si) _ _ _)             = si
-  getSourceInfo (Application (Metadata si) _ _)            = si
-  getSourceInfo (Fn (Metadata si) _ _)                     = si
-  getSourceInfo (NoArgFn (Metadata si) _)                  = si
-  getSourceInfo (Let (Metadata si) _ _ _)                  = si
-  getSourceInfo (Literal (Metadata si) _)                  = si
-  getSourceInfo (If (Metadata si) _ _ _)                   = si
-  getSourceInfo (Slice (Metadata si) _)                    = si
-  getSourceInfo (Tuple (Metadata si) _ _ _)                = si
-  getSourceInfo (Block (Metadata si) _)                    = si
-  getSourceInfo (RecordInitializer (Metadata si) _)        = si
-  getSourceInfo (MemberAccess (Metadata si) _ _)           = si
+  getSourceInfo (Symbol (Metadata si) _)                    = si
+  getSourceInfo (Subscript (Metadata si) _ _)               = si
+  getSourceInfo (Subslice (Metadata si) _ _)                = si
+  getSourceInfo (UnaryOp (Metadata si) _ _)                 = si
+  getSourceInfo (BinaryOp (Metadata si) _ _ _)              = si
+  getSourceInfo (Application (Metadata si) _ _)             = si
+  getSourceInfo (Fn (Metadata si) _ _)                      = si
+  getSourceInfo (NoArgFn (Metadata si) _)                   = si
+  getSourceInfo (Let (Metadata si) _ _ _)                   = si
+  getSourceInfo (Literal (Metadata si) _)                   = si
+  getSourceInfo (If (Metadata si) _ _ _)                    = si
+  getSourceInfo (Slice (Metadata si) _)                     = si
+  getSourceInfo (Tuple (Metadata si) _ _ _)                 = si
+  getSourceInfo (Block (Metadata si) _)                     = si
+  getSourceInfo (RecordInitializer (Metadata si) _)         = si
+  getSourceInfo (MemberAccess (Metadata si) _ _)            = si
+  getSourceInfo (ProtocolMethodReference (Metadata si) _ _) = si
 
-  setSourceInfo si (Symbol _ i)                   = Symbol (Metadata si) i
-  setSourceInfo si (Subscript _ s i)              = Subscript (Metadata si) s i
-  setSourceInfo si (Subslice _ s r)               = Subslice (Metadata si) s r
-  setSourceInfo si (UnaryOp _ p r)                = UnaryOp (Metadata si) p r
-  setSourceInfo si (BinaryOp _ p l r)             = BinaryOp (Metadata si) p l r
-  setSourceInfo si (Application _ f a)            = Application (Metadata si) f a
-  setSourceInfo si (Fn _ n b)                     = Fn (Metadata si) n b
-  setSourceInfo si (NoArgFn _ b)                  = NoArgFn (Metadata si) b
-  setSourceInfo si (Let _ n v b)                  = Let (Metadata si) n v b
-  setSourceInfo si (Literal _ l)                  = Literal (Metadata si) l
-  setSourceInfo si (If _ c t e)                   = If (Metadata si) c t e
-  setSourceInfo si (Slice _ e)                    = Slice (Metadata si) e
-  setSourceInfo si (Tuple _ f s r)                = Tuple (Metadata si) f s r
-  setSourceInfo si (Block _ e)                    = Block (Metadata si) e
-  setSourceInfo si (RecordInitializer _ fs)       = RecordInitializer (Metadata si) fs
-  setSourceInfo si (MemberAccess _ expr n)        = MemberAccess (Metadata si) expr n
+  setSourceInfo si (Symbol _ i)                       = Symbol (Metadata si) i
+  setSourceInfo si (Subscript _ s i)                  = Subscript (Metadata si) s i
+  setSourceInfo si (Subslice _ s r)                   = Subslice (Metadata si) s r
+  setSourceInfo si (UnaryOp _ p r)                    = UnaryOp (Metadata si) p r
+  setSourceInfo si (BinaryOp _ p l r)                 = BinaryOp (Metadata si) p l r
+  setSourceInfo si (Application _ f a)                = Application (Metadata si) f a
+  setSourceInfo si (Fn _ n b)                         = Fn (Metadata si) n b
+  setSourceInfo si (NoArgFn _ b)                      = NoArgFn (Metadata si) b
+  setSourceInfo si (Let _ n v b)                      = Let (Metadata si) n v b
+  setSourceInfo si (Literal _ l)                      = Literal (Metadata si) l
+  setSourceInfo si (If _ c t e)                       = If (Metadata si) c t e
+  setSourceInfo si (Slice _ e)                        = Slice (Metadata si) e
+  setSourceInfo si (Tuple _ f s r)                    = Tuple (Metadata si) f s r
+  setSourceInfo si (Block _ e)                        = Block (Metadata si) e
+  setSourceInfo si (RecordInitializer _ fs)           = RecordInitializer (Metadata si) fs
+  setSourceInfo si (MemberAccess _ expr n)            = MemberAccess (Metadata si) expr n
+  setSourceInfo si (ProtocolMethodReference _ expr n) = ProtocolMethodReference (Metadata si) expr n
 
 data Literal = Int Integer
              | Bool Bool

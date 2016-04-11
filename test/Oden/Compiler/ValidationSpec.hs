@@ -4,12 +4,15 @@ import           Test.Hspec
 
 import           Oden.Compiler.Validation
 import           Oden.Core
+import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
+
+import qualified Data.Set as Set
 
 import           Oden.Assertions
 
@@ -22,26 +25,26 @@ typeString = TCon (Metadata Predefined) (FQN [] (Identifier "string"))
 typeInt = TCon (Metadata Predefined) (FQN [] (Identifier "int"))
 typeIntSlice = TSlice missing typeInt
 
-canonical :: Expr Type -> CanonicalExpr
-canonical e = (Forall missing [] (typeOf e), e)
+canonical :: TypedExpr -> CanonicalExpr
+canonical e = (Forall missing [] Set.empty (typeOf e), e)
 
-unitExpr :: Expr Type
+unitExpr :: TypedExpr
 unitExpr = Literal missing Unit typeUnit
 
-strExpr :: Expr Type
+strExpr :: TypedExpr
 strExpr = Literal missing (String "hello") typeString
 
-intExpr :: Integer -> Expr Type
+intExpr :: Integer -> TypedExpr
 intExpr n = Literal missing (Int n) typeInt
 
 
-letExpr :: Identifier -> Expr Type -> Expr Type -> Expr Type
+letExpr :: Identifier -> TypedExpr -> TypedExpr -> TypedExpr
 letExpr n value body = Let missing (NameBinding missing n) value body (typeOf body)
 
-fnExpr :: Identifier -> Expr Type -> Expr Type
+fnExpr :: Identifier -> TypedExpr -> TypedExpr
 fnExpr n body = Fn missing (NameBinding missing n) body (TFn missing typeString (typeOf body))
 
-block :: [Expr Type] -> Expr Type
+block :: [TypedExpr] -> TypedExpr
 block exprs = Block missing exprs (typeOf (last exprs))
 
 divisionByZeroExpr = BinaryOp missing Divide (intExpr 1) (intExpr 0) typeInt

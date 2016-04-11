@@ -8,6 +8,7 @@ import           Data.Set                  as Set hiding (map)
 import           Oden.Backend
 import           Oden.Backend.Go
 import           Oden.Core
+import           Oden.Core.Expr
 import           Oden.Compiler.Monomorphization
 import qualified Oden.Go.Identifier as GI
 import qualified Oden.Go.AST as AST
@@ -34,7 +35,7 @@ fmtImport = AST.ImportDecl (GI.Identifier "fmt") (AST.InterpretedStringLiteral "
 
 typeUnit = TCon missing (nameInUniverse "unit")
 
-mainFn :: Expr Type -> MonomorphedDefinition
+mainFn :: MonoTypedExpr -> MonomorphedDefinition
 mainFn expr =
   MonomorphedDefinition
   missing

@@ -1,10 +1,12 @@
 module Oden.Compiler.MonomorphizationSpec where
 
 import           Data.Set              as Set
+
 import           Test.Hspec
 
 import           Oden.Compiler.Monomorphization
 import qualified Oden.Core             as Core
+import           Oden.Core.Expr
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -37,8 +39,8 @@ identityDef =
   Core.Definition
     missing
     (Identifier "identity")
-    (Poly.Forall missing [Poly.TVarBinding missing tvA] (Poly.TFn missing a a),
-     Core.Fn missing (Core.NameBinding missing (Identifier "x")) (Core.Symbol missing (Identifier "x") a)
+    (Poly.Forall missing [Poly.TVarBinding missing tvA] Set.empty (Poly.TFn missing a a),
+     Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") a)
                  (Poly.TFn missing a a))
 
 identity2Def :: Core.Definition
@@ -46,9 +48,9 @@ identity2Def =
   Core.Definition
     missing
     (Identifier "identity2")
-    (Poly.Forall missing [Poly.TVarBinding missing tvA] (Poly.TFn missing a a),
-     Core.Fn missing (Core.NameBinding missing (Identifier "x")) (Core.Application missing (Core.Symbol missing (Identifier "identity") (Poly.TFn missing a a))
-                                   (Core.Symbol missing (Identifier "x") a)
+    (Poly.Forall missing [Poly.TVarBinding missing tvA] Set.empty (Poly.TFn missing a a),
+     Fn missing (NameBinding missing (Identifier "x")) (Application missing (Symbol missing (Identifier "identity") (Poly.TFn missing a a))
+                                   (Symbol missing (Identifier "x") a)
                                    a)
                  (Poly.TFn missing a a))
 
@@ -57,10 +59,10 @@ usingIdentityDef =
   Core.Definition
     missing
     (Identifier "using-identity")
-    (Poly.Forall missing [] typeInt,
-     Core.Application missing
-                      (Core.Symbol missing (Identifier "identity") (Poly.TFn missing typeInt typeInt))
-                      (Core.Literal missing (Core.Int 1) typeInt)
+    (Poly.Forall missing [] Set.empty typeInt,
+     Application missing
+                      (Symbol missing (Identifier "identity") (Poly.TFn missing typeInt typeInt))
+                      (Literal missing (Int 1) typeInt)
                       typeInt)
 
 usingIdentity2Def :: Core.Definition
@@ -68,10 +70,10 @@ usingIdentity2Def =
   Core.Definition
     missing
     (Identifier "using-identity2")
-    (Poly.Forall missing [] typeInt,
-     Core.Application missing
-                      (Core.Symbol missing (Identifier "identity2") (Poly.TFn missing typeInt typeInt))
-                      (Core.Literal missing (Core.Int 1) typeInt)
+    (Poly.Forall missing [] Set.empty typeInt,
+     Application missing
+                      (Symbol missing (Identifier "identity2") (Poly.TFn missing typeInt typeInt))
+                      (Literal missing (Int 1) typeInt)
                       typeInt)
 
 usingIdentityMonomorphed :: MonomorphedDefinition
@@ -80,9 +82,9 @@ usingIdentityMonomorphed =
     missing
     (Identifier "using-identity")
     monoInt
-    (Core.Application missing
-                      (Core.Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
-                      (Core.Literal missing (Core.Int 1) monoInt)
+    (Application missing
+                      (Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+                      (Literal missing (Int 1) monoInt)
                       monoInt)
 
 letBoundIdentity :: Core.Definition
@@ -90,12 +92,12 @@ letBoundIdentity =
   Core.Definition
     missing
     (Identifier "let-bound-identity")
-    (Poly.Forall missing [] typeInt,
-     Core.Let missing (Core.NameBinding missing (Identifier "identity")) (Core.Fn missing (Core.NameBinding missing (Identifier "x")) (Core.Symbol missing (Identifier "x") a) (Poly.TFn missing a a))
-                         (Core.Application
+    (Poly.Forall missing [] Set.empty typeInt,
+     Let missing (NameBinding missing (Identifier "identity")) (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") a) (Poly.TFn missing a a))
+                         (Application
                           missing
-                          (Core.Symbol missing (Identifier "identity") (Poly.TFn missing typeInt typeInt))
-                          (Core.Literal missing (Core.Int 1) typeInt)
+                          (Symbol missing (Identifier "identity") (Poly.TFn missing typeInt typeInt))
+                          (Literal missing (Int 1) typeInt)
                           typeInt)
                       typeInt)
 
@@ -105,10 +107,10 @@ usingIdentity2Monomorphed =
     missing
     (Identifier "using-identity2")
     monoInt
-    (Core.Application
+    (Application
      missing
-     (Core.Symbol missing (Identifier "identity2_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
-     (Core.Literal missing (Core.Int 1) monoInt)
+     (Symbol missing (Identifier "identity2_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+     (Literal missing (Int 1) monoInt)
      monoInt)
 
 letBoundIdentityMonomorphed :: MonomorphedDefinition
@@ -117,12 +119,12 @@ letBoundIdentityMonomorphed =
     missing
     (Identifier "let-bound-identity")
     monoInt
-    (Core.Let
+    (Let
      missing
-     (Core.NameBinding missing (Identifier "identity_inst_int_to_int"))
-     (Core.Fn missing (Core.NameBinding missing (Identifier "x")) (Core.Symbol missing (Identifier "x") monoInt) (Mono.TFn missing monoInt monoInt))
-     (Core.Application missing (Core.Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
-      (Core.Literal missing (Core.Int 1) monoInt)
+     (NameBinding missing (Identifier "identity_inst_int_to_int"))
+     (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") monoInt) (Mono.TFn missing monoInt monoInt))
+     (Application missing (Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+      (Literal missing (Int 1) monoInt)
       monoInt)
      monoInt)
 
@@ -132,10 +134,10 @@ identityInstIntToInt =
     (Identifier "identity")
     missing
     (Identifier "identity_inst_int_to_int")
-    (Core.Fn
+    (Fn
      missing
-     (Core.NameBinding missing (Identifier "x"))
-     (Core.Symbol missing (Identifier "x") monoInt)
+     (NameBinding missing (Identifier "x"))
+     (Symbol missing (Identifier "x") monoInt)
      (Mono.TFn missing monoInt monoInt))
 
 identity2InstIntToInt :: InstantiatedDefinition
@@ -144,13 +146,13 @@ identity2InstIntToInt =
     (Identifier "identity2")
     missing
     (Identifier "identity2_inst_int_to_int")
-    (Core.Fn
+    (Fn
      missing
-     (Core.NameBinding missing (Identifier "x"))
-     (Core.Application
+     (NameBinding missing (Identifier "x"))
+     (Application
       missing
-      (Core.Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
-      (Core.Symbol missing (Identifier "x") monoInt)
+      (Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+      (Symbol missing (Identifier "x") monoInt)
       monoInt)
      (Mono.TFn missing monoInt monoInt))
 
@@ -159,11 +161,11 @@ sliceLenDef =
   Core.Definition
     missing
     (Identifier "slice-len")
-    (Poly.Forall missing [] typeInt,
-     Core.Application
+    (Poly.Forall missing [] Set.empty typeInt,
+     Application
       missing
-      (Core.Symbol missing (Identifier "len") (Poly.TForeignFn missing False [Poly.TSlice missing typeBool] [typeInt]))
-      (Core.Slice missing [Core.Literal missing (Core.Bool True) typeBool] (Poly.TSlice missing typeBool))
+      (Symbol missing (Identifier "len") (Poly.TForeignFn missing False [Poly.TSlice missing typeBool] [typeInt]))
+      (Slice missing [Literal missing (Bool True) typeBool] (Poly.TSlice missing typeBool))
       typeInt)
 
 sliceLenMonomorphed :: MonomorphedDefinition
@@ -172,10 +174,10 @@ sliceLenMonomorphed =
     missing
     (Identifier "slice-len")
     monoInt
-    (Core.Application
+    (Application
      missing
-     (Core.Symbol missing (Identifier "len") (Mono.TForeignFn missing False [Mono.TSlice missing monoBool] [monoInt]))
-     (Core.Slice missing [Core.Literal missing (Core.Bool True) monoBool] (Mono.TSlice missing monoBool))
+     (Symbol missing (Identifier "len") (Mono.TForeignFn missing False [Mono.TSlice missing monoBool] [monoInt]))
+     (Slice missing [Literal missing (Bool True) monoBool] (Mono.TSlice missing monoBool))
      monoInt)
 
 letWithShadowing :: Core.Definition
@@ -183,16 +185,16 @@ letWithShadowing =
   Core.Definition
     missing
     (Identifier "let-with-shadowing")
-    (Poly.Forall missing [] typeInt,
-     Core.Let
+    (Poly.Forall missing [] Set.empty typeInt,
+     Let
      missing
-     (Core.NameBinding missing (Identifier "x"))
-     (Core.Literal missing (Core.Int 1) typeInt)
-     (Core.Let
+     (NameBinding missing (Identifier "x"))
+     (Literal missing (Int 1) typeInt)
+     (Let
       missing
-      (Core.NameBinding missing (Identifier "x"))
-      (Core.Symbol missing (Identifier "x") typeInt)
-      (Core.Symbol missing (Identifier "x") typeInt)
+      (NameBinding missing (Identifier "x"))
+      (Symbol missing (Identifier "x") typeInt)
+      (Symbol missing (Identifier "x") typeInt)
       typeInt)
      typeInt)
 
@@ -202,15 +204,15 @@ letWithShadowingMonomorphed =
     missing
     (Identifier "let-with-shadowing")
     monoInt
-    (Core.Let
+    (Let
      missing
-     (Core.NameBinding missing (Identifier "x"))
-     (Core.Literal missing (Core.Int 1) monoInt)
-     (Core.Let
+     (NameBinding missing (Identifier "x"))
+     (Literal missing (Int 1) monoInt)
+     (Let
       missing
-      (Core.NameBinding missing (Identifier "x"))
-      (Core.Symbol missing (Identifier "x") monoInt)
-      (Core.Symbol missing (Identifier "x") monoInt)
+      (NameBinding missing (Identifier "x"))
+      (Symbol missing (Identifier "x") monoInt)
+      (Symbol missing (Identifier "x") monoInt)
       monoInt)
      monoInt)
 

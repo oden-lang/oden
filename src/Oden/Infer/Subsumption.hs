@@ -4,18 +4,19 @@ module Oden.Infer.Subsumption (
   collectSubstitutions
 ) where
 
-import Oden.Core as Core
-import Oden.Infer.Substitution
-import Oden.Metadata
-import Oden.Type.Kind
-import Oden.Type.Polymorphic
-import Oden.SourceInfo
+import           Oden.Core               as Core
+import           Oden.Core.Expr          (typeOf)
+import           Oden.Infer.Substitution
+import           Oden.Metadata
+import           Oden.SourceInfo
+import           Oden.Type.Kind
+import           Oden.Type.Polymorphic
 
 import           Control.Monad
-import           Control.Monad.State
 import           Control.Monad.Except
+import           Control.Monad.State
 
-import qualified Data.Map               as Map
+import qualified Data.Map                as Map
 
 data SubsumptionError = SubsumptionError SourceInfo Type Type
                       deriving (Show, Eq)
@@ -62,7 +63,7 @@ collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 
 -- | Test if a type scheme is subsumed by an expression with a more general
 -- type. If so, return the expression specialized to the less general type (all
 -- subexpression types being substituted as well).
-subsumedBy :: Scheme -> Core.Expr Type -> Either SubsumptionError Core.CanonicalExpr
-subsumedBy s@(Forall _ _ st) expr = do
-  subst <- snd <$> runExcept (runStateT (collectSubstitutions st (Core.typeOf expr)) Map.empty)
+subsumedBy :: Scheme -> Core.TypedExpr -> Either SubsumptionError Core.CanonicalExpr
+subsumedBy s@(Forall _ _ _ st) expr = do
+  subst <- snd <$> runExcept (runStateT (collectSubstitutions st (typeOf expr)) Map.empty)
   return (s, apply (Subst subst) expr)

@@ -4,29 +4,29 @@ import           Test.Hspec
 
 import           Oden.Compiler.LiteralEval
 import           Oden.Core
+import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.Predefined
 import           Oden.SourceInfo
-import           Oden.Type.Polymorphic
 
 missing :: Metadata SourceInfo
 missing = Metadata Missing
 
-int :: Integer -> Expr Type
+int :: Integer -> TypedExpr
 int n = Literal missing (Int n) typeInt
 
-true :: Expr Type
+true :: TypedExpr
 true = Literal missing (Bool True) typeBool
 
-false :: Expr Type
+false :: TypedExpr
 false = Literal missing (Bool False) typeBool
 
-intExpr :: BinaryOperator -> Expr Type -> Expr Type -> Expr Type
+intExpr :: BinaryOperator -> TypedExpr -> TypedExpr -> TypedExpr
 intExpr op l r = BinaryOp missing op l r typeInt
 
-boolExpr :: BinaryOperator -> Expr Type -> Expr Type -> Expr Type
+boolExpr :: BinaryOperator -> TypedExpr -> TypedExpr -> TypedExpr
 boolExpr op l r = BinaryOp missing op l r typeInt
 
 spec :: Spec
@@ -40,9 +40,9 @@ spec =
       evaluate (intExpr Add (int 2) (int 3)) `shouldBe` Just (Int 5)
 
     it "evaluates nested binary expressions: (3-2)*4 + 10/2" $
-      evaluate (intExpr Add 
+      evaluate (intExpr Add
                         (intExpr Multiply
-                                 (intExpr Subtract 
+                                 (intExpr Subtract
                                           (int 3)
                                           (int 2))
                                  (int 4))
@@ -54,7 +54,7 @@ spec =
       evaluate true `shouldBe` Just (Bool True)
 
     it "evaluates boolean expression: (true or false) and true" $
-      evaluate (boolExpr And (boolExpr Or true false) 
+      evaluate (boolExpr And (boolExpr Or true false)
                               true)
       `shouldBe`
       Just (Bool True)

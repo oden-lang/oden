@@ -3,7 +3,7 @@ module Oden.Output.Compiler.Validation where
 import           Text.PrettyPrint.Leijen
 
 import           Oden.Compiler.Validation
-import           Oden.Core
+import           Oden.Core.Expr
 import           Oden.Output
 import           Oden.Pretty ()
 import           Oden.SourceInfo

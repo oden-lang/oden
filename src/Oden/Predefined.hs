@@ -6,12 +6,14 @@ module Oden.Predefined (
   typeUnit
 ) where
 
-import Oden.Identifier
-import Oden.Metadata
-import Oden.QualifiedName
-import Oden.Type.Polymorphic
-import Oden.SourceInfo
-import qualified Oden.Core as Core
+import qualified Oden.Core             as Core
+import           Oden.Identifier
+import           Oden.Metadata
+import           Oden.QualifiedName
+import           Oden.SourceInfo
+import           Oden.Type.Polymorphic
+
+import           Data.Set              hiding (map)
 
 predefined :: Metadata SourceInfo
 predefined = Metadata Predefined
@@ -24,9 +26,9 @@ typeUnit = TCon predefined (nameInUniverse "unit")
 
 foreignFns :: [(Identifier, Scheme)]
 foreignFns = [
-  (Identifier "len", Forall predefined [TVarBinding predefined (TV "a")] (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
-  (Identifier "print", Forall predefined [TVarBinding predefined (TV "a")] (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit])),
-  (Identifier "println", Forall predefined [TVarBinding predefined (TV "a")] (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit]))
+  (Identifier "len", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
+  (Identifier "print", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit])),
+  (Identifier "println", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit]))
   ]
 
 types :: [(String, Type)]

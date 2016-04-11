@@ -2,6 +2,7 @@
 module Oden.Compiler.Validation where
 
 import           Oden.Core                 as Core
+import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
@@ -18,11 +19,11 @@ import           Data.List
 import qualified Data.Set                  as Set
 
 data ValidationError = Redefinition SourceInfo Identifier
-                     | ValueDiscarded (Expr Type)
+                     | ValueDiscarded TypedExpr
                      | DuplicatedRecordFieldName SourceInfo Identifier
-                     | DivisionByZero (Expr Type)
-                     | NegativeSliceIndex (Expr Type)
-                     | InvalidSubslice SourceInfo (Range Type)
+                     | DivisionByZero TypedExpr
+                     | NegativeSliceIndex TypedExpr
+                     | InvalidSubslice SourceInfo TypedRange
                      | UnusedImport SourceInfo PackageName Identifier
                      deriving (Show, Eq, Ord)
 
@@ -56,7 +57,7 @@ addPackageReference name = do
   refs <- gets packageReferences
   modify (\s -> s { packageReferences = Set.insert name refs })
 
-validateSliceIndex :: Expr Type -> Validate ()
+validateSliceIndex :: TypedExpr -> Validate ()
 validateSliceIndex e = do
   validateExpr e
   case evaluate e of
@@ -64,7 +65,7 @@ validateSliceIndex e = do
     _ -> return ()
 
 
-validateRange :: Range Type -> Validate ()
+validateRange :: TypedRange -> Validate ()
 validateRange r@(Range e1 e2) = do
   validateSliceIndex e1
   validateSliceIndex e2
@@ -78,7 +79,7 @@ validateRange (RangeFrom e) =
   validateSliceIndex e
 
 
-validateExpr :: Expr Type -> Validate ()
+validateExpr :: TypedExpr -> Validate ()
 validateExpr Symbol{} = return ()
 validateExpr (Subscript _ s i _) = do
   validateExpr s
@@ -127,13 +128,14 @@ validateExpr (Block _ exprs _) = do
   mapM_ warnOnDiscarded (init exprs)
   mapM_ validateExpr exprs
   where
-  warnOnDiscarded :: Expr Type -> Validate ()
+  warnOnDiscarded :: TypedExpr -> Validate ()
   warnOnDiscarded expr = case typeOf expr of
     (TCon _ (FQN [] (Identifier "unit"))) -> return ()
     _ -> throwError (ValueDiscarded expr)
 validateExpr RecordInitializer{} = return ()
 validateExpr (RecordFieldAccess _ expr _ _) = validateExpr expr
 validateExpr (PackageMemberAccess _ alias _ _) = addPackageReference alias
+validateExpr MethodReference{} = return ()
 
 repeated :: [(Identifier, Type)] -> [(Identifier, Type)]
 repeated fields = snd (foldl check (Set.empty, []) fields)

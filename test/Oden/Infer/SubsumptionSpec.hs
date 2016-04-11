@@ -5,6 +5,7 @@ import           Test.Hspec
 import           Oden.Infer.Subsumption
 import           Oden.SourceInfo
 import           Oden.Core
+import           Oden.Core.Expr
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.Predefined

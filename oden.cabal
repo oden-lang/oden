@@ -41,13 +41,16 @@ library
     Oden.Compiler.Validation,
     Oden.Compiler.LiteralEval,
     Oden.Core,
+    Oden.Core.Expr,
     Oden.Core.Operator,
+    Oden.Core.Traversal,
     Oden.Core.Untyped,
     Oden.Environment,
     Oden.Explode,
     Oden.Identifier,
     Oden.Imports,
     Oden.Infer,
+    Oden.Infer.ConstraintCollection,
     Oden.Infer.Environment,
     Oden.Infer.Substitution,
     Oden.Infer.Subsumption,
@@ -79,7 +82,8 @@ library
     Oden.Type.Kind,
     Oden.Type.Monomorphic,
     Oden.Type.Polymorphic,
-    Oden.Type.Signature
+    Oden.Type.Signature,
+    Oden.Type.Traversal
   default-language:    Haskell2010
   hs-source-dirs:      src
   extra-libraries:     importer
@@ -114,7 +118,7 @@ executable oden-exe
 
 test-suite spec
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: Main.hs
   default-language: Haskell2010
   hs-source-dirs: test
   build-depends:

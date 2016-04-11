@@ -1,8 +1,8 @@
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, LambdaCase #-}
 module Oden.Pretty where
 
 import           Oden.Core
+import           Oden.Core.Expr
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Operator
 import           Oden.Identifier
@@ -17,11 +17,17 @@ import           Data.Set              (toList)
 
 import           Text.PrettyPrint.Leijen
 
+commaSep :: Pretty p => [p] -> Doc
+commaSep ps = hcat (punctuate (text ", ") (map pretty ps))
+
 commaSepParens :: Pretty p => [p] -> Doc
-commaSepParens ps = parens (hcat (punctuate (text ", ") (map pretty ps)))
+commaSepParens = parens . commaSep
 
 rArr :: Doc
 rArr = text "->"
+
+indentedInBraces :: Doc -> Doc
+indentedInBraces d = vcat [lbrace, indent 4 d, rbrace]
 
 instance Pretty Untyped.NameBinding where
   pretty (Untyped.NameBinding _ identifier) = pretty identifier
@@ -61,6 +67,8 @@ instance Pretty Untyped.Expr where
     braces (hcat (punctuate (text ", ") (map pretty fields)))
   pretty (Untyped.MemberAccess _ pkgAlias name) =
     pretty pkgAlias <> text "." <> pretty name
+  pretty (Untyped.ProtocolMethodReference _ protocolName methodName) =
+    pretty protocolName <> text "::" <> pretty methodName
 
 instance Pretty NameBinding where
   pretty (NameBinding _ identifier) = pretty identifier
@@ -87,10 +95,14 @@ instance Pretty BinaryOperator where
 instance Pretty Identifier where
   pretty (Identifier n) = text n
 
-instance Pretty t => Pretty (FieldInitializer t) where
+instance (Pretty r, Pretty t) => Pretty (FieldInitializer r t) where
   pretty (FieldInitializer _ l e) = pretty l <+> text "=" <+> pretty e
 
-instance Pretty t => Pretty (Expr t) where
+instance Pretty UnresolvedMethodReference where
+  pretty (UnresolvedMethodReference (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _)) =
+    pretty protocolName <> text "::" <> pretty methodName
+
+instance (Pretty m, Pretty t) => Pretty (Expr m t) where
   pretty (Symbol _ i _) = pretty i
   pretty (Subscript _ s i _) = pretty s <> text "[" <> pretty i <> text "]"
   pretty (Subslice _ s r _) = pretty s <> pretty r
@@ -121,14 +133,15 @@ instance Pretty t => Pretty (Expr t) where
     pretty expr <> text "." <> pretty name
   pretty (PackageMemberAccess _ pkgAlias name _) =
     pretty pkgAlias <> text "." <> pretty name
+  pretty (MethodReference _ ref _) = pretty ref
 
-collectCurried :: Expr t -> ([NameBinding], Expr t)
+collectCurried :: Expr m t -> ([NameBinding], Expr m t)
 collectCurried (Fn _ param body _) =
   let (params, body') = collectCurried body
   in (param:params, body')
 collectCurried expr = ([], expr)
 
-prettyDefinition :: Pretty t => Identifier -> Expr t -> Doc
+prettyDefinition :: (Pretty r, Pretty t) => Identifier -> Expr r t -> Doc
 prettyDefinition name (NoArgFn _ body _) =
   pretty name <> parens empty <+> equals <+> pretty body
 prettyDefinition name expr =
@@ -138,13 +151,23 @@ prettyDefinition name expr =
     (params, body) ->
       pretty name <> commaSepParens params <+> equals <+> pretty body
 
-instance Pretty r => Pretty (Range r) where
-  pretty (Range e1 e2) = brackets $ pretty e1 <+> text ":" <+> pretty e2
-  pretty (RangeTo e) = brackets $ text ":" <+> pretty e
-  pretty (RangeFrom e) = brackets $ pretty e <+> text ":"
+instance Pretty e => Pretty (Range e) where
+  pretty = \case
+    Range e1 e2 -> brackets $ pretty e1 <+> text ":" <+> pretty e2
+    RangeTo e   -> brackets $ text ":" <+> pretty e
+    RangeFrom e -> brackets $ pretty e <+> text ":"
 
 instance Pretty CanonicalExpr where
   pretty (scheme, expr) = pretty expr <+> text ":" <+> pretty scheme
+
+instance Pretty Poly.ProtocolMethod where
+  pretty (Poly.ProtocolMethod _ name scheme) =
+    pretty name <+> colon <+> pretty scheme
+
+instance Pretty Poly.Protocol where
+  pretty (Poly.Protocol _ (FQN _ name) tvar methods) =
+    text "protocol" <+> pretty name <> parens (pretty tvar)
+      <+> indentedInBraces (vcat (map pretty methods))
 
 instance Pretty Definition where
   pretty (Definition _ name (scheme, expr)) = vcat [
@@ -157,6 +180,7 @@ instance Pretty Definition where
     ]
   pretty (TypeDefinition _ name _ type') =
     text "type" <+> pretty name <+> equals <+> pretty type'
+  pretty (ProtocolDefinition _ _ protocol) = pretty protocol
 
 instance Pretty PackageName where
   pretty parts = hcat (punctuate (text "/") (map text parts))
@@ -182,7 +206,7 @@ instance Pretty QualifiedName where
   pretty (FQN pkg identifier) = hcat (punctuate (text ".") (map text pkg ++ [pretty identifier]))
 
 isFunctionType :: Poly.Type -> Bool
-isFunctionType t = case t of
+isFunctionType = \case
   Poly.TFn{}        -> True
   Poly.TNoArgFn{}   -> True
   Poly.TForeignFn{} -> True
@@ -207,6 +231,8 @@ instance Pretty Poly.Type where
   pretty (Poly.TSlice _ t) =
     text "[]" <> braces (pretty t)
   pretty (Poly.TNamed _ n _) = pretty n
+  pretty (Poly.TConstrained constraints t) =
+    parens (pretty t <+> text "where" <+> commaSep (toList constraints))
   pretty (Poly.TRecord _ r) = braces (ppFields r)
   pretty Poly.REmpty{} = braces empty
   pretty r@Poly.RExtension{} = parens (ppFields r)
@@ -220,9 +246,19 @@ ppFields r =
   printFields = hcat . punctuate (text ", ") . map printField . Poly.rowToList
   printField (label, type') = pretty label <> colon <+> pretty type'
 
+instance Pretty Poly.ProtocolConstraint where
+  pretty (Poly.ProtocolConstraint _ (Poly.Protocol _ (FQN _ name) _ _) type') =
+    pretty name <> parens (pretty type')
+
 instance Pretty Poly.Scheme where
-  pretty (Poly.Forall _ [] t) = pretty t
-  pretty (Poly.Forall _ vs t) = text "forall" <+> hsep (map pretty vs) <> text "." <+> pretty t
+  pretty (Poly.Forall _ quantifiers constraints t) =
+    let qs = if null quantifiers
+             then empty
+             else text "forall" <+> hsep (map pretty quantifiers) <> text ". "
+        cs = if null constraints
+             then empty
+             else text " where" <+> commaSep (toList constraints)
+    in qs <> pretty t <> cs
 
 ppMonoFields :: Mono.Type -> Doc
 ppMonoFields Mono.REmpty{} = empty
