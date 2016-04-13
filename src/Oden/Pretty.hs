@@ -165,14 +165,29 @@ instance Pretty Poly.TVarBinding where
 instance Pretty QualifiedName where
   pretty (FQN pkg identifier) = hcat (punctuate (text ".") (map text pkg ++ [pretty identifier]))
 
+isFunctionType :: Poly.Type -> Bool
+isFunctionType t = case t of
+  Poly.TFn{}        -> True
+  Poly.TNoArgFn{}   -> True
+  Poly.TForeignFn{} -> True
+  _                 -> False
+
+parensIfFunction :: Poly.Type -> Doc
+parensIfFunction t
+  | isFunctionType t = parens (pretty t)
+  | otherwise        = pretty t
+
 instance Pretty Poly.Type where
   pretty (Poly.TTuple _ f s r) = commaSepParens (f:s:r)
   pretty (Poly.TVar _ v) = pretty v
   pretty (Poly.TCon _ (FQN [] (Identifier "unit"))) = text "()"
   pretty (Poly.TCon _ n) = pretty n
-  pretty (Poly.TNoArgFn _ t) = rArr <+> pretty t
-  pretty (Poly.TFn _ tf ta) = pretty tf <+> rArr <+> pretty ta
-  pretty (Poly.TForeignFn _ _ ps rs) = text "<foreign>" <+> hsep (intersperse (text "&") (map pretty ps)) <+> rArr <+> ppReturns rs
+  pretty (Poly.TNoArgFn _ t) = rArr <+> parensIfFunction t
+  pretty (Poly.TFn _ tf ta) = parensIfFunction tf <+> rArr <+> pretty ta
+  pretty (Poly.TForeignFn _ _ ps rs) =
+    text "<foreign>"
+    <+> hsep (intersperse (text "&") (map parensIfFunction ps))
+    <+> rArr <+> ppReturns rs
   pretty (Poly.TSlice _ t) =
     text "[]" <> braces (pretty t)
   pretty (Poly.TNamed _ n _) = pretty n
