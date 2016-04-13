@@ -1,0 +1,52 @@
+package wyah/main
+
+const : forall a b. a -> b -> a
+const(x, y) = x
+
+// Booleans
+T : forall a b. a -> b -> a
+T = const
+
+F : forall a b. a -> b -> b
+F(x, y) = y
+
+to-bool : (bool -> bool -> bool) -> bool
+to-bool(b) = b(true, false)
+
+to-int(n) = n((i) -> i + 1, 0)
+
+// Numerals
+zero : forall a. (a -> a) -> (a -> a)
+zero(f, x) = x
+
+one : forall a. (a -> a) -> (a -> a)
+one(f, x) = f(x)
+
+two : forall a. (a -> a) -> (a -> a)
+two(f, x) = f(f(x))
+
+zero?(n) = n(const(F), T)
+
+plus(m, n, f, x) = n(f, m(f, x))
+
+mult(m, n, f) = m(n(f))
+
+main() = {
+  print("zero?(zero) = ")
+  println(to-bool(zero?(zero)))
+
+  print("zero?(one) = ")
+  println(to-bool(zero?(one)))
+
+  print("plus(zero, zero) = ")
+  println(to-int(plus(zero, zero)))
+
+  print("plus(zero, one) = ")
+  println(to-int(plus(zero, one)))
+
+  print("plus(one, one) = ")
+  println(to-int(plus(one, one)))
+
+  print("mult(two, two) = ")
+  println(to-int(mult(two, two)))
+}

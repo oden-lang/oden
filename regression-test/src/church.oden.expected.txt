@@ -1,0 +1,6 @@
+zero?(zero) = true
+zero?(one) = false
+plus(zero, zero) = 0
+plus(zero, one) = 1
+plus(one, one) = 2
+mult(two, two) = 4

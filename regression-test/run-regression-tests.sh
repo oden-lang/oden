@@ -65,7 +65,7 @@ for test in $tests; do
     if [[ $command == "save" ]]; then
       print_success "✓ $test"
       echo -e "\033[35mSaving results.\033[0m"
-      echo -e $go_out_file > "$test.expected.txt"
+      cp $go_out_file "$test.expected.txt"
     elif [[ $command == "validate" ]]; then
       if diff $go_out_file $expected_out_file ; then
         print_success "✓ $test"
