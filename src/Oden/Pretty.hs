@@ -122,6 +122,22 @@ instance Pretty t => Pretty (Expr t) where
   pretty (PackageMemberAccess _ pkgAlias name _) =
     pretty pkgAlias <> text "." <> pretty name
 
+collectCurried :: Expr t -> ([NameBinding], Expr t)
+collectCurried (Fn _ param body _) =
+  let (params, body') = collectCurried body
+  in (param:params, body')
+collectCurried expr = ([], expr)
+
+prettyDefinition :: Pretty t => Identifier -> Expr t -> Doc
+prettyDefinition name (NoArgFn _ body _) =
+  pretty name <> parens empty <+> equals <+> pretty body
+prettyDefinition name expr =
+  case collectCurried expr of
+    ([], body) ->
+      pretty name <+> equals <+> pretty body
+    (params, body) ->
+      pretty name <> commaSepParens params <+> equals <+> pretty body
+
 instance Pretty r => Pretty (Range r) where
   pretty (Range e1 e2) = brackets $ pretty e1 <+> text ":" <+> pretty e2
   pretty (RangeTo e) = brackets $ text ":" <+> pretty e
@@ -133,7 +149,7 @@ instance Pretty CanonicalExpr where
 instance Pretty Definition where
   pretty (Definition _ name (scheme, expr)) = vcat [
       pretty name <+> text ":" <+> pretty scheme,
-      pretty name <+> text "=" <+> pretty expr
+      prettyDefinition name expr
     ]
   pretty (ForeignDefinition _ name scheme) = vcat [
       text "// (foreign)",
@@ -265,13 +281,13 @@ instance Pretty InstantiatedDefinition where
   pretty (InstantiatedDefinition polyName _si name expr) = vcat [
       text "//" <+> pretty polyName,
       pretty name <+> text ":" <+> pretty (typeOf expr),
-      pretty name <+> text "=" <+> pretty expr
+      prettyDefinition name expr
     ]
 
 instance Pretty MonomorphedDefinition where
   pretty (MonomorphedDefinition _ name _ expr) = vcat [
       pretty name <+> text ":" <+> pretty (typeOf expr),
-      pretty name <+> text "=" <+> pretty expr
+      prettyDefinition name expr
     ]
 
 instance Pretty MonomorphedPackage where
