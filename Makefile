@@ -34,7 +34,7 @@ $(TMP):
 
 .PHONY: test
 test:
-	cabal exec runhaskell -- -isrc -itest test/Spec.hs $(TEST_FLAG)
+	cabal build spec && dist/build/spec/spec $(TEST_FLAG)
 
 .PHONY: regression-test
 regression-test:

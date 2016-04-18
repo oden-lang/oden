@@ -8,10 +8,8 @@ import           Oden.Core.Operator
 import           Oden.Environment
 import           Oden.Identifier
 import qualified Oden.Infer            as Infer
-import           Oden.Infer            (inferExpr)
 import           Oden.Infer.Environment
 import           Oden.Predefined
-import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
 import           Oden.Infer.Fixtures
