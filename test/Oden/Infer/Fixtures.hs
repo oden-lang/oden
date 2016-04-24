@@ -3,10 +3,10 @@ module Oden.Infer.Fixtures where
 import           Oden.Core              as Core
 import           Oden.Core.Expr
 import           Oden.Core.Operator
-import qualified Oden.Core.Untyped      as Untyped
+import           Oden.Core.Untyped      as Untyped
 import           Oden.Environment       hiding (map)
 import           Oden.Identifier
-import           Oden.Infer.Environment as IE
+import           Oden.Infer.Environment
 import           Oden.Metadata
 import           Oden.Predefined
 import           Oden.QualifiedName
@@ -68,26 +68,8 @@ varBinding = SignatureVarBinding Missing . Identifier
 forall = Forall missing
 tvarBinding = TVarBinding missing
 
-uSymbol                 = Untyped.Symbol missing
-uOp                     = Untyped.BinaryOp missing
-uApplication            = Untyped.Application missing
-uFn                     = Untyped.Fn missing
-uNoArgFn                = Untyped.NoArgFn missing
-uLet                    = Untyped.Let missing
-uLiteral                = Untyped.Literal missing
-uTuple                  = Untyped.Tuple missing
-uIf                     = Untyped.If missing
-uSlice                  = Untyped.Slice missing
-uBlock                  = Untyped.Block missing
-uMemberAccess           = Untyped.MemberAccess missing
-
-uInt    = Untyped.Int
-uString = Untyped.String
-uBool   = Untyped.Bool
-uUnit   = Untyped.Unit
-
-uNameBinding = Untyped.NameBinding missing
-uDefinition = Untyped.Definition missing
+untyped :: (Untyped -> UntypedExpr) -> UntypedExpr
+untyped = flip ($) Untyped
 
 tSymbol                 = Symbol missing
 tOp                     = BinaryOp missing
@@ -102,15 +84,15 @@ tTuple                  = Tuple missing
 tIf                     = If missing
 tSlice                  = Slice missing
 tBlock                  = Block missing
-tFieldAccess            = RecordFieldAccess missing
-tPackageMemberAcccess   = PackageMemberAccess missing
+tFieldAccess            = MemberAccess missing . RecordFieldAccess
+tPackageMemberAcccess   = MemberAccess missing . PackageMemberAccess
 
 tUnit   = Unit
 tInt    = Int
 tString = String
 tBool   = Bool
 
-tDefinition = Definition missing
+tDefinition = Core.Definition missing
 tNameBinding = NameBinding missing
 
 predef :: TypingEnvironment
@@ -149,7 +131,8 @@ predefAndTestableProtocol =
 
 fooBarPkgEnv :: TypingEnvironment
 fooBarPkgEnv = predef `extend` (Identifier "foo",
-                                IE.Package missing
+                                PackageBinding
+                                missing
                                 (Identifier "foo")
                                 (fromList [(Identifier "Bar",
                                             Local predefined (Identifier "Bar") $ scheme typeInt)]))
@@ -157,22 +140,27 @@ fooBarPkgEnv = predef `extend` (Identifier "foo",
 booleanOp :: Type
 booleanOp = typeFn typeBool (typeFn typeBool typeBool)
 
-countToZero :: Untyped.Expr
+countToZero :: UntypedExpr
 countToZero =
-  uFn
-  (uNameBinding (Identifier "x"))
-  (uIf
-   (uOp
+  Fn missing
+  (NameBinding missing (Identifier "x"))
+  (If missing
+   (BinaryOp missing
     Equals
-    (uSymbol (Identifier "x"))
-    (uLiteral (uInt 0)))
-   (uLiteral (uInt 0))
-   (uApplication
-    (uSymbol (Identifier "f"))
-    [uOp
-     Subtract
-     (uSymbol (Identifier "x"))
-     (uLiteral (uInt 1))]))
+    (Symbol missing (Identifier "x") Untyped)
+    (Literal missing (Int 0) Untyped)
+    Untyped)
+   (Literal missing (Int 0) Untyped)
+   (Application missing
+    (Symbol missing (Identifier "f") Untyped)
+     (BinaryOp missing
+      Subtract
+      (Symbol missing (Identifier "x") Untyped)
+      (Literal missing (Int 1) Untyped)
+      Untyped)
+     Untyped)
+   Untyped)
+  Untyped
 
 intToInt :: Type
 intToInt = typeFn typeInt typeInt
@@ -180,7 +168,7 @@ intToInt = typeFn typeInt typeInt
 intToIntToInt :: Type
 intToIntToInt = typeFn typeInt (typeFn typeInt typeInt)
 
-countToZeroTyped :: Definition
+countToZeroTyped :: Core.Definition
 countToZeroTyped =
   tDefinition
    (Identifier "f")
@@ -205,19 +193,23 @@ countToZeroTyped =
      typeInt)
     intToInt)
 
-twiceUntyped :: Untyped.Expr
+twiceUntyped :: UntypedExpr
 twiceUntyped =
-  uFn
-  (uNameBinding (Identifier "f"))
-  (uFn
-   (uNameBinding (Identifier "x"))
-   (uApplication
-     (uSymbol (Identifier "f"))
-     [uApplication
-     (uSymbol (Identifier "f"))
-     [uSymbol (Identifier "x")]]))
+  Fn missing
+  (NameBinding missing (Identifier "f"))
+  (Fn missing
+   (NameBinding missing (Identifier "x"))
+   (Application missing
+     (Symbol missing (Identifier "f") Untyped)
+     (Application missing
+      (Symbol missing (Identifier "f") Untyped)
+      (Symbol missing (Identifier "x") Untyped)
+      Untyped)
+     Untyped)
+   Untyped)
+  Untyped
 
-twiceTyped :: Definition
+twiceTyped :: Core.Definition
 twiceTyped =
   tDefinition (Identifier "twice") (scheme (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
                            tFn

@@ -42,6 +42,7 @@ library
     Oden.Compiler.LiteralEval,
     Oden.Core,
     Oden.Core.Expr,
+    Oden.Core.Package,
     Oden.Core.Operator,
     Oden.Core.Traversal,
     Oden.Core.Untyped,

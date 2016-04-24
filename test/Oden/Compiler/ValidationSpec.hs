@@ -6,6 +6,7 @@ import           Oden.Compiler.Validation
 import           Oden.Core
 import           Oden.Core.Expr
 import           Oden.Core.Operator
+import           Oden.Core.Package
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -217,7 +218,11 @@ spec = do
             Definition
             missing
             (Identifier "foo")
-            (canonical (PackageMemberAccess missing (Identifier "other") (Identifier "s") typeInt))
+            (canonical
+             (MemberAccess
+              missing
+              (PackageMemberAccess (Identifier "other") (Identifier "s"))
+              typeInt))
         ])
       `shouldSucceedWith`
       []

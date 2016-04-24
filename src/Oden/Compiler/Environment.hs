@@ -2,12 +2,13 @@ module Oden.Compiler.Environment where
 
 import qualified Oden.Core as Core
 import           Oden.Core.Expr
+import           Oden.Core.Package
 import           Oden.Environment hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.SourceInfo
 
-data Binding = Package (Metadata SourceInfo) Identifier (Environment Binding)
+data Binding = PackageBinding (Metadata SourceInfo) Identifier (Environment Binding)
              | Definition Core.Definition
              | LetBinding NameBinding Core.TypedExpr
              | FunctionArgument NameBinding
@@ -15,8 +16,8 @@ data Binding = Package (Metadata SourceInfo) Identifier (Environment Binding)
 
 type CompileEnvironment = Environment Binding
 
-fromPackage :: Core.Package -> CompileEnvironment
-fromPackage (Core.Package _ _ defs) =
+fromPackage :: Core.TypedPackage -> CompileEnvironment
+fromPackage (Package _ _ defs) =
   fromList (concatMap convert defs)
   where
   convert d@(Core.Definition _ n _) = [(n, Definition d)]
@@ -31,4 +32,4 @@ fromPackages =
   foldl iter empty
   where
   iter env (Core.ImportedPackage sourceInfo pkgIdentifier pkg) =
-    env `extend` (pkgIdentifier, Package sourceInfo pkgIdentifier $ fromPackage pkg)
+    env `extend` (pkgIdentifier, PackageBinding sourceInfo pkgIdentifier $ fromPackage pkg)

@@ -1,6 +1,9 @@
 module Oden.ExplodeSpec where
 
-import qualified Oden.Core.Untyped     as U
+import           Oden.Core             hiding (TypeDefinition)
+import qualified Oden.Core.Expr        as Expr
+import qualified Oden.Core.Untyped     as Untyped
+import           Oden.Core.Untyped     (Untyped(..))
 import qualified Oden.Explode          as E
 import           Oden.Explode          hiding (explodeTopLevel)
 import           Oden.Identifier
@@ -27,17 +30,17 @@ spec = do
     it "converts symbol" $
        explodeExpr (Symbol (src 1 1) (Identifier "x"))
       `shouldSucceedWith`
-      U.Symbol ignored (Identifier "x")
+      Expr.Symbol ignored (Identifier "x") Untyped
 
     it "converts int literal" $
        explodeExpr (Literal (src 1 1) (Int 1))
       `shouldSucceedWith`
-      U.Literal ignored (U.Int 1)
+      Expr.Literal ignored (Expr.Int 1) Untyped
 
     it "converts bool literal" $
        explodeExpr (Literal (src 1 1) (Bool True))
       `shouldSucceedWith`
-      U.Literal ignored (U.Bool True)
+      Expr.Literal ignored (Expr.Bool True) Untyped
 
     it "converts fn application with no params" $
        explodeExpr (Application
@@ -45,9 +48,13 @@ spec = do
                    (Fn (src 1 1) [] (Symbol (src 1 3) (Identifier "x")))
                    [])
       `shouldSucceedWith`
-      U.Application
+      Expr.NoArgApplication
       ignored
-      (U.NoArgFn ignored (U.Symbol ignored (Identifier "x"))) []
+      (Expr.NoArgFn
+       ignored
+       (Expr.Symbol ignored (Identifier "x") Untyped)
+       Untyped)
+      Untyped
 
     it "converts fn application with multiple params" $
        explodeExpr (Application
@@ -60,23 +67,36 @@ spec = do
                    [Symbol (src 1 5) (Identifier "x"),
                     Symbol (src 1 9) (Identifier "y")])
       `shouldSucceedWith`
-      U.Application
+      Expr.Application
       ignored
-      (U.Fn
+      (Expr.Application
        ignored
-       (U.NameBinding ignored (Identifier "x"))
-       (U.Fn
+       (Expr.Fn
         ignored
-        (U.NameBinding ignored (Identifier "y"))
-        (U.Symbol ignored (Identifier "x"))))
-      [U.Symbol ignored (Identifier "x"),
-       U.Symbol ignored (Identifier "y")]
+        (Expr.NameBinding ignored (Identifier "x"))
+        (Expr.Fn
+         ignored
+         (Expr.NameBinding ignored (Identifier "y"))
+         (Expr.Symbol ignored (Identifier "x") Untyped)
+         Untyped)
+        Untyped)
+       (Expr.Symbol ignored (Identifier "x") Untyped)
+       Untyped)
+      (Expr.Symbol ignored (Identifier "y") Untyped)
+      Untyped
 
   describe "explodeTopLevel" $ do
     it "converts fn definition with no argument" $
       (snd <$> explodeTopLevel [FnDefinition (src 1 1) (Identifier "f") [] (Symbol (src 1 3) (Identifier "x"))])
       `shouldSucceedWith`
-      [U.Definition ignored (Identifier "f") Nothing (U.NoArgFn ignored (U.Symbol ignored (Identifier "x")))]
+      [Untyped.Definition
+       ignored
+       (Identifier "f")
+       Nothing
+       (Expr.NoArgFn
+        ignored
+        (Expr.Symbol ignored (Identifier "x") Untyped)
+        Untyped)]
 
     it "converts fn definition with single argument" $
       (snd <$> explodeTopLevel [FnDefinition
@@ -85,14 +105,15 @@ spec = do
                                 [NameBinding (src 1 2) (Identifier "x")]
                                 (Symbol (src 1 3) (Identifier "x"))])
       `shouldSucceedWith`
-      [U.Definition
+      [Untyped.Definition
        ignored
        (Identifier "f")
        Nothing
-       (U.Fn
+       (Expr.Fn
         ignored
-        (U.NameBinding ignored (Identifier "x"))
-        (U.Symbol ignored (Identifier "x")))]
+        (Expr.NameBinding ignored (Identifier "x"))
+        (Expr.Symbol ignored (Identifier "x") Untyped)
+        Untyped)]
 
     it "converts fn definition with multiple arguments" $
       (snd <$> explodeTopLevel [FnDefinition
@@ -101,17 +122,19 @@ spec = do
                                 [NameBinding (src 1 2) (Identifier "x"), NameBinding (src 1 3) (Identifier "y")]
                                 (Symbol (src 1 4) (Identifier "x"))])
       `shouldSucceedWith`
-      [U.Definition
+      [Untyped.Definition
        ignored
        (Identifier "f")
        Nothing
-       (U.Fn
+       (Expr.Fn
         ignored
-        (U.NameBinding ignored (Identifier "x"))
-        (U.Fn
+        (Expr.NameBinding ignored (Identifier "x"))
+        (Expr.Fn
          ignored
-         (U.NameBinding ignored (Identifier "y"))
-         (U.Symbol ignored (Identifier "x"))))]
+         (Expr.NameBinding ignored (Identifier "y"))
+         (Expr.Symbol ignored (Identifier "x") Untyped)
+         Untyped)
+        Untyped)]
 
     it "converts struct definition and uses empty list for type parameters" $
       (snd <$> explodeTopLevel [TypeDefinition
@@ -119,7 +142,7 @@ spec = do
                                 (Identifier "S")
                                 (TSRecord (src 1 2) (TSRowExtension (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t")) (TSRowEmpty (src 1 2))))])
       `shouldSucceedWith`
-      [U.TypeDefinition
+      [Untyped.TypeDefinition
        ignored
        (FQN ["pkg"] (Identifier "S"))
        []

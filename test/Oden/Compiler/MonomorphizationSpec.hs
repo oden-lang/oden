@@ -7,6 +7,7 @@ import           Test.Hspec
 import           Oden.Compiler.Monomorphization
 import qualified Oden.Core             as Core
 import           Oden.Core.Expr
+import           Oden.Core.Package
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -19,8 +20,8 @@ import           Oden.Assertions
 missing :: Metadata SourceInfo
 missing = Metadata Missing
 
-myPkg :: Core.PackageDeclaration
-myPkg = Core.PackageDeclaration missing ["my", "pkg"]
+myPkg :: PackageDeclaration
+myPkg = PackageDeclaration missing ["my", "pkg"]
 
 tvA :: Poly.TVar
 tvA = Poly.TV "a"
@@ -220,7 +221,7 @@ spec :: Spec
 spec =
   describe "monomorphPackage" $ do
     it "compiles empty package" $
-      monomorphPackage (Core.Package myPkg [] [])
+      monomorphPackage (Package myPkg [] [])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -228,7 +229,7 @@ spec =
         Set.empty
         Set.empty
     it "excludes unused polymorphic definitions" $
-      monomorphPackage (Core.Package myPkg [] [identityDef])
+      monomorphPackage (Package myPkg [] [identityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -236,7 +237,7 @@ spec =
         Set.empty
         Set.empty
     it "monomorphs polymorphic function usage" $
-      monomorphPackage (Core.Package myPkg [] [identityDef, usingIdentityDef])
+      monomorphPackage (Package myPkg [] [identityDef, usingIdentityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -244,7 +245,7 @@ spec =
         (Set.singleton identityInstIntToInt)
         (Set.singleton usingIdentityMonomorphed)
     it "monomorphs polymorphic function usage recursively" $
-      monomorphPackage (Core.Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
+      monomorphPackage (Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -252,7 +253,7 @@ spec =
         (Set.fromList [identityInstIntToInt, identity2InstIntToInt])
         (Set.singleton usingIdentity2Monomorphed)
     it "monomorphs let bound polymorphic function" $
-      monomorphPackage (Core.Package myPkg [] [letBoundIdentity])
+      monomorphPackage (Package myPkg [] [letBoundIdentity])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -260,7 +261,7 @@ spec =
         Set.empty
         (Set.singleton letBoundIdentityMonomorphed)
     it "uses polymorphic predefined Go funcs" $
-      monomorphPackage (Core.Package myPkg [] [sliceLenDef])
+      monomorphPackage (Package myPkg [] [sliceLenDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -268,7 +269,7 @@ spec =
         Set.empty
         (Set.singleton sliceLenMonomorphed)
     it "monomorphs let with shadowing" $
-      monomorphPackage (Core.Package myPkg [] [letWithShadowing])
+      monomorphPackage (Package myPkg [] [letWithShadowing])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg

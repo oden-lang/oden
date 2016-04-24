@@ -7,6 +7,7 @@ import           Oden.CLI
 import           Oden.CLI.Build
 
 import           Oden.Core
+import           Oden.Core.Package
 
 import           Control.Monad.Reader
 

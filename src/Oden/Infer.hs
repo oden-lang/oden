@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -21,10 +22,11 @@ import           Data.Foldable
 import qualified Data.Map                        as Map
 import qualified Data.Set                        as Set
 
-import qualified Oden.Core                       as Core
+import           Oden.Core                       as Core
 import           Oden.Core.Expr
 import           Oden.Core.Operator
-import qualified Oden.Core.Untyped               as Untyped
+import           Oden.Core.Package
+import           Oden.Core.Untyped               as Untyped
 import           Oden.Environment                as Environment hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.ConstraintCollection
@@ -57,14 +59,14 @@ initInfer :: InferState
 initInfer = InferState { count = 0 }
 
 instance FTV TypeBinding where
-  ftv (Package _ _ e)         = ftv e
+  ftv (PackageBinding _ _ e)         = ftv e
   ftv (Local _ _ d)           = ftv d
   ftv (Type _ _ _ fs)         = ftv fs
   ftv (QuantifiedType _ _ t)  = ftv t
   ftv (ProtocolBinding _ _ p) = ftv p
 
 instance Substitutable TypeBinding where
-  apply _ (Package si n e)         = Package si n e
+  apply _ (PackageBinding si n e)  = PackageBinding si n e
   apply s (Local si n d)           = Local si n (apply s d)
   apply s (Type si n bs t)         = Type si n bs (apply s t)
   apply s (QuantifiedType si n t)  = QuantifiedType si n (apply s t)
@@ -89,6 +91,7 @@ data TypeError
   | NotAnExpression SourceInfo Identifier
   | NotAProtocol SourceInfo Identifier
   | NoSuchMethodInProtocol SourceInfo Protocol Identifier
+  | InvalidForeignFnApplication SourceInfo
   deriving (Show, Eq)
 
 -- | Run the inference monad.
@@ -98,7 +101,7 @@ runInfer env m = runExcept $ evalRWST m env initInfer
 -- | Solve for the top-level type of an expression in a given typing
 -- environment.
 inferExpr :: TypingEnvironment
-          -> Untyped.Expr
+          -> UntypedExpr
           -> Either TypeError Core.CanonicalExpr
 inferExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
@@ -108,7 +111,7 @@ inferExpr env ex = do
 -- | Return the internal constraints used in solving for the type of an
 -- expression.
 constraintsExpr :: TypingEnvironment
-                -> Untyped.Expr
+                -> UntypedExpr
                 -> Either TypeError ([UnifyConstraint], Subst, Core.TypedExpr, Scheme)
 constraintsExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
@@ -132,7 +135,7 @@ lookupTypeIn :: TypingEnvironment -> Metadata SourceInfo -> Identifier -> Infer 
 lookupTypeIn env (Metadata si) identifier =
   case Environment.lookup identifier env of
     Nothing                     -> throwError $ NotInScope si identifier
-    Just Package{}              -> throwError $ InvalidPackageReference si identifier
+    Just PackageBinding{}       -> throwError $ InvalidPackageReference si identifier
     Just Local{}                -> throwError $ ValueUsedAsType si identifier
     Just ProtocolBinding{}      -> throwError $ ProtocolUsedAsType si identifier
     Just (Type _ _ _ t)         -> return t
@@ -148,7 +151,7 @@ lookupValueIn :: TypingEnvironment -> Metadata SourceInfo -> Identifier -> Infer
 lookupValueIn env (Metadata si) identifier = do
   type' <- case Environment.lookup identifier env of
             Nothing                -> throwError $ NotInScope si identifier
-            Just Package{}         -> throwError $ InvalidPackageReference si identifier
+            Just PackageBinding{}  -> throwError $ InvalidPackageReference si identifier
             Just (Local _ _ sc)    -> instantiate sc
             Just Type{}            -> throwError (NotAnExpression si identifier)
             Just QuantifiedType{}  -> throwError (NotAnExpression si identifier)
@@ -252,18 +255,18 @@ wrapForeign si expr t =
 -- inferred typed expression. Constraints are collected in the 'Infer' monad
 -- and substitutions are made before the inference is complete, so the
 -- expressions returned from 'infer' are not the final results.
-infer :: Untyped.Expr -> Infer Core.TypedExpr
-infer expr = case expr of
-  Untyped.Literal si Untyped.Unit ->
+infer :: UntypedExpr -> Infer Core.TypedExpr
+infer = \case
+  Literal si Unit Untyped ->
     return (Literal si Unit (TCon si (nameInUniverse "unit")))
-  Untyped.Literal si (Untyped.Int n) ->
+  Literal si (Int n) Untyped ->
     return (Literal si (Int n) (TCon si (nameInUniverse "int")))
-  Untyped.Literal si (Untyped.Bool b) ->
+  Literal si (Bool b) Untyped ->
     return (Literal si (Bool b) (TCon si (nameInUniverse "bool")))
-  Untyped.Literal si (Untyped.String s) ->
+  Literal si (String s) Untyped ->
     return (Literal si (String s) (TCon si (nameInUniverse "string")))
 
-  Untyped.Subscript si s i -> do
+  Subscript si s i Untyped -> do
     st <- infer s
     it <- infer i
     tv <- fresh si
@@ -271,9 +274,9 @@ infer expr = case expr of
     uni (getSourceInfo it) (typeOf it) (TCon si (nameInUniverse "int"))
     return (Subscript si st it tv)
 
-  Untyped.Subslice si s range ->
+  Subslice si s range Untyped ->
     case range of
-      (Untyped.Range lowerExpr upperExpr) -> do
+      (Range lowerExpr upperExpr) -> do
         st <- infer s
         lowerExprTyped <- infer lowerExpr
         upperExprTyped <- infer upperExpr
@@ -282,8 +285,8 @@ infer expr = case expr of
         uni (getSourceInfo upperExprTyped) (typeOf lowerExprTyped) (universeType si "int")
         uni (getSourceInfo upperExprTyped) (typeOf upperExprTyped) (universeType si "int")
         return (Subslice si st (Range lowerExprTyped upperExprTyped) (TSlice si tv))
-      (Untyped.RangeTo upperExpr) -> inferUnboundedRange RangeTo upperExpr
-      (Untyped.RangeFrom lowerExpr) -> inferUnboundedRange RangeFrom lowerExpr
+      (RangeTo upperExpr) -> inferUnboundedRange RangeTo upperExpr
+      (RangeFrom lowerExpr) -> inferUnboundedRange RangeFrom lowerExpr
 
     where
     inferUnboundedRange f boundExpr = do
@@ -294,7 +297,7 @@ infer expr = case expr of
       uni (getSourceInfo boundExprTyped) (typeOf boundExprTyped) (universeType si "int")
       return (Subslice si st (f boundExprTyped) (TSlice si tv))
 
-  Untyped.UnaryOp si o e -> do
+  UnaryOp si o e Untyped -> do
     rt <- case o of
               Positive   -> return (universeType si "int")
               Negative -> return (universeType si "int")
@@ -303,7 +306,7 @@ infer expr = case expr of
     uni (getSourceInfo te) (typeOf te) rt
     return (UnaryOp si o te rt)
 
-  Untyped.BinaryOp si o e1 e2 -> do
+  BinaryOp si o e1 e2 Untyped -> do
     (ot, rt) <- case o of
                     Add               -> return (universeType si "int", universeType si "int")
                     Subtract          -> return (universeType si "int", universeType si "int")
@@ -324,62 +327,54 @@ infer expr = case expr of
     uni (getSourceInfo te2) (typeOf te2) ot
     return (BinaryOp si o te1 te2 rt)
 
-  Untyped.Symbol si x -> do
+  Symbol si x Untyped -> do
     t <- lookupValue si x
     wrapForeign si (Symbol si x t) t
 
-  Untyped.MemberAccess si expr'@(Untyped.Symbol symbolSourceInfo name) memberName -> do
+  MemberAccess si (NamedMemberAccess expr'@(Symbol symbolSourceInfo name Untyped) memberName) Untyped -> do
     env <- ask
     case Environment.lookup name env of
-      Just (Package _ _ pkgEnv) -> do
+      Just (PackageBinding _ _ pkgEnv) -> do
         valueType <- lookupValueIn pkgEnv si memberName
-        wrapForeign si (PackageMemberAccess si name memberName valueType) valueType
+        wrapForeign si (MemberAccess si (PackageMemberAccess name memberName) valueType) valueType
       Just _ -> inferRecordFieldAccess si expr' memberName
       Nothing -> throwError $ NotInScope (unwrap symbolSourceInfo) name
 
-  Untyped.MemberAccess si expr' fieldName ->
+  MemberAccess si (NamedMemberAccess expr' fieldName) Untyped ->
     inferRecordFieldAccess si expr' fieldName
 
-  Untyped.Fn si (Untyped.NameBinding bsi a) b -> do
+  Fn si (NameBinding bsi a) b Untyped -> do
     tv <- fresh bsi
     tb <- inEnv (a, Local bsi a (Forall bsi [] Set.empty tv)) (infer b)
     return (Fn si (NameBinding bsi a) tb (TFn si tv (typeOf tb)))
 
-  Untyped.NoArgFn si f -> do
+  NoArgFn si f Untyped -> do
     tf <- infer f
     return (NoArgFn si tf (TNoArgFn si (typeOf tf)))
 
-  Untyped.Application si f ps -> do
+  NoArgApplication si f Untyped -> do
+    tv <- fresh si
     tf <- infer f
-    case typeOf tf of
+    uni (getSourceInfo tf)
+      (typeOf tf)
+      (TNoArgFn (Metadata $ getSourceInfo tf) tv)
+    return (NoArgApplication si tf tv)
 
-      -- No-arg functions
-      t | null ps -> do
-        tv <- fresh si
-        uni (getSourceInfo tf)
-          t
-          (TNoArgFn (Metadata $ getSourceInfo tf) tv)
-        return (NoArgApplication si tf tv)
+  Application si f p Untyped -> do
+    tv <- fresh si
+    tf <- infer f
+    tp <- infer p
+    uni (getSourceInfo tf)
+        (typeOf tf)
+        (TFn (Metadata $ getSourceInfo tf) (typeOf tp) tv)
+    return (Application si tf tp tv)
 
-      -- Everything else, i.e. functions with a single argument and one return value
-      _ ->
-        foldM app tf ps
-        where
-        app :: Core.TypedExpr -> Untyped.Expr -> Infer Core.TypedExpr
-        app tf' p = do
-          tv <- fresh si
-          tp <- infer p
-          uni (getSourceInfo tf)
-              (typeOf tf')
-              (TFn (Metadata $ getSourceInfo tf) (typeOf tp) tv)
-          return (Application si tf' tp tv)
-
-  Untyped.Let si (Untyped.NameBinding bsi n) e b -> do
+  Let si (NameBinding bsi n) e b Untyped -> do
     te <- infer e
     tb <- inEnv (n, Local bsi n (Forall si [] Set.empty (typeOf te))) (infer b)
     return (Let si (NameBinding bsi n) te tb (typeOf tb))
 
-  Untyped.If si cond tr fl -> do
+  If si cond tr fl Untyped -> do
     tcond <- infer cond
     ttr <- infer tr
     tfl <- infer fl
@@ -387,20 +382,20 @@ infer expr = case expr of
     uni (getSourceInfo ttr) (typeOf ttr) (typeOf tfl)
     return (If si tcond ttr tfl (typeOf ttr))
 
-  Untyped.Tuple si f s r -> do
+  Tuple si f s r Untyped -> do
     tf <- infer f
     ts <- infer s
     tr <- mapM infer r
     let t = TTuple si (typeOf tf) (typeOf ts) (map typeOf tr)
     return (Tuple si tf ts tr t)
 
-  Untyped.Slice si es -> do
+  Slice si es Untyped -> do
     tv <- fresh si
     tes <- mapM infer es
     mapM_ (uni (unwrap si) tv . typeOf) tes
     return (Slice si tes (TSlice si tv))
 
-  Untyped.Block si es -> do
+  Block si es Untyped -> do
     tv <- fresh si
     tes <- mapM infer es
     case tes of
@@ -408,20 +403,25 @@ infer expr = case expr of
       _ -> uni (unwrap si) tv (typeOf (last tes))
     return (Block si tes tv)
 
-  Untyped.RecordInitializer si fields -> do
+  RecordInitializer si fields Untyped -> do
     (fieldInitializers, row) <- foldM unifyFields ([], REmpty si) fields
-    return (RecordInitializer si (TRecord si row) fieldInitializers)
+    return (RecordInitializer si fieldInitializers (TRecord si row))
     where
-    unifyFields (typedFields, row) (Untyped.FieldInitializer fsi label expr') = do
+    unifyFields (typedFields, row) (FieldInitializer fsi label expr') = do
       typedExpr <- infer expr'
       return (FieldInitializer fsi label typedExpr : typedFields, RExtension fsi label (typeOf typedExpr) row)
 
-  Untyped.ProtocolMethodReference si protocol method -> do
+  MethodReference si (NamedMethodReference protocol method) Untyped -> do
     protocolType <- lookupProtocol si protocol
     method' <- findMethod (unwrap si) protocolType method
     methodType <- instantiateMethod protocolType method'
     let ref = Core.UnresolvedMethodReference protocolType method'
     return (MethodReference si ref methodType)
+
+  ForeignFnApplication (Metadata si) _ _ _ ->
+    -- Untyped code is not allowed to use foreign function application
+    -- directly, that is only used by the compiler after type inference.
+    throwError (InvalidForeignFnApplication si)
 
   where
   inferRecordFieldAccess si expr' label = do
@@ -431,7 +431,7 @@ infer expr = case expr of
     uni (getSourceInfo typedExpr)
         (TRecord (Metadata $ getSourceInfo typedExpr) (RExtension si label fieldType recordExtType))
         (typeOf typedExpr)
-    return (RecordFieldAccess si typedExpr label fieldType)
+    return (MemberAccess si (RecordFieldAccess typedExpr label) fieldType)
 
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr SourceInfo -> Infer Type
@@ -501,7 +501,7 @@ inferDef (Untyped.TypeDefinition si name params typeExpr) = do
   type' <- resolveType typeExpr
   return (Core.TypeDefinition si name (map convertParams params) type', False)
   where
-  convertParams (Untyped.NameBinding bsi bn) = NameBinding bsi bn
+  convertParams (NameBinding bsi bn) = NameBinding bsi bn
 
 inferDef (Untyped.ProtocolDefinition si name (SignatureVarBinding vsi var) methods) = do
   -- boundType <- fresh (Metadata vsi)
@@ -541,12 +541,12 @@ inferDefinition env def = do
 
 -- | Infer the package, returning a package with typed definitions along with
 -- the extended typing environment.
-inferPackage :: Untyped.Package [Core.ImportedPackage]
-             -> Either TypeError Core.Package
-inferPackage (Untyped.Package (Untyped.PackageDeclaration psi name) imports defs) = do
+inferPackage :: UntypedPackage Core.ImportedPackage
+             -> Either TypeError TypedPackage
+inferPackage (Package (PackageDeclaration psi name) imports defs) = do
   let env = fromPackage universe `merge` fromPackages imports
   inferred <- snd <$> foldM iter (env, []) defs
-  return (Core.Package (Core.PackageDeclaration psi name) imports inferred)
+  return (Package (PackageDeclaration psi name) imports inferred)
   where
   iter (e, inferred) def = do
       (e', def') <- inferDefinition e def

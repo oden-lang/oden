@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE LambdaCase                 #-}
 module Oden.Infer.Substitution where
 
 import           Oden.Core             as Core
@@ -65,45 +66,55 @@ instance Substitutable UnresolvedMethodReference where
   apply s (UnresolvedMethodReference protocol method) =
     UnresolvedMethodReference (apply s protocol) (apply s method)
 
+instance FTV TypedMemberAccess where
+  ftv = \case
+    RecordFieldAccess expr _ -> ftv expr
+    PackageMemberAccess _ _  -> Set.empty
+
+instance Substitutable TypedMemberAccess where
+  apply s = \case
+    RecordFieldAccess expr name       -> RecordFieldAccess (apply s expr) name
+    PackageMemberAccess pkgAlias name -> PackageMemberAccess pkgAlias name
+
 instance FTV CanonicalExpr where
   ftv (sc, expr) = ftv sc `Set.union` ftv expr
 
 instance Substitutable CanonicalExpr where
   apply s (sc, expr) = (apply s sc, apply s expr)
 
-instance FTV (FieldInitializer r Type) where
+instance FTV e => FTV (FieldInitializer e) where
   ftv (FieldInitializer _ _ expr) = ftv expr
 
-instance Substitutable r => Substitutable (FieldInitializer r Type) where
+instance (Substitutable e) => Substitutable (FieldInitializer e) where
   apply s (FieldInitializer si label expr) =
     FieldInitializer si label (apply s expr)
 
-instance FTV (Expr r Type) where
+instance FTV (Expr r Type m) where
   ftv = ftv . typeOf
 
-instance (Substitutable r) => Substitutable (Expr r Type) where
-  apply s (Symbol si x t)                                = Symbol si x (apply s t)
-  apply s (Subscript si es i t)                          = Subscript si (apply s es) (apply s i) (apply s t)
-  apply s (Subslice si es (Range e1 e2) t)               = Subslice si (apply s es) (Range (apply s e1) (apply s e2)) (apply s t)
-  apply s (Subslice si es (RangeTo e) t)                 = Subslice si (apply s es) (RangeTo (apply s e)) (apply s t)
-  apply s (Subslice si es (RangeFrom e) t)               = Subslice si (apply s es) (RangeFrom (apply s e)) (apply s t)
-  apply s (UnaryOp si o e t)                             = UnaryOp si o (apply s e) (apply s t)
-  apply s (BinaryOp si o e1 e2 t)                        = BinaryOp si o (apply s e1) (apply s e2) (apply s t)
-  apply s (Application si f p t)                         = Application si (apply s f) (apply s p) (apply s t)
-  apply s (NoArgApplication si f t)                      = NoArgApplication si (apply s f) (apply s t)
-  apply s (ForeignFnApplication si f p t)                = ForeignFnApplication si (apply s f) (apply s p) (apply s t)
-  apply s (Fn si x b t)                                  = Fn si x (apply s b) (apply s t)
-  apply s (NoArgFn si b t)                               = NoArgFn si (apply s b) (apply s t)
-  apply s (Let si x e b t)                               = Let si x (apply s e) (apply s b) (apply s t)
-  apply s (Literal si l t)                               = Literal si l (apply s t)
-  apply s (Tuple si fe se re t)                          = Tuple si (apply s fe) (apply s se) (apply s re) (apply s t)
-  apply s (If si c tb fb t)                              = If si (apply s c) (apply s tb) (apply s fb) (apply s t)
-  apply s (Slice si es t)                                = Slice si (apply s es) (apply s t)
-  apply s (Block si es t)                                = Block si (apply s es) (apply s t)
-  apply s (RecordInitializer si t fs)                    = RecordInitializer si (apply s t) (apply s fs)
-  apply s (RecordFieldAccess si expr name t)             = RecordFieldAccess si (apply s expr) name (apply s t)
-  apply s (PackageMemberAccess si pkgAlias name t)       = PackageMemberAccess si pkgAlias name (apply s t)
-  apply s (MethodReference si ref t)                     = MethodReference si (apply s ref) (apply s t)
+instance (Substitutable r, Substitutable m) => Substitutable (Expr r Type m) where
+  apply s = \case
+    Symbol si x t                  -> Symbol si x (apply s t)
+    Subscript si es i t            -> Subscript si (apply s es) (apply s i) (apply s t)
+    Subslice si es (Range e1 e2) t -> Subslice si (apply s es) (Range (apply s e1) (apply s e2)) (apply s t)
+    Subslice si es (RangeTo e) t   -> Subslice si (apply s es) (RangeTo (apply s e)) (apply s t)
+    Subslice si es (RangeFrom e) t -> Subslice si (apply s es) (RangeFrom (apply s e)) (apply s t)
+    UnaryOp si o e t               -> UnaryOp si o (apply s e) (apply s t)
+    BinaryOp si o e1 e2 t          -> BinaryOp si o (apply s e1) (apply s e2) (apply s t)
+    Application si f p t           -> Application si (apply s f) (apply s p) (apply s t)
+    NoArgApplication si f t        -> NoArgApplication si (apply s f) (apply s t)
+    ForeignFnApplication si f p t  -> ForeignFnApplication si (apply s f) (apply s p) (apply s t)
+    Fn si x b t                    -> Fn si x (apply s b) (apply s t)
+    NoArgFn si b t                 -> NoArgFn si (apply s b) (apply s t)
+    Let si x e b t                 -> Let si x (apply s e) (apply s b) (apply s t)
+    Literal si l t                 -> Literal si l (apply s t)
+    Tuple si fe se re t            -> Tuple si (apply s fe) (apply s se) (apply s re) (apply s t)
+    If si c tb fb t                -> If si (apply s c) (apply s tb) (apply s fb) (apply s t)
+    Slice si es t                  -> Slice si (apply s es) (apply s t)
+    Block si es t                  -> Block si (apply s es) (apply s t)
+    RecordInitializer si t fs      -> RecordInitializer si (apply s t) (apply s fs)
+    MemberAccess si access t       -> MemberAccess si (apply s access) (apply s t)
+    MethodReference si ref t       -> MethodReference si (apply s ref) (apply s t)
 
 instance Substitutable ProtocolMethod where
   apply s (ProtocolMethod si name scheme) =

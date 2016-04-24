@@ -13,7 +13,8 @@ module Oden.Go.Importer (
   importer
 ) where
 
-import qualified Oden.Core                  as Core
+import           Oden.Core
+import           Oden.Core.Package
 import           Oden.Go.Type               as G
 import qualified Oden.Go.Identifier         as GI
 import           Oden.Identifier
@@ -113,7 +114,7 @@ instance FromJSON PackageObjectsResponse where
                        <|> ObjectsResponse <$> o .: "objects"
   parseJSON v = fail $ "Expected JSON object for PackageObjectsResponse but got: " ++ show v
 
-decodeResponse :: Core.PackageName -> String -> Either PackageImportError [PackageObject]
+decodeResponse :: PackageName -> String -> Either PackageImportError [PackageObject]
 decodeResponse pkgName s = either (Left . PackageImportError pkgName) Right $ do
   value <- eitherDecode (pack s)
   case value of
@@ -165,11 +166,11 @@ convertType (Struct fields) = do
     Poly.RExtension missing (Identifier name) <$> convertType goType <*> return row
 convertType (Unsupported n) = throwError n
 
-objectsToPackage :: Core.PackageName
-             -> [PackageObject]
-             -> (Core.Package, [UnsupportedMessage])
+objectsToPackage :: PackageName
+                 -> [PackageObject]
+                 -> (TypedPackage, [UnsupportedMessage])
 objectsToPackage pkgName objs =
-  (Core.Package (Core.PackageDeclaration missing pkgName) [] allDefs, allMessages)
+  (Package (PackageDeclaration missing pkgName) [] allDefs, allMessages)
   where
   (allDefs, allMessages) = foldl addObject ([], []) objs
   addObject (defs, msgs) (NamedType name goType) =
@@ -177,14 +178,14 @@ objectsToPackage pkgName objs =
     case runExcept (runStateT (convertType goType) 0) of
          Left u -> (defs, (identifier, u) : msgs)
          Right (type', _) ->
-           (Core.TypeDefinition missing (FQN pkgName identifier) [] type' : defs, msgs)
+           (TypeDefinition missing (FQN pkgName identifier) [] type' : defs, msgs)
   addObject (defs, msgs) obj =
     let n = Identifier (nameOf obj)
     in case runExcept (runStateT (convertType $ typeOf obj) 0) of
          Left u -> (defs, (n, u) : msgs)
          Right (ct, _) ->
            let sc = Poly.Forall missing [] Set.empty ct
-           in (Core.ForeignDefinition missing n sc : defs, msgs)
+           in (ForeignDefinition missing n sc : defs, msgs)
 
 importer :: Importer
 importer pkgName = do

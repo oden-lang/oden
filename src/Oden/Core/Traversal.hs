@@ -5,12 +5,13 @@ module Oden.Core.Traversal where
 
 import           Oden.Core.Expr
 
-data Traversal m t = Traversal { onType :: t -> m t }
+data Traversal m t a = Traversal { onType :: t -> m t
+                                 , onMemberAccess :: a -> m a }
 
 traverseExpr :: Monad m
-              => Traversal m t
-              -> Expr r t
-              -> m (Expr r t)
+              => Traversal m t a
+              -> Expr r t a
+              -> m (Expr r t a)
 traverseExpr traversal@Traversal{ onType = onType' } type' = do
   let recurse = traverseExpr traversal
   case type' of
@@ -49,14 +50,12 @@ traverseExpr traversal@Traversal{ onType = onType' } type' = do
             <*> onType' t
     Block si exprs t ->
       Block si <$> mapM recurse exprs <*> onType' t
-    RecordInitializer si t fields ->
-      RecordInitializer si <$> onType' t <*> mapM onField fields
+    RecordInitializer si fields t ->
+      RecordInitializer si <$> mapM onField fields <*> onType' t
       where
       onField (FieldInitializer fsi fieldName fieldValue) =
         FieldInitializer fsi fieldName <$> recurse fieldValue
-    RecordFieldAccess si expr fieldName t ->
-      RecordFieldAccess si <$> recurse expr <*> return fieldName <*> onType' t
-    PackageMemberAccess si alias member t ->
-      PackageMemberAccess si alias member <$> onType' t
+    MemberAccess si access t ->
+      MemberAccess si <$> onMemberAccess traversal access <*> onType' t
     MethodReference si ref t ->
       MethodReference si ref <$> onType' t

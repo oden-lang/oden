@@ -7,6 +7,7 @@ module Oden.Predefined (
 ) where
 
 import qualified Oden.Core             as Core
+import           Oden.Core.Package
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -39,10 +40,10 @@ types = [
   ("unit", typeUnit)
   ]
 
-universe :: Core.Package
+universe :: Core.TypedPackage
 universe =
-  Core.Package
-  (Core.PackageDeclaration (Metadata Missing) [])
+  Package
+  (PackageDeclaration (Metadata Missing) [])
   []
   (map toForeignDef foreignFns ++ map toTypeDef types)
     where

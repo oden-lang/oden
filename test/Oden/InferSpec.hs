@@ -2,10 +2,10 @@ module Oden.InferSpec where
 
 import           Test.Hspec
 
-import qualified Oden.Core             as Core
+import           Oden.Core
 import           Oden.Core.Expr
 import           Oden.Core.Operator
-import qualified Oden.Core.Untyped     as Untyped
+import           Oden.Core.Untyped
 import           Oden.Environment
 import           Oden.Identifier
 import           Oden.Infer            (inferExpr)
@@ -18,31 +18,51 @@ import qualified Data.Set as Set
 import           Oden.Assertions
 import           Oden.Infer.Fixtures
 
+untypedSymbol s = Symbol missing (Identifier s) Untyped
+untypedInt n = Literal missing (Int n) Untyped
+
+untypedFalse = Literal missing (Bool False) Untyped
+untypedTrue = Literal missing (Bool True) Untyped
+
+untypedNoArgFn body = NoArgFn missing body Untyped
+untypedFn p body = Fn missing (NameBinding missing (Identifier p)) body Untyped
+
+untypedNoArgApplication f = NoArgApplication missing f Untyped
+untypedApplication f a = Application missing f a Untyped
+
 spec :: Spec
 spec = describe "inferExpr" $ do
   it "infers int literal" $
-    inferExpr empty (uLiteral (uInt 1))
+    inferExpr empty (untypedInt 1)
     `shouldSucceedWith`
     (scheme typeInt,
      tLiteral (tInt 1) typeInt)
 
   it "infers int slice" $
-    inferExpr empty (uSlice [uLiteral (uInt 1)])
+    inferExpr empty (Slice missing [untypedInt 1] Untyped)
     `shouldSucceedWith`
     (scheme intSlice,
      tSlice [tLiteral (tInt 1) typeInt] intSlice)
 
   it "fails on mixed type slice" $
     shouldFail $
-      inferExpr empty (uSlice [uLiteral (uInt 1),
-                                      uLiteral (uString "foo")])
+      inferExpr empty (Slice
+                       missing
+                       [untypedInt 1,
+                        Literal missing (String "foo") Untyped]
+                       Untyped)
 
   it "infers tuple" $
     let tupleType = TTuple missing typeInt typeString [typeUnit]
     in
-      inferExpr empty (uTuple (uLiteral (uInt 1))
-                                     (uLiteral (uString "foo"))
-                                     [uLiteral uUnit])
+      inferExpr
+      empty
+      (Tuple
+       missing
+       (untypedInt 1)
+       (Literal missing (String "foo") Untyped)
+       [Literal missing Unit Untyped]
+       Untyped)
       `shouldSucceedWith`
       (scheme tupleType,
       tTuple
@@ -52,31 +72,47 @@ spec = describe "inferExpr" $ do
       tupleType)
 
   it "infers record member access" $
-    inferExpr empty (uFn
-                     (uNameBinding (Identifier "x"))
-                     (uMemberAccess
-                      (uSymbol (Identifier "x"))
-                      (Identifier "y")))
+    inferExpr
+    empty
+    (untypedFn
+     "x"
+     (MemberAccess
+      missing
+      (NamedMemberAccess
+       (untypedSymbol "x")
+       (Identifier "y"))
+      Untyped))
     `shouldSucceedWith`
     let recordType = TRecord missing (RExtension missing (Identifier "y") tvarA tvarB) in
       (scheme (typeFn recordType tvarA),
-      tFn
-      (tNameBinding (Identifier "x"))
-      (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "y") tvarA)
-      (typeFn recordType tvarA))
+       tFn
+       (tNameBinding (Identifier "x"))
+       (MemberAccess
+        missing
+        (RecordFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "y"))
+        tvarA)
+       (typeFn recordType tvarA))
 
   it "infers multiple record member accesses" $
-    inferExpr empty (uFn
-                     (uNameBinding (Identifier "x"))
-                     (Untyped.Tuple
-                      missing
-                      (uMemberAccess
-                       (uSymbol (Identifier "x"))
-                       (Identifier "y"))
-                      (uMemberAccess
-                       (uSymbol (Identifier "x"))
-                       (Identifier "z"))
-                      []))
+    inferExpr
+    empty
+    (untypedFn "x"
+     (Tuple
+      missing
+      (MemberAccess
+       missing
+       (NamedMemberAccess
+        (untypedSymbol "x")
+        (Identifier "y"))
+       Untyped)
+      (MemberAccess
+       missing
+       (NamedMemberAccess
+        (untypedSymbol "x")
+        (Identifier "z"))
+       Untyped)
+      []
+      Untyped))
     `shouldSucceedWith'`
     let recordType = TRecord missing (RExtension missing (Identifier "y") tvarA (RExtension missing (Identifier "z") tvarC tvarB))
         tupleType = TTuple missing tvarA tvarC [] in
@@ -85,40 +121,64 @@ spec = describe "inferExpr" $ do
       (tNameBinding (Identifier "x"))
       (Tuple
        missing
-       (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "y") tvarA)
-       (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "z") tvarC)
+       (MemberAccess
+        missing
+        (RecordFieldAccess
+         (tSymbol (Identifier "x") recordType)
+         (Identifier "y"))
+        tvarA)
+       (MemberAccess
+        missing
+        (RecordFieldAccess
+         (tSymbol (Identifier "x") recordType)
+         (Identifier "z"))
+        tvarC)
        []
        tupleType)
       (typeFn recordType (TTuple missing tvarA tvarC [])))
 
   it "infers package member access" $
-    inferExpr fooBarPkgEnv (uMemberAccess (uSymbol (Identifier "foo")) (Identifier "Bar"))
+    inferExpr
+    fooBarPkgEnv
+    (MemberAccess
+     missing
+     (NamedMemberAccess
+      (untypedSymbol "foo")
+      (Identifier "Bar"))
+     Untyped)
     `shouldSucceedWith`
     (scheme typeInt,
-     tPackageMemberAcccess (Identifier "foo") (Identifier "Bar") typeInt)
+     MemberAccess
+     missing
+     (PackageMemberAccess
+      (Identifier "foo")
+      (Identifier "Bar"))
+     typeInt)
 
   it "infers identity fn" $
-    inferExpr empty (uFn (uNameBinding (Identifier "x")) (uSymbol (Identifier "x")))
+    inferExpr empty (untypedFn "x" (untypedSymbol "x"))
     `shouldSucceedWith`
     (scheme (typeFn tvarA tvarA),
      tFn (tNameBinding (Identifier "x")) (tSymbol (Identifier "x") tvarA) (typeFn tvarA tvarA))
 
   it "infers no-arg fn" $
-    inferExpr empty (uNoArgFn (uLiteral (uBool True)))
+    inferExpr empty (untypedNoArgFn untypedTrue)
     `shouldSucceedWith`
     (scheme (typeNoArgFn typeBool),
      tNoArgFn (tLiteral (tBool True) typeBool) (typeNoArgFn typeBool))
 
   it "infers no-arg fn application" $
-    inferExpr empty (uApplication (uNoArgFn (uLiteral (uBool True))) [])
+    inferExpr empty (untypedNoArgApplication (untypedNoArgFn untypedTrue))
     `shouldSucceedWith`
     (scheme typeBool,
      tNoArgApplication (tNoArgFn (tLiteral (tBool True) typeBool) (typeNoArgFn typeBool)) typeBool)
 
   it "infers multi-arg fn application" $
-    inferExpr empty (uApplication
-                     (uFn (uNameBinding (Identifier "x")) (uFn (uNameBinding (Identifier "y")) (uLiteral (uInt 1))))
-                     [uLiteral (uBool False), uLiteral (uBool False)])
+    inferExpr empty (untypedApplication
+                     (untypedApplication
+                      (untypedFn "x" (untypedFn "y" (untypedInt 1)))
+                      untypedFalse)
+                     untypedTrue)
     `shouldSucceedWith`
     (scheme typeInt,
      tApplication
@@ -128,25 +188,26 @@ spec = describe "inferExpr" $ do
        (typeBool `typeFn` (typeBool `typeFn` typeInt)))
       (tLiteral (tBool False) typeBool)
       (typeBool `typeFn` typeInt))
-     (tLiteral (tBool False) typeBool)
+     (tLiteral (tBool True) typeBool)
      typeInt)
 
   it "fails in fn application with type mismatch" $
     shouldFail $
-      inferExpr predefAndStringLength (uApplication
-                                       (uSymbol (Identifier "stringLength"))
-                                       [uLiteral (uInt 1)])
+      inferExpr
+      predefAndStringLength
+      (untypedApplication
+       (untypedSymbol "stringLength")
+       (untypedInt 1))
 
   it "infers nested fn application" $
     inferExpr
     predef
-    (uOp
+    (BinaryOp
+     missing
      Or
-     (uOp
-      And
-      (uLiteral (uBool False))
-      (uLiteral (uBool False)))
-     (uLiteral (uBool True)))
+     (BinaryOp missing And untypedFalse untypedFalse Untyped)
+     untypedTrue
+     Untyped)
     `shouldSucceedWith`
     (scheme typeBool,
      tOp
@@ -161,11 +222,8 @@ spec = describe "inferExpr" $ do
 
   it "infers 1 + 1" $
     inferExpr
-      predef
-      (uOp
-       Add
-       (uLiteral (uInt 1))
-       (uLiteral (uInt 1)))
+    predef
+    (BinaryOp missing Add (untypedInt 1) (untypedInt 1) Untyped)
     `shouldSucceedWith`
     (scheme typeInt,
       tOp
@@ -175,19 +233,32 @@ spec = describe "inferExpr" $ do
       typeInt)
 
   it "infers let" $
-    inferExpr empty (uLet (uNameBinding (Identifier "x")) (uLiteral (uInt 1)) (uSymbol (Identifier "x")))
+    inferExpr
+    empty
+    (Let
+     missing
+     (NameBinding missing (Identifier "x"))
+     (untypedInt 1)
+     (untypedSymbol "x")
+     Untyped)
     `shouldSucceedWith`
     (scheme typeInt,
      tLet (tNameBinding (Identifier "x")) (tLiteral (tInt 1) typeInt) (tSymbol (Identifier "x") typeInt) typeInt)
 
   it "infers let with shadowing" $
-    inferExpr empty (uLet
-                     (uNameBinding (Identifier "x"))
-                     (uLiteral (uInt 1))
-                     (uLet
-                      (uNameBinding (Identifier "x"))
-                      (uSymbol (Identifier "x"))
-                      (uSymbol (Identifier "x"))))
+    inferExpr
+    empty
+    (Let
+     missing
+     (NameBinding missing (Identifier "x"))
+     (untypedInt 1)
+     (Let
+      missing
+      (NameBinding missing (Identifier "x"))
+      (untypedSymbol "x")
+      (untypedSymbol "x")
+      Untyped)
+     Untyped)
     `shouldSucceedWith`
     (scheme typeInt,
      tLet
@@ -201,7 +272,15 @@ spec = describe "inferExpr" $ do
       typeInt)
 
   it "infers polymorphic if" $
-    inferExpr empty (uFn (uNameBinding (Identifier "x")) (uIf (uLiteral (uBool True)) (uSymbol (Identifier "x")) (uSymbol (Identifier "x"))))
+    inferExpr
+    empty
+    (untypedFn "x"
+     (If
+      missing
+      (Literal missing (Bool True) Untyped)
+      (untypedSymbol "x")
+      (untypedSymbol "x")
+      Untyped))
     `shouldSucceedWith`
     (scheme (typeFn tvarA tvarA),
      tFn (tNameBinding (Identifier "x")) (tIf (tLiteral (tBool True) typeBool)
@@ -210,7 +289,13 @@ spec = describe "inferExpr" $ do
                           tvarA) (typeFn tvarA tvarA))
 
   it "infers single-arg foreign func application" $
-    inferExpr predef (uApplication (uSymbol (Identifier "len")) [uSlice [uLiteral (uBool True)]])
+    inferExpr
+    predef
+    (Application
+     missing
+     (untypedSymbol "len")
+     (Slice missing [Literal missing (Bool True) Untyped] Untyped)
+     Untyped)
     `shouldSucceedWith`
     (scheme typeInt,
      tApplication
@@ -224,9 +309,17 @@ spec = describe "inferExpr" $ do
      typeInt)
 
   it "infers multi-arg foreign func application" $
-    inferExpr predefAndMax (uApplication (uSymbol (Identifier "max"))
-                                                [uLiteral (uInt 0)
-                                                ,uLiteral (uInt 1)])
+    inferExpr
+    predefAndMax
+    (Application
+     missing
+     (Application
+      missing
+      (untypedSymbol "max")
+      (untypedInt 0)
+      Untyped)
+     (untypedInt 1)
+     Untyped)
     `shouldSucceedWith`
     (scheme typeInt,
      tApplication
@@ -247,11 +340,17 @@ spec = describe "inferExpr" $ do
      typeInt)
 
   it "infers variadic func application" $
-    inferExpr predefAndMaxVariadic (uApplication
-                                    (uSymbol (Identifier "max"))
-                                    [uSlice
-                                     [uLiteral (uInt 0)
-                                     ,uLiteral (uInt 1)]])
+    inferExpr
+    predefAndMaxVariadic
+    (Application
+     missing
+     (untypedSymbol "max")
+     (Slice
+       missing
+       [untypedInt 0
+       ,untypedInt 1]
+       Untyped)
+     Untyped)
     `shouldSucceedWith`
     (scheme typeInt,
      tApplication
@@ -266,7 +365,13 @@ spec = describe "inferExpr" $ do
      typeInt)
 
   it "infers variadic no-arg func application" $
-    inferExpr predefAndMaxVariadic (uApplication (uSymbol (Identifier "max")) [uSlice []])
+    inferExpr
+    predefAndMaxVariadic
+    (Application
+     missing
+     (untypedSymbol "max")
+     (Slice missing [] Untyped)
+     Untyped)
     `shouldSucceedWith`
     (scheme typeInt,
      tApplication
@@ -282,27 +387,46 @@ spec = describe "inferExpr" $ do
 
   it "infers record initializer" $
     let recordType = TRecord missing (RExtension missing (Identifier "msg") typeString (REmpty missing)) in
-      inferExpr predef (Untyped.RecordInitializer
+      inferExpr predef (RecordInitializer
                         missing
-                        [Untyped.FieldInitializer missing (Identifier "msg") (Untyped.Literal missing (Untyped.String "hello"))])
+                        [FieldInitializer
+                         missing
+                         (Identifier "msg")
+                         (Literal missing (String "hello") Untyped)]
+                        Untyped)
       `shouldSucceedWith`
       (scheme recordType,
-       RecordInitializer missing recordType [FieldInitializer missing (Identifier "msg") (Literal missing (String "hello") typeString)])
+       RecordInitializer
+       missing
+       [FieldInitializer
+        missing
+        (Identifier "msg")
+        (Literal missing (String "hello") typeString)]
+       recordType)
 
   it "infers record field access fn" $
     let recordType = typeRecord (rowExt (Identifier "a") tvarA tvarB)
         functionType = typeFn recordType tvarA in
-    inferExpr empty (uFn (uNameBinding (Identifier "x")) (uMemberAccess (uSymbol (Identifier "x")) (Identifier "a")))
+    inferExpr empty (untypedFn "x"
+                     (MemberAccess
+                      missing
+                      (NamedMemberAccess
+                       (untypedSymbol "x")
+                       (Identifier "a"))
+                      Untyped))
     `shouldSucceedWith`
     (scheme functionType,
      tFn
      (tNameBinding (Identifier "x"))
-     (tFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "a") tvarA)
+     (MemberAccess
+      missing
+      (RecordFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "a"))
+      tvarA)
      functionType)
 
   it "infers type with constraints" $
     let methodType = typeFn tvarA typeBool in
-    inferExpr predefAndTestableProtocol (Untyped.ProtocolMethodReference missing (Identifier "Testable") (Identifier "test"))
+    inferExpr predefAndTestableProtocol (MethodReference missing (NamedMethodReference (Identifier "Testable") (Identifier "test")) Untyped)
     `shouldSucceedWith`
     (Forall predefined [tvarBinding tvA] (Set.singleton (ProtocolConstraint missing testableProtocol tvarA)) methodType,
-     MethodReference missing (Core.UnresolvedMethodReference testableProtocol testableProtocolMethod) methodType)
+     MethodReference missing (UnresolvedMethodReference testableProtocol testableProtocolMethod) methodType)

@@ -4,7 +4,7 @@ import           Oden.Core
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 
-evaluate :: Expr r t -> Maybe Literal
+evaluate :: Expr r t a -> Maybe Literal
 evaluate Symbol{} = Nothing
 
 evaluate Subscript{} = Nothing
@@ -56,8 +56,7 @@ evaluate NoArgFn{} = Nothing
 evaluate Let{} = Nothing
 
 evaluate RecordInitializer{} = Nothing
-evaluate RecordFieldAccess{} = Nothing
-evaluate PackageMemberAccess{} = Nothing
+evaluate MemberAccess{} = Nothing
 evaluate MethodReference{} = Nothing
 
 evaluate (Literal _ l _) = Just l
@@ -71,7 +70,7 @@ evaluate Slice{} = Nothing
 evaluate Tuple{} = Nothing
 evaluate Block{} = Nothing
 
-evaluateBinaryIntExpr :: Expr r t -> Maybe Literal
+evaluateBinaryIntExpr :: Expr r t a -> Maybe Literal
 evaluateBinaryIntExpr (BinaryOp _ op e1 e2 _) = do
   (Int n1) <- evaluate e1
   (Int n2) <- evaluate e2
@@ -83,7 +82,7 @@ evaluateBinaryIntExpr (BinaryOp _ op e1 e2 _) = do
     _      -> Nothing
 evaluateBinaryIntExpr _ = Nothing
 
-evaluateIntComparison :: Expr r t -> Maybe Literal
+evaluateIntComparison :: Expr r t a -> Maybe Literal
 evaluateIntComparison (BinaryOp _ op e1 e2 _) = do
   (Int n1) <- evaluate e1
   (Int n2) <- evaluate e2

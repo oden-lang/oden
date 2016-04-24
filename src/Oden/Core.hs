@@ -2,11 +2,17 @@
 module Oden.Core where
 
 import           Oden.Core.Expr
+import           Oden.Core.Package
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic as Poly
+
+data TypedMemberAccess
+  = RecordFieldAccess TypedExpr Identifier
+  | PackageMemberAccess Identifier Identifier
+  deriving (Show, Eq, Ord)
 
 data UnresolvedMethodReference
   = UnresolvedMethodReference Poly.Protocol Poly.ProtocolMethod
@@ -22,17 +28,10 @@ data Definition = Definition (Metadata SourceInfo) Identifier CanonicalExpr
                 | ProtocolDefinition (Metadata SourceInfo) QualifiedName Poly.Protocol
                 deriving (Show, Eq, Ord)
 
-type PackageName = [String]
-
-data PackageDeclaration = PackageDeclaration (Metadata SourceInfo) PackageName
-                        deriving (Show, Eq, Ord)
-
-data ImportedPackage = ImportedPackage (Metadata SourceInfo) Identifier Package
+data ImportedPackage = ImportedPackage (Metadata SourceInfo) Identifier TypedPackage
                      deriving (Show, Eq, Ord)
 
-data Package = Package PackageDeclaration [ImportedPackage] [Definition]
-             deriving (Show, Eq, Ord)
-
 -- Some handy aliases.
-type TypedExpr = Expr UnresolvedMethodReference Poly.Type
+type TypedExpr = Expr UnresolvedMethodReference Poly.Type TypedMemberAccess
 type TypedRange = Range TypedExpr
+type TypedPackage = Package ImportedPackage Definition

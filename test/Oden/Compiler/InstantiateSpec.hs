@@ -98,25 +98,25 @@ recordPoly :: Core.TypedExpr
 recordPoly =
   RecordInitializer
   missing
+  [FieldInitializer missing (Identifier "foo") (Symbol missing (Identifier "x") tvarA)]
   (Poly.TRecord
    missing
    (Poly.RExtension missing (Identifier "foo") tvarA (Poly.REmpty missing)))
-  [FieldInitializer missing (Identifier "foo") (Symbol missing (Identifier "x") tvarA)]
 
 recordIntType :: Mono.Type
 recordIntType =
-  (Mono.TRecord
-   missing
-   (Mono.RExtension missing (Identifier "foo") monoInt (Mono.REmpty missing)))
+  Mono.TRecord
+  missing
+  (Mono.RExtension missing (Identifier "foo") monoInt (Mono.REmpty missing))
 
 recordInt :: Core.TypedExpr
 recordInt =
   RecordInitializer
   missing
+  [FieldInitializer missing (Identifier "foo") (Symbol missing (Identifier "x") typeInt)]
   (Poly.TRecord
    missing
    (Poly.RExtension missing (Identifier "foo") typeInt (Poly.REmpty missing)))
-  [FieldInitializer missing (Identifier "foo") (Symbol missing (Identifier "x") typeInt)]
 
 polyRecordIntAndRowVariable :: Poly.Type
 polyRecordIntAndRowVariable =
@@ -157,10 +157,11 @@ fieldAccessPoly recordType =
   Fn
   missing
   (NameBinding missing (Identifier "x"))
-  (RecordFieldAccess
+  (MemberAccess
    missing
-   (Symbol missing (Identifier "x") recordType)
-   (Identifier "a")
+   (Core.RecordFieldAccess
+    (Symbol missing (Identifier "x") recordType)
+    (Identifier "a"))
    typeInt)
   (Poly.TFn
    missing
@@ -224,9 +225,17 @@ spec =
     it "instantiates record initializer with int field" $
       instantiate recordPoly recordIntType `shouldSucceedWith` recordInt
     it "instantiates record field access with only an int field" $
-      instantiate (fieldAccessPoly polyRecordIntAndRowVariable) (monoFieldAccess monoRecordInt) `shouldSucceedWith` (fieldAccessPoly polyRecordInt)
+      instantiate
+      (fieldAccessPoly polyRecordIntAndRowVariable)
+      (monoFieldAccess monoRecordInt)
+      `shouldSucceedWith`
+      fieldAccessPoly polyRecordInt
     it "instantiates record field access with both int and string field" $
-      instantiate (fieldAccessPoly polyRecordIntAndRowVariable) (monoFieldAccess monoRecordIntAndString) `shouldSucceedWith` (fieldAccessPoly polyRecordIntAndString)
+      instantiate
+      (fieldAccessPoly polyRecordIntAndRowVariable)
+      (monoFieldAccess monoRecordIntAndString)
+      `shouldSucceedWith`
+      fieldAccessPoly polyRecordIntAndString
     it "fails on mismatching row labels" $
       shouldFail $
         instantiate (fieldAccessPoly polyRecordIntAndRowVariable) fieldAccessWrongLabelType

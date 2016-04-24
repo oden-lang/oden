@@ -16,6 +16,7 @@ import           Oden.Compiler.Instantiate
 import           Oden.Compiler.TypeEncoder
 import qualified Oden.Core                 as Core
 import           Oden.Core.Expr
+import           Oden.Core.Package
 import           Oden.Identifier
 import           Oden.Environment                as Environment
 import           Oden.Metadata
@@ -24,8 +25,13 @@ import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
+data MonoTypedMemberAccess
+  = RecordFieldAccess MonoTypedExpr Identifier
+  | PackageMemberAccess Identifier Identifier
+  deriving (Show, Eq, Ord)
+
 -- TODO: Change method reference to be resolved at this stage.
-type MonoTypedExpr = Expr Core.UnresolvedMethodReference Mono.Type
+type MonoTypedExpr = Expr Core.UnresolvedMethodReference Mono.Type MonoTypedMemberAccess
 type MonoTypedRange = Range MonoTypedExpr
 
 data MonomorphedDefinition = MonomorphedDefinition (Metadata SourceInfo) Identifier Mono.Type MonoTypedExpr
@@ -35,7 +41,7 @@ data InstantiatedDefinition =
   InstantiatedDefinition Identifier (Metadata SourceInfo) Identifier MonoTypedExpr
   deriving (Show, Eq, Ord)
 
-data MonomorphedPackage = MonomorphedPackage Core.PackageDeclaration
+data MonomorphedPackage = MonomorphedPackage PackageDeclaration
                                              [Core.ImportedPackage]
                                              (Set InstantiatedDefinition)
                                              (Set MonomorphedDefinition)
@@ -110,7 +116,7 @@ getMonomorphicIn :: CompileEnvironment -> Identifier -> Mono.Type -> Monomorph I
 getMonomorphicIn env ident t = do
   def <- lookupIn env ident
   case def of
-    Package{} -> throwError $ NotInScope ident
+    PackageBinding{} -> throwError $ NotInScope ident
     Definition Core.ForeignDefinition{} -> return ident
     Definition (Core.Definition _ _ (sc, pe)) | Poly.isPolymorphic sc -> do
       let key = (ident, t)
@@ -257,28 +263,30 @@ monomorph e = case e of
     isReferenceTo (NameBinding _ identifier') (LetReference letted _ _) =
       identifier' == letted
 
-  RecordInitializer si _ fields -> do
+  RecordInitializer si fields _ -> do
     monoType <- getMonoType e
     monoFields <- mapM monomorphField fields
-    return (RecordInitializer si monoType monoFields)
+    return (RecordInitializer si monoFields monoType)
     where
     monomorphField (FieldInitializer fsi label expr) =
       FieldInitializer fsi label <$> monomorph expr
 
-  RecordFieldAccess si expr name _ -> do
-    monoType <- getMonoType e
-    monoExpr <- monomorph expr
-    return (RecordFieldAccess si monoExpr name monoType)
+  MemberAccess si access polyType ->
+    case access of
+      Core.RecordFieldAccess expr name -> do
+        monoType <- getMonoType e
+        monoExpr <- monomorph expr
+        return (MemberAccess si (RecordFieldAccess monoExpr name) monoType)
 
-  PackageMemberAccess si pkgAlias name polyType -> do
-    env <- ask
-    monoType <- toMonomorphic si polyType
-    binding <- lookupIn env pkgAlias
-    case binding of
-      Package _ _ pkgEnv -> do
-        m <- getMonomorphicIn pkgEnv name monoType
-        return (PackageMemberAccess si pkgAlias m monoType)
-      _ -> error "cannot access member in non-existing package"
+      Core.PackageMemberAccess pkgAlias name -> do
+        env <- ask
+        monoType <- toMonomorphic si polyType
+        binding <- lookupIn env pkgAlias
+        case binding of
+          PackageBinding _ _ pkgEnv -> do
+            m <- getMonomorphicIn pkgEnv name monoType
+            return (MemberAccess si (PackageMemberAccess pkgAlias m) monoType)
+          _ -> error "cannot access member in non-existing package"
 
   MethodReference _ ref methodType ->
     error ("cannot monomorph " ++ show ref ++ " with type `" ++ show methodType ++ "`")
@@ -341,8 +349,8 @@ monomorphDefinitions (Core.ProtocolDefinition{} : defs) =
 
 -- | Monomorphs a package and returns the complete package with instantiated
 -- and monomorphed definitions.
-monomorphPackage :: Core.Package -> Either MonomorphError MonomorphedPackage
-monomorphPackage self@(Core.Package pkgDecl imports definitions) = do
+monomorphPackage :: Core.TypedPackage -> Either MonomorphError MonomorphedPackage
+monomorphPackage self@(Package pkgDecl imports definitions) = do
   let environment = fromPackage universe `merge` fromPackage self `merge` fromPackages imports
   let st = MonomorphState { instanceNames = Map.empty
                           , instances = []

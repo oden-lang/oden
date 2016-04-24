@@ -4,6 +4,7 @@ module Oden.Compiler.Validation where
 import           Oden.Core                 as Core
 import           Oden.Core.Expr
 import           Oden.Core.Operator
+import           Oden.Core.Package
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName        (QualifiedName (..))
@@ -133,8 +134,8 @@ validateExpr (Block _ exprs _) = do
     (TCon _ (FQN [] (Identifier "unit"))) -> return ()
     _ -> throwError (ValueDiscarded expr)
 validateExpr RecordInitializer{} = return ()
-validateExpr (RecordFieldAccess _ expr _ _) = validateExpr expr
-validateExpr (PackageMemberAccess _ alias _ _) = addPackageReference alias
+validateExpr (MemberAccess _ (RecordFieldAccess expr _ ) _) = validateExpr expr
+validateExpr (MemberAccess _ (PackageMemberAccess alias _) _) = addPackageReference alias
 validateExpr MethodReference{} = return ()
 
 repeated :: [(Identifier, Type)] -> [(Identifier, Type)]
@@ -156,7 +157,7 @@ validateType r@RExtension{} =
     [] -> return ()
 validateType _ = return ()
 
-validatePackage :: Package -> Validate ()
+validatePackage :: TypedPackage -> Validate ()
 validatePackage (Package _ imports definitions) = do
   -- Validates all definitions and expressions recursively. Also collects usage
   -- of imported packages.
@@ -179,6 +180,6 @@ validatePackage (Package _ imports definitions) = do
   validateDefs (_:defs) = validateDefs defs
   validateDefs [] = return ()
 
-validate :: Package -> Either ValidationError [ValidationWarning]
+validate :: TypedPackage -> Either ValidationError [ValidationWarning]
 validate pkg =
   runExcept (snd <$> evalRWST (validatePackage pkg) Set.empty initState)

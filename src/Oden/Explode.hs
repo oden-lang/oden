@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Oden.Explode
 (
  ExplodeError(..),
@@ -6,11 +7,13 @@ module Oden.Explode
  explodePackage
 ) where
 
-import qualified Oden.Core.Untyped     as Untyped
+import           Oden.Core.Expr
+import           Oden.Core.Package
+import           Oden.Core.Untyped
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName    (QualifiedName(..))
-import           Oden.Syntax
+import qualified Oden.Syntax as Syntax
 import           Oden.SourceInfo
 import           Oden.Type.Signature
 
@@ -20,80 +23,92 @@ import qualified Data.Map              as Map
 
 data ExplodeError = TypeSignatureWithoutDefinition SourceInfo Identifier (TypeSignature SourceInfo)
                   | TypeSignatureRedefinition SourceInfo Identifier (Maybe (TypeSignature SourceInfo))
-                  | InvalidMemberAccessExpression SourceInfo Untyped.Expr Untyped.Expr
-                  | InvalidProtocolMethodReference SourceInfo Untyped.Expr Untyped.Expr
+                  | InvalidMemberAccessExpression SourceInfo UntypedExpr UntypedExpr
+                  | InvalidProtocolMethodReference SourceInfo UntypedExpr UntypedExpr
                   deriving (Show, Eq)
 
-explodeNameBinding :: NameBinding -> Untyped.NameBinding
-explodeNameBinding (NameBinding si name) = Untyped.NameBinding (Metadata si) name
+explodeNameBinding :: Syntax.NameBinding -> NameBinding
+explodeNameBinding (Syntax.NameBinding si name) = NameBinding (Metadata si) name
 
-explodeFieldInitializer :: FieldInitializer -> Either ExplodeError Untyped.FieldInitializer
-explodeFieldInitializer (FieldInitializer si label expr) =
-  Untyped.FieldInitializer (Metadata si) label <$> explodeExpr expr
+explodeFieldInitializer :: Syntax.FieldInitializer
+                        -> Either ExplodeError (FieldInitializer UntypedExpr)
+explodeFieldInitializer (Syntax.FieldInitializer si label expr) =
+  FieldInitializer (Metadata si) label <$> explodeExpr expr
 
-explodeExpr :: Expr -> Either ExplodeError Untyped.Expr
-explodeExpr (Subscript si es [Singular e]) =
-  Untyped.Subscript (Metadata si) <$> explodeExpr es <*> explodeExpr e
-explodeExpr (Subscript si es [Range e1 e2]) =
-  Untyped.Subslice (Metadata si) <$> explodeExpr es <*> (Untyped.Range <$> explodeExpr e1 <*> explodeExpr e2)
-explodeExpr (Subscript si es [RangeTo e]) =
-  Untyped.Subslice (Metadata si) <$> explodeExpr es <*> (Untyped.RangeTo <$> explodeExpr e)
-explodeExpr (Subscript si es [RangeFrom e]) =
-  Untyped.Subslice (Metadata si) <$> explodeExpr es <*> (Untyped.RangeFrom <$> explodeExpr e)
-explodeExpr (Subscript si es (i:ir)) =
-  explodeExpr (Subscript si (Subscript si es [i]) ir)
+untyped :: Either ExplodeError Untyped
+untyped = pure Untyped
 
-explodeExpr (UnaryOp si o e) =
-  Untyped.UnaryOp (Metadata si) o <$> explodeExpr e
-explodeExpr (BinaryOp si o e1 e2) =
-  Untyped.BinaryOp (Metadata si) o <$> explodeExpr e1 <*> explodeExpr e2
-explodeExpr (Symbol si i) =
-  return $ Untyped.Symbol (Metadata si) i
-explodeExpr (Literal si (Bool b)) =
-  return $ Untyped.Literal (Metadata si) (Untyped.Bool b)
-explodeExpr (Literal si (Int i)) =
-  return $ Untyped.Literal (Metadata si) (Untyped.Int i)
-explodeExpr (Literal si (String s)) =
-  return $ Untyped.Literal (Metadata si) (Untyped.String s)
-explodeExpr (Literal si Unit) =
-  return $ Untyped.Literal (Metadata si) Untyped.Unit
-explodeExpr (Tuple si f s r) =
-  Untyped.Tuple (Metadata si) <$> explodeExpr f <*> explodeExpr s <*> mapM explodeExpr r
-explodeExpr (If si c t f) =
-  Untyped.If (Metadata si) <$> explodeExpr c <*> explodeExpr t <*> explodeExpr f
-explodeExpr (Application si f ps) =
-  Untyped.Application (Metadata si) <$> explodeExpr f <*> mapM explodeExpr ps
-explodeExpr (Fn si [] b) =
-  Untyped.NoArgFn (Metadata si) <$> explodeExpr b
-explodeExpr (Fn si [arg] b) =
-  Untyped.Fn (Metadata si) (explodeNameBinding arg) <$> explodeExpr b
-explodeExpr (Fn si (arg:args) b) =
-  Untyped.Fn (Metadata si) (explodeNameBinding arg) <$> explodeExpr (Fn si args b)
-explodeExpr (RecordInitializer si fields) =
-  Untyped.RecordInitializer (Metadata si) <$> mapM explodeFieldInitializer fields
-explodeExpr (MemberAccess si expr (Symbol _ name)) =
-  Untyped.MemberAccess (Metadata si) <$> explodeExpr expr <*> return name
-explodeExpr (MemberAccess si expr nonName) = do
-  expr' <- explodeExpr expr
-  nonName' <- explodeExpr nonName
-  Left (InvalidMemberAccessExpression si expr' nonName')
--- invalid, but can be handled anyway
-explodeExpr (Subscript _ a []) = explodeExpr a
-explodeExpr (Let _ [] b) = explodeExpr b
-explodeExpr (Let _ [LetPair si n e] b) =
-  Untyped.Let (Metadata si) (explodeNameBinding n) <$> explodeExpr e <*> explodeExpr b
-explodeExpr (Let si (LetPair _ n e:bs) b) =
-  Untyped.Let (Metadata si) (explodeNameBinding n) <$> explodeExpr e <*> explodeExpr (Let si bs b)
-explodeExpr (Slice si es) =
-  Untyped.Slice (Metadata si) <$> mapM explodeExpr es
-explodeExpr (Block si es) =
-  Untyped.Block (Metadata si) <$> mapM explodeExpr es
-explodeExpr (ProtocolMethodReference si (Symbol _ protocol) (Symbol _ method)) =
-  return (Untyped.ProtocolMethodReference (Metadata si) protocol method)
-explodeExpr (ProtocolMethodReference si lhs rhs) = do
-  lhs' <- explodeExpr lhs
-  rhs' <- explodeExpr rhs
-  Left (InvalidMemberAccessExpression si lhs' rhs')
+explodeExpr :: Syntax.Expr -> Either ExplodeError UntypedExpr
+explodeExpr = \case
+  Syntax.Subscript si es [Syntax.Singular e] ->
+    Subscript (Metadata si) <$> explodeExpr es <*> explodeExpr e <*> untyped
+  Syntax.Subscript si es [Syntax.Range e1 e2] ->
+    Subslice (Metadata si) <$> explodeExpr es <*> (Range <$> explodeExpr e1 <*> explodeExpr e2) <*> untyped
+  Syntax.Subscript si es [Syntax.RangeTo e] ->
+    Subslice (Metadata si) <$> explodeExpr es <*> (RangeTo <$> explodeExpr e) <*> untyped
+  Syntax.Subscript si es [Syntax.RangeFrom e] ->
+    Subslice (Metadata si) <$> explodeExpr es <*> (RangeFrom <$> explodeExpr e) <*> untyped
+  Syntax.Subscript si es (i:ir) ->
+    explodeExpr (Syntax.Subscript si (Syntax.Subscript si es [i]) ir)
+
+  Syntax.UnaryOp si o e ->
+    UnaryOp (Metadata si) o <$> explodeExpr e <*> untyped
+  Syntax.BinaryOp si o e1 e2 ->
+    BinaryOp (Metadata si) o <$> explodeExpr e1 <*> explodeExpr e2 <*> untyped
+  Syntax.Symbol si i ->
+    return $ Symbol (Metadata si) i Untyped
+  Syntax.Literal si (Syntax.Bool b) ->
+    return $ Literal (Metadata si) (Bool b) Untyped
+  Syntax.Literal si (Syntax.Int i) ->
+    return $ Literal (Metadata si) (Int i) Untyped
+  Syntax.Literal si (Syntax.String s) ->
+    return $ Literal (Metadata si) (String s) Untyped
+  Syntax.Literal si Syntax.Unit ->
+    return $ Literal (Metadata si) Unit Untyped
+  Syntax.Tuple si f s r ->
+    Tuple (Metadata si) <$> explodeExpr f <*> explodeExpr s <*> mapM explodeExpr r <*> untyped
+  Syntax.If si c t f ->
+    If (Metadata si) <$> explodeExpr c <*> explodeExpr t <*> explodeExpr f <*> untyped
+  Syntax.Application si f [] ->
+    NoArgApplication (Metadata si) <$> explodeExpr f <*> untyped
+  Syntax.Application si f [p] ->
+    Application (Metadata si) <$> explodeExpr f <*> explodeExpr p <*> untyped
+  Syntax.Application si f ps ->
+    Application (Metadata si) <$> explodeExpr (Syntax.Application si f (init ps))
+                              <*> explodeExpr (last ps)
+                              <*> untyped
+  Syntax.Fn si [] b ->
+    NoArgFn (Metadata si) <$> explodeExpr b <*> untyped
+  Syntax.Fn si [arg] b ->
+    Fn (Metadata si) (explodeNameBinding arg) <$> explodeExpr b <*> untyped
+  Syntax.Fn si (arg:args) b ->
+    Fn (Metadata si) (explodeNameBinding arg) <$> explodeExpr (Syntax.Fn si args b) <*> untyped
+  Syntax.RecordInitializer si fields ->
+    RecordInitializer (Metadata si) <$> mapM explodeFieldInitializer fields <*> return Untyped
+  Syntax.MemberAccess si expr (Syntax.Symbol _ name) ->
+    let memberAccess = NamedMemberAccess <$> explodeExpr expr <*> return name
+    in MemberAccess (Metadata si) <$> memberAccess <*> untyped
+  Syntax.MemberAccess si expr nonName -> do
+    expr' <- explodeExpr expr
+    nonName' <- explodeExpr nonName
+    Left (InvalidMemberAccessExpression si expr' nonName')
+  -- invalid, but can be handled anyway
+  Syntax.Subscript _ a [] -> explodeExpr a
+  Syntax.Let _ [] b -> explodeExpr b
+  Syntax.Let _ [Syntax.LetPair si n e] b ->
+    Let (Metadata si) (explodeNameBinding n) <$> explodeExpr e <*> explodeExpr b <*> untyped
+  Syntax.Let si (Syntax.LetPair _ n e:bs) b ->
+    Let (Metadata si) (explodeNameBinding n) <$> explodeExpr e <*> explodeExpr (Syntax.Let si bs b) <*> untyped
+  Syntax.Slice si es ->
+    Slice (Metadata si) <$> mapM explodeExpr es <*> untyped
+  Syntax.Block si es ->
+    Block (Metadata si) <$> mapM explodeExpr es <*> untyped
+  Syntax.ProtocolMethodReference si (Syntax.Symbol _ protocol) (Syntax.Symbol _ method) ->
+    return (MethodReference (Metadata si) (NamedMethodReference protocol method) Untyped)
+  Syntax.ProtocolMethodReference si lhs rhs -> do
+    lhs' <- explodeExpr lhs
+    rhs' <- explodeExpr rhs
+    Left (InvalidMemberAccessExpression si lhs' rhs')
 
 -- temporary metadata for top level definitions, used for keeping track
 -- of duplications and detecting missing terms for type signatures
@@ -110,7 +125,9 @@ collectError e = case e of
     return Nothing
   Right x -> return (Just x)
 
-explodeTopLevel' :: PackageName -> [TopLevel] -> Writer [ExplodeError] ([Untyped.ImportReference], [Untyped.Definition])
+explodeTopLevel' :: PackageName
+                 -> [Syntax.TopLevel]
+                 -> Writer [ExplodeError] ([ImportReference], [Definition])
 explodeTopLevel' pkg top = do
   (is, scs, defs) <- foldM iter ([], Map.empty, []) top
   case filter (not . hasValue . snd) (Map.assocs scs) of
@@ -118,36 +135,36 @@ explodeTopLevel' pkg top = do
     us -> mapM_ (tell . (:[]) . typeSigNoValErr) us
   return (is, defs)
   where
-  iter :: ([Untyped.ImportReference], Map.Map Identifier TempTopLevel, [Untyped.Definition])
-       -> TopLevel
-       -> Writer [ExplodeError] ([Untyped.ImportReference], Map.Map Identifier TempTopLevel, [Untyped.Definition])
-  iter (is, ts, defs) (FnDefinition si name args body) = do
-    expr' <- collectError (explodeExpr (Fn si args body))
+  iter :: ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
+       -> Syntax.TopLevel
+       -> Writer [ExplodeError] ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
+  iter (is, ts, defs) (Syntax.FnDefinition si name args body) = do
+    expr' <- collectError (explodeExpr (Syntax.Fn si args body))
     case expr' of
       Nothing -> return (is, ts, defs)
       Just expr ->
-        let def = Untyped.Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) expr
+        let def = Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) expr
         in return (is, assignValue name si ts, defs ++ [def])
-  iter (is, ts, defs) (ValueDefinition si name expr) = do
+  iter (is, ts, defs) (Syntax.ValueDefinition si name expr) = do
     expr' <- collectError (explodeExpr expr)
     case expr' of
       Nothing -> return (is, ts, defs)
       Just e ->
-        let def = Untyped.Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) e
+        let def = Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) e
         in return (is, assignValue name si ts, defs ++ [def])
-  iter (is, ts, defs) (TypeSignatureDeclaration tsi name signature) = do
+  iter (is, ts, defs) (Syntax.TypeSignatureDeclaration tsi name signature) = do
     case Map.lookup name ts of
       Just existing -> tell [typeSigReDefErr (name, existing) tsi] -- type already defined
       Nothing -> return ()
     return (is, newTypeSig name tsi (Just signature) ts, defs)
-  iter (is, ts, defs) (ImportDeclaration si name) =
-    return (is ++ [Untyped.ImportReference (Metadata si) name], ts, defs)
-  iter (is, ts, defs) (TypeDefinition si name typeSig) =
+  iter (is, ts, defs) (Syntax.ImportDeclaration si name) =
+    return (is ++ [ImportReference (Metadata si) name], ts, defs)
+  iter (is, ts, defs) (Syntax.TypeDefinition si name typeSig) =
     -- TODO: Add support for type parameters
-    let def = Untyped.TypeDefinition (Metadata si) (FQN pkg name) [] typeSig
+    let def = TypeDefinition (Metadata si) (FQN pkg name) [] typeSig
     in return (is, ts, defs ++ [def])
-  iter (is, ts, defs) (ProtocolDefinition si name varBinding methods) =
-    let def = Untyped.ProtocolDefinition (Metadata si) (FQN pkg name) varBinding methods
+  iter (is, ts, defs) (Syntax.ProtocolDefinition si name varBinding methods) =
+    let def = ProtocolDefinition (Metadata si) (FQN pkg name) varBinding methods
     in return (is, ts, defs ++ [def])
   newTypeSig name tsi msc =
     Map.insertWith (\_ old -> old) name (TempTop (tsi, msc) False)
@@ -172,15 +189,15 @@ toEither w =
     (a, []) -> Right a
     (_, es) -> Left es
 
-explodeTopLevel :: PackageName -> [TopLevel] -> Either [ExplodeError] ([Untyped.ImportReference], [Untyped.Definition])
+explodeTopLevel :: PackageName -> [Syntax.TopLevel] -> Either [ExplodeError] ([ImportReference], [Definition])
 explodeTopLevel = (.) toEither . explodeTopLevel'
 
-explodePackage' :: Package -> Writer [ExplodeError] (Untyped.Package [Untyped.ImportReference])
-explodePackage' (Package (PackageDeclaration si name) definitions) = do
+explodePackage' :: Syntax.Package -> Writer [ExplodeError] (UntypedPackage ImportReference)
+explodePackage' (Syntax.Package (Syntax.PackageDeclaration si name) definitions) = do
   (is, ds) <- explodeTopLevel' name definitions
-  return (Untyped.Package (Untyped.PackageDeclaration (Metadata si) name) is ds)
+  return (Package (PackageDeclaration (Metadata si) name) is ds)
 
-explodePackage :: Package -> Either [ExplodeError] (Untyped.Package [Untyped.ImportReference])
+explodePackage :: Syntax.Package -> Either [ExplodeError] (UntypedPackage ImportReference)
 explodePackage p = case runWriter (explodePackage' p) of
   (a, []) -> Right a
   (_, errs) -> Left errs

@@ -21,9 +21,10 @@ import qualified Oden.Go.Type          as GT
 import           Oden.Go.Pretty ()
 
 import           Oden.Backend
-import           Oden.Compiler.Monomorphization
+import           Oden.Compiler.Monomorphization as Monomorphization
 import           Oden.Core
 import           Oden.Core.Expr
+import           Oden.Core.Package
 import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
@@ -308,7 +309,7 @@ genExpr expr = case expr of
     let func = AST.Operand (AST.Literal (AST.FunctionLiteral (AST.FunctionSignature [] [blockType]) (AST.Block $ initStmts ++ [returnStmt])))
     return (AST.Expression (AST.Application func []))
 
-  RecordInitializer _ recordType values-> do
+  RecordInitializer _ values recordType -> do
     elements <- AST.LiteralValueElements <$> mapM genField values
     structType <- genType recordType
     return (literalExpr (AST.CompositeLiteral structType elements))
@@ -317,12 +318,14 @@ genExpr expr = case expr of
       AST.KeyedElement <$> (AST.LiteralKeyName <$> genIdentifier label)
                        <*> genExpr initializerExpr
 
-  RecordFieldAccess _ recordExpr name _ -> do
-    primaryExpr <- genPrimaryExpression recordExpr
-    AST.Expression . AST.Selector primaryExpr <$> genIdentifier name
+  MemberAccess _ access _ ->
+    case access of
+      Monomorphization.RecordFieldAccess recordExpr name -> do
+        primaryExpr <- genPrimaryExpression recordExpr
+        AST.Expression . AST.Selector primaryExpr <$> genIdentifier name
 
-  PackageMemberAccess _ pkgAlias name _ ->
-    (AST.Expression . AST.Operand) <$> (AST.QualifiedOperandName <$> genIdentifier pkgAlias
+      Monomorphization.PackageMemberAccess pkgAlias name ->
+        (AST.Expression . AST.Operand) <$> (AST.QualifiedOperandName <$> genIdentifier pkgAlias
                                                                  <*> genIdentifier name)
 
   -- TODO: is this needed? Monomorphed method references can be regular symbols

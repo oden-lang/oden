@@ -5,7 +5,7 @@ import           Oden.Backend.Go
 import           Oden.Compiler
 import           Oden.Compiler.Monomorphization  (MonomorphedPackage(..))
 import           Oden.Compiler.Validation
-import qualified Oden.Core                       as Core
+import           Oden.Core                       as Core
 import           Oden.Explode
 import qualified Oden.Go.Importer                as Go
 import           Oden.Imports
@@ -32,14 +32,14 @@ readPackage fname = do
   contents <- liftIO $ L.readFile fname
   liftEither $ parsePackage fname contents
 
-validatePkg :: Core.Package -> CLI ()
+validatePkg :: TypedPackage -> CLI ()
 validatePkg pkg' = liftEither (validate pkg') >>= mapM_ logWarning
 
 logCompiledFiles :: [CompiledFile] -> CLI ()
 logCompiledFiles [_] = liftIO $ putStrLn "Compiled 1 Go source file."
 logCompiledFiles files = liftIO $ putStrLn $ "Compiled " ++ show (length files) ++ " Go source files."
 
-inferFile :: SourceFile -> CLI Core.Package
+inferFile :: SourceFile -> CLI TypedPackage
 inferFile (OdenSourceFile fname _) = do
   -- TODO: Check package name
   syntaxPkg <- readPackage fname

@@ -5,8 +5,9 @@ module Oden.Infer.Environment (
   fromPackages
 ) where
 
-import qualified Oden.Core             as Core
+import           Oden.Core
 import           Oden.Core.Expr
+import           Oden.Core.Package
 import           Oden.Environment      hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
@@ -14,7 +15,7 @@ import           Oden.QualifiedName    (QualifiedName (..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
-data TypeBinding = Package (Metadata SourceInfo) Identifier TypingEnvironment
+data TypeBinding = PackageBinding (Metadata SourceInfo) Identifier TypingEnvironment
                  | Local (Metadata SourceInfo) Identifier Scheme
                  | Type (Metadata SourceInfo) QualifiedName [NameBinding] Type
                  | QuantifiedType (Metadata SourceInfo) Identifier Type
@@ -23,19 +24,19 @@ data TypeBinding = Package (Metadata SourceInfo) Identifier TypingEnvironment
 
 type TypingEnvironment = Environment TypeBinding
 
-fromPackage :: Core.Package -> TypingEnvironment
-fromPackage (Core.Package _ _ defs) =
+fromPackage :: TypedPackage -> TypingEnvironment
+fromPackage (Package _ _ defs) =
   fromList (map convert defs)
   where
-  convert (Core.Definition si n (sc, _)) = (n, Local si n sc)
-  convert (Core.ForeignDefinition si n sc) = (n, Local si n sc)
-  convert (Core.TypeDefinition si qualified@(FQN _ n) bs t) = (n, Type si qualified bs t)
-  convert (Core.ProtocolDefinition si (FQN _ name) protocol) =
+  convert (Definition si n (sc, _)) = (n, Local si n sc)
+  convert (ForeignDefinition si n sc) = (n, Local si n sc)
+  convert (TypeDefinition si qualified@(FQN _ n) bs t) = (n, Type si qualified bs t)
+  convert (ProtocolDefinition si (FQN _ name) protocol) =
     (name, ProtocolBinding si name protocol)
 
-fromPackages :: [Core.ImportedPackage] -> TypingEnvironment
+fromPackages :: [ImportedPackage] -> TypingEnvironment
 fromPackages =
   foldl iter empty
   where
-  iter env (Core.ImportedPackage sourceInfo pkgIdentifier pkg) =
-    env `extend` (pkgIdentifier, Package sourceInfo pkgIdentifier $ fromPackage pkg)
+  iter env (ImportedPackage sourceInfo pkgIdentifier pkg) =
+    env `extend` (pkgIdentifier, PackageBinding sourceInfo pkgIdentifier $ fromPackage pkg)

@@ -7,8 +7,8 @@ import           Data.Set                  as Set hiding (map)
 
 import           Oden.Backend
 import           Oden.Backend.Go
-import           Oden.Core
 import           Oden.Core.Expr
+import           Oden.Core.Package
 import           Oden.Compiler.Monomorphization
 import qualified Oden.Go.Identifier as GI
 import qualified Oden.Go.AST as AST

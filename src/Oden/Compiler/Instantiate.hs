@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 -- | Instantiates polymorphically typed expressions with monomorphic types.
 module Oden.Compiler.Instantiate (
   instantiate,
@@ -111,10 +112,17 @@ replace (Poly.RExtension si label type' row) =
   Poly.RExtension si label <$> replace type'
                            <*> replace row
 
-instantiateField :: FieldInitializer Core.UnresolvedMethodReference Poly.Type
-                -> Instantiate (FieldInitializer Core.UnresolvedMethodReference Poly.Type)
+instantiateField :: FieldInitializer Core.TypedExpr
+                -> Instantiate (FieldInitializer Core.TypedExpr)
 instantiateField (FieldInitializer si label expr) =
   FieldInitializer si label <$> instantiateExpr expr
+
+instantiateMemberAccess :: Core.TypedMemberAccess
+                        -> Instantiate Core.TypedMemberAccess
+instantiateMemberAccess = \case
+  Core.RecordFieldAccess expr name ->
+    Core.RecordFieldAccess <$> instantiateExpr expr <*> return name
+  c@Core.PackageMemberAccess{} -> return c
 
 instantiateExpr :: Core.TypedExpr
                 -> Instantiate Core.TypedExpr
@@ -183,12 +191,10 @@ instantiateExpr (Slice si es t) =
 instantiateExpr (Block si es t) =
   Block si <$> mapM instantiateExpr es
                 <*> replace t
-instantiateExpr (RecordInitializer si t fields) =
-  RecordInitializer si <$> replace t <*> mapM instantiateField fields
-instantiateExpr (RecordFieldAccess si expr name t) =
-  RecordFieldAccess si <$> instantiateExpr expr <*> return name <*> replace t
-instantiateExpr (PackageMemberAccess si pkgAlias name t) =
-  PackageMemberAccess si pkgAlias name <$> replace t
+instantiateExpr (RecordInitializer si fields t) =
+  RecordInitializer si <$> mapM instantiateField fields <*> replace t
+instantiateExpr (MemberAccess si access t) =
+  MemberAccess si <$> instantiateMemberAccess access <*> replace t
 instantiateExpr (MethodReference si ref t) =
   MethodReference si ref <$> replace t
 

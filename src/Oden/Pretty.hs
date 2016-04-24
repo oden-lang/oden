@@ -1,12 +1,13 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, LambdaCase #-}
 module Oden.Pretty where
 
-import           Oden.Core
+import           Oden.Core as Core
 import           Oden.Core.Expr
-import qualified Oden.Core.Untyped     as Untyped
+import           Oden.Core.Untyped
+import           Oden.Core.Package
 import           Oden.Core.Operator
 import           Oden.Identifier
-import           Oden.Compiler.Monomorphization
+import           Oden.Compiler.Monomorphization as Monomorphization
 import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
@@ -28,47 +29,6 @@ rArr = text "->"
 
 indentedInBraces :: Doc -> Doc
 indentedInBraces d = vcat [lbrace, indent 4 d, rbrace]
-
-instance Pretty Untyped.NameBinding where
-  pretty (Untyped.NameBinding _ identifier) = pretty identifier
-
-instance Pretty Untyped.Range where
-  pretty (Untyped.Range e1 e2) = brackets $ pretty e1 <+> text ":" <+> pretty e2
-  pretty (Untyped.RangeTo e) = brackets $ text ":" <+> pretty e
-  pretty (Untyped.RangeFrom e) = brackets $ pretty e <+> text ":"
-
-instance Pretty Untyped.FieldInitializer where
-  pretty (Untyped.FieldInitializer _ label expr) = pretty label <+> text "=" <+> pretty expr
-
-instance Pretty Untyped.Expr where
-  pretty (Untyped.Symbol _ i) = pretty i
-  pretty (Untyped.Subscript _ s i) = pretty s <> text "[" <> pretty i <> text "]"
-  pretty (Untyped.Subslice _ s r) = pretty s <> pretty r
-  pretty (Untyped.UnaryOp _ op e) = pretty op <+> pretty e
-  pretty (Untyped.BinaryOp _ op e1 e2) = parens (pretty e1 <+> pretty op <+> pretty e2)
-  pretty (Untyped.Application _ f a) = pretty f <> commaSepParens a
-  pretty (Untyped.Fn _ n b) = parens (pretty n) <+> rArr <+> pretty b
-  pretty (Untyped.NoArgFn _ b) = parens empty <+> rArr <+> pretty b
-  pretty (Untyped.Let _ n e b) =
-    text "let" <+> pretty n <+> equals <+> pretty e <+> text "in" <+> pretty b
-  pretty (Untyped.Literal _ (Untyped.Int n)) = integer n
-  pretty (Untyped.Literal _ (Untyped.Bool True)) = text "true"
-  pretty (Untyped.Literal _ (Untyped.Bool False)) = text "false"
-  pretty (Untyped.Literal _ (Untyped.String s)) = text (show s)
-  pretty (Untyped.Literal _ Untyped.Unit{}) = text "()"
-  pretty (Untyped.Tuple _ f s r) = commaSepParens (f:s:r)
-  pretty (Untyped.If _ c t e) =
-    text "if" <+> pretty c <+> text "then" <+> pretty t <+> text "else" <+> pretty e
-  pretty (Untyped.Slice _ es) =
-    text "[]" <> braces (hcat (punctuate (text ", ") (map pretty es)))
-  pretty (Untyped.Block _ es) =
-    braces (vcat (map pretty es))
-  pretty (Untyped.RecordInitializer _ fields) =
-    braces (hcat (punctuate (text ", ") (map pretty fields)))
-  pretty (Untyped.MemberAccess _ pkgAlias name) =
-    pretty pkgAlias <> text "." <> pretty name
-  pretty (Untyped.ProtocolMethodReference _ protocolName methodName) =
-    pretty protocolName <> text "::" <> pretty methodName
 
 instance Pretty NameBinding where
   pretty (NameBinding _ identifier) = pretty identifier
@@ -95,14 +55,14 @@ instance Pretty BinaryOperator where
 instance Pretty Identifier where
   pretty (Identifier n) = text n
 
-instance (Pretty r, Pretty t) => Pretty (FieldInitializer r t) where
+instance Pretty e => Pretty (FieldInitializer e) where
   pretty (FieldInitializer _ l e) = pretty l <+> text "=" <+> pretty e
 
 instance Pretty UnresolvedMethodReference where
   pretty (UnresolvedMethodReference (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _)) =
     pretty protocolName <> text "::" <> pretty methodName
 
-instance (Pretty m, Pretty t) => Pretty (Expr m t) where
+instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
   pretty (Symbol _ i _) = pretty i
   pretty (Subscript _ s i _) = pretty s <> text "[" <> pretty i <> text "]"
   pretty (Subslice _ s r _) = pretty s <> pretty r
@@ -127,21 +87,18 @@ instance (Pretty m, Pretty t) => Pretty (Expr m t) where
     text "[]" <> braces (hcat (punctuate (text ", ") (map pretty es)))
   pretty (Block _ es _) =
     braces (vcat (map pretty es))
-  pretty (RecordInitializer _ _ fields) =
+  pretty (RecordInitializer _ fields _) =
     braces (hcat (punctuate (text ", ") (map pretty fields)))
-  pretty (RecordFieldAccess _ expr name _) =
-    pretty expr <> text "." <> pretty name
-  pretty (PackageMemberAccess _ pkgAlias name _) =
-    pretty pkgAlias <> text "." <> pretty name
+  pretty (MemberAccess _ access _) = pretty access
   pretty (MethodReference _ ref _) = pretty ref
 
-collectCurried :: Expr m t -> ([NameBinding], Expr m t)
+collectCurried :: Expr r t m -> ([NameBinding], Expr r t m)
 collectCurried (Fn _ param body _) =
   let (params, body') = collectCurried body
   in (param:params, body')
 collectCurried expr = ([], expr)
 
-prettyDefinition :: (Pretty r, Pretty t) => Identifier -> Expr r t -> Doc
+prettyDefinition :: (Pretty r, Pretty t, Pretty m) => Identifier -> Expr r t m -> Doc
 prettyDefinition name (NoArgFn _ body _) =
   pretty name <> parens empty <+> equals <+> pretty body
 prettyDefinition name expr =
@@ -169,8 +126,8 @@ instance Pretty Poly.Protocol where
     text "protocol" <+> pretty name <> parens (pretty tvar)
       <+> indentedInBraces (vcat (map pretty methods))
 
-instance Pretty Definition where
-  pretty (Definition _ name (scheme, expr)) = vcat [
+instance Pretty Core.Definition where
+  pretty (Core.Definition _ name (scheme, expr)) = vcat [
       pretty name <+> text ":" <+> pretty scheme,
       prettyDefinition name expr
     ]
@@ -178,9 +135,9 @@ instance Pretty Definition where
       text "// (foreign)",
       text "//" <+> pretty name <+> text ":" <+> pretty scheme
     ]
-  pretty (TypeDefinition _ name _ type') =
+  pretty (Core.TypeDefinition _ name _ type') =
     text "type" <+> pretty name <+> equals <+> pretty type'
-  pretty (ProtocolDefinition _ _ protocol) = pretty protocol
+  pretty (Core.ProtocolDefinition _ _ protocol) = pretty protocol
 
 instance Pretty PackageName where
   pretty parts = hcat (punctuate (text "/") (map text parts))
@@ -192,7 +149,7 @@ instance Pretty ImportedPackage where
   pretty (ImportedPackage _ _ (Package (PackageDeclaration _ pkgName) _ _)) =
     text "import" <+> pretty pkgName
 
-instance Pretty Package where
+instance (Pretty i, Pretty d) => Pretty (Package i d)  where
   pretty (Package decl imports defs) =
     vcat (punctuate line (pretty decl : map pretty imports ++ map pretty defs))
 
@@ -313,6 +270,18 @@ instance Pretty (TypeSignature a) where
   pretty (TypeSignature _ vars expr) =
     text "forall" <+> hsep (map pretty vars) <> text "." <+> pretty expr
 
+instance Pretty TypedMemberAccess where
+  pretty (Core.RecordFieldAccess expr name) =
+    pretty expr <> text "." <> pretty name
+  pretty (Core.PackageMemberAccess expr name) =
+    pretty expr <> text "." <> pretty name
+
+instance Pretty MonoTypedMemberAccess where
+  pretty (Monomorphization.RecordFieldAccess expr name) =
+    pretty expr <> text "." <> pretty name
+  pretty (Monomorphization.PackageMemberAccess expr name) =
+    pretty expr <> text "." <> pretty name
+
 instance Pretty InstantiatedDefinition where
   pretty (InstantiatedDefinition polyName _si name expr) = vcat [
       text "//" <+> pretty polyName,
@@ -332,3 +301,11 @@ instance Pretty MonomorphedPackage where
     where parts = pretty decl : map pretty imports
                               ++ map pretty (toList is)
                               ++ map pretty (toList ms)
+
+instance Pretty NamedMethodReference where
+  pretty (NamedMethodReference protocolName methodName) =
+    pretty protocolName <> text "::" <> pretty methodName
+
+instance Pretty NamedMemberAccess where
+  pretty (NamedMemberAccess expr member) =
+    pretty expr <> text "." <> pretty member

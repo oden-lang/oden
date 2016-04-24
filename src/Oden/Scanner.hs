@@ -8,7 +8,7 @@ import           System.Directory
 import           System.FilePath
 import           System.Posix.Files
 
-import           Oden.Core
+import           Oden.Core.Package
 
 data SourceFile = OdenSourceFile FilePath PackageName
                 deriving (Show, Eq, Ord)
