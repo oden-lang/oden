@@ -4,10 +4,11 @@ license:             MIT
 license-file:        LICENSE.md
 author:              Oskar Wickström
 maintainer:          oskar.wickstrom@gmail.com
-build-type:          Simple
+build-type:          Custom
 extra-source-files:
   README.md,
-  go/src/oden/importer/main.go,
+  go/src/oden/cmd/importer/importer.go,
+  go/src/oden/importer/objects.go,
   go/src/oden/importer/types.go
 cabal-version:       >=1.10
 
@@ -81,12 +82,16 @@ library
     Oden.Type.Signature
   default-language:    Haskell2010
   hs-source-dirs:      src
-  ghc-options:         -fPIC -Wall dist/go-lib/importer.a -fno-warn-orphans
+  extra-libraries:     importer
+  ghc-options:         -Wall -fno-warn-orphans
 
-executable cli
-  exposed-modules:
+executable oden-exe
+  other-modules:
+    Paths_oden,
     Oden.CLI,
     Oden.CLI.Build,
+    Oden.CLI.Lint,
+    Oden.CLI.PrintPackage,
     Oden.CLI.Run
   build-depends:
     base          == 4.*,
@@ -104,7 +109,8 @@ executable cli
   default-language:    Haskell2010
   main-is:             Main.hs
   hs-source-dirs:      cli
-  ghc-options:         -fPIC -Wall dist/go-lib/importer.a -fno-warn-orphans
+  extra-libraries:     importer
+  ghc-options:         -Wall -fno-warn-orphans
 
 test-suite spec
   type: exitcode-stdio-1.0
@@ -124,4 +130,6 @@ test-suite spec
     containers    >= 0.4   && <0.6,
     wl-pprint     >= 1.2,
     oden
-  ghc-options: -Wall -fno-warn-orphans -fno-warn-missing-signatures
+  extra-libraries: importer
+  ghc-options:
+    -Wall -fno-warn-orphans -fno-warn-missing-signatures

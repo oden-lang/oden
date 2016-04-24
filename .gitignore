@@ -1,4 +1,6 @@
+.stack-work
 dist
+build
 .history
 .cabal-sandbox
 cabal.sandbox.config

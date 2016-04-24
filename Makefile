@@ -1,8 +1,11 @@
-TMP = .tmp
 VERSION ?= $(shell grep '^version:' oden.cabal | sed -Ee 's/^version\:(.+)$$/\1/' | xargs)
 OS=$(shell tools/get_os.sh)
+
+STACK_DIST_DIR=$(shell stack path --dist-dir)
+STACK_ODEN_EXE=$(STACK_DIST_DIR)/build/oden-exe/oden-exe
+
 DIST_NAME=oden-$(VERSION)-$(OS)
-DIST_ARCHIVE=dist/$(DIST_NAME).tar.gz
+DIST_ARCHIVE=build/$(DIST_NAME).tar.gz
 
 TEST_FLAG=
 ifneq ($(strip $(TEST_PATTERN)),)
@@ -13,28 +16,29 @@ IMPORTER_SRC=$(shell find go/src/oden -name '*.go')
 
 NODEMON=node_modules/.bin/nodemon
 
-.PHONY: build
-build: dist/go-lib/importer.a
-	cabal build oden
+dist: $(DIST_ARCHIVE)
 
-dist/go-lib/importer.a: $(IMPORTER_SRC)
-	mkdir -p dist/go-lib
-	(cd dist/go-lib \
-		&& GOPATH=$(PWD)/go go build -buildmode=c-archive oden/cmd/importer)
+$(STACK_ODEN_EXE):
+	stack build
 
-.PHONY: libs
-libs: dist/go-lib/importer.a
+build/oden: $(STACK_ODEN_EXE)
+	@mkdir -p build/oden/bin
+	cp README.md build/oden/README.txt
+	cp LICENSE.md build/oden/LICENSE.txt
+	cp CREDITS.md build/oden/CREDITS.txt
+	cp CHANGELOG.md build/oden/CHANGELOG.txt
+	cp $(STACK_ODEN_EXE) build/oden/bin/oden-exe
+	cp distribution/oden.sh build/oden/bin/oden
+	cp -r build/lib build/oden/lib
 
 .PHONY: clean
 clean:
-	rm -rf dist
-
-$(TMP):
-	mkdir -p $(TMP)
+	rm -rf build
 
 .PHONY: test
 test:
-	cabal build spec && dist/build/spec/spec $(TEST_FLAG)
+	LD_LIBRARY_PATH=build/lib:$(LD_LIBRARY_PATH) \
+									stack build --test --test-arguments '$(TEST_FLAG)'
 
 .PHONY: regression-test
 regression-test:
@@ -54,58 +58,8 @@ watch-test: $(NODEMON)
 $(NODEMON):
 	npm install nodemon
 
-init-dev:
-	cabal sandbox init
-	cabal install --enable-tests --only-dependencies
-	cabal configure --enable-tests
-
-dist/build-oden-cli/bin/oden: build
-	rm -rf dist/build-oden-cli
-	cp -r dist/build dist/build-oden-cli
-	mkdir -p dist/build-oden-cli/bin
-	ghc \
-		--make \
-		-package-db .cabal-sandbox/*-packages.conf.d \
-		-odir dist/build-oden-cli \
-		-hidir dist/build-oden-cli \
-		-ioden \
-		-isrc \
-		-fPIC \
-		-static \
-		-threaded \
-		-o dist/build-oden-cli/bin/oden \
-		dist/build-oden-cli/libHSoden*.a \
-		dist/build-oden-cli/autogen/Paths_oden.hs \
-		dist/go-lib/importer.a \
-		$(shell find cli -name '*.hs')
-
-.PHONY: cli
-cli: dist/build-oden-cli/bin/oden
-
-dist/oden: dist/build-oden-cli/bin/oden
-	@mkdir -p dist/oden/bin
-	cp README.md dist/oden/README.txt
-	cp LICENSE.md dist/oden/LICENSE.txt
-	cp CREDITS.md dist/oden/CREDITS.txt
-	cp CHANGELOG.md dist/oden/CHANGELOG.txt
-	cp dist/build-oden-cli/bin/oden dist/oden/bin/oden
-
-$(DIST_ARCHIVE): dist/oden
-	(cd dist && tar -czf $(DIST_NAME).tar.gz oden)
-
-dist: $(DIST_ARCHIVE)
-
-docker-dist:
-	@(docker kill oden-builder &> /dev/null ; true)
-	@(docker rm oden-builder &> /dev/null ; true)
-	docker build \
-		-t oden-build:$(VERSION) \
-		.
-	docker run \
-		--env VERSION=$(VERSION) \
-		--name oden-builder \
-		oden-build:$(VERSION)
-	docker cp oden-builder:/src/dist/oden-$(VERSION)-linux.tar.gz dist
+$(DIST_ARCHIVE): build/oden
+	(cd build && tar -czf $(DIST_NAME).tar.gz oden)
 
 release: $(DIST_ARCHIVE)
 	@echo "\n\nDon't forget to set env variable GITHUB_TOKEN first!\n\n"
@@ -117,7 +71,7 @@ release: $(DIST_ARCHIVE)
 		--tag $(VERSION) \
 		--name $(VERSION) \
 		--pre-release
-	find dist -name 'oden-$(VERSION)-*.tar.gz' -execdir \
+	find build -name 'oden-$(VERSION)-*.tar.gz' -execdir \
 		github-release upload \
 			--user oden-lang \
 			--repo oden \

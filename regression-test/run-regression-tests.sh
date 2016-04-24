@@ -9,9 +9,11 @@ fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-ODEN=$DIR/../dist/build/cli/cli
+export LD_LIBRARY_PATH="$DIR/../build/lib:$LD_LIBRARY_PATH"
+
+ODEN=$DIR/../$(stack path --dist-dir)/build/oden-exe/oden-exe
 if ! hash $ODEN ; then
-  ODEN=$DIR/../dist/oden/bin/oden
+  ODEN=$DIR/../build/oden/bin
 fi
 
 cd $DIR
