@@ -13,8 +13,11 @@ import           Oden.Type.Traversal
 
 import Data.Set
 
-traversal :: Traversal (Writer (Set ProtocolConstraint)) Type TypedMemberAccess
-traversal = Traversal { onType = traverseType onType', onMemberAccess = return }
+traversal :: Traversal (Writer (Set ProtocolConstraint))
+                       UnresolvedMethodReference
+                       Type
+                       TypedMemberAccess
+traversal = identityTraversal { onType = traverseType onType', onMemberAccess = return }
   where
   onType' (TConstrained cs t) = tell cs >> return t
   onType' t = return t

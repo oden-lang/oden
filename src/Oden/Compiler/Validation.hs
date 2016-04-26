@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE FlexibleContexts #-}
 module Oden.Compiler.Validation where
 
@@ -5,11 +6,13 @@ import           Oden.Core                 as Core
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Core.Package
+import           Oden.Core.Traversal
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName        (QualifiedName (..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
+import           Oden.Type.Traversal
 
 import           Oden.Compiler.LiteralEval
 
@@ -79,64 +82,43 @@ validateRange (RangeTo e) =
 validateRange (RangeFrom e) =
   validateSliceIndex e
 
-
 validateExpr :: TypedExpr -> Validate ()
-validateExpr Symbol{} = return ()
-validateExpr (Subscript _ s i _) = do
-  validateExpr s
-  validateSliceIndex i
-validateExpr (Subslice _ s r _) = do
-  validateExpr s
-  validateRange r
-validateExpr (UnaryOp _ _ rhs _) =
-  validateExpr rhs
-validateExpr e@(BinaryOp _ Divide lhs rhs _) = do
-  validateExpr lhs
-  validateExpr rhs
-  case evaluate rhs of
-    Just (Int 0) -> throwError $ DivisionByZero e
-    _ -> return ()
-validateExpr (BinaryOp _ _ lhs rhs _) = do
-  validateExpr lhs
-  validateExpr rhs
-validateExpr (Application _ f arg _) = do
-  validateExpr f
-  validateExpr arg
-validateExpr (NoArgApplication _ f _) =
-  validateExpr f
-validateExpr (ForeignFnApplication _ f args _) = do
-  validateExpr f
-  mapM_ validateExpr args
-validateExpr (Fn _ (NameBinding si name) body _) =  do
-  errorIfDefined name si
-  withIdentifier name (validateExpr body)
-validateExpr (NoArgFn _ body _) =
-  validateExpr body
-validateExpr (Let _ (NameBinding si name) value body _) = do
-  errorIfDefined name si
-  validateExpr value
-  withIdentifier name (validateExpr body)
-validateExpr Literal{} = return ()
-validateExpr (Tuple _ f s r _) =
-  mapM_ validateExpr (f:s:r)
-validateExpr (Slice _ exprs _) =
-  mapM_ validateExpr exprs
-validateExpr (If _ c t e _) = do
-  validateExpr c
-  validateExpr t
-  validateExpr e
-validateExpr (Block _ exprs _) = do
-  mapM_ warnOnDiscarded (init exprs)
-  mapM_ validateExpr exprs
+validateExpr = void . traverseExpr identityTraversal { onExpr = onExpr'
+                                                     , onMemberAccess = onMemberAccess' }
   where
-  warnOnDiscarded :: TypedExpr -> Validate ()
-  warnOnDiscarded expr = case typeOf expr of
-    (TCon _ (FQN [] (Identifier "unit"))) -> return ()
-    _ -> throwError (ValueDiscarded expr)
-validateExpr RecordInitializer{} = return ()
-validateExpr (MemberAccess _ (RecordFieldAccess expr _ ) _) = validateExpr expr
-validateExpr (MemberAccess _ (PackageMemberAccess alias _) _) = addPackageReference alias
-validateExpr MethodReference{} = return ()
+  onExpr' expr = case expr of
+    Subscript _ _ i _ -> do
+      validateSliceIndex i
+      return $ Just expr
+    Subslice _ _ r _ -> do
+      validateRange r
+      return $ Just expr
+    BinaryOp _ Divide _ rhs _ -> do
+      when (evaluate rhs == Just (Int 0)) $
+        throwError $ DivisionByZero expr
+      return $ Just expr
+    Fn _ (NameBinding si name) body _ ->
+      onBindingAndExpression si name body
+    Let _ (NameBinding si name) _ body _ ->
+      onBindingAndExpression si name body
+    Block _ exprs _ -> do
+      mapM_ warnOnDiscarded (init exprs)
+      return $ Just expr
+      where
+      warnOnDiscarded :: TypedExpr -> Validate ()
+      warnOnDiscarded e = case typeOf e of
+        TCon _ (FQN [] (Identifier "unit")) -> return ()
+        _                                   -> throwError (ValueDiscarded e)
+    _ -> return Nothing
+
+  onBindingAndExpression si name innerExpr = do
+    errorIfDefined name si
+    withIdentifier name (onExpr' innerExpr)
+
+  onMemberAccess' p@(PackageMemberAccess alias _) = do
+    addPackageReference alias
+    return p
+  onMemberAccess' a = return a
 
 repeated :: [(Identifier, Type)] -> [(Identifier, Type)]
 repeated fields = snd (foldl check (Set.empty, []) fields)
@@ -146,16 +128,13 @@ repeated fields = snd (foldl check (Set.empty, []) fields)
     | otherwise            = (Set.insert n names, fields')
 
 validateType :: Type -> Validate ()
-validateType (TTuple _ f s r) = mapM_ validateType (f:s:r)
-validateType (TNoArgFn _ r) = validateType r
-validateType (TFn _ d r) = mapM_ validateType [d, r]
-validateType (TSlice _ t) = validateType t
-validateType (TNamed _ _ t) = validateType t
-validateType r@RExtension{} =
-  case repeated $ sortOn fst $ rowToList r of
-    ((name, _):_) -> throwError (DuplicatedRecordFieldName (getSourceInfo r) name)
-    [] -> return ()
-validateType _ = return ()
+validateType = void . traverseType onType'
+  where
+  hasDuplicateFields = null . repeated . sortOn fst
+  onType' = \case
+    r@(RExtension _ name _ _) | hasDuplicateFields (rowToList r) ->
+        throwError (DuplicatedRecordFieldName (getSourceInfo r) name)
+    t -> return t
 
 validatePackage :: TypedPackage -> Validate ()
 validatePackage (Package _ imports definitions) = do
