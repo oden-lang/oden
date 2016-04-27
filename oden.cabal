@@ -37,7 +37,9 @@ library
     Oden.Compiler.Environment,
     Oden.Compiler.Instantiate,
     Oden.Compiler.Monomorphization,
-    Oden.Compiler.TypeEncoder
+    Oden.Compiler.Resolution,
+    Oden.Compiler.Resolution.Environment,
+    Oden.Compiler.TypeEncoder,
     Oden.Compiler.Validation,
     Oden.Compiler.LiteralEval,
     Oden.Core,

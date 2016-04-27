@@ -126,7 +126,7 @@ instance Pretty Poly.Protocol where
     text "protocol" <+> pretty name <> parens (pretty tvar)
       <+> indentedInBraces (vcat (map pretty methods))
 
-instance Pretty Core.Definition where
+instance Pretty Core.TypedDefinition where
   pretty (Core.Definition _ name (scheme, expr)) = vcat [
       pretty name <+> text ":" <+> pretty scheme,
       prettyDefinition name expr

@@ -24,6 +24,7 @@ instance OdenOutput TypeError where
   name NotAnExpression{}                                    = "Infer.NotAnExpression"
   name NotAProtocol{}                                       = "Infer.NotAProtocol"
   name NoSuchMethodInProtocol{}                             = "Infer.NoSuchMethodInProtocol"
+  name InvalidForeignFnApplication{}                        = "Infer.InvalidForeignFnApplication"
 
   header (UnificationError e) s                             = header e s
   header (InvalidPackageReference _ p) s = text "Invalid reference to package" <+> code s (pretty p)
@@ -52,6 +53,8 @@ instance OdenOutput TypeError where
     code s (pretty n)
     <+> text "is not a method in"
     <+> code s (pretty protocolName)
+  header (InvalidForeignFnApplication _) _ =
+    text "Invalid foreign function application"
 
   details (UnificationError e) s = details e s
   details InvalidPackageReference{} _ = text "Packages cannot be referenced as values"
@@ -70,6 +73,13 @@ instance OdenOutput TypeError where
   details NotAnExpression{} _ = empty
   details NotAProtocol{} _ = empty
   details NoSuchMethodInProtocol{} _ = empty
+  details (InvalidForeignFnApplication _) _ =
+    text $ unwords [
+      "Foreign function application expressions are used by the compiler only",
+      "and should not appear in the Untyped IR before type inference. If you",
+      "get this error it's probably because of a programming error in the",
+      "compiler itself, or a tool using the compiler."
+    ]
 
   sourceInfo (UnificationError e)                                        = sourceInfo e
   sourceInfo (ArgumentCountMismatch e _ _)                               = Just (getSourceInfo e)
@@ -83,3 +93,4 @@ instance OdenOutput TypeError where
   sourceInfo (NotAnExpression si _)                                      = Just si
   sourceInfo (NotAProtocol si _)                                         = Just si
   sourceInfo (NoSuchMethodInProtocol si _ _)                             = Just si
+  sourceInfo (InvalidForeignFnApplication si)                            = Just si

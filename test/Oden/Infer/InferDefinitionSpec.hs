@@ -15,7 +15,7 @@ import           Oden.Predefined
 import           Oden.Assertions
 import           Oden.Infer.Fixtures
 
-inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either Infer.TypeError Core.Definition
+inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either Infer.TypeError Core.TypedDefinition
 inferDefinition env def = snd <$> Infer.inferDefinition env def
 
 spec :: Spec

@@ -168,7 +168,7 @@ intToInt = typeFn typeInt typeInt
 intToIntToInt :: Type
 intToIntToInt = typeFn typeInt (typeFn typeInt typeInt)
 
-countToZeroTyped :: Core.Definition
+countToZeroTyped :: Core.TypedDefinition
 countToZeroTyped =
   tDefinition
    (Identifier "f")
@@ -209,7 +209,7 @@ twiceUntyped =
    Untyped)
   Untyped
 
-twiceTyped :: Core.Definition
+twiceTyped :: Core.TypedDefinition
 twiceTyped =
   tDefinition (Identifier "twice") (scheme (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
                            tFn

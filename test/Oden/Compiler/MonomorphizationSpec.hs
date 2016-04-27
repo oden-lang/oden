@@ -35,7 +35,7 @@ typeBool = Poly.TCon missing (nameInUniverse "bool")
 monoInt = Mono.TCon missing (nameInUniverse "int")
 monoBool = Mono.TCon missing (nameInUniverse "bool")
 
-identityDef :: Core.Definition
+identityDef :: Core.TypedDefinition
 identityDef =
   Core.Definition
     missing
@@ -44,7 +44,7 @@ identityDef =
      Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") a)
                  (Poly.TFn missing a a))
 
-identity2Def :: Core.Definition
+identity2Def :: Core.TypedDefinition
 identity2Def =
   Core.Definition
     missing
@@ -55,7 +55,7 @@ identity2Def =
                                    a)
                  (Poly.TFn missing a a))
 
-usingIdentityDef :: Core.Definition
+usingIdentityDef :: Core.TypedDefinition
 usingIdentityDef =
   Core.Definition
     missing
@@ -66,7 +66,7 @@ usingIdentityDef =
                       (Literal missing (Int 1) typeInt)
                       typeInt)
 
-usingIdentity2Def :: Core.Definition
+usingIdentity2Def :: Core.TypedDefinition
 usingIdentity2Def =
   Core.Definition
     missing
@@ -88,7 +88,7 @@ usingIdentityMonomorphed =
                       (Literal missing (Int 1) monoInt)
                       monoInt)
 
-letBoundIdentity :: Core.Definition
+letBoundIdentity :: Core.TypedDefinition
 letBoundIdentity =
   Core.Definition
     missing
@@ -157,7 +157,7 @@ identity2InstIntToInt =
       monoInt)
      (Mono.TFn missing monoInt monoInt))
 
-sliceLenDef :: Core.Definition
+sliceLenDef :: Core.TypedDefinition
 sliceLenDef =
   Core.Definition
     missing
@@ -181,7 +181,7 @@ sliceLenMonomorphed =
      (Slice missing [Literal missing (Bool True) monoBool] (Mono.TSlice missing monoBool))
      monoInt)
 
-letWithShadowing :: Core.Definition
+letWithShadowing :: Core.TypedDefinition
 letWithShadowing =
   Core.Definition
     missing

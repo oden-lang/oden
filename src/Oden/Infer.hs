@@ -478,7 +478,7 @@ type ShouldCloseOver = Bool
 
 -- | Infer the untyped definition in the Infer monad, returning a typed
 -- version. Resolves type signatures of optionally type-annotated definitions.
-inferDef :: Untyped.Definition -> Infer (Core.Definition, ShouldCloseOver)
+inferDef :: Untyped.Definition -> Infer (Core.TypedDefinition, ShouldCloseOver)
 inferDef (Untyped.Definition si name signature expr) = do
   env <- ask
   case signature of
@@ -513,7 +513,7 @@ inferDef (Untyped.ProtocolDefinition si name (SignatureVarBinding vsi var) metho
 
 -- | Infer a top-level definitition, returning a typed version and the typing
 -- environment extended with the definitions name and type.
-inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either TypeError (TypingEnvironment, Core.Definition)
+inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either TypeError (TypingEnvironment, Core.TypedDefinition)
 inferDefinition env def = do
   -- Infer the definition.
   ((def', shouldCloseOver), cs) <- runInfer env (inferDef def)

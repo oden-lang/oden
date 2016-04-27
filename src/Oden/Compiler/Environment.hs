@@ -9,7 +9,7 @@ import           Oden.Metadata
 import           Oden.SourceInfo
 
 data Binding = PackageBinding (Metadata SourceInfo) Identifier (Environment Binding)
-             | Definition Core.Definition
+             | Definition Core.TypedDefinition
              | LetBinding NameBinding Core.TypedExpr
              | FunctionArgument NameBinding
              deriving (Show, Eq)

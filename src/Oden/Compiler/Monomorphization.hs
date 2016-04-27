@@ -323,7 +323,7 @@ unwrapLetInstances (LetInstance si mn me:is) body =
   Let si mn me (unwrapLetInstances is body) (typeOf body)
 
 -- | Monomorphs a definitions and keeps results in the state.
-monomorphDefinitions :: [Core.Definition]
+monomorphDefinitions :: [Core.TypedDefinition]
                      -> Monomorph ()
 monomorphDefinitions [] = return ()
 monomorphDefinitions (d@(Core.Definition si identifier (Poly.Forall _ _ _ st, expr)) : defs) = do

@@ -18,15 +18,16 @@ data UnresolvedMethodReference
   = UnresolvedMethodReference Poly.Protocol Poly.ProtocolMethod
   deriving (Show, Eq, Ord)
 
--- data ResolvedMethodReference = ResolvedMethodReference Poly.Protocol Poly.ProtocolMethod
-
 type CanonicalExpr = (Poly.Scheme, TypedExpr)
 
-data Definition = Definition (Metadata SourceInfo) Identifier CanonicalExpr
-                | ForeignDefinition (Metadata SourceInfo) Identifier Poly.Scheme
-                | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] Poly.Type
-                | ProtocolDefinition (Metadata SourceInfo) QualifiedName Poly.Protocol
-                deriving (Show, Eq, Ord)
+data Definition e
+  = Definition (Metadata SourceInfo) Identifier e
+  | ForeignDefinition (Metadata SourceInfo) Identifier Poly.Scheme
+  | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] Poly.Type
+  | ProtocolDefinition (Metadata SourceInfo) QualifiedName Poly.Protocol
+  deriving (Show, Eq, Ord)
+
+type TypedDefinition = Definition CanonicalExpr
 
 data ImportedPackage = ImportedPackage (Metadata SourceInfo) Identifier TypedPackage
                      deriving (Show, Eq, Ord)
@@ -34,4 +35,4 @@ data ImportedPackage = ImportedPackage (Metadata SourceInfo) Identifier TypedPac
 -- Some handy aliases.
 type TypedExpr = Expr UnresolvedMethodReference Poly.Type TypedMemberAccess
 type TypedRange = Range TypedExpr
-type TypedPackage = Package ImportedPackage Definition
+type TypedPackage = Package ImportedPackage TypedDefinition
