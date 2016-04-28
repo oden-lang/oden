@@ -6,6 +6,7 @@ module Oden.Compiler.Resolution.Environment (
 
 import           Oden.Core
 import           Oden.Core.Package
+import           Oden.Core.ProtocolImplementation
 import           Oden.Environment      hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
@@ -13,7 +14,7 @@ import           Oden.SourceInfo
 
 data ResolutionBinding
   = PackageBinding (Metadata SourceInfo) Identifier ResolutionEnvironment
-  | ImplementationBinding (Metadata SourceInfo)
+  | ImplementationBinding (Metadata SourceInfo) (ProtocolImplementation TypedExpr)
   deriving (Show, Eq)
 
 type ResolutionEnvironment = Environment ResolutionBinding

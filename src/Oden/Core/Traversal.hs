@@ -8,35 +8,48 @@ import           Oden.Core.Expr
 
 import           Data.Maybe
 
-data Traversal m r t a = Traversal { onExpr :: Expr r t a -> m (Maybe (Expr r t a))
-                                   , onType :: t -> m t
-                                   , onMemberAccess :: a -> m a
-                                   , onNameBinding :: NameBinding -> m NameBinding }
+data Traversal m r r' t t' a a'
+  = Traversal { onExpr :: Expr r t a -> m (Maybe (Expr r' t' a'))
+              , onType :: t -> m t'
+              , onMemberAccess :: a -> m a'
+              , onNameBinding :: NameBinding -> m NameBinding
+              , onMethodReference  :: r -> m r'
+              }
 
-identityTraversal :: Monad m => Traversal m r t a
-identityTraversal = Traversal { onExpr = const (return Nothing)
-                              , onType = return
-                              , onMemberAccess = return
-                              , onNameBinding = return }
+identityTraversal :: Monad m => Traversal m r r t t a a
+identityTraversal
+  = Traversal { onExpr = const (return Nothing)
+              , onType = return
+              , onMemberAccess = return
+              , onNameBinding = return
+              , onMethodReference = return
+              }
 
 traverseExpr :: Monad m
-              => Traversal m r t a
+              => Traversal m r r' t t' a a'
               -> Expr r t a
-              -> m (Expr r t a)
+              -> m (Expr r' t' a')
 traverseExpr traversal@Traversal{ onExpr = onExpr'
                                 , onType = onType'
-                                , onNameBinding = onNameBinding' } = traverseExpr'
+                                , onNameBinding = onNameBinding'
+                                , onMethodReference = onMethodReference' } =
+  traverseExpr'
   where
   traverseExpr' expr =
     fromMaybe <$> traverseDefault expr <*> onExpr' expr
+
+  traverseRange = \case
+    Range lower upper -> Range <$> traverseExpr' lower <*> traverseExpr' upper
+    RangeTo upper     -> RangeTo <$> traverseExpr' upper
+    RangeFrom lower   -> RangeFrom <$> traverseExpr' lower
 
   traverseDefault = \case
     Symbol si identifier t ->
       Symbol si identifier <$> onType' t
     Subscript si slice i t ->
-      Subscript si <$> traverseExpr' slice <*> return i <*> onType' t
+      Subscript si <$> traverseExpr' slice <*> traverseExpr' i <*> onType' t
     Subslice si slice range t ->
-      Subslice si <$> traverseExpr' slice <*> return range <*> onType' t
+      Subslice si <$> traverseExpr' slice <*> traverseRange range <*> onType' t
     UnaryOp si operator operand t ->
       UnaryOp si operator <$> traverseExpr' operand <*> onType' t
     BinaryOp si op lhs rhs t ->
@@ -56,7 +69,10 @@ traverseExpr traversal@Traversal{ onExpr = onExpr'
     Literal si literal t ->
       Literal si literal <$> onType' t
     Tuple si f s r t ->
-      Tuple si <$> traverseExpr' f <*> traverseExpr' s <*> mapM traverseExpr' r <*> onType' t
+      Tuple si <$> traverseExpr' f
+               <*> traverseExpr' s
+               <*> mapM traverseExpr' r
+               <*> onType' t
     Slice si exprs t ->
       Slice si <$> mapM traverseExpr' exprs <*> onType' t
     If si condition thenBranch elseBranch t ->
@@ -74,4 +90,4 @@ traverseExpr traversal@Traversal{ onExpr = onExpr'
     MemberAccess si access t ->
       MemberAccess si <$> onMemberAccess traversal access <*> onType' t
     MethodReference si ref t ->
-      MethodReference si ref <$> onType' t
+      MethodReference si <$> onMethodReference' ref <*> onType' t

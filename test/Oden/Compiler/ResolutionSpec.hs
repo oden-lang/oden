@@ -4,6 +4,7 @@ import           Oden.Compiler.Resolution
 import           Oden.Compiler.Resolution.Environment
 import           Oden.Core
 import           Oden.Core.Expr
+import           Oden.Core.ProtocolImplementation
 import           Oden.Environment
 import           Oden.Identifier
 import           Oden.Predefined
@@ -33,8 +34,11 @@ tvarA = TVar predefined tvA
 
 aToBool = TFn predefined tvarA typeBool
 
-unresolved protocol method type' =
-  MethodReference missing (UnresolvedMethodReference protocol method) type'
+unresolved protocol method =
+  MethodReference missing (UnresolvedMethodReference protocol method)
+
+resolved protocol method implMethod =
+  MethodReference missing (ResolvedMethodReference protocol method implMethod)
 
 testableProtocolMethod =
   ProtocolMethod
@@ -49,19 +53,31 @@ testableProtocol  =
   (TVar predefined tvA)
   [testableProtocolMethod]
 
-boolTestableImplementationMethod = undefined
-boolTestableImplementation = undefined
+boolTestableImplementationMethod :: MethodImplementation TypedExpr
+boolTestableImplementationMethod =
+  MethodImplementation
+  missing
+  testableProtocolMethod
+  undefined
+
+boolTestableImplementation :: ProtocolImplementation TypedExpr
+boolTestableImplementation =
+  ProtocolImplementation
+  missing
+  testableProtocol
+  [boolTestableImplementationMethod]
 
 predefAndTestableProtocol :: ResolutionEnvironment
 predefAndTestableProtocol =
   predef
   `extend`
   (Identifier "Testable",
-   ImplementationBinding predefined)
+   ImplementationBinding predefined boolTestableImplementation)
 
 spec :: Spec
 spec =
-  describe "resolveInExpr" $
+  describe "resolveInExpr" $ do
+
     it "throws error if there's no matching implementation" $
       shouldFail $
         resolveInDefinition
@@ -74,4 +90,26 @@ spec =
           testableProtocol
           testableProtocolMethod
           aToBool))
+
+    it "resolves a single matching implementation" $
+      resolveInDefinition
+      predefAndTestableProtocol
+      (Definition
+        missing
+        (Identifier "foo")
+        (Forall missing [] (Set.singleton (ProtocolConstraint missing testableProtocol tvarA)) aToBool,
+        unresolved
+        testableProtocol
+        testableProtocolMethod
+        aToBool))
+      `shouldSucceedWith`
+      Definition
+      missing
+      (Identifier "foo")
+      (Forall missing [] (Set.singleton (ProtocolConstraint missing testableProtocol tvarA)) aToBool,
+       resolved
+       testableProtocol
+       testableProtocolMethod
+       boolTestableImplementationMethod
+       aToBool)
 

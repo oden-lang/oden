@@ -3,6 +3,7 @@ module Oden.Core where
 
 import           Oden.Core.Expr
 import           Oden.Core.Package
+import           Oden.Core.ProtocolImplementation
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName (QualifiedName(..))
@@ -25,6 +26,7 @@ data Definition e
   | ForeignDefinition (Metadata SourceInfo) Identifier Poly.Scheme
   | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] Poly.Type
   | ProtocolDefinition (Metadata SourceInfo) QualifiedName Poly.Protocol
+  | ImplementationDefinition (Metadata SourceInfo) (ProtocolImplementation TypedExpr)
   deriving (Show, Eq, Ord)
 
 type TypedDefinition = Definition CanonicalExpr
