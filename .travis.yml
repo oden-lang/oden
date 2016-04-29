@@ -4,6 +4,7 @@ sudo: false
 os:
 - linux
 - osx
+env: STACK_ARGS=""
 addons:
   apt:
     sources:
@@ -18,28 +19,44 @@ before_install:
 - export PATH=/opt/alex/3.1.4/bin:$PATH
 - export PATH=/opt/happy/1.19.5/bin:$PATH
 - export PATH=$HOME/.cabal/bin:$PATH
-install:
+
+# Install OSX dependencies.
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install ghc cabal-install pcre; fi
-- travis_retry cabal update
-- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config;
+
+# Download and unpack the stack executable
+- export PATH=/opt/ghc/7.10.1/bin:$HOME/.local/bin:$PATH
+- mkdir -p ~/.local/bin
+- |
+  if [ `uname` = "Darwin" ]
+  then
+    curl --insecure -L https://www.stackage.org/stack/osx-x86_64 | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
+  else
+    curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
   fi
-- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cabal install alex-3.1.4; cabal install happy-1.19.5; fi
-- cabal install hlint
-- cabal sandbox init
-- cabal install --enable-tests --only-dependencies
+
+install:
+#- travis_retry cabal update
+#- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sed -i 's/^jobs:/-- jobs:/' ${HOME}/.cabal/config;
+  #fi
+#- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then cabal install alex-3.1.4; cabal install happy-1.19.5; fi
+#- cabal install hlint
+#- cabal sandbox init
+#- cabal install --enable-tests --only-dependencies
+- stack --no-terminal --install-ghc $STACK_ARGS test --only-dependencies
 script:
-- cabal configure --enable-tests
+- stack build
 - export VERSION=branch-$TRAVIS_BRANCH-job-$TRAVIS_JOB_NUMBER
 - if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-$TRAVIS_PULL_REQUEST-job-$TRAVIS_JOB_NUMBER;
   fi
 - if [[ "$TRAVIS_TAG" != "" ]]; then export VERSION=$TRAVIS_TAG; fi
-- make dist
-- make ci-test
+- make dist ci-test
 cache:
   apt: true
   directories:
-  - .cabal-sandbox
+  - $HOME/.ghc
+  - $HOME/.cabal
+  - $HOME/.stack
 deploy:
   provider: releases
   api_key:

@@ -41,19 +41,15 @@ clean:
 	rm -rf build
 
 .PHONY: test
-test:
+test: # Runs lint and specifications.
 	$(LIBRARY_PATH_VAR) stack build --test --test-arguments '$(TEST_FLAG)'
 
 .PHONY: regression-test
 regression-test:
 	regression-test/run-regression-tests.sh validate
 
-.PHONY: lint
-lint:
-	hlint src cli
-
 .PHONY: ci-test
-ci-test: test regression-test lint
+ci-test: test regression-test
 
 .PHONY: watch-test
 watch-test: $(NODEMON)
