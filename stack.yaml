@@ -31,4 +31,4 @@ extra-package-dbs: []
 # extra-include-dirs: [/path/to/dir]
 # extra-lib-dirs: [/path/to/dir]
 ghc-options:
-  "spec": -Wall -L build/lib
+  "spec": -Wall -Lbuild/lib

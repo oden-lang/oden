@@ -16,6 +16,11 @@ IMPORTER_SRC=$(shell find go/src/oden -name '*.go')
 
 NODEMON=node_modules/.bin/nodemon
 
+LIBRARY_PATH_VAR=LD_LIBRARY_PATH=build/lib:$(LD_LIBRARY_PATH)
+ifeq ($(OS),osx)
+	LIBRARY_PATH_VAR=DYLD_LIBRARY_PATH=build/lib:$(DYLD_LIBRARY_PATH)
+endif
+
 dist: $(DIST_ARCHIVE)
 
 $(STACK_ODEN_EXE):
@@ -37,8 +42,7 @@ clean:
 
 .PHONY: test
 test:
-	LD_LIBRARY_PATH=build/lib:$(LD_LIBRARY_PATH) \
-									stack build --test --test-arguments '$(TEST_FLAG)'
+	$(LIBRARY_PATH_VAR) stack build --test --test-arguments '$(TEST_FLAG)'
 
 .PHONY: regression-test
 regression-test:

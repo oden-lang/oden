@@ -10,6 +10,7 @@ fi
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 export LD_LIBRARY_PATH="$DIR/../build/lib:$LD_LIBRARY_PATH"
+export DYLD_LIBRARY_PATH="$DIR/../build/lib:$DYLD_LIBRARY_PATH"
 
 ODEN=$DIR/../$(stack path --dist-dir)/build/oden-exe/oden-exe
 if ! hash $ODEN ; then

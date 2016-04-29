@@ -1,30 +1,30 @@
 # Build
 
-To get the Cabal sandbox and dependencies, and build the library `oden`, run
-the following:
+Oden is built using Stack. A regular build requires nothing special.
 
 ```bash
-$ make init-dev
-$ make build
+stack setup
+stack build
 ```
-
-## Building the CLI on Linux
-
-Due to some strange behaviour in Cabal on Linux regarding linking and
-executables the CLI build is done in the Makefile. This means that only `oden`
-the library can be built with Cabal, using `cabal build oden`, not `cabal
-build`.
-
-To get the `oden` executable run `make cli` and it will
-be available in `dist/build-oden-cli/bin/oden`.
 
 ## Distribution
 
+To build the Oden distribution we use Make.
+
 ```bash
-$ make dist
-$ file dist/oden-0.2.0-osx.tar.gz
-dist/oden-0.2.0-osx.tar.gz: gzip compressed data, ...
+make
 ```
+
+```bash
+$ make
+$ file build/oden-0.3.0-alpha13-osx.tar.gz
+dist/oden-0.3.0-alpha13-osx.tar.gz: gzip compressed data, ...
+```
+
+Because a dynamically linked library for Go imports needs an extended
+`LD_LIBRARY_PATH` there's a wrapper script in the distribution. The executable
+`oden-exe` that Stack produces should not be used directly. To add Oden to
+your path do something like `export PATH=$PATH:<PATH-TO-ODEN-DISTRIBUTION>/bin`.
 
 ## Tests
 
