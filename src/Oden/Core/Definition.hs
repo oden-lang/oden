@@ -13,5 +13,5 @@ data Definition e
   | ForeignDefinition (Metadata SourceInfo) Identifier Scheme
   | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] Type
   | ProtocolDefinition (Metadata SourceInfo) QualifiedName Protocol
-  | ImplementationDefinition (Metadata SourceInfo) (ProtocolImplementation e)
+  | Implementation (Metadata SourceInfo) (ProtocolImplementation e)
   deriving (Show, Eq, Ord)

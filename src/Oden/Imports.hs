@@ -2,7 +2,7 @@ module Oden.Imports where
 
 import           Oden.Core.Package
 import           Oden.Core.Untyped
-import           Oden.Core.Resolved
+import           Oden.Core.Typed
 import           Oden.Identifier
 
 import Control.Monad.Except
@@ -19,18 +19,18 @@ type Imports = ExceptT PackageImportError IO
 
 type Importer =
   PackageName -> IO (Either PackageImportError
-                            (ResolvedPackage, [UnsupportedMessage]))
+                            (TypedPackage, [UnsupportedMessage]))
 
 resolveImports' :: Importer
                 -> UntypedPackage ImportReference
-                -> Imports (UntypedPackage (ImportedPackage ResolvedPackage), [UnsupportedTypesWarning])
+                -> Imports (UntypedPackage (ImportedPackage TypedPackage), [UnsupportedTypesWarning])
 resolveImports' importer (UntypedPackage pkgDecl@(PackageDeclaration _ _) imports defs) = do
   (importedPackages, warnings) <- foldM resolveImport ([], []) imports
   return (UntypedPackage pkgDecl importedPackages defs, warnings)
   where
-  resolveImport :: ([ImportedPackage ResolvedPackage], [UnsupportedTypesWarning])
+  resolveImport :: ([ImportedPackage TypedPackage], [UnsupportedTypesWarning])
                 -> ImportReference
-                -> Imports ([ImportedPackage ResolvedPackage], [UnsupportedTypesWarning])
+                -> Imports ([ImportedPackage TypedPackage], [UnsupportedTypesWarning])
   resolveImport (pkgs, warnings) (ImportReference sourceInfo importedPkgName) = do
     result <- liftIO $ importer importedPkgName
     (pkg', unsupported) <- either throwError return result
@@ -39,6 +39,6 @@ resolveImports' importer (UntypedPackage pkgDecl@(PackageDeclaration _ _) import
 
 resolveImports :: Importer
                -> UntypedPackage ImportReference
-               -> IO (Either PackageImportError (UntypedPackage (ImportedPackage ResolvedPackage),
+               -> IO (Either PackageImportError (UntypedPackage (ImportedPackage TypedPackage),
                                                  [UnsupportedTypesWarning]))
 resolveImports importer pkg' = runExceptT (resolveImports' importer pkg')

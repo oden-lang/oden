@@ -11,7 +11,7 @@ import           Control.Monad.State
 import qualified Data.Map              as Map hiding (foldl)
 
 import           Oden.Core.Expr
-import           Oden.Core.Resolved
+import           Oden.Core.Typed
 import           Oden.Metadata
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
@@ -112,20 +112,20 @@ replace (Poly.RExtension si label type' row) =
   Poly.RExtension si label <$> replace type'
                            <*> replace row
 
-instantiateField :: FieldInitializer ResolvedExpr
-                -> Instantiate (FieldInitializer ResolvedExpr)
+instantiateField :: FieldInitializer TypedExpr
+                -> Instantiate (FieldInitializer TypedExpr)
 instantiateField (FieldInitializer si label expr) =
   FieldInitializer si label <$> instantiateExpr expr
 
-instantiateMemberAccess :: ResolvedMemberAccess
-                        -> Instantiate ResolvedMemberAccess
+instantiateMemberAccess :: TypedMemberAccess
+                        -> Instantiate TypedMemberAccess
 instantiateMemberAccess = \case
   RecordFieldAccess expr name ->
     RecordFieldAccess <$> instantiateExpr expr <*> return name
   c@PackageMemberAccess{} -> return c
 
-instantiateExpr :: ResolvedExpr
-                -> Instantiate ResolvedExpr
+instantiateExpr :: TypedExpr
+                -> Instantiate TypedExpr
 instantiateExpr (Symbol si i t) =
   Symbol si i <$> replace t
 instantiateExpr (Subscript si s i t) =
@@ -201,9 +201,9 @@ instantiateExpr (MethodReference si ref t) =
 -- | Given a polymorphically typed expression and a monomorphic type, return
 -- the expression with all types substitued for monomorphic ones. If there's
 -- a mismatch an error is thrown.
-instantiate :: ResolvedExpr
+instantiate :: TypedExpr
             -> Mono.Type
-            -> Either InstantiateError ResolvedExpr
+            -> Either InstantiateError TypedExpr
 instantiate expr mono = do
   subst <- getSubstitutions (typeOf expr) mono
   (expr', _) <- runExcept (runStateT (instantiateExpr expr) subst)

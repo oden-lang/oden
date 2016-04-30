@@ -4,7 +4,6 @@ import           Oden.Compiler.Resolution
 
 import           Oden.Core.Expr
 import           Oden.Core.ProtocolImplementation
-import           Oden.Core.Resolved
 import           Oden.Core.Typed
 
 import           Oden.Environment
@@ -37,10 +36,10 @@ aToBool = TFn predefined tvarA typeBool
 one = Literal missing (Int 1) typeInt
 
 unresolved protocol method =
-  MethodReference missing (UnresolvedMethodReference protocol method)
+  MethodReference missing (Unresolved protocol method)
 
 resolved protocol method implMethod =
-  MethodReference missing (ResolvedMethodReference protocol method implMethod)
+  MethodReference missing (Resolved protocol method implMethod)
 
 testableProtocolMethod =
   ProtocolMethod

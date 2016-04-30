@@ -7,8 +7,9 @@ import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Core.Package
-import           Oden.Core.Resolved        (ResolvedPackage(..))
+import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Traversal
+
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName        (QualifiedName (..))
@@ -86,7 +87,8 @@ validateRange (RangeFrom e) =
 
 validateExpr :: TypedExpr -> Validate ()
 validateExpr = void . traverseExpr identityTraversal { onExpr = onExpr'
-                                                     , onMemberAccess = onMemberAccess' }
+                                                     , onMemberAccess = onMemberAccess'
+                                                     }
   where
   onExpr' expr = case expr of
     Subscript _ _ i _ -> do
@@ -146,7 +148,7 @@ validatePackage (TypedPackage _ imports definitions) = do
   -- When package usage is collected we can validate the imports.
   mapM_ validateImport imports
   where
-  validateImport (ImportedPackage (Metadata sourceInfo) alias (ResolvedPackage (PackageDeclaration _ pkg) _ _)) = do
+  validateImport (ImportedPackage (Metadata sourceInfo) alias (TypedPackage (PackageDeclaration _ pkg) _ _)) = do
     refs <- gets packageReferences
     unless (alias `Set.member` refs) $
       throwError (UnusedImport sourceInfo pkg alias)
@@ -158,6 +160,12 @@ validatePackage (TypedPackage _ imports definitions) = do
   validateDefs (TypeDefinition _ (FQN _ n) _ type':defs) = do
     validateType type'
     withIdentifier n (validateDefs defs)
+  validateDefs (Implementation _ (ProtocolImplementation _ _ methods) : defs) = do
+    mapM_ validateMethod methods
+    validateDefs defs
+    where
+    validateMethod (MethodImplementation _ _ expr) =
+      validateExpr expr
   validateDefs (_:defs) = validateDefs defs
   validateDefs [] = return ()
 

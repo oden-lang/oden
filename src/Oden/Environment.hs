@@ -1,3 +1,6 @@
+-- | The Environment is a representation of the bindings and protocol
+-- implementations visible in a certain scope, e.g. a package scope with
+-- imports, top-level definitions and local bindings.
 module Oden.Environment where
 
 import qualified Data.Map              as Map
@@ -6,30 +9,51 @@ import           Prelude               hiding (lookup)
 
 import           Oden.Identifier
 
-newtype Environment b = Environment (Map.Map Identifier b) deriving (Show, Eq)
+data Environment b i
+  = Environment (Map.Map Identifier b) [i]
+  deriving (Show, Eq)
 
-empty :: Environment b
-empty = Environment Map.empty
+empty :: Environment b i
+empty = Environment Map.empty []
 
-assocs :: Environment b -> [(Identifier, b)]
-assocs (Environment m) = Map.assocs m
+assocs :: Environment b i -> [(Identifier, b)]
+assocs (Environment m _) = Map.assocs m
 
-lookup :: Identifier -> Environment b -> Maybe b
-lookup i (Environment m) = Map.lookup i m
+bindings :: Environment b i -> [b]
+bindings (Environment m _) = Map.elems m
 
-map :: (a -> b) -> Environment a -> Environment b
-map f (Environment e) = Environment (Map.map f e)
+implementations :: Environment b i -> [i]
+implementations (Environment _ impls) = impls
 
-insert :: Identifier -> b -> Environment b -> Environment b
-insert i binding (Environment m) =
-  Environment (Map.insert i binding m)
+lookup :: Identifier -> Environment b i -> Maybe b
+lookup i (Environment m _) = Map.lookup i m
 
-extend :: Environment b -> (Identifier, b) -> Environment b
-extend (Environment m) (identifier, binding) =
-  Environment (Map.insert identifier binding m)
+map :: (a -> b) -> Environment a i -> Environment b i
+map f (Environment e impls) = Environment (Map.map f e) impls
 
-merge :: Environment b -> Environment b -> Environment b
-merge (Environment m1) (Environment m2) = Environment (m1 `Map.union` m2)
+insert :: Identifier -> b -> Environment b i -> Environment b i
+insert i binding (Environment m impls) =
+  Environment (Map.insert i binding m) impls
 
-fromList :: [(Identifier, b)] -> Environment b
-fromList = Environment . Map.fromList
+extend :: Environment b i -> (Identifier, b) -> Environment b i
+extend (Environment m impls) (identifier, binding) =
+  Environment (Map.insert identifier binding m) impls
+
+addImplementation :: Environment b i -> i -> Environment b i
+addImplementation (Environment bindings impls) impl =
+  Environment bindings (impls ++ [impl])
+
+merge :: Environment b i -> Environment b i -> Environment b i
+merge (Environment m1 i1) (Environment m2 i2) = Environment (m1 `Map.union` m2) (i1 ++ i2)
+
+fromList :: [(Identifier, b)] -> Environment b i
+fromList = flip fromLists []
+
+fromLists :: [(Identifier, b)] -> [i] -> Environment b i
+fromLists = Environment . Map.fromList
+
+singleton :: Identifier -> b -> Environment b i
+singleton i binding = Environment (Map.singleton i binding) []
+
+singletonImplementation :: i -> Environment b i
+singletonImplementation impl = Environment Map.empty [impl]

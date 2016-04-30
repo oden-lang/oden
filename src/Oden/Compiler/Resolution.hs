@@ -5,13 +5,11 @@
 -- implementations available for now.
 module Oden.Compiler.Resolution where
 
-import Oden.Core.Typed                  as Typed
+import Oden.Core.Typed
 import Oden.Core.Definition
 import Oden.Core.ProtocolImplementation
-import Oden.Core.Resolved               as Resolved
 import Oden.Core.Traversal
 import Oden.Metadata
-import Oden.Predefined
 import Oden.SourceInfo
 import Oden.Type.Polymorphic
 
@@ -20,21 +18,10 @@ import Control.Monad.State
 
 data ResolutionError
   = NoMatchingImplementationInScope SourceInfo
-  | MultipleMatchingImplementationsInScope SourceInfo [ProtocolImplementation ResolvedExpr]
+  | MultipleMatchingImplementationsInScope SourceInfo [ProtocolImplementation TypedExpr]
   deriving (Show, Eq, Ord)
 
-type ResolutionEnvironment = [ProtocolImplementation ResolvedExpr]
-
-resolutionEnvironmentFromPackage :: ResolvedPackage -> ResolutionEnvironment
-resolutionEnvironmentFromPackage (ResolvedPackage _ _ defs) =
-  concatMap getImplementations defs
-  where
-  getImplementations = \case
-    Definition si name (scheme, expr) -> []
-    ForeignDefinition si name scheme -> []
-    TypeDefinition si name bindings type' -> []
-    ProtocolDefinition si name protocol -> []
-    ImplementationDefinition si implementation -> [implementation]
+type ResolutionEnvironment = [ProtocolImplementation TypedExpr]
 
 type Resolve = StateT ResolutionEnvironment (Except ResolutionError)
 
@@ -43,7 +30,7 @@ type Resolve = StateT ResolutionEnvironment (Except ResolutionError)
 lookupMethodImplementation :: SourceInfo
                            -> Protocol
                            -> ProtocolMethod
-                           -> Resolve (MethodImplementation ResolvedExpr)
+                           -> Resolve (MethodImplementation TypedExpr)
 lookupMethodImplementation si protocol method@(ProtocolMethod _ methodName _) = do
   matchingImpls <- filter matchesProtocol <$> get
   protocolImpl <- selectSingleProtocolImpl matchingImpls
@@ -57,8 +44,8 @@ lookupMethodImplementation si protocol method@(ProtocolMethod _ methodName _) = 
     impls  -> throwError (MultipleMatchingImplementationsInScope si impls)
   matchesMethod (MethodImplementation _ (ProtocolMethod _ methodName' _) _) =
     methodName == methodName'
-  selectSingleMethod :: ProtocolImplementation ResolvedExpr
-                     -> Resolve (MethodImplementation ResolvedExpr)
+  selectSingleMethod :: ProtocolImplementation TypedExpr
+                     -> Resolve (MethodImplementation TypedExpr)
   selectSingleMethod (ProtocolImplementation _ _ methodImpls) =
     case filter matchesMethod methodImpls of
       [] -> error "OMG no method impl"
@@ -66,16 +53,16 @@ lookupMethodImplementation si protocol method@(ProtocolMethod _ methodName _) = 
       _methodImpls -> error "OMG too many method impls"
 
 resolveInMethodImplementation :: MethodImplementation TypedExpr
-                              -> Resolve (MethodImplementation ResolvedExpr)
+                              -> Resolve (MethodImplementation TypedExpr)
 resolveInMethodImplementation (MethodImplementation si method expr) =
   MethodImplementation si method <$> resolveInExpr' expr
 
 resolveInImplementation :: ProtocolImplementation TypedExpr
-                        -> Resolve (ProtocolImplementation ResolvedExpr)
+                        -> Resolve (ProtocolImplementation TypedExpr)
 resolveInImplementation (ProtocolImplementation si protocol methods) =
   ProtocolImplementation si protocol <$> mapM resolveInMethodImplementation methods
 
-resolveInExpr' :: TypedExpr -> Resolve ResolvedExpr
+resolveInExpr' :: TypedExpr -> Resolve TypedExpr
 resolveInExpr' = traverseExpr traversal
   where
   traversal = Traversal { onExpr = const (return Nothing)
@@ -83,16 +70,20 @@ resolveInExpr' = traverseExpr traversal
                         , onMemberAccess = onMemberAccess'
                         , onNameBinding = return
                         , onMethodReference = onMethodReference' }
-  onMethodReference' si (UnresolvedMethodReference protocol method) type' = do
-    implementationMethod <- lookupMethodImplementation (unwrap si) protocol method
-    return (si, ResolvedMethodReference protocol method implementationMethod, type')
+  onMethodReference' si reference type' =
+    case reference of
+      Unresolved protocol method -> do
+        implementationMethod <- lookupMethodImplementation (unwrap si) protocol method
+        return (si, Resolved protocol method implementationMethod, type')
+      Resolved{} ->
+        return (si, reference, type')
   onMemberAccess' = \case
-    Typed.RecordFieldAccess expr identifier ->
-      Resolved.RecordFieldAccess <$> resolveInExpr' expr <*> return identifier
-    Typed.PackageMemberAccess pkg member ->
-      return (Resolved.PackageMemberAccess pkg member)
+    RecordFieldAccess expr identifier ->
+      RecordFieldAccess <$> resolveInExpr' expr <*> return identifier
+    PackageMemberAccess pkg member ->
+      return (PackageMemberAccess pkg member)
 
-resolveInDefinition' :: TypedDefinition -> Resolve ResolvedDefinition
+resolveInDefinition' :: TypedDefinition -> Resolve TypedDefinition
 resolveInDefinition' = \case
     Definition si name (scheme, expr) -> do
       expr' <- resolveInExpr' expr
@@ -103,31 +94,31 @@ resolveInDefinition' = \case
       return (TypeDefinition si name bindings type')
     ProtocolDefinition si name protocol ->
       return (ProtocolDefinition si name protocol)
-    ImplementationDefinition si implementation -> do
+    Implementation si implementation -> do
       resolved <- resolveInImplementation implementation
       modify ((:) resolved)
-      return undefined
+      return (Implementation si resolved)
 
 runResolve :: ResolutionEnvironment -> Resolve a -> Either ResolutionError a
 runResolve env = runExcept . flip evalStateT env
 
 resolveInExpr :: ResolutionEnvironment
               -> TypedExpr
-              -> Either ResolutionError ResolvedExpr
+              -> Either ResolutionError TypedExpr
 resolveInExpr env expr = runResolve env (resolveInExpr' expr)
 
 resolveInDefinition :: ResolutionEnvironment
                     -> TypedDefinition
-                    -> Either ResolutionError ResolvedDefinition
+                    -> Either ResolutionError TypedDefinition
 resolveInDefinition env def = runResolve env (resolveInDefinition' def)
 
 resolveInDefinitions :: ResolutionEnvironment
                      -> [TypedDefinition]
-                     -> Either ResolutionError [ResolvedDefinition]
+                     -> Either ResolutionError [TypedDefinition]
 resolveInDefinitions env defs = runResolve env (mapM resolveInDefinition' defs)
 
-resolveInPackage :: TypedPackage
-                 -> Either ResolutionError ResolvedPackage
-resolveInPackage (TypedPackage decl imports defs) =
-  let env = resolutionEnvironmentFromPackage universe
-  in ResolvedPackage decl imports <$> resolveInDefinitions env defs
+resolveInPackage :: ResolutionEnvironment
+                 -> TypedPackage
+                 -> Either ResolutionError TypedPackage
+resolveInPackage env (TypedPackage decl imports defs) =
+  TypedPackage decl imports <$> resolveInDefinitions env defs

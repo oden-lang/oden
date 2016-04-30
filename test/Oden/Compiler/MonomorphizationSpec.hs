@@ -10,7 +10,7 @@ import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Monomorphed
 import           Oden.Core.Package
-import           Oden.Core.Resolved
+import           Oden.Core.Typed
 
 import           Oden.Identifier
 import           Oden.Metadata
@@ -39,7 +39,7 @@ typeBool = Poly.TCon missing (nameInUniverse "bool")
 monoInt = Mono.TCon missing (nameInUniverse "int")
 monoBool = Mono.TCon missing (nameInUniverse "bool")
 
-identityDef :: ResolvedDefinition
+identityDef :: TypedDefinition
 identityDef =
   Definition
     missing
@@ -48,7 +48,7 @@ identityDef =
      Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") a)
                  (Poly.TFn missing a a))
 
-identity2Def :: ResolvedDefinition
+identity2Def :: TypedDefinition
 identity2Def =
   Definition
     missing
@@ -59,7 +59,7 @@ identity2Def =
                                    a)
                  (Poly.TFn missing a a))
 
-usingIdentityDef :: ResolvedDefinition
+usingIdentityDef :: TypedDefinition
 usingIdentityDef =
   Definition
     missing
@@ -70,7 +70,7 @@ usingIdentityDef =
                       (Literal missing (Int 1) typeInt)
                       typeInt)
 
-usingIdentity2Def :: ResolvedDefinition
+usingIdentity2Def :: TypedDefinition
 usingIdentity2Def =
   Definition
     missing
@@ -92,7 +92,7 @@ usingIdentityMonomorphed =
                       (Literal missing (Int 1) monoInt)
                       monoInt)
 
-letBoundIdentity :: ResolvedDefinition
+letBoundIdentity :: TypedDefinition
 letBoundIdentity =
   Definition
     missing
@@ -161,7 +161,7 @@ identity2InstIntToInt =
       monoInt)
      (Mono.TFn missing monoInt monoInt))
 
-sliceLenDef :: ResolvedDefinition
+sliceLenDef :: TypedDefinition
 sliceLenDef =
   Definition
     missing
@@ -185,7 +185,7 @@ sliceLenMonomorphed =
      (Slice missing [Literal missing (Bool True) monoBool] (Mono.TSlice missing monoBool))
      monoInt)
 
-letWithShadowing :: ResolvedDefinition
+letWithShadowing :: TypedDefinition
 letWithShadowing =
   Definition
     missing
@@ -225,7 +225,7 @@ spec :: Spec
 spec =
   describe "monomorphPackage" $ do
     it "compiles empty package" $
-      monomorphPackage (ResolvedPackage myPkg [] [])
+      monomorphPackage (TypedPackage myPkg [] [])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -233,7 +233,7 @@ spec =
         Set.empty
         Set.empty
     it "excludes unused polymorphic definitions" $
-      monomorphPackage (ResolvedPackage myPkg [] [identityDef])
+      monomorphPackage (TypedPackage myPkg [] [identityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -241,7 +241,7 @@ spec =
         Set.empty
         Set.empty
     it "monomorphs polymorphic function usage" $
-      monomorphPackage (ResolvedPackage myPkg [] [identityDef, usingIdentityDef])
+      monomorphPackage (TypedPackage myPkg [] [identityDef, usingIdentityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -249,7 +249,7 @@ spec =
         (Set.singleton identityInstIntToInt)
         (Set.singleton usingIdentityMonomorphed)
     it "monomorphs polymorphic function usage recursively" $
-      monomorphPackage (ResolvedPackage myPkg [] [identityDef, identity2Def, usingIdentity2Def])
+      monomorphPackage (TypedPackage myPkg [] [identityDef, identity2Def, usingIdentity2Def])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -257,7 +257,7 @@ spec =
         (Set.fromList [identityInstIntToInt, identity2InstIntToInt])
         (Set.singleton usingIdentity2Monomorphed)
     it "monomorphs let bound polymorphic function" $
-      monomorphPackage (ResolvedPackage myPkg [] [letBoundIdentity])
+      monomorphPackage (TypedPackage myPkg [] [letBoundIdentity])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -265,7 +265,7 @@ spec =
         Set.empty
         (Set.singleton letBoundIdentityMonomorphed)
     it "uses polymorphic predefined Go funcs" $
-      monomorphPackage (ResolvedPackage myPkg [] [sliceLenDef])
+      monomorphPackage (TypedPackage myPkg [] [sliceLenDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -273,7 +273,7 @@ spec =
         Set.empty
         (Set.singleton sliceLenMonomorphed)
     it "monomorphs let with shadowing" $
-      monomorphPackage (ResolvedPackage myPkg [] [letWithShadowing])
+      monomorphPackage (TypedPackage myPkg [] [letWithShadowing])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg

@@ -7,8 +7,8 @@ module Oden.Predefined (
 ) where
 
 import           Oden.Core.Definition
-import           Oden.Core.Resolved
 import           Oden.Core.Package
+import           Oden.Core.Typed
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -49,9 +49,9 @@ types = [
   ("unit", typeUnit)
   ]
 
-universe :: ResolvedPackage
+universe :: TypedPackage
 universe =
-  ResolvedPackage
+  TypedPackage
   (PackageDeclaration (Metadata Missing) [])
   []
   (concat [ map toProtocolDef protocols

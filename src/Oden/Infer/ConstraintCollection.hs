@@ -25,7 +25,6 @@ collectConstraints = runWriter . traverseExpr traversal
     onType' (TConstrained cs t) = tell cs >> return t
     onType' t = return t
 
-    onMethodReference' si (UnresolvedMethodReference protocol method) type' = do
+    onMethodReference' si reference type' = do
       unconstrainedType <- onType' type'
-      return (si, UnresolvedMethodReference protocol method, unconstrainedType)
-    onMethodReference' si ref type' = return (si, ref, type')
+      return (si, reference, unconstrainedType)

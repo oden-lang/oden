@@ -8,9 +8,9 @@ import           Oden.Compiler.Validation
 import           Oden.Compiler.Resolution
 
 import           Oden.Core.Monomorphed           (MonomorphedPackage(..))
-import           Oden.Core.Resolved
 import           Oden.Core.Typed
 
+import           Oden.Environment
 import           Oden.Explode
 import qualified Oden.Go.Importer                as Go
 import           Oden.Imports
@@ -44,7 +44,7 @@ logCompiledFiles :: [CompiledFile] -> CLI ()
 logCompiledFiles [_] = liftIO $ putStrLn "Compiled 1 Go source file."
 logCompiledFiles files = liftIO $ putStrLn $ "Compiled " ++ show (length files) ++ " Go source files."
 
-inferFile :: SourceFile -> CLI TypedPackage
+inferFile :: SourceFile -> CLI (TypingEnvironment, TypedPackage)
 inferFile (OdenSourceFile fname _) = do
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
@@ -53,14 +53,15 @@ inferFile (OdenSourceFile fname _) = do
   mapM_ logWarning warnings'
   liftEither (inferPackage untypedPkgWithImports)
 
-resolvePkg :: TypedPackage -> CLI ResolvedPackage
-resolvePkg = liftEither . resolveInPackage
+resolvePkg :: TypingEnvironment -> TypedPackage -> CLI TypedPackage
+resolvePkg typingEnv pkg =
+  liftEither (resolveInPackage (implementations typingEnv) pkg)
 
 compileFile :: SourceFile -> CLI MonomorphedPackage
 compileFile sourceFile = do
-  inferredPkg <- inferFile sourceFile
+  (typingEnv, inferredPkg) <- inferFile sourceFile
   validatePkg inferredPkg
-  resolvedPkg <- resolvePkg inferredPkg
+  resolvedPkg <- resolvePkg typingEnv inferredPkg
   liftEither (compile resolvedPkg)
 
 codegenPkg :: MonomorphedPackage -> CLI [CompiledFile]

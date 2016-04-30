@@ -6,8 +6,8 @@ import           Oden.Core.Definition
 import           Oden.Core.Expr
 import qualified Oden.Core.Untyped as Untyped
 import           Oden.Core.Package
-import           Oden.Core.Resolved
 import           Oden.Core.Operator
+import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Monomorphed as Monomorphed
 
 import           Oden.Identifier
@@ -15,6 +15,9 @@ import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 import           Oden.Type.Signature
+
+import           Oden.Infer.Environment
+import qualified Oden.Environment      as Env
 
 import           Data.List             (intersperse)
 import           Data.Set              (toList)
@@ -61,12 +64,10 @@ instance Pretty Identifier where
 instance Pretty e => Pretty (FieldInitializer e) where
   pretty (FieldInitializer _ l e) = pretty l <+> text "=" <+> pretty e
 
-instance Pretty UnresolvedMethodReference where
-  pretty (UnresolvedMethodReference (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _)) =
+instance Pretty TypedMethodReference where
+  pretty (Unresolved (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _)) =
     pretty protocolName <> text "::" <> pretty methodName
-
-instance Pretty ResolvedMethodReference where
-  pretty (ResolvedMethodReference (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _) _) =
+  pretty (Resolved (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _) _) =
     pretty protocolName <> text "::" <> pretty methodName
 
 instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
@@ -133,6 +134,15 @@ instance Pretty Poly.Protocol where
     text "protocol" <+> pretty name <> parens (pretty tvar)
       <+> indentedInBraces (vcat (map pretty methods))
 
+instance (Pretty r, Pretty t, Pretty m) => Pretty (MethodImplementation (Expr r t m)) where
+  pretty (MethodImplementation _ (Poly.ProtocolMethod _ methodName _) expr) =
+    prettyDefinition methodName expr
+
+instance (Pretty r, Pretty t, Pretty m) => Pretty (ProtocolImplementation (Expr r t m)) where
+  pretty (ProtocolImplementation _ (Poly.Protocol _ protocolName _ _) methods) =
+    text "impl" <+> pretty protocolName
+    <+> indentedInBraces (vcat (map pretty methods))
+
 instance (Pretty r, Pretty t, Pretty m) => Pretty (Definition (Expr r t m)) where
   pretty (Definition _ name (scheme, expr)) = vcat [
       pretty name <+> text ":" <+> pretty scheme,
@@ -145,6 +155,7 @@ instance (Pretty r, Pretty t, Pretty m) => Pretty (Definition (Expr r t m)) wher
   pretty (TypeDefinition _ name _ type') =
     text "type" <+> pretty name <+> equals <+> pretty type'
   pretty (ProtocolDefinition _ _ protocol) = pretty protocol
+  pretty (Implementation _ implementation) = pretty implementation
 
 instance Pretty PackageName where
   pretty parts = hcat (punctuate (text "/") (map text parts))
@@ -152,8 +163,8 @@ instance Pretty PackageName where
 instance Pretty PackageDeclaration where
   pretty (PackageDeclaration _ name) = text "package" <+> pretty name
 
-instance Pretty (ImportedPackage ResolvedPackage) where
-  pretty (ImportedPackage _ _ (ResolvedPackage (PackageDeclaration _ pkgName) _ _)) =
+instance Pretty (ImportedPackage TypedPackage) where
+  pretty (ImportedPackage _ _ (TypedPackage (PackageDeclaration _ pkgName) _ _)) =
     text "import" <+> pretty pkgName
 
 instance Pretty Typed.TypedPackage  where
@@ -316,3 +327,23 @@ instance Pretty Untyped.NamedMethodReference where
 instance Pretty Untyped.NamedMemberAccess where
   pretty (Untyped.NamedMemberAccess expr member) =
     pretty expr <> text "." <> pretty member
+
+instance Pretty TypeBinding where
+  pretty =
+    \case
+      PackageBinding _ name env' ->
+        text "package" <+> pretty name <+> equals <+> pretty env'
+      Local _ name scheme ->
+        text "local" <+> pretty name <+> equals <+> pretty scheme
+      Type _ name _bindings type' ->
+        text "type" <+> pretty name <+> equals <+> pretty type'
+      QuantifiedType _ name type' ->
+        text "quantified" <+> pretty name <+> equals <+> pretty type'
+      ProtocolBinding _ name protocol ->
+        text "protocol" <+> pretty name <+> equals <+> pretty protocol
+
+instance Pretty TypingEnvironment where
+  pretty env =
+    indentedInBraces $
+        vcat (map pretty (Env.bindings env)
+              ++ map pretty (Env.implementations env))

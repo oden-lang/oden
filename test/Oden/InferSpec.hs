@@ -429,4 +429,4 @@ spec = describe "inferExpr" $ do
     inferExpr predefAndTestableProtocol (MethodReference missing (NamedMethodReference (Identifier "Testable") (Identifier "test")) Untyped)
     `shouldSucceedWith`
     (Forall predefined [tvarBinding tvA] (Set.singleton (ProtocolConstraint missing testableProtocol tvarA)) methodType,
-     MethodReference missing (UnresolvedMethodReference testableProtocol testableProtocolMethod) methodType)
+     MethodReference missing (Unresolved testableProtocol testableProtocolMethod) methodType)

@@ -14,11 +14,12 @@ import           Data.Set                  as Set hiding (map)
 import           Oden.Compiler.Environment
 import           Oden.Compiler.Instantiate
 import           Oden.Compiler.TypeEncoder
+
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Monomorphed
-import qualified Oden.Core.Resolved        as Resolved
-import           Oden.Core.Resolved        hiding (ResolvedMemberAccess(..))
+import           Oden.Core.Monomorphed     as Monomorphed
+import           Oden.Core.Typed           as Typed
+
 import           Oden.Identifier
 import           Oden.Environment                as Environment
 import           Oden.Metadata
@@ -77,7 +78,7 @@ addMonomorphed identifier def =
 
 instantiateDefinition :: (Identifier, Mono.Type)
                       -> Poly.Scheme
-                      -> ResolvedExpr
+                      -> TypedExpr
                       -> Monomorph Identifier
 instantiateDefinition key@(pn, t) _ pe = do
   let identifier = Identifier (encodeTypeInstance pn t)
@@ -134,11 +135,11 @@ toMonomorphic (Metadata si) pt =
   return
   (Poly.toMonomorphic pt)
 
-getMonoType :: ResolvedExpr -> Monomorph Mono.Type
+getMonoType :: TypedExpr -> Monomorph Mono.Type
 getMonoType e = toMonomorphic (Metadata $ getSourceInfo e) (typeOf e)
 
 -- | Return a monomorphic version of a polymorphic expression.
-monomorph :: ResolvedExpr -> Monomorph MonoTypedExpr
+monomorph :: TypedExpr -> Monomorph MonoTypedExpr
 monomorph e = case e of
   Symbol si ident _ -> do
     env <- ask
@@ -253,27 +254,31 @@ monomorph e = case e of
 
   MemberAccess si access polyType ->
     case access of
-      Resolved.RecordFieldAccess expr name -> do
+      Typed.RecordFieldAccess expr name -> do
         monoType <- getMonoType e
         monoExpr <- monomorph expr
-        return (MemberAccess si (RecordFieldAccess monoExpr name) monoType)
+        return (MemberAccess si (Monomorphed.RecordFieldAccess monoExpr name) monoType)
 
-      Resolved.PackageMemberAccess pkgAlias name -> do
+      Typed.PackageMemberAccess pkgAlias name -> do
         env <- ask
         monoType <- toMonomorphic si polyType
         binding <- lookupIn env pkgAlias
         case binding of
           PackageBinding _ _ pkgEnv -> do
             m <- getMonomorphicIn pkgEnv name monoType
-            return (MemberAccess si (PackageMemberAccess pkgAlias m) monoType)
+            return (MemberAccess si (Monomorphed.PackageMemberAccess pkgAlias m) monoType)
           _ -> error "cannot access member in non-existing package"
 
-  MethodReference _ (ResolvedMethodReference _ _ impl) methodType ->
-    error (show impl)
+  MethodReference _ reference _methodType ->
+    case reference of
+      Unresolved _protocol method ->
+        error (show method)
+      Resolved _ _ impl ->
+        error (show impl)
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
-monomorphReference :: ResolvedExpr
+monomorphReference :: TypedExpr
                    -> Metadata SourceInfo -- Let expression source info.
                    -> Metadata SourceInfo -- Let binding source info.
                    -> LetReference
@@ -303,7 +308,7 @@ unwrapLetInstances (LetInstance si mn me:is) body =
   Let si mn me (unwrapLetInstances is body) (typeOf body)
 
 -- | Monomorphs definitions and keeps results in the state.
-monomorphDefinitions :: [ResolvedDefinition]
+monomorphDefinitions :: [TypedDefinition]
                      -> Monomorph ()
 monomorphDefinitions [] = return ()
 monomorphDefinitions (d@(Definition si identifier (Poly.Forall _ _ _ st, expr)) : defs) = do
@@ -329,9 +334,9 @@ monomorphDefinitions (ProtocolDefinition{} : defs) =
 
 -- | Monomorphs a package and returns the complete package with instantiated
 -- and monomorphed definitions.
-monomorphPackage :: ResolvedPackage
+monomorphPackage :: TypedPackage
                  -> Either MonomorphError MonomorphedPackage
-monomorphPackage self@(ResolvedPackage pkgDecl imports definitions) = do
+monomorphPackage self@(TypedPackage pkgDecl imports definitions) = do
   let environment = fromPackage universe `merge` fromPackage self `merge` fromPackages imports
   let st = MonomorphState { instanceNames = Map.empty
                           , instances = []

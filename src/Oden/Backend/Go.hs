@@ -26,7 +26,7 @@ import           Oden.Core.Expr
 import           Oden.Core.Monomorphed as Monomorphed
 import           Oden.Core.Package
 import           Oden.Core.Operator
-import           Oden.Core.Resolved
+import           Oden.Core.Typed
 
 import           Oden.Identifier
 import           Oden.Metadata
@@ -367,14 +367,14 @@ genMonomorphed :: MonomorphedDefinition -> Codegen AST.TopLevelDeclaration
 genMonomorphed (MonomorphedDefinition _ name mt expr) =
   genTopLevel name mt expr
 
-genImport :: ImportedPackage ResolvedPackage -> Codegen AST.ImportDecl
-genImport (ImportedPackage _ identifier (ResolvedPackage (PackageDeclaration _ pkgName) _ _)) =
+genImport :: ImportedPackage TypedPackage -> Codegen AST.ImportDecl
+genImport (ImportedPackage _ identifier (TypedPackage (PackageDeclaration _ pkgName) _ _)) =
   AST.ImportDecl <$> genIdentifier identifier
                  <*> return (AST.InterpretedStringLiteral (intercalate "/" pkgName))
 
 -- | Return the import alias name for the fmt package and possibly the code for
 -- importing fmt (if not imported by the user).
-getFmtImport :: [ImportedPackage ResolvedPackage] -> (GI.Identifier, Maybe AST.ImportDecl)
+getFmtImport :: [ImportedPackage TypedPackage] -> (GI.Identifier, Maybe AST.ImportDecl)
 getFmtImport pkgs =
   case find isFmtPackage pkgs of
     Just (ImportedPackage _ (Identifier alias) _) -> (GI.Identifier alias, Nothing)
@@ -382,7 +382,7 @@ getFmtImport pkgs =
       let fmt = GI.Identifier "fmt"
       in (fmt, Just (AST.ImportDecl fmt (AST.InterpretedStringLiteral "fmt")))
   where
-  isFmtPackage (ImportedPackage _ _ (ResolvedPackage (PackageDeclaration _ ["fmt"]) _ _)) = True
+  isFmtPackage (ImportedPackage _ _ (TypedPackage (PackageDeclaration _ ["fmt"]) _ _)) = True
   isFmtPackage _ = False
 
 prelude :: GI.Identifier -> [AST.TopLevelDeclaration]

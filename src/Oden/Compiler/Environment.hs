@@ -1,24 +1,26 @@
 module Oden.Compiler.Environment where
 
-import           Oden.Core.Resolved
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Package
+import           Oden.Core.ProtocolImplementation
+import           Oden.Core.Typed
+
 import           Oden.Environment hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.SourceInfo
 
-data Binding = PackageBinding (Metadata SourceInfo) Identifier (Environment Binding)
-             | DefinitionBinding ResolvedDefinition
-             | LetBinding NameBinding ResolvedExpr
+data Binding = PackageBinding (Metadata SourceInfo) Identifier CompileEnvironment
+             | DefinitionBinding TypedDefinition
+             | LetBinding NameBinding TypedExpr
              | FunctionArgument NameBinding
              deriving (Show, Eq)
 
-type CompileEnvironment = Environment Binding
+type CompileEnvironment = Environment Binding (ProtocolImplementation TypedExpr)
 
-fromPackage :: ResolvedPackage -> CompileEnvironment
-fromPackage (ResolvedPackage _ _ defs) =
+fromPackage :: TypedPackage -> CompileEnvironment
+fromPackage (TypedPackage _ _ defs) =
   fromList (concatMap convert defs)
   where
   convert d@(Definition _ n _) = [(n, DefinitionBinding d)]
@@ -27,8 +29,9 @@ fromPackage (ResolvedPackage _ _ defs) =
   -- compilation phase so we can safely ignore these.
   convert TypeDefinition{} = []
   convert ProtocolDefinition{} = []
+  convert Implementation{} = []
 
-fromPackages :: [ImportedPackage ResolvedPackage] -> CompileEnvironment
+fromPackages :: [ImportedPackage TypedPackage] -> CompileEnvironment
 fromPackages =
   foldl iter empty
   where

@@ -5,7 +5,7 @@ import           Test.Hspec
 import           Oden.Compiler.Instantiate
 
 import           Oden.Core.Expr
-import           Oden.Core.Resolved
+import           Oden.Core.Typed
 
 import           Oden.Identifier
 import           Oden.Metadata
@@ -39,7 +39,7 @@ monoInt = Mono.TCon missing (nameInUniverse "int")
 monoBool = Mono.TCon missing (nameInUniverse "bool")
 monoString = Mono.TCon missing (nameInUniverse "string")
 
-identityPoly :: ResolvedExpr
+identityPoly :: TypedExpr
 identityPoly =
   Fn
   missing
@@ -50,7 +50,7 @@ identityPoly =
 identityIntType :: Mono.Type
 identityIntType = Mono.TFn missing monoInt monoInt
 
-identityInt :: ResolvedExpr
+identityInt :: TypedExpr
 identityInt =
   Fn
   missing
@@ -61,20 +61,20 @@ identityInt =
 lenType :: Poly.Type
 lenType = Poly.TForeignFn missing False [Poly.TSlice missing tvarA] [typeInt]
 
-lenPoly :: ResolvedExpr
+lenPoly :: TypedExpr
 lenPoly = Symbol missing (Identifier "len") lenType
 
 lenIntType :: Mono.Type
 lenIntType = Mono.TForeignFn missing False [Mono.TSlice missing monoInt] [monoInt]
 
-lenInt :: ResolvedExpr
+lenInt :: TypedExpr
 lenInt =
   Symbol
   missing
   (Identifier "len")
   (Poly.TForeignFn missing False [Poly.TSlice missing typeInt] [typeInt])
 
-pairPoly :: ResolvedExpr
+pairPoly :: TypedExpr
 pairPoly =
   Tuple
   missing
@@ -87,7 +87,7 @@ pairPoly =
 pairIntStringType :: Mono.Type
 pairIntStringType = Mono.TTuple missing monoInt monoString []
 
-pairIntString :: ResolvedExpr
+pairIntString :: TypedExpr
 pairIntString =
   Tuple
   missing
@@ -96,7 +96,7 @@ pairIntString =
   []
   (Poly.TTuple missing typeInt typeString [])
 
-recordPoly :: ResolvedExpr
+recordPoly :: TypedExpr
 recordPoly =
   RecordInitializer
   missing
@@ -111,7 +111,7 @@ recordIntType =
   missing
   (Mono.RExtension missing (Identifier "foo") monoInt (Mono.REmpty missing))
 
-recordInt :: ResolvedExpr
+recordInt :: TypedExpr
 recordInt =
   RecordInitializer
   missing
@@ -154,7 +154,7 @@ polyRecordIntAndString =
     typeString
     (Poly.REmpty missing)))
 
-fieldAccessPoly :: Poly.Type -> ResolvedExpr
+fieldAccessPoly :: Poly.Type -> TypedExpr
 fieldAccessPoly recordType =
   Fn
   missing

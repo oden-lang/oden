@@ -9,7 +9,6 @@ import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Core.Package
-import           Oden.Core.Resolved
 
 import           Oden.Identifier
 import           Oden.Metadata
@@ -54,7 +53,7 @@ block exprs = Block missing exprs (typeOf (last exprs))
 
 divisionByZeroExpr = BinaryOp missing Divide (intExpr 1) (intExpr 0) typeInt
 
-emptyPkg = ResolvedPackage (PackageDeclaration missing ["empty", "pkg"]) [] []
+emptyPkg = TypedPackage (PackageDeclaration missing ["empty", "pkg"]) [] []
 
 spec :: Spec
 spec = do

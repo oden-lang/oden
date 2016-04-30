@@ -48,7 +48,6 @@ library
     Oden.Core.Monomorphed,
     Oden.Core.Package,
     Oden.Core.ProtocolImplementation,
-    Oden.Core.Resolved,
     Oden.Core.Traversal,
     Oden.Core.Untyped,
     Oden.Environment,

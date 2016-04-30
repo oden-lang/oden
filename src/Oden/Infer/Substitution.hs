@@ -58,13 +58,19 @@ instance Substitutable Scheme where
     Forall si qs (apply s' cs) (apply s' t)
     where s' = Subst $ foldr (Map.delete . getBindingVar) s qs
 
-instance FTV UnresolvedMethodReference where
-  ftv (UnresolvedMethodReference protocol method) =
-    ftv protocol `Set.union` ftv method
+instance FTV TypedMethodReference where
+  ftv = \case
+    Unresolved protocol method ->
+      ftv protocol `Set.union` ftv method
+    Resolved protocol method impl ->
+      ftv protocol `Set.union` ftv method `Set.union` ftv impl
 
-instance Substitutable UnresolvedMethodReference where
-  apply s (UnresolvedMethodReference protocol method) =
-    UnresolvedMethodReference (apply s protocol) (apply s method)
+instance Substitutable TypedMethodReference where
+  apply s = \case
+    Unresolved protocol method ->
+      Unresolved (apply s protocol) (apply s method)
+    Resolved protocol method impl ->
+      Resolved (apply s protocol) (apply s method) impl -- TODO: subst impl
 
 instance FTV TypedMemberAccess where
   ftv = \case
