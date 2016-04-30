@@ -41,7 +41,7 @@ library
     Oden.Compiler.TypeEncoder,
     Oden.Compiler.Validation,
     Oden.Compiler.LiteralEval,
-    Oden.Core,
+    Oden.Core.Typed,
     Oden.Core.Definition,
     Oden.Core.Expr,
     Oden.Core.Operator,

@@ -6,7 +6,7 @@ module Oden.Infer.ConstraintCollection (collectConstraints) where
 
 import           Control.Monad.Writer
 
-import           Oden.Core
+import           Oden.Core.Typed
 import           Oden.Core.Traversal
 import           Oden.Type.Polymorphic
 import           Oden.Type.Traversal

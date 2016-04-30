@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Oden.Compiler.Validation where
 
-import           Oden.Core                 as Core
+import           Oden.Core.Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator

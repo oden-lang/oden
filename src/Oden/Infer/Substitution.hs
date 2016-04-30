@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase                 #-}
 module Oden.Infer.Substitution where
 
-import           Oden.Core             as Core
+import           Oden.Core.Typed
 import           Oden.Core.Expr
 import           Oden.Type.Polymorphic as Poly
 

@@ -1,6 +1,6 @@
 module Oden.Infer.Fixtures where
 
-import           Oden.Core              as Core
+import           Oden.Core.Typed        as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
@@ -170,7 +170,7 @@ intToInt = typeFn typeInt typeInt
 intToIntToInt :: Type
 intToIntToInt = typeFn typeInt (typeFn typeInt typeInt)
 
-countToZeroTyped :: Core.TypedDefinition
+countToZeroTyped :: Typed.TypedDefinition
 countToZeroTyped =
   tDefinition
    (Identifier "f")
@@ -211,7 +211,7 @@ twiceUntyped =
    Untyped)
   Untyped
 
-twiceTyped :: Core.TypedDefinition
+twiceTyped :: Typed.TypedDefinition
 twiceTyped =
   tDefinition (Identifier "twice") (scheme (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
                            tFn

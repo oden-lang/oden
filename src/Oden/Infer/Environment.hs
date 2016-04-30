@@ -5,11 +5,11 @@ module Oden.Infer.Environment (
   fromPackages
 ) where
 
-import           Oden.Core
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Package
 import           Oden.Core.Resolved
+
 import           Oden.Environment      hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata

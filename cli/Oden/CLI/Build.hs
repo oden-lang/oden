@@ -7,9 +7,9 @@ import           Oden.Compiler
 import           Oden.Compiler.Validation
 import           Oden.Compiler.Resolution
 
-import           Oden.Core                       as Core
 import           Oden.Core.Monomorphed           (MonomorphedPackage(..))
 import           Oden.Core.Resolved
+import           Oden.Core.Typed
 
 import           Oden.Explode
 import qualified Oden.Go.Importer                as Go

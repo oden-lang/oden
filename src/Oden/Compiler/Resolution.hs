@@ -5,10 +5,10 @@
 -- implementations available for now.
 module Oden.Compiler.Resolution where
 
-import Oden.Core as Core
+import Oden.Core.Typed                  as Typed
 import Oden.Core.Definition
 import Oden.Core.ProtocolImplementation
-import Oden.Core.Resolved as Resolved
+import Oden.Core.Resolved               as Resolved
 import Oden.Core.Traversal
 import Oden.Metadata
 import Oden.Predefined
@@ -87,9 +87,9 @@ resolveInExpr' = traverseExpr traversal
     implementationMethod <- lookupMethodImplementation (unwrap si) protocol method
     return (si, ResolvedMethodReference protocol method implementationMethod, type')
   onMemberAccess' = \case
-    Core.RecordFieldAccess expr identifier ->
+    Typed.RecordFieldAccess expr identifier ->
       Resolved.RecordFieldAccess <$> resolveInExpr' expr <*> return identifier
-    Core.PackageMemberAccess pkg member ->
+    Typed.PackageMemberAccess pkg member ->
       return (Resolved.PackageMemberAccess pkg member)
 
 resolveInDefinition' :: TypedDefinition -> Resolve ResolvedDefinition

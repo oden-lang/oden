@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, LambdaCase #-}
 module Oden.Pretty where
 
-import           Oden.Core as Core
+import           Oden.Core.Typed as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import qualified Oden.Core.Untyped as Untyped
@@ -156,8 +156,8 @@ instance Pretty (ImportedPackage ResolvedPackage) where
   pretty (ImportedPackage _ _ (ResolvedPackage (PackageDeclaration _ pkgName) _ _)) =
     text "import" <+> pretty pkgName
 
-instance Pretty Core.TypedPackage  where
-  pretty (Core.TypedPackage decl imports defs) =
+instance Pretty Typed.TypedPackage  where
+  pretty (Typed.TypedPackage decl imports defs) =
     vcat (punctuate line (pretty decl : map pretty imports ++ map pretty defs))
 
 instance Pretty Poly.TVar where
@@ -278,9 +278,9 @@ instance Pretty (TypeSignature a) where
     text "forall" <+> hsep (map pretty vars) <> text "." <+> pretty expr
 
 instance Pretty TypedMemberAccess where
-  pretty (Core.RecordFieldAccess expr name) =
+  pretty (Typed.RecordFieldAccess expr name) =
     pretty expr <> text "." <> pretty name
-  pretty (Core.PackageMemberAccess expr name) =
+  pretty (Typed.PackageMemberAccess expr name) =
     pretty expr <> text "." <> pretty name
 
 instance Pretty MonoTypedMemberAccess where

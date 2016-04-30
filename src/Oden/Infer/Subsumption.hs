@@ -4,7 +4,7 @@ module Oden.Infer.Subsumption (
   collectSubstitutions
 ) where
 
-import           Oden.Core               as Core
+import           Oden.Core.Typed               as Typed
 import           Oden.Core.Expr          (typeOf)
 import           Oden.Infer.Substitution
 import           Oden.Metadata
@@ -63,7 +63,7 @@ collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 
 -- | Test if a type scheme is subsumed by an expression with a more general
 -- type. If so, return the expression specialized to the less general type (all
 -- subexpression types being substituted as well).
-subsumedBy :: Scheme -> Core.TypedExpr -> Either SubsumptionError Core.CanonicalExpr
+subsumedBy :: Scheme -> Typed.TypedExpr -> Either SubsumptionError Typed.CanonicalExpr
 subsumedBy s@(Forall _ _ _ st) expr = do
   subst <- snd <$> runExcept (runStateT (collectSubstitutions st (typeOf expr)) Map.empty)
   return (s, apply (Subst subst) expr)

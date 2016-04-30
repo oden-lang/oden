@@ -2,7 +2,7 @@ module Oden.Infer.InferDefinitionSpec where
 
 import           Test.Hspec
 
-import           Oden.Core             as Core
+import           Oden.Core.Typed       as Typed
 import           Oden.Core.Untyped     as Untyped
 import           Oden.Core.Expr
 import           Oden.Core.Operator
@@ -15,7 +15,7 @@ import           Oden.Predefined
 import           Oden.Assertions
 import           Oden.Infer.Fixtures
 
-inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either Infer.TypeError Core.TypedDefinition
+inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either Infer.TypeError Typed.TypedDefinition
 inferDefinition env def = snd <$> Infer.inferDefinition env def
 
 spec :: Spec

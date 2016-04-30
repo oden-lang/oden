@@ -2,10 +2,10 @@ module Oden.Compiler.ResolutionSpec where
 
 import           Oden.Compiler.Resolution
 
-import           Oden.Core
 import           Oden.Core.Expr
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Resolved
+import           Oden.Core.Typed
 
 import           Oden.Environment
 import           Oden.Identifier
@@ -36,11 +36,11 @@ aToBool = TFn predefined tvarA typeBool
 
 one = Literal missing (Int 1) typeInt
 
-unresolved protocol method type' =
-  MethodReference missing (UnresolvedMethodReference protocol method) type'
+unresolved protocol method =
+  MethodReference missing (UnresolvedMethodReference protocol method)
 
-resolved protocol method implMethod type' =
-  MethodReference missing (ResolvedMethodReference protocol method implMethod) type'
+resolved protocol method implMethod =
+  MethodReference missing (ResolvedMethodReference protocol method implMethod)
 
 testableProtocolMethod =
   ProtocolMethod
@@ -84,11 +84,11 @@ spec =
        testableProtocolMethod
        aToBool)
       `shouldSucceedWith`
-      (resolved
-       testableProtocol
-       testableProtocolMethod
-       (boolTestableMethod "myImpl")
-       aToBool)
+      resolved
+      testableProtocol
+      testableProtocolMethod
+      (boolTestableMethod "myImpl")
+      aToBool
 
     it "resolves a single matching implementation for a less general type" $
       resolveInExpr
@@ -102,15 +102,15 @@ spec =
        one
        typeBool)
       `shouldSucceedWith`
-      (Application
-       missing
-       (resolved
-        testableProtocol
-        testableProtocolMethod
-        (boolTestableMethod "myImpl")
-        boolToBool)
-       one
-       typeBool)
+      Application
+      missing
+      (resolved
+       testableProtocol
+       testableProtocolMethod
+       (boolTestableMethod "myImpl")
+       boolToBool)
+      one
+      typeBool
 
     it "throws error if there's multiple matching implementations" $
       resolveInExpr

@@ -6,9 +6,9 @@ import           Oden.Scanner
 import           Oden.CLI
 import           Oden.CLI.Build
 
-import           Oden.Core
 import           Oden.Core.Definition
 import           Oden.Core.Package
+import           Oden.Core.Typed
 
 import           Control.Monad.Reader
 

@@ -2,7 +2,7 @@ module Oden.InferSpec where
 
 import           Test.Hspec
 
-import           Oden.Core
+import           Oden.Core.Typed
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Core.Untyped

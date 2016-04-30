@@ -22,7 +22,7 @@ import           Data.Foldable
 import qualified Data.Map                        as Map
 import qualified Data.Set                        as Set
 
-import           Oden.Core                       as Core
+import           Oden.Core.Typed                 as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
@@ -87,7 +87,7 @@ data TypeError
   | PackageNotInScope SourceInfo Identifier
   | NotInScope SourceInfo Identifier
   | MemberNotInPackage SourceInfo Identifier Identifier
-  | ArgumentCountMismatch Core.TypedExpr [Type] [Type]
+  | ArgumentCountMismatch Typed.TypedExpr [Type] [Type]
   | TypeSignatureSubsumptionError Identifier SubsumptionError
   | InvalidPackageReference SourceInfo Identifier
   | ValueUsedAsType SourceInfo Identifier
@@ -106,7 +106,7 @@ runInfer env m = runExcept $ evalRWST m env initInfer
 -- environment.
 inferExpr :: TypingEnvironment
           -> UntypedExpr
-          -> Either TypeError Core.CanonicalExpr
+          -> Either TypeError Typed.CanonicalExpr
 inferExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
   subst <- left UnificationError $ runSolve cs
@@ -116,7 +116,7 @@ inferExpr env ex = do
 -- expression.
 constraintsExpr :: TypingEnvironment
                 -> UntypedExpr
-                -> Either TypeError ([UnifyConstraint], Subst, Core.TypedExpr, Scheme)
+                -> Either TypeError ([UnifyConstraint], Subst, Typed.TypedExpr, Scheme)
 constraintsExpr env ex = do
   (te, cs) <- runInfer env (infer ex)
   subst <- left UnificationError $ runSolve cs
@@ -124,7 +124,7 @@ constraintsExpr env ex = do
   return (cs, subst, te', sc)
 
 -- | Canonicalize and return the polymorphic top-level type.
-closeOver :: Core.TypedExpr -> Core.CanonicalExpr
+closeOver :: Typed.TypedExpr -> Typed.CanonicalExpr
 closeOver = normalize . generalize empty
 
 -- | Unify two types.
@@ -215,7 +215,7 @@ instantiate (Forall _ qs cs t) = do
 -- | Given a typed expression, return a canonical expression with the free
 -- type variables (not present in the environment) declared as type quantifiers
 -- for the expression.
-generalize :: TypingEnvironment -> Core.TypedExpr -> Core.CanonicalExpr
+generalize :: TypingEnvironment -> Typed.TypedExpr -> Typed.CanonicalExpr
 generalize env expr = (scheme, expr')
   where quantifiers = map (TVarBinding $ Metadata Missing) (Set.toList $ ftv expr `Set.difference` ftv env)
         (expr', constraints) = collectConstraints expr
@@ -233,7 +233,7 @@ instantiateMethod protocol@(Protocol _ _ param _) (ProtocolMethod _ _ scheme) = 
 universeType :: Metadata SourceInfo -> String -> Type
 universeType si n = TCon si (nameInUniverse n)
 
-wrapForeign :: Metadata SourceInfo -> Core.TypedExpr -> Type -> Infer Core.TypedExpr
+wrapForeign :: Metadata SourceInfo -> Typed.TypedExpr -> Type -> Infer Typed.TypedExpr
 wrapForeign si expr t =
   case t of
     TForeignFn _ _ [] returnTypes -> do
@@ -259,7 +259,7 @@ wrapForeign si expr t =
 -- inferred typed expression. Constraints are collected in the 'Infer' monad
 -- and substitutions are made before the inference is complete, so the
 -- expressions returned from 'infer' are not the final results.
-infer :: UntypedExpr -> Infer Core.TypedExpr
+infer :: UntypedExpr -> Infer Typed.TypedExpr
 infer = \case
   Literal si Unit Untyped ->
     return (Literal si Unit (TCon si (nameInUniverse "unit")))
@@ -419,7 +419,7 @@ infer = \case
     protocolType <- lookupProtocol si protocol
     method' <- findMethod (unwrap si) protocolType method
     methodType <- instantiateMethod protocolType method'
-    let ref = Core.UnresolvedMethodReference protocolType method'
+    let ref = Typed.UnresolvedMethodReference protocolType method'
     return (MethodReference si ref methodType)
 
   ForeignFnApplication (Metadata si) _ _ _ ->
@@ -482,7 +482,7 @@ type ShouldCloseOver = Bool
 
 -- | Infer the untyped definition in the Infer monad, returning a typed
 -- version. Resolves type signatures of optionally type-annotated definitions.
-inferDef :: Untyped.Definition -> Infer (Core.TypedDefinition, ShouldCloseOver)
+inferDef :: Untyped.Definition -> Infer (Typed.TypedDefinition, ShouldCloseOver)
 inferDef (Untyped.Definition si name signature expr) = do
   env <- ask
   case signature of
@@ -517,7 +517,7 @@ inferDef (Untyped.ProtocolDefinition si name (SignatureVarBinding vsi var) metho
 
 -- | Infer a top-level definitition, returning a typed version and the typing
 -- environment extended with the definitions name and type.
-inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either TypeError (TypingEnvironment, Core.TypedDefinition)
+inferDefinition :: TypingEnvironment -> Untyped.Definition -> Either TypeError (TypingEnvironment, Typed.TypedDefinition)
 inferDefinition env def = do
   -- Infer the definition.
   ((def', shouldCloseOver), cs) <- runInfer env (inferDef def)
@@ -558,7 +558,7 @@ inferPackage (UntypedPackage (PackageDeclaration psi name) imports defs) = do
 
 -- | Swaps all type variables names for generated ones based on 'letters' to
 -- get a nice sequence.
-normalize :: (Scheme, Core.TypedExpr) -> (Scheme, Core.TypedExpr)
+normalize :: (Scheme, Typed.TypedExpr) -> (Scheme, Typed.TypedExpr)
 normalize (Forall si _ constraints exprType, te) =
   (Forall si newBindings (apply subst constraints) (apply subst exprType), apply subst te)
   where

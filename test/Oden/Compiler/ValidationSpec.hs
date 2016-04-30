@@ -4,7 +4,7 @@ import           Test.Hspec
 
 import           Oden.Compiler.Validation
 
-import           Oden.Core as Core
+import           Oden.Core.Typed      as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
@@ -225,7 +225,7 @@ spec = do
             (canonical
              (MemberAccess
               missing
-              (Core.PackageMemberAccess (Identifier "other") (Identifier "s"))
+              (Typed.PackageMemberAccess (Identifier "other") (Identifier "s"))
               typeInt))
         ])
       `shouldSucceedWith`

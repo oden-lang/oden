@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeSynonymInstances #-}
-module Oden.Core where
+module Oden.Core.Typed where
 
 import           Oden.Core.Definition
 import           Oden.Core.Expr

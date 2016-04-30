@@ -3,7 +3,7 @@ module Oden.Compiler.LiteralEvalSpec where
 import           Test.Hspec
 
 import           Oden.Compiler.LiteralEval
-import           Oden.Core
+import           Oden.Core.Typed
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Identifier
