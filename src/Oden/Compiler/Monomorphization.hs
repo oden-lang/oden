@@ -13,11 +13,10 @@ import           Data.Set                  as Set hiding (map)
 
 import           Oden.Compiler.Environment
 import           Oden.Compiler.Instantiate
-import           Oden.Compiler.Resolution
 import           Oden.Compiler.TypeEncoder
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Package
+import           Oden.Core.Monomorphed
 import qualified Oden.Core.Resolved        as Resolved
 import           Oden.Core.Resolved        hiding (ResolvedMemberAccess(..))
 import           Oden.Identifier
@@ -27,27 +26,6 @@ import           Oden.Predefined
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
-
-data MonoTypedMemberAccess
-  = RecordFieldAccess MonoTypedExpr Identifier
-  | PackageMemberAccess Identifier Identifier
-  deriving (Show, Eq, Ord)
-
-type MonoTypedExpr = Expr ResolvedMethodReference Mono.Type MonoTypedMemberAccess
-type MonoTypedRange = Range MonoTypedExpr
-
-data MonomorphedDefinition = MonomorphedDefinition (Metadata SourceInfo) Identifier Mono.Type MonoTypedExpr
-                           deriving (Show, Eq, Ord)
-
-data InstantiatedDefinition =
-  InstantiatedDefinition Identifier (Metadata SourceInfo) Identifier MonoTypedExpr
-  deriving (Show, Eq, Ord)
-
-data MonomorphedPackage = MonomorphedPackage PackageDeclaration
-                                             [ImportedPackage ResolvedPackage]
-                                             (Set InstantiatedDefinition)
-                                             (Set MonomorphedDefinition)
-                     deriving (Show, Eq, Ord)
 
 data MonomorphError   = NotInScope Identifier
                       | UnexpectedPolyType SourceInfo Poly.Type

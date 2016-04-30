@@ -1,7 +1,9 @@
 module Oden.Compiler where
 
-import           Oden.Compiler.Monomorphization
+import           Oden.Core.Monomorphed
 import           Oden.Core.Resolved
+
+import           Oden.Compiler.Monomorphization
 
 import           Control.Arrow
 

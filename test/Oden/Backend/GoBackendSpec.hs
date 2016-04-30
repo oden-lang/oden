@@ -9,7 +9,7 @@ import           Oden.Backend
 import           Oden.Backend.Go
 import           Oden.Core.Expr
 import           Oden.Core.Package
-import           Oden.Compiler.Monomorphization
+import           Oden.Core.Monomorphed
 import qualified Oden.Go.Identifier as GI
 import qualified Oden.Go.AST as AST
 import qualified Oden.Go.Type as GT

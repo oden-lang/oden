@@ -21,11 +21,9 @@ import qualified Oden.Go.Type          as GT
 import           Oden.Go.Pretty ()
 
 import           Oden.Backend
-import           Oden.Compiler.Monomorphization as Monomorphization
 
-import           Oden.Core
-import           Oden.Core.Definition
 import           Oden.Core.Expr
+import           Oden.Core.Monomorphed as Monomorphed
 import           Oden.Core.Package
 import           Oden.Core.Operator
 import           Oden.Core.Resolved
@@ -324,11 +322,11 @@ genExpr expr = case expr of
 
   MemberAccess _ access _ ->
     case access of
-      Monomorphization.RecordFieldAccess recordExpr name -> do
+      Monomorphed.RecordFieldAccess recordExpr name -> do
         primaryExpr <- genPrimaryExpression recordExpr
         AST.Expression . AST.Selector primaryExpr <$> genIdentifier name
 
-      Monomorphization.PackageMemberAccess pkgAlias name ->
+      Monomorphed.PackageMemberAccess pkgAlias name ->
         (AST.Expression . AST.Operand) <$> (AST.QualifiedOperandName <$> genIdentifier pkgAlias
                                                                  <*> genIdentifier name)
 

@@ -5,12 +5,11 @@ import           Oden.Core as Core
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import qualified Oden.Core.Untyped as Untyped
-import           Oden.Core.Untyped (Untyped(..))
 import           Oden.Core.Package
 import           Oden.Core.Resolved
 import           Oden.Core.Operator
-import           Oden.Compiler.Monomorphization as Monomorphization
-import           Oden.Compiler.Resolution
+import           Oden.Core.Monomorphed as Monomorphed
+
 import           Oden.Identifier
 import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Type.Monomorphic as Mono
@@ -285,9 +284,9 @@ instance Pretty TypedMemberAccess where
     pretty expr <> text "." <> pretty name
 
 instance Pretty MonoTypedMemberAccess where
-  pretty (Monomorphization.RecordFieldAccess expr name) =
+  pretty (Monomorphed.RecordFieldAccess expr name) =
     pretty expr <> text "." <> pretty name
-  pretty (Monomorphization.PackageMemberAccess expr name) =
+  pretty (Monomorphed.PackageMemberAccess expr name) =
     pretty expr <> text "." <> pretty name
 
 instance Pretty InstantiatedDefinition where

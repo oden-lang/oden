@@ -1,6 +1,6 @@
 module Oden.Backend where
 
-import Oden.Compiler.Monomorphization
+import Oden.Core.Monomorphed
 
 data CodegenError = UnexpectedError String
                   deriving (Show, Eq, Ord)

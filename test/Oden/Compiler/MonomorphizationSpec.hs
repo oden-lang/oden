@@ -6,9 +6,9 @@ import           Test.Hspec
 
 import           Oden.Compiler.Monomorphization
 
-import qualified Oden.Core             as Core
 import           Oden.Core.Definition
 import           Oden.Core.Expr
+import           Oden.Core.Monomorphed
 import           Oden.Core.Package
 import           Oden.Core.Resolved
 

@@ -2,12 +2,15 @@ module Oden.CLI.Build where
 
 import           Oden.Backend
 import           Oden.Backend.Go
+
 import           Oden.Compiler
-import           Oden.Compiler.Monomorphization  (MonomorphedPackage(..))
 import           Oden.Compiler.Validation
 import           Oden.Compiler.Resolution
+
 import           Oden.Core                       as Core
+import           Oden.Core.Monomorphed           (MonomorphedPackage(..))
 import           Oden.Core.Resolved
+
 import           Oden.Explode
 import qualified Oden.Go.Importer                as Go
 import           Oden.Imports
