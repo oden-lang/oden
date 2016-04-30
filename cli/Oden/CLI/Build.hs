@@ -51,7 +51,7 @@ inferFile (OdenSourceFile fname _) = do
   liftEither (inferPackage untypedPkgWithImports)
 
 resolvePkg :: TypedPackage -> CLI ResolvedPackage
-resolvePkg = liftEither . resolveInPackage []
+resolvePkg = liftEither . resolveInPackage
 
 compileFile :: SourceFile -> CLI MonomorphedPackage
 compileFile sourceFile = do

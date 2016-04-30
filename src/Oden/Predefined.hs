@@ -26,6 +26,14 @@ typeString = TCon predefined (nameInUniverse "string")
 typeBool = TCon predefined (nameInUniverse "bool")
 typeUnit = TCon predefined (nameInUniverse "unit")
 
+protocols :: [(String, Protocol)]
+protocols = [
+  ("error",
+   Protocol predefined (nameInUniverse "error") (TVar predefined (TV "a")) [
+     ProtocolMethod predefined (Identifier "Error") (Forall predefined [] empty (TFn predefined (TVar predefined (TV "a")) typeString))
+   ])
+  ]
+
 foreignFns :: [(Identifier, Scheme)]
 foreignFns = [
   (Identifier "len", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
@@ -46,7 +54,11 @@ universe =
   ResolvedPackage
   (PackageDeclaration (Metadata Missing) [])
   []
-  (map toForeignDef foreignFns ++ map toTypeDef types)
+  (concat [ map toProtocolDef protocols
+          , map toForeignDef foreignFns
+          , map toTypeDef types
+          ])
     where
+    toProtocolDef (s, p) = ProtocolDefinition predefined (nameInUniverse s) p
     toTypeDef (s, t) = TypeDefinition predefined (nameInUniverse s) [] t
     toForeignDef (i, s) = ForeignDefinition predefined i s
