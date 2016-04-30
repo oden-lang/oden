@@ -6,7 +6,8 @@ module Oden.Predefined (
   typeUnit
 ) where
 
-import qualified Oden.Core             as Core
+import           Oden.Core.Definition
+import           Oden.Core.Resolved
 import           Oden.Core.Package
 import           Oden.Identifier
 import           Oden.Metadata
@@ -40,12 +41,12 @@ types = [
   ("unit", typeUnit)
   ]
 
-universe :: Core.TypedPackage
+universe :: ResolvedPackage
 universe =
-  Package
+  ResolvedPackage
   (PackageDeclaration (Metadata Missing) [])
   []
   (map toForeignDef foreignFns ++ map toTypeDef types)
     where
-    toTypeDef (s, t) = Core.TypeDefinition predefined (nameInUniverse s) [] t
-    toForeignDef (i, s) = Core.ForeignDefinition predefined i s
+    toTypeDef (s, t) = TypeDefinition predefined (nameInUniverse s) [] t
+    toForeignDef (i, s) = ForeignDefinition predefined i s

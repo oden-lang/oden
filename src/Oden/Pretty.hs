@@ -2,12 +2,16 @@
 module Oden.Pretty where
 
 import           Oden.Core as Core
+import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Untyped
+import qualified Oden.Core.Untyped as Untyped
+import           Oden.Core.Untyped (Untyped(..))
 import           Oden.Core.Package
+import           Oden.Core.Resolved
 import           Oden.Core.Operator
-import           Oden.Identifier
 import           Oden.Compiler.Monomorphization as Monomorphization
+import           Oden.Compiler.Resolution
+import           Oden.Identifier
 import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
@@ -60,6 +64,10 @@ instance Pretty e => Pretty (FieldInitializer e) where
 
 instance Pretty UnresolvedMethodReference where
   pretty (UnresolvedMethodReference (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _)) =
+    pretty protocolName <> text "::" <> pretty methodName
+
+instance Pretty ResolvedMethodReference where
+  pretty (ResolvedMethodReference (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _) _) =
     pretty protocolName <> text "::" <> pretty methodName
 
 instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
@@ -126,8 +134,8 @@ instance Pretty Poly.Protocol where
     text "protocol" <+> pretty name <> parens (pretty tvar)
       <+> indentedInBraces (vcat (map pretty methods))
 
-instance Pretty Core.TypedDefinition where
-  pretty (Core.Definition _ name (scheme, expr)) = vcat [
+instance (Pretty r, Pretty t, Pretty m) => Pretty (Definition (Expr r t m)) where
+  pretty (Definition _ name (scheme, expr)) = vcat [
       pretty name <+> text ":" <+> pretty scheme,
       prettyDefinition name expr
     ]
@@ -135,9 +143,9 @@ instance Pretty Core.TypedDefinition where
       text "// (foreign)",
       text "//" <+> pretty name <+> text ":" <+> pretty scheme
     ]
-  pretty (Core.TypeDefinition _ name _ type') =
+  pretty (TypeDefinition _ name _ type') =
     text "type" <+> pretty name <+> equals <+> pretty type'
-  pretty (Core.ProtocolDefinition _ _ protocol) = pretty protocol
+  pretty (ProtocolDefinition _ _ protocol) = pretty protocol
 
 instance Pretty PackageName where
   pretty parts = hcat (punctuate (text "/") (map text parts))
@@ -145,12 +153,12 @@ instance Pretty PackageName where
 instance Pretty PackageDeclaration where
   pretty (PackageDeclaration _ name) = text "package" <+> pretty name
 
-instance Pretty ImportedPackage where
-  pretty (ImportedPackage _ _ (Package (PackageDeclaration _ pkgName) _ _)) =
+instance Pretty (ImportedPackage ResolvedPackage) where
+  pretty (ImportedPackage _ _ (ResolvedPackage (PackageDeclaration _ pkgName) _ _)) =
     text "import" <+> pretty pkgName
 
-instance (Pretty i, Pretty d) => Pretty (Package i d)  where
-  pretty (Package decl imports defs) =
+instance Pretty Core.TypedPackage  where
+  pretty (Core.TypedPackage decl imports defs) =
     vcat (punctuate line (pretty decl : map pretty imports ++ map pretty defs))
 
 instance Pretty Poly.TVar where
@@ -302,10 +310,10 @@ instance Pretty MonomorphedPackage where
                               ++ map pretty (toList is)
                               ++ map pretty (toList ms)
 
-instance Pretty NamedMethodReference where
-  pretty (NamedMethodReference protocolName methodName) =
+instance Pretty Untyped.NamedMethodReference where
+  pretty (Untyped.NamedMethodReference protocolName methodName) =
     pretty protocolName <> text "::" <> pretty methodName
 
-instance Pretty NamedMemberAccess where
-  pretty (NamedMemberAccess expr member) =
+instance Pretty Untyped.NamedMemberAccess where
+  pretty (Untyped.NamedMemberAccess expr member) =
     pretty expr <> text "." <> pretty member

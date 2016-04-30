@@ -1,6 +1,5 @@
 module Oden.Compiler.LiteralEval where
 
-import           Oden.Core
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 

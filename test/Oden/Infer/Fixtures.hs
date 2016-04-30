@@ -1,9 +1,11 @@
 module Oden.Infer.Fixtures where
 
 import           Oden.Core              as Core
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
-import           Oden.Core.Untyped      as Untyped
+import           Oden.Core.Untyped      hiding (Definition (..))
+import qualified Oden.Core.Untyped      as Untyped
 import           Oden.Environment       hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.Environment
@@ -92,7 +94,7 @@ tInt    = Int
 tString = String
 tBool   = Bool
 
-tDefinition = Core.Definition missing
+tDefinition = Definition missing
 tNameBinding = NameBinding missing
 
 predef :: TypingEnvironment

@@ -1,6 +1,9 @@
 module Oden.Assertions where
 
+import           Data.Algorithm.Diff
+import           Data.Algorithm.DiffOutput
 import           Text.PrettyPrint.Leijen hiding ((<$>))
+import           Text.Nicify
 
 import           Test.Hspec
 
@@ -12,12 +15,22 @@ isRight :: Either a b -> Bool
 isRight (Right _) = True
 isRight _         = False
 
+failWithDiff :: Show a => a -> a -> Expectation
+failWithDiff expected actual =
+  expectationFailure (ppDiff (getGroupedDiff (showNice actual) (showNice expected)))
+  where
+  showNice = lines . nicify . show
+
 shouldSucceed :: (Eq a, Show a, Show e) => Either e a -> Expectation
-shouldSucceed  res = res `shouldSatisfy` isRight
+shouldSucceed res
+  | isLeft res = expectationFailure ("Failed with:\n" ++ nicify (show res))
+  | isRight res = return ()
 
 shouldSucceedWith :: (Eq v, Show v, Show e) => Either e v -> v -> Expectation
-(Left err)    `shouldSucceedWith` _         = expectationFailure . show $ err
-(Right value) `shouldSucceedWith` expected  = value `shouldBe` expected
+(Left err)    `shouldSucceedWith` _  = expectationFailure . nicify . show $ err
+(Right value) `shouldSucceedWith` expected
+  | value == expected = return ()
+  | otherwise         = failWithDiff expected value
 
 shouldFail :: (Eq a, Show a, Show e) => Either e a -> Expectation
 shouldFail res = res `shouldSatisfy` isLeft

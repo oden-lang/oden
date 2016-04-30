@@ -6,8 +6,10 @@ module Oden.Infer.Environment (
 ) where
 
 import           Oden.Core
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Package
+import           Oden.Core.Resolved
 import           Oden.Environment      hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
@@ -24,8 +26,9 @@ data TypeBinding = PackageBinding (Metadata SourceInfo) Identifier TypingEnviron
 
 type TypingEnvironment = Environment TypeBinding
 
-fromPackage :: TypedPackage -> TypingEnvironment
-fromPackage (Package _ _ defs) =
+fromPackage :: ResolvedPackage
+            -> TypingEnvironment
+fromPackage (ResolvedPackage _ _ defs) =
   fromList (map convert defs)
   where
   convert (Definition si n (sc, _)) = (n, Local si n sc)
@@ -34,7 +37,7 @@ fromPackage (Package _ _ defs) =
   convert (ProtocolDefinition si (FQN _ name) protocol) =
     (name, ProtocolBinding si name protocol)
 
-fromPackages :: [ImportedPackage] -> TypingEnvironment
+fromPackages :: [ImportedPackage ResolvedPackage] -> TypingEnvironment
 fromPackages =
   foldl iter empty
   where

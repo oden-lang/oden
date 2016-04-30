@@ -10,8 +10,8 @@ import           Control.Monad.State
 
 import qualified Data.Map              as Map hiding (foldl)
 
-import qualified Oden.Core             as Core
 import           Oden.Core.Expr
+import           Oden.Core.Resolved
 import           Oden.Metadata
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
@@ -112,20 +112,20 @@ replace (Poly.RExtension si label type' row) =
   Poly.RExtension si label <$> replace type'
                            <*> replace row
 
-instantiateField :: FieldInitializer Core.TypedExpr
-                -> Instantiate (FieldInitializer Core.TypedExpr)
+instantiateField :: FieldInitializer ResolvedExpr
+                -> Instantiate (FieldInitializer ResolvedExpr)
 instantiateField (FieldInitializer si label expr) =
   FieldInitializer si label <$> instantiateExpr expr
 
-instantiateMemberAccess :: Core.TypedMemberAccess
-                        -> Instantiate Core.TypedMemberAccess
+instantiateMemberAccess :: ResolvedMemberAccess
+                        -> Instantiate ResolvedMemberAccess
 instantiateMemberAccess = \case
-  Core.RecordFieldAccess expr name ->
-    Core.RecordFieldAccess <$> instantiateExpr expr <*> return name
-  c@Core.PackageMemberAccess{} -> return c
+  RecordFieldAccess expr name ->
+    RecordFieldAccess <$> instantiateExpr expr <*> return name
+  c@PackageMemberAccess{} -> return c
 
-instantiateExpr :: Core.TypedExpr
-                -> Instantiate Core.TypedExpr
+instantiateExpr :: ResolvedExpr
+                -> Instantiate ResolvedExpr
 instantiateExpr (Symbol si i t) =
   Symbol si i <$> replace t
 instantiateExpr (Subscript si s i t) =
@@ -201,9 +201,9 @@ instantiateExpr (MethodReference si ref t) =
 -- | Given a polymorphically typed expression and a monomorphic type, return
 -- the expression with all types substitued for monomorphic ones. If there's
 -- a mismatch an error is thrown.
-instantiate :: Core.TypedExpr
+instantiate :: ResolvedExpr
             -> Mono.Type
-            -> Either InstantiateError Core.TypedExpr
+            -> Either InstantiateError ResolvedExpr
 instantiate expr mono = do
   subst <- getSubstitutions (typeOf expr) mono
   (expr', _) <- runExcept (runStateT (instantiateExpr expr) subst)

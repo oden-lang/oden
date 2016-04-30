@@ -5,9 +5,13 @@ import           Data.Set              as Set
 import           Test.Hspec
 
 import           Oden.Compiler.Monomorphization
+
 import qualified Oden.Core             as Core
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Package
+import           Oden.Core.Resolved
+
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -35,18 +39,18 @@ typeBool = Poly.TCon missing (nameInUniverse "bool")
 monoInt = Mono.TCon missing (nameInUniverse "int")
 monoBool = Mono.TCon missing (nameInUniverse "bool")
 
-identityDef :: Core.TypedDefinition
+identityDef :: ResolvedDefinition
 identityDef =
-  Core.Definition
+  Definition
     missing
     (Identifier "identity")
     (Poly.Forall missing [Poly.TVarBinding missing tvA] Set.empty (Poly.TFn missing a a),
      Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") a)
                  (Poly.TFn missing a a))
 
-identity2Def :: Core.TypedDefinition
+identity2Def :: ResolvedDefinition
 identity2Def =
-  Core.Definition
+  Definition
     missing
     (Identifier "identity2")
     (Poly.Forall missing [Poly.TVarBinding missing tvA] Set.empty (Poly.TFn missing a a),
@@ -55,9 +59,9 @@ identity2Def =
                                    a)
                  (Poly.TFn missing a a))
 
-usingIdentityDef :: Core.TypedDefinition
+usingIdentityDef :: ResolvedDefinition
 usingIdentityDef =
-  Core.Definition
+  Definition
     missing
     (Identifier "using-identity")
     (Poly.Forall missing [] Set.empty typeInt,
@@ -66,9 +70,9 @@ usingIdentityDef =
                       (Literal missing (Int 1) typeInt)
                       typeInt)
 
-usingIdentity2Def :: Core.TypedDefinition
+usingIdentity2Def :: ResolvedDefinition
 usingIdentity2Def =
-  Core.Definition
+  Definition
     missing
     (Identifier "using-identity2")
     (Poly.Forall missing [] Set.empty typeInt,
@@ -88,9 +92,9 @@ usingIdentityMonomorphed =
                       (Literal missing (Int 1) monoInt)
                       monoInt)
 
-letBoundIdentity :: Core.TypedDefinition
+letBoundIdentity :: ResolvedDefinition
 letBoundIdentity =
-  Core.Definition
+  Definition
     missing
     (Identifier "let-bound-identity")
     (Poly.Forall missing [] Set.empty typeInt,
@@ -157,9 +161,9 @@ identity2InstIntToInt =
       monoInt)
      (Mono.TFn missing monoInt monoInt))
 
-sliceLenDef :: Core.TypedDefinition
+sliceLenDef :: ResolvedDefinition
 sliceLenDef =
-  Core.Definition
+  Definition
     missing
     (Identifier "slice-len")
     (Poly.Forall missing [] Set.empty typeInt,
@@ -181,9 +185,9 @@ sliceLenMonomorphed =
      (Slice missing [Literal missing (Bool True) monoBool] (Mono.TSlice missing monoBool))
      monoInt)
 
-letWithShadowing :: Core.TypedDefinition
+letWithShadowing :: ResolvedDefinition
 letWithShadowing =
-  Core.Definition
+  Definition
     missing
     (Identifier "let-with-shadowing")
     (Poly.Forall missing [] Set.empty typeInt,
@@ -221,7 +225,7 @@ spec :: Spec
 spec =
   describe "monomorphPackage" $ do
     it "compiles empty package" $
-      monomorphPackage (Package myPkg [] [])
+      monomorphPackage (ResolvedPackage myPkg [] [])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -229,7 +233,7 @@ spec =
         Set.empty
         Set.empty
     it "excludes unused polymorphic definitions" $
-      monomorphPackage (Package myPkg [] [identityDef])
+      monomorphPackage (ResolvedPackage myPkg [] [identityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -237,7 +241,7 @@ spec =
         Set.empty
         Set.empty
     it "monomorphs polymorphic function usage" $
-      monomorphPackage (Package myPkg [] [identityDef, usingIdentityDef])
+      monomorphPackage (ResolvedPackage myPkg [] [identityDef, usingIdentityDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -245,7 +249,7 @@ spec =
         (Set.singleton identityInstIntToInt)
         (Set.singleton usingIdentityMonomorphed)
     it "monomorphs polymorphic function usage recursively" $
-      monomorphPackage (Package myPkg [] [identityDef, identity2Def, usingIdentity2Def])
+      monomorphPackage (ResolvedPackage myPkg [] [identityDef, identity2Def, usingIdentity2Def])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -253,7 +257,7 @@ spec =
         (Set.fromList [identityInstIntToInt, identity2InstIntToInt])
         (Set.singleton usingIdentity2Monomorphed)
     it "monomorphs let bound polymorphic function" $
-      monomorphPackage (Package myPkg [] [letBoundIdentity])
+      monomorphPackage (ResolvedPackage myPkg [] [letBoundIdentity])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -261,7 +265,7 @@ spec =
         Set.empty
         (Set.singleton letBoundIdentityMonomorphed)
     it "uses polymorphic predefined Go funcs" $
-      monomorphPackage (Package myPkg [] [sliceLenDef])
+      monomorphPackage (ResolvedPackage myPkg [] [sliceLenDef])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
@@ -269,7 +273,7 @@ spec =
         Set.empty
         (Set.singleton sliceLenMonomorphed)
     it "monomorphs let with shadowing" $
-      monomorphPackage (Package myPkg [] [letWithShadowing])
+      monomorphPackage (ResolvedPackage myPkg [] [letWithShadowing])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg

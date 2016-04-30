@@ -195,7 +195,7 @@ explodeTopLevel = (.) toEither . explodeTopLevel'
 explodePackage' :: Syntax.Package -> Writer [ExplodeError] (UntypedPackage ImportReference)
 explodePackage' (Syntax.Package (Syntax.PackageDeclaration si name) definitions) = do
   (is, ds) <- explodeTopLevel' name definitions
-  return (Package (PackageDeclaration (Metadata si) name) is ds)
+  return (UntypedPackage (PackageDeclaration (Metadata si) name) is ds)
 
 explodePackage :: Syntax.Package -> Either [ExplodeError] (UntypedPackage ImportReference)
 explodePackage p = case runWriter (explodePackage' p) of

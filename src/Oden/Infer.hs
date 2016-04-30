@@ -23,10 +23,14 @@ import qualified Data.Map                        as Map
 import qualified Data.Set                        as Set
 
 import           Oden.Core                       as Core
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Core.Package
-import           Oden.Core.Untyped               as Untyped
+import qualified Oden.Core.Resolved              as Resolved
+import           Oden.Core.Untyped               hiding (Definition(..))
+import qualified Oden.Core.Untyped               as Untyped
+
 import           Oden.Environment                as Environment hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.ConstraintCollection
@@ -487,7 +491,7 @@ inferDef (Untyped.Definition si name signature expr) = do
       let recScheme = Forall si [] Set.empty tv
       let recursiveEnv = env `extend` (name, Local si name recScheme)
       te <- local (const recursiveEnv) (infer expr)
-      return (Core.Definition si name (recScheme, te), True)
+      return (Definition si name (recScheme, te), True)
     Just ts -> do
       (recScheme@(Forall _ _ _ recType), envWithBindings) <- resolveTypeSignature ts
       let recursiveEnv = envWithBindings  `extend` (name, Local si name recScheme)
@@ -495,11 +499,11 @@ inferDef (Untyped.Definition si name signature expr) = do
       uni (getSourceInfo te) (typeOf te) recType
       case recScheme `subsumedBy` te of
         Left e -> throwError $ TypeSignatureSubsumptionError name e
-        Right canonical -> return (Core.Definition si name canonical, False)
+        Right canonical -> return (Definition si name canonical, False)
 
 inferDef (Untyped.TypeDefinition si name params typeExpr) = do
   type' <- resolveType typeExpr
-  return (Core.TypeDefinition si name (map convertParams params) type', False)
+  return (TypeDefinition si name (map convertParams params) type', False)
   where
   convertParams (NameBinding bsi bn) = NameBinding bsi bn
 
@@ -509,7 +513,7 @@ inferDef (Untyped.ProtocolDefinition si name (SignatureVarBinding vsi var) metho
   methods' <- local (`extend` (var, QuantifiedType (Metadata vsi) var boundType))
                     (mapM resolveMethod methods)
   let protocol = Protocol si name boundType methods'
-  return (Core.ProtocolDefinition si name protocol, False)
+  return (ProtocolDefinition si name protocol, False)
 
 -- | Infer a top-level definitition, returning a typed version and the typing
 -- environment extended with the definitions name and type.
@@ -519,34 +523,34 @@ inferDefinition env def = do
   ((def', shouldCloseOver), cs) <- runInfer env (inferDef def)
 
   case def' of
-    Core.Definition si name (_, te) | shouldCloseOver -> do
+    Definition si name (_, te) | shouldCloseOver -> do
       subst <- left UnificationError $ runSolve cs
       let canonical'@(sc, _) = closeOver (apply subst te)
           env' = env `extend` (name, Local si name sc)
-      return (env', Core.Definition si name canonical')
-    Core.Definition si name canonical -> do
+      return (env', Definition si name canonical')
+    Definition si name canonical -> do
       subst <- left UnificationError $ runSolve cs
       let canonical'@(sc, _) = normalize (apply subst canonical)
           env' = env `extend` (name, Local si name sc)
-      return (env', Core.Definition si name canonical')
+      return (env', Definition si name canonical')
 
-    Core.TypeDefinition si name@(FQN _ localName) params type' ->
+    TypeDefinition si name@(FQN _ localName) params type' ->
       return (env `extend` (localName, Type si name params type'), def')
 
-    Core.ProtocolDefinition si (FQN _ localName) protocol ->
+    ProtocolDefinition si (FQN _ localName) protocol ->
       return (env `extend` (localName, ProtocolBinding si localName protocol), def')
 
-    Core.ForeignDefinition _ name _ ->
+    ForeignDefinition _ name _ ->
       error ("unexpected foreign definition: " ++ asString name)
 
 -- | Infer the package, returning a package with typed definitions along with
 -- the extended typing environment.
-inferPackage :: UntypedPackage Core.ImportedPackage
+inferPackage :: UntypedPackage (ImportedPackage Resolved.ResolvedPackage)
              -> Either TypeError TypedPackage
-inferPackage (Package (PackageDeclaration psi name) imports defs) = do
+inferPackage (UntypedPackage (PackageDeclaration psi name) imports defs) = do
   let env = fromPackage universe `merge` fromPackages imports
   inferred <- snd <$> foldM iter (env, []) defs
-  return (Package (PackageDeclaration psi name) imports inferred)
+  return (TypedPackage (PackageDeclaration psi name) imports inferred)
   where
   iter (e, inferred) def = do
       (e', def') <- inferDefinition e def

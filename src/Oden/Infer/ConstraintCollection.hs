@@ -17,7 +17,15 @@ import Data.Set
 collectConstraints :: TypedExpr -> (TypedExpr, Set ProtocolConstraint)
 collectConstraints = runWriter . traverseExpr traversal
   where
-  traversal = identityTraversal { onType = traverseType onType', onMemberAccess = return }
+  traversal = identityTraversal { onType = traverseType onType'
+                                , onMethodReference = onMethodReference'
+                                , onMemberAccess = return
+                                }
     where
     onType' (TConstrained cs t) = tell cs >> return t
     onType' t = return t
+
+    onMethodReference' si (UnresolvedMethodReference protocol method) type' = do
+      unconstrainedType <- onType' type'
+      return (si, UnresolvedMethodReference protocol method, unconstrainedType)
+    onMethodReference' si ref type' = return (si, ref, type')

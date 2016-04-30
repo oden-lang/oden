@@ -5,6 +5,8 @@
 module Oden.Core.Traversal where
 
 import           Oden.Core.Expr
+import           Oden.Metadata
+import           Oden.SourceInfo
 
 import           Data.Maybe
 
@@ -13,7 +15,10 @@ data Traversal m r r' t t' a a'
               , onType :: t -> m t'
               , onMemberAccess :: a -> m a'
               , onNameBinding :: NameBinding -> m NameBinding
-              , onMethodReference  :: r -> m r'
+              , onMethodReference :: Metadata SourceInfo
+                                  -> r
+                                  -> t
+                                  -> m (Metadata SourceInfo, r', t')
               }
 
 identityTraversal :: Monad m => Traversal m r r t t a a
@@ -22,7 +27,7 @@ identityTraversal
               , onType = return
               , onMemberAccess = return
               , onNameBinding = return
-              , onMethodReference = return
+              , onMethodReference = \si ref type' -> return (si, ref, type')
               }
 
 traverseExpr :: Monad m
@@ -89,5 +94,6 @@ traverseExpr traversal@Traversal{ onExpr = onExpr'
         FieldInitializer fsi fieldName <$> traverseExpr' fieldValue
     MemberAccess si access t ->
       MemberAccess si <$> onMemberAccess traversal access <*> onType' t
-    MethodReference si ref t ->
-      MethodReference si <$> onMethodReference' ref <*> onType' t
+    MethodReference si ref t -> do
+      (si', ref', t') <- onMethodReference' si ref t
+      return (MethodReference si' ref' t')

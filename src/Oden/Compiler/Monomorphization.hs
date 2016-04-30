@@ -13,10 +13,13 @@ import           Data.Set                  as Set hiding (map)
 
 import           Oden.Compiler.Environment
 import           Oden.Compiler.Instantiate
+import           Oden.Compiler.Resolution
 import           Oden.Compiler.TypeEncoder
-import qualified Oden.Core                 as Core
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Package
+import qualified Oden.Core.Resolved        as Resolved
+import           Oden.Core.Resolved        hiding (ResolvedMemberAccess(..))
 import           Oden.Identifier
 import           Oden.Environment                as Environment
 import           Oden.Metadata
@@ -30,8 +33,7 @@ data MonoTypedMemberAccess
   | PackageMemberAccess Identifier Identifier
   deriving (Show, Eq, Ord)
 
--- TODO: Change method reference to be resolved at this stage.
-type MonoTypedExpr = Expr Core.UnresolvedMethodReference Mono.Type MonoTypedMemberAccess
+type MonoTypedExpr = Expr ResolvedMethodReference Mono.Type MonoTypedMemberAccess
 type MonoTypedRange = Range MonoTypedExpr
 
 data MonomorphedDefinition = MonomorphedDefinition (Metadata SourceInfo) Identifier Mono.Type MonoTypedExpr
@@ -42,7 +44,7 @@ data InstantiatedDefinition =
   deriving (Show, Eq, Ord)
 
 data MonomorphedPackage = MonomorphedPackage PackageDeclaration
-                                             [Core.ImportedPackage]
+                                             [ImportedPackage ResolvedPackage]
                                              (Set InstantiatedDefinition)
                                              (Set MonomorphedDefinition)
                      deriving (Show, Eq, Ord)
@@ -97,7 +99,7 @@ addMonomorphed identifier def =
 
 instantiateDefinition :: (Identifier, Mono.Type)
                       -> Poly.Scheme
-                      -> Core.TypedExpr
+                      -> ResolvedExpr
                       -> Monomorph Identifier
 instantiateDefinition key@(pn, t) _ pe = do
   let identifier = Identifier (encodeTypeInstance pn t)
@@ -117,18 +119,18 @@ getMonomorphicIn env ident t = do
   def <- lookupIn env ident
   case def of
     PackageBinding{} -> throwError $ NotInScope ident
-    Definition Core.ForeignDefinition{} -> return ident
-    Definition (Core.Definition _ _ (sc, pe)) | Poly.isPolymorphic sc -> do
+    DefinitionBinding ForeignDefinition{} -> return ident
+    DefinitionBinding (Definition _ _ (sc, pe)) | Poly.isPolymorphic sc -> do
       let key = (ident, t)
       is <- gets instanceNames
       case Map.lookup key is of
         Just name -> return name
         Nothing -> instantiateDefinition key sc pe
-    Definition (Core.Definition _ pn _) -> return pn
+    DefinitionBinding (Definition _ pn _) -> return pn
     -- Types cannot be referred to at this stage.
-    Definition Core.TypeDefinition{} -> throwError $ NotInScope ident
+    DefinitionBinding TypeDefinition{} -> throwError $ NotInScope ident
     -- Protocols cannot be referred to at this stage.
-    Definition Core.ProtocolDefinition{} -> throwError $ NotInScope ident
+    DefinitionBinding ProtocolDefinition{} -> throwError $ NotInScope ident
 
     LetBinding (NameBinding _ boundIdentifier) expr ->
       getMonomorphicLetBinding boundIdentifier t (typeOf expr)
@@ -154,11 +156,11 @@ toMonomorphic (Metadata si) pt =
   return
   (Poly.toMonomorphic pt)
 
-getMonoType :: Core.TypedExpr -> Monomorph Mono.Type
+getMonoType :: ResolvedExpr -> Monomorph Mono.Type
 getMonoType e = toMonomorphic (Metadata $ getSourceInfo e) (typeOf e)
 
 -- | Return a monomorphic version of a polymorphic expression.
-monomorph :: Core.TypedExpr -> Monomorph MonoTypedExpr
+monomorph :: ResolvedExpr -> Monomorph MonoTypedExpr
 monomorph e = case e of
   Symbol si ident _ -> do
     env <- ask
@@ -273,12 +275,12 @@ monomorph e = case e of
 
   MemberAccess si access polyType ->
     case access of
-      Core.RecordFieldAccess expr name -> do
+      Resolved.RecordFieldAccess expr name -> do
         monoType <- getMonoType e
         monoExpr <- monomorph expr
         return (MemberAccess si (RecordFieldAccess monoExpr name) monoType)
 
-      Core.PackageMemberAccess pkgAlias name -> do
+      Resolved.PackageMemberAccess pkgAlias name -> do
         env <- ask
         monoType <- toMonomorphic si polyType
         binding <- lookupIn env pkgAlias
@@ -288,12 +290,12 @@ monomorph e = case e of
             return (MemberAccess si (PackageMemberAccess pkgAlias m) monoType)
           _ -> error "cannot access member in non-existing package"
 
-  MethodReference _ ref methodType ->
-    error ("cannot monomorph " ++ show ref ++ " with type `" ++ show methodType ++ "`")
+  MethodReference _ (ResolvedMethodReference _ _ impl) methodType ->
+    error (show impl)
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
-monomorphReference :: Core.TypedExpr
+monomorphReference :: ResolvedExpr
                    -> Metadata SourceInfo -- Let expression source info.
                    -> Metadata SourceInfo -- Let binding source info.
                    -> LetReference
@@ -322,11 +324,11 @@ unwrapLetInstances [] body = body
 unwrapLetInstances (LetInstance si mn me:is) body =
   Let si mn me (unwrapLetInstances is body) (typeOf body)
 
--- | Monomorphs a definitions and keeps results in the state.
-monomorphDefinitions :: [Core.TypedDefinition]
+-- | Monomorphs definitions and keeps results in the state.
+monomorphDefinitions :: [ResolvedDefinition]
                      -> Monomorph ()
 monomorphDefinitions [] = return ()
-monomorphDefinitions (d@(Core.Definition si identifier (Poly.Forall _ _ _ st, expr)) : defs) = do
+monomorphDefinitions (d@(Definition si identifier (Poly.Forall _ _ _ st, expr)) : defs) = do
   case Poly.toMonomorphic st of
     Left _ -> return ()
     Right mt -> do
@@ -334,23 +336,24 @@ monomorphDefinitions (d@(Core.Definition si identifier (Poly.Forall _ _ _ st, ex
       addMonomorphed identifier (MonomorphedDefinition si identifier mt mExpr)
   -- Monomorph rest of the definitions with this definitions identifier in
   -- the environment.
-  local (`extend` (identifier, Definition d)) (monomorphDefinitions defs)
+  local (`extend` (identifier, DefinitionBinding d)) (monomorphDefinitions defs)
 -- Type definitions are not monomorphed or generated to output code, so ignore.
-monomorphDefinitions (Core.TypeDefinition{} : defs) =
+monomorphDefinitions (TypeDefinition{} : defs) =
   monomorphDefinitions defs
 -- Foreign definitions are are already monomorphic and not generated to out
 -- code, so ignore.
-monomorphDefinitions (Core.ForeignDefinition{} : defs) =
+monomorphDefinitions (ForeignDefinition{} : defs) =
   monomorphDefinitions defs
 -- Protocol definitions are not monomorphed or generated to output code, so
 -- ignore.
-monomorphDefinitions (Core.ProtocolDefinition{} : defs) =
+monomorphDefinitions (ProtocolDefinition{} : defs) =
   monomorphDefinitions defs
 
 -- | Monomorphs a package and returns the complete package with instantiated
 -- and monomorphed definitions.
-monomorphPackage :: Core.TypedPackage -> Either MonomorphError MonomorphedPackage
-monomorphPackage self@(Package pkgDecl imports definitions) = do
+monomorphPackage :: ResolvedPackage
+                 -> Either MonomorphError MonomorphedPackage
+monomorphPackage self@(ResolvedPackage pkgDecl imports definitions) = do
   let environment = fromPackage universe `merge` fromPackage self `merge` fromPackages imports
   let st = MonomorphState { instanceNames = Map.empty
                           , instances = []

@@ -5,7 +5,9 @@ import           Oden.Backend.Go
 import           Oden.Compiler
 import           Oden.Compiler.Monomorphization  (MonomorphedPackage(..))
 import           Oden.Compiler.Validation
+import           Oden.Compiler.Resolution
 import           Oden.Core                       as Core
+import           Oden.Core.Resolved
 import           Oden.Explode
 import qualified Oden.Go.Importer                as Go
 import           Oden.Imports
@@ -48,11 +50,15 @@ inferFile (OdenSourceFile fname _) = do
   mapM_ logWarning warnings'
   liftEither (inferPackage untypedPkgWithImports)
 
+resolvePkg :: TypedPackage -> CLI ResolvedPackage
+resolvePkg = liftEither . resolveInPackage []
+
 compileFile :: SourceFile -> CLI MonomorphedPackage
 compileFile sourceFile = do
   inferredPkg <- inferFile sourceFile
   validatePkg inferredPkg
-  liftEither (compile inferredPkg)
+  resolvedPkg <- resolvePkg inferredPkg
+  liftEither (compile resolvedPkg)
 
 codegenPkg :: MonomorphedPackage -> CLI [CompiledFile]
 codegenPkg compiledPkg = do

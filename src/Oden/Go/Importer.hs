@@ -13,8 +13,10 @@ module Oden.Go.Importer (
   importer
 ) where
 
-import           Oden.Core
+import           Oden.Core.Definition
+import           Oden.Core.Resolved
 import           Oden.Core.Package
+
 import           Oden.Go.Type               as G
 import qualified Oden.Go.Identifier         as GI
 import           Oden.Identifier
@@ -168,9 +170,9 @@ convertType (Unsupported n) = throwError n
 
 objectsToPackage :: PackageName
                  -> [PackageObject]
-                 -> (TypedPackage, [UnsupportedMessage])
+                 -> (ResolvedPackage, [UnsupportedMessage])
 objectsToPackage pkgName objs =
-  (Package (PackageDeclaration missing pkgName) [] allDefs, allMessages)
+  (ResolvedPackage (PackageDeclaration missing pkgName) [] allDefs, allMessages)
   where
   (allDefs, allMessages) = foldl addObject ([], []) objs
   addObject (defs, msgs) (NamedType name goType) =

@@ -33,4 +33,4 @@ data Definition
   | ProtocolDefinition (Metadata SourceInfo) QualifiedName (SignatureVarBinding SourceInfo) [ProtocolMethodSignature SourceInfo]
   deriving (Show, Eq, Ord)
 
-type UntypedPackage i = Package i Definition
+data UntypedPackage i = UntypedPackage PackageDeclaration [i] [Definition]

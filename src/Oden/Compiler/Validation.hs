@@ -3,9 +3,11 @@
 module Oden.Compiler.Validation where
 
 import           Oden.Core                 as Core
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Core.Package
+import           Oden.Core.Resolved        (ResolvedPackage(..))
 import           Oden.Core.Traversal
 import           Oden.Identifier
 import           Oden.Metadata
@@ -137,14 +139,14 @@ validateType = void . traverseType onType'
     t -> return t
 
 validatePackage :: TypedPackage -> Validate ()
-validatePackage (Package _ imports definitions) = do
+validatePackage (TypedPackage _ imports definitions) = do
   -- Validates all definitions and expressions recursively. Also collects usage
   -- of imported packages.
   validateDefs definitions
   -- When package usage is collected we can validate the imports.
   mapM_ validateImport imports
   where
-  validateImport (ImportedPackage (Metadata sourceInfo) alias (Package (PackageDeclaration _ pkg) _ _)) = do
+  validateImport (ImportedPackage (Metadata sourceInfo) alias (ResolvedPackage (PackageDeclaration _ pkg) _ _)) = do
     refs <- gets packageReferences
     unless (alias `Set.member` refs) $
       throwError (UnusedImport sourceInfo pkg alias)

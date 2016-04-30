@@ -1,5 +1,6 @@
 module Oden.Core.Package where
 
+import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.SourceInfo
 
@@ -11,6 +12,6 @@ data PackageDeclaration = PackageDeclaration (Metadata SourceInfo) PackageName
 data ImportReference = ImportReference (Metadata SourceInfo) PackageName
                      deriving (Show, Eq, Ord)
 
-data Package i d
-  = Package PackageDeclaration [i] [d]
+data ImportedPackage p
+  = ImportedPackage (Metadata SourceInfo) Identifier p
   deriving (Show, Eq, Ord)

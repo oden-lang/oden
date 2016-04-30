@@ -7,6 +7,7 @@ import           Oden.CLI
 import           Oden.CLI.Build
 
 import           Oden.Core
+import           Oden.Core.Definition
 import           Oden.Core.Package
 
 import           Control.Monad.Reader
@@ -23,7 +24,7 @@ printInferred path = do
 
 printTypes :: FilePath -> CLI ()
 printTypes path = do
-  (Package _ _ definitions) <- inferFile (OdenSourceFile path ["main"])
+  (TypedPackage _ _ definitions) <- inferFile (OdenSourceFile path ["main"])
   liftIO $ putStrLn $ render $ vcat $ map prettyScheme definitions
   where
     prettyScheme (Definition _ name (scheme, _)) = pretty name <+> text ":" <+> pretty scheme

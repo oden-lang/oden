@@ -3,10 +3,14 @@ module Oden.Compiler.ValidationSpec where
 import           Test.Hspec
 
 import           Oden.Compiler.Validation
-import           Oden.Core
+
+import           Oden.Core as Core
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Core.Package
+import           Oden.Core.Resolved
+
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -50,28 +54,28 @@ block exprs = Block missing exprs (typeOf (last exprs))
 
 divisionByZeroExpr = BinaryOp missing Divide (intExpr 1) (intExpr 0) typeInt
 
-emptyPkg = Package (PackageDeclaration missing ["empty", "pkg"]) [] []
+emptyPkg = ResolvedPackage (PackageDeclaration missing ["empty", "pkg"]) [] []
 
 spec :: Spec
 spec = do
   describe "validateExpr" $ do
 
     it "warns on discarded value in block" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition missing (Identifier "foo") $ canonical (block [strExpr, unitExpr])
         ])
       `shouldFailWith`
       ValueDiscarded strExpr
 
     it "does not warn on discarded unit value in block" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition missing (Identifier "foo") $ canonical (block [unitExpr, strExpr])
         ])
       `shouldSucceedWith`
       []
 
     it "accepts uniquely named definitions" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition missing (Identifier "foo") (canonical strExpr),
             Definition missing (Identifier "bar") (canonical strExpr),
             Definition missing (Identifier "baz") (canonical strExpr)
@@ -80,7 +84,7 @@ spec = do
       []
 
     it "throws an error on duplicate top-level names" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition missing (Identifier "foo") $ canonical strExpr,
             Definition missing (Identifier "bar") $ canonical strExpr,
             Definition missing (Identifier "foo") $ canonical strExpr
@@ -89,7 +93,7 @@ spec = do
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on let-bound name shadowing top-level definition" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "foo")
@@ -103,7 +107,7 @@ spec = do
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on let-bound name shadowing other let-bound name" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "bar")
@@ -113,7 +117,7 @@ spec = do
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on arg shadowing top-level definition" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "foo")
@@ -127,7 +131,7 @@ spec = do
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on fn arg shadowing other fn arg" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "bar")
@@ -137,7 +141,7 @@ spec = do
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on literal division by zero" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "foo")
@@ -147,7 +151,7 @@ spec = do
       DivisionByZero divisionByZeroExpr
 
     it "throws an error on negative subscript" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "foo")
@@ -161,7 +165,7 @@ spec = do
       NegativeSliceIndex (intExpr (-1))
 
     it "throws an error on subslice from negative index" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "foo")
@@ -175,7 +179,7 @@ spec = do
       NegativeSliceIndex (intExpr (-1))
 
     it "throws an error on subslice to negative index" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "foo")
@@ -189,7 +193,7 @@ spec = do
       NegativeSliceIndex (intExpr (-1))
 
     it "throws an error on subslice from higher to lower index" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
             Definition
             missing
             (Identifier "foo")
@@ -205,14 +209,14 @@ spec = do
   describe "validatePackage" $ do
 
     it "throws an error on unused imports" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [
           ImportedPackage missing (Identifier "foo") emptyPkg
         ] [])
       `shouldFailWith`
       UnusedImport Missing ["empty", "pkg"] (Identifier "foo")
 
     it "does not throw errors for used imports" $
-      validate (Package (PackageDeclaration missing ["mypkg"]) [
+      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [
           ImportedPackage missing (Identifier "other") emptyPkg
         ] [
             Definition
@@ -221,7 +225,7 @@ spec = do
             (canonical
              (MemberAccess
               missing
-              (PackageMemberAccess (Identifier "other") (Identifier "s"))
+              (Core.PackageMemberAccess (Identifier "other") (Identifier "s"))
               typeInt))
         ])
       `shouldSucceedWith`

@@ -1,9 +1,11 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 module Oden.Core where
 
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
+import           Oden.Core.Resolved
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName (QualifiedName(..))
@@ -21,20 +23,12 @@ data UnresolvedMethodReference
 
 type CanonicalExpr = (Poly.Scheme, TypedExpr)
 
-data Definition e
-  = Definition (Metadata SourceInfo) Identifier e
-  | ForeignDefinition (Metadata SourceInfo) Identifier Poly.Scheme
-  | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] Poly.Type
-  | ProtocolDefinition (Metadata SourceInfo) QualifiedName Poly.Protocol
-  | ImplementationDefinition (Metadata SourceInfo) (ProtocolImplementation TypedExpr)
-  deriving (Show, Eq, Ord)
-
-type TypedDefinition = Definition CanonicalExpr
-
-data ImportedPackage = ImportedPackage (Metadata SourceInfo) Identifier TypedPackage
-                     deriving (Show, Eq, Ord)
+type TypedDefinition = Definition TypedExpr
 
 -- Some handy aliases.
 type TypedExpr = Expr UnresolvedMethodReference Poly.Type TypedMemberAccess
 type TypedRange = Range TypedExpr
-type TypedPackage = Package ImportedPackage TypedDefinition
+
+data TypedPackage
+  = TypedPackage PackageDeclaration [ImportedPackage ResolvedPackage] [TypedDefinition]
+  deriving (Show, Eq, Ord)

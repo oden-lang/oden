@@ -1,10 +1,12 @@
 module Oden.Compiler.ResolutionSpec where
 
 import           Oden.Compiler.Resolution
-import           Oden.Compiler.Resolution.Environment
+
 import           Oden.Core
 import           Oden.Core.Expr
 import           Oden.Core.ProtocolImplementation
+import           Oden.Core.Resolved
+
 import           Oden.Environment
 import           Oden.Identifier
 import           Oden.Predefined
@@ -25,20 +27,20 @@ missing = Metadata Missing
 predefined :: Metadata SourceInfo
 predefined = Metadata Predefined
 
-predef :: ResolutionEnvironment
-predef = fromPackage universe
-
 tvA = TV "a"
 
 tvarA = TVar predefined tvA
 
+boolToBool = TFn predefined typeBool typeBool
 aToBool = TFn predefined tvarA typeBool
 
-unresolved protocol method =
-  MethodReference missing (UnresolvedMethodReference protocol method)
+one = Literal missing (Int 1) typeInt
 
-resolved protocol method implMethod =
-  MethodReference missing (ResolvedMethodReference protocol method implMethod)
+unresolved protocol method type' =
+  MethodReference missing (UnresolvedMethodReference protocol method) type'
+
+resolved protocol method implMethod type' =
+  MethodReference missing (ResolvedMethodReference protocol method implMethod) type'
 
 testableProtocolMethod =
   ProtocolMethod
@@ -53,26 +55,13 @@ testableProtocol  =
   (TVar predefined tvA)
   [testableProtocolMethod]
 
-boolTestableImplementationMethod :: MethodImplementation TypedExpr
-boolTestableImplementationMethod =
-  MethodImplementation
-  missing
-  testableProtocolMethod
-  undefined
+symbol s = Symbol missing (Identifier s) aToBool
 
-boolTestableImplementation :: ProtocolImplementation TypedExpr
-boolTestableImplementation =
-  ProtocolImplementation
-  missing
-  testableProtocol
-  [boolTestableImplementationMethod]
+boolTestableMethod s =
+  MethodImplementation missing testableProtocolMethod (symbol s)
 
-predefAndTestableProtocol :: ResolutionEnvironment
-predefAndTestableProtocol =
-  predef
-  `extend`
-  (Identifier "Testable",
-   ImplementationBinding predefined boolTestableImplementation)
+boolTestableImplementation s =
+  ProtocolImplementation missing testableProtocol [boolTestableMethod s]
 
 spec :: Spec
 spec =
@@ -80,36 +69,61 @@ spec =
 
     it "throws error if there's no matching implementation" $
       shouldFail $
-        resolveInDefinition
-        predef
-        (Definition
-         missing
-         (Identifier "foo")
-         (Forall missing [] (Set.singleton (ProtocolConstraint missing testableProtocol tvarA)) aToBool,
-          unresolved
-          testableProtocol
-          testableProtocolMethod
-          aToBool))
+        resolveInExpr
+        []
+        (unresolved
+         testableProtocol
+         testableProtocolMethod
+         aToBool)
 
     it "resolves a single matching implementation" $
-      resolveInDefinition
-      predefAndTestableProtocol
-      (Definition
-        missing
-        (Identifier "foo")
-        (Forall missing [] (Set.singleton (ProtocolConstraint missing testableProtocol tvarA)) aToBool,
-        unresolved
-        testableProtocol
-        testableProtocolMethod
-        aToBool))
-      `shouldSucceedWith`
-      Definition
-      missing
-      (Identifier "foo")
-      (Forall missing [] (Set.singleton (ProtocolConstraint missing testableProtocol tvarA)) aToBool,
-       resolved
+      resolveInExpr
+      [boolTestableImplementation "myImpl"]
+      (unresolved
        testableProtocol
        testableProtocolMethod
-       boolTestableImplementationMethod
+       aToBool)
+      `shouldSucceedWith`
+      (resolved
+       testableProtocol
+       testableProtocolMethod
+       (boolTestableMethod "myImpl")
        aToBool)
 
+    it "resolves a single matching implementation for a less general type" $
+      resolveInExpr
+      [boolTestableImplementation "myImpl"]
+      (Application
+       missing
+       (unresolved
+        testableProtocol
+        testableProtocolMethod
+        boolToBool)
+       one
+       typeBool)
+      `shouldSucceedWith`
+      (Application
+       missing
+       (resolved
+        testableProtocol
+        testableProtocolMethod
+        (boolTestableMethod "myImpl")
+        boolToBool)
+       one
+       typeBool)
+
+    it "throws error if there's multiple matching implementations" $
+      resolveInExpr
+      [ boolTestableImplementation "myImpl"
+      , boolTestableImplementation "myOtherImpl"
+      ]
+      (unresolved
+       testableProtocol
+       testableProtocolMethod
+       aToBool)
+      `shouldFailWith`
+      MultipleMatchingImplementationsInScope
+      Missing
+      [ boolTestableImplementation "myImpl"
+      , boolTestableImplementation "myOtherImpl"
+      ]

@@ -3,8 +3,10 @@ module Oden.Compiler.InstantiateSpec where
 import           Test.Hspec
 
 import           Oden.Compiler.Instantiate
-import qualified Oden.Core                 as Core
+
 import           Oden.Core.Expr
+import           Oden.Core.Resolved
+
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -37,7 +39,7 @@ monoInt = Mono.TCon missing (nameInUniverse "int")
 monoBool = Mono.TCon missing (nameInUniverse "bool")
 monoString = Mono.TCon missing (nameInUniverse "string")
 
-identityPoly :: Core.TypedExpr
+identityPoly :: ResolvedExpr
 identityPoly =
   Fn
   missing
@@ -48,7 +50,7 @@ identityPoly =
 identityIntType :: Mono.Type
 identityIntType = Mono.TFn missing monoInt monoInt
 
-identityInt :: Core.TypedExpr
+identityInt :: ResolvedExpr
 identityInt =
   Fn
   missing
@@ -59,20 +61,20 @@ identityInt =
 lenType :: Poly.Type
 lenType = Poly.TForeignFn missing False [Poly.TSlice missing tvarA] [typeInt]
 
-lenPoly :: Core.TypedExpr
+lenPoly :: ResolvedExpr
 lenPoly = Symbol missing (Identifier "len") lenType
 
 lenIntType :: Mono.Type
 lenIntType = Mono.TForeignFn missing False [Mono.TSlice missing monoInt] [monoInt]
 
-lenInt :: Core.TypedExpr
+lenInt :: ResolvedExpr
 lenInt =
   Symbol
   missing
   (Identifier "len")
   (Poly.TForeignFn missing False [Poly.TSlice missing typeInt] [typeInt])
 
-pairPoly :: Core.TypedExpr
+pairPoly :: ResolvedExpr
 pairPoly =
   Tuple
   missing
@@ -85,7 +87,7 @@ pairPoly =
 pairIntStringType :: Mono.Type
 pairIntStringType = Mono.TTuple missing monoInt monoString []
 
-pairIntString :: Core.TypedExpr
+pairIntString :: ResolvedExpr
 pairIntString =
   Tuple
   missing
@@ -94,7 +96,7 @@ pairIntString =
   []
   (Poly.TTuple missing typeInt typeString [])
 
-recordPoly :: Core.TypedExpr
+recordPoly :: ResolvedExpr
 recordPoly =
   RecordInitializer
   missing
@@ -109,7 +111,7 @@ recordIntType =
   missing
   (Mono.RExtension missing (Identifier "foo") monoInt (Mono.REmpty missing))
 
-recordInt :: Core.TypedExpr
+recordInt :: ResolvedExpr
 recordInt =
   RecordInitializer
   missing
@@ -152,14 +154,14 @@ polyRecordIntAndString =
     typeString
     (Poly.REmpty missing)))
 
-fieldAccessPoly :: Poly.Type -> Core.TypedExpr
+fieldAccessPoly :: Poly.Type -> ResolvedExpr
 fieldAccessPoly recordType =
   Fn
   missing
   (NameBinding missing (Identifier "x"))
   (MemberAccess
    missing
-   (Core.RecordFieldAccess
+   (RecordFieldAccess
     (Symbol missing (Identifier "x") recordType)
     (Identifier "a"))
    typeInt)
