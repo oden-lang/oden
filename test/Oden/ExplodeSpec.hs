@@ -1,6 +1,5 @@
 module Oden.ExplodeSpec where
 
-import           Oden.Core             hiding (TypeDefinition)
 import qualified Oden.Core.Expr        as Expr
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Untyped     (Untyped(..))
@@ -22,7 +21,7 @@ src l c = SourceInfo (Position "<test>" l c)
 ignored :: Metadata SourceInfo
 ignored = Metadata Missing
 
-explodeTopLevel = E.explodeTopLevel ["pkg"]
+explodeTopLevel top = snd <$> E.explodeTopLevel ["pkg"] top
 
 spec :: Spec
 spec = do
@@ -87,7 +86,9 @@ spec = do
 
   describe "explodeTopLevel" $ do
     it "converts fn definition with no argument" $
-      (snd <$> explodeTopLevel [FnDefinition (src 1 1) (Identifier "f") [] (Symbol (src 1 3) (Identifier "x"))])
+      explodeTopLevel
+      [TopLevelDefinition
+       (FnDefinition (src 1 1) (Identifier "f") [] (Symbol (src 1 3) (Identifier "x")))]
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
@@ -99,11 +100,13 @@ spec = do
         Untyped)]
 
     it "converts fn definition with single argument" $
-      (snd <$> explodeTopLevel [FnDefinition
-                                (src 1 1)
-                                (Identifier "f")
-                                [NameBinding (src 1 2) (Identifier "x")]
-                                (Symbol (src 1 3) (Identifier "x"))])
+      explodeTopLevel
+      [TopLevelDefinition
+       (FnDefinition
+        (src 1 1)
+        (Identifier "f")
+        [NameBinding (src 1 2) (Identifier "x")]
+        (Symbol (src 1 3) (Identifier "x")))]
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
@@ -116,11 +119,13 @@ spec = do
         Untyped)]
 
     it "converts fn definition with multiple arguments" $
-      (snd <$> explodeTopLevel [FnDefinition
-                                (src 1 1)
-                                (Identifier "f")
-                                [NameBinding (src 1 2) (Identifier "x"), NameBinding (src 1 3) (Identifier "y")]
-                                (Symbol (src 1 4) (Identifier "x"))])
+      explodeTopLevel
+      [TopLevelDefinition
+       (FnDefinition
+        (src 1 1)
+        (Identifier "f")
+        [NameBinding (src 1 2) (Identifier "x"), NameBinding (src 1 3) (Identifier "y")]
+        (Symbol (src 1 4) (Identifier "x")))]
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
@@ -137,10 +142,11 @@ spec = do
         Untyped)]
 
     it "converts struct definition and uses empty list for type parameters" $
-      (snd <$> explodeTopLevel [TypeDefinition
-                                (src 1 1)
-                                (Identifier "S")
-                                (TSRecord (src 1 2) (TSRowExtension (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t")) (TSRowEmpty (src 1 2))))])
+      explodeTopLevel
+      [TypeDefinition
+       (src 1 1)
+       (Identifier "S")
+       (TSRecord (src 1 2) (TSRowExtension (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t")) (TSRowEmpty (src 1 2))))]
       `shouldSucceedWith`
       [Untyped.TypeDefinition
        ignored

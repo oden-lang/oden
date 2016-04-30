@@ -118,12 +118,15 @@ data TempTopLevel = TempTop {
     hasValue :: Bool
 }
 
-collectError :: Either e a -> Writer [e] (Maybe a)
-collectError e = case e of
-  Left err -> do
-    tell [err]
-    return Nothing
-  Right x -> return (Just x)
+explodeFnShortHand :: Syntax.Definition
+                   -> Either ExplodeError (SourceInfo, Identifier, UntypedExpr)
+explodeFnShortHand = \case
+  Syntax.FnDefinition si name args body -> do
+    expr <- explodeExpr (Syntax.Fn si args body)
+    return (si, name, expr)
+  Syntax.ValueDefinition si name expr   -> do
+    expr' <- explodeExpr expr
+    return (si, name, expr')
 
 explodeTopLevel' :: PackageName
                  -> [Syntax.TopLevel]
@@ -138,19 +141,13 @@ explodeTopLevel' pkg top = do
   iter :: ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
        -> Syntax.TopLevel
        -> Writer [ExplodeError] ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
-  iter (is, ts, defs) (Syntax.FnDefinition si name args body) = do
-    expr' <- collectError (explodeExpr (Syntax.Fn si args body))
-    case expr' of
-      Nothing -> return (is, ts, defs)
-      Just expr ->
+  iter (is, ts, defs) (Syntax.TopLevelDefinition topLevelDef) = do
+    case explodeFnShortHand topLevelDef of
+      Left err -> do
+        tell [err]
+        return (is, ts, defs)
+      Right (si, name, expr) ->
         let def = Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) expr
-        in return (is, assignValue name si ts, defs ++ [def])
-  iter (is, ts, defs) (Syntax.ValueDefinition si name expr) = do
-    expr' <- collectError (explodeExpr expr)
-    case expr' of
-      Nothing -> return (is, ts, defs)
-      Just e ->
-        let def = Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) e
         in return (is, assignValue name si ts, defs ++ [def])
   iter (is, ts, defs) (Syntax.TypeSignatureDeclaration tsi name signature) = do
     case Map.lookup name ts of
@@ -166,6 +163,18 @@ explodeTopLevel' pkg top = do
   iter (is, ts, defs) (Syntax.ProtocolDefinition si name varBinding methods) =
     let def = ProtocolDefinition (Metadata si) (FQN pkg name) varBinding methods
     in return (is, ts, defs ++ [def])
+  iter (is, ts, defs) (Syntax.Implementation si protocolName typeSignature methods) = do
+    case mapM explodeMethodImpls methods of
+      Left err -> do
+        tell [err]
+        return (is, ts, defs)
+      Right methodImpls ->
+        let impl = Implementation (Metadata si) protocolName typeSignature methodImpls
+        in return (is, ts, defs ++ [impl])
+    where
+    explodeMethodImpls def = do
+      (si', name, expr) <- explodeFnShortHand def
+      return (MethodImplementation (Metadata si') name expr)
   newTypeSig name tsi msc =
     Map.insertWith (\_ old -> old) name (TempTop (tsi, msc) False)
   assignValue name si =

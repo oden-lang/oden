@@ -27,10 +27,15 @@ data NamedMethodReference = NamedMethodReference Identifier Identifier
 
 type UntypedExpr = Expr NamedMethodReference Untyped NamedMemberAccess
 
+data MethodImplementation
+  = MethodImplementation (Metadata SourceInfo) Identifier UntypedExpr
+  deriving (Show, Eq, Ord)
+
 data Definition
   = Definition (Metadata SourceInfo) Identifier (Maybe (TypeSignature SourceInfo)) UntypedExpr
   | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] (SignatureExpr SourceInfo)
   | ProtocolDefinition (Metadata SourceInfo) QualifiedName (SignatureVarBinding SourceInfo) [ProtocolMethodSignature SourceInfo]
+  | Implementation (Metadata SourceInfo) Identifier (SignatureExpr SourceInfo) [MethodImplementation]
   deriving (Show, Eq, Ord)
 
 data UntypedPackage i = UntypedPackage PackageDeclaration [i] [Definition]

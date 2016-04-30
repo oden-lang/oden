@@ -309,19 +309,28 @@ namedSignature f = do
     TypeSignature si [] <$> type'
   signature = try signatureWithForall <|> signatureWithoutForall
 
-topLevel :: Parser TopLevel
-topLevel = import' <|> typeDef <|> protocolDef <|> try typeSignature <|> def
+definition :: Parser Definition
+definition = do
+  si <- currentSourceInfo
+  n <- identifier
+  fnDef si n <|> valueDef si n
   where
-  typeSignature = namedSignature TypeSignatureDeclaration
   valueDef si n = do
     equals
     ValueDefinition si n <$> expr
   fnDef si n =
     FnDefinition si n <$> parensList nameBinding <*> (equals *> expr)
-  def = do
-    si <- currentSourceInfo
-    n <- identifier
-    fnDef si n <|> valueDef si n
+
+topLevel :: Parser TopLevel
+topLevel =
+  import'
+  <|> typeDef
+  <|> protocolDef
+  <|> implementation
+  <|> try typeSignature
+  <|> (TopLevelDefinition <$> definition)
+  where
+  typeSignature = namedSignature TypeSignatureDeclaration
   import' = do
     si <- currentSourceInfo
     reserved "import"
@@ -338,7 +347,13 @@ topLevel = import' <|> typeDef <|> protocolDef <|> try typeSignature <|> def
       <$> currentSourceInfo
       <*> (reserved "protocol" *> identifier)
       <*> parens tvarBinding
-      <*> braces (many protocolMethod)
+      <*> braces (protocolMethod `sepBy` topSeparator)
+  implementation =
+    Implementation
+      <$> currentSourceInfo
+      <*> (reserved "impl" *> identifier)
+      <*> parens type'
+      <*> braces (definition `sepBy` topSeparator)
 
 package :: Parser Package
 package = Package <$> pkgDecl <*> topLevel `sepBy` topSeparator

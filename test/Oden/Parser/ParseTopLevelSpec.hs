@@ -121,27 +121,51 @@ spec = describe "parseTopLevel" $ do
   it "parses value definition" $
     parseTopLevel "x = y"
     `shouldSucceedWith`
-    ValueDefinition (src 1 1) (Identifier "x") (Symbol (src 1 5) (Identifier "y"))
+    TopLevelDefinition
+    (ValueDefinition
+     (src 1 1)
+     (Identifier "x")
+     (Symbol (src 1 5) (Identifier "y")))
 
   it "parses fn definition" $
     parseTopLevel "f = (x) -> x"
     `shouldSucceedWith`
-    ValueDefinition (src 1 1) (Identifier "f") (Fn (src 1 5) [NameBinding (src 1 6) (Identifier "x")] (Symbol (src 1 12) (Identifier "x")))
+    TopLevelDefinition
+    (ValueDefinition
+     (src 1 1)
+     (Identifier "f")
+     (Fn
+      (src 1 5)
+      [NameBinding (src 1 6) (Identifier "x")]
+      (Symbol (src 1 12) (Identifier "x"))))
 
   it "parses short-hand fn definition" $
     parseTopLevel "f(x) = x"
     `shouldSucceedWith`
-    FnDefinition (src 1 1) (Identifier "f") [NameBinding (src 1 3) (Identifier "x")] (Symbol (src 1 8) (Identifier "x"))
+    TopLevelDefinition
+    (FnDefinition
+     (src 1 1)
+     (Identifier "f")
+     [NameBinding (src 1 3) (Identifier "x")] (Symbol (src 1 8) (Identifier "x")))
 
   it "parses short-hand no-arg fn definition" $
     parseTopLevel "sideEffect() = x"
     `shouldSucceedWith`
-    FnDefinition (src 1 1) (Identifier "sideEffect") [] (Symbol (src 1 16) (Identifier "x"))
+    TopLevelDefinition
+    (FnDefinition
+     (src 1 1)
+     (Identifier "sideEffect")
+     []
+     (Symbol (src 1 16) (Identifier "x")))
 
   it "parses short-hand multi-arg fn definition" $
     parseTopLevel "f(x, y, z) = x"
     `shouldSucceedWith`
-    FnDefinition (src 1 1) (Identifier "f")
-    [NameBinding (src 1 3) (Identifier "x"), NameBinding (src 1 6) (Identifier "y"), NameBinding (src 1 9) (Identifier "z")]
-    (Symbol (src 1 14) (Identifier "x"))
+    TopLevelDefinition
+    (FnDefinition (src 1 1) (Identifier "f")
+     [ NameBinding (src 1 3) (Identifier "x")
+     , NameBinding (src 1 6) (Identifier "y")
+     , NameBinding (src 1 9) (Identifier "z")
+     ]
+     (Symbol (src 1 14) (Identifier "x")))
 
