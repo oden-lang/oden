@@ -1,5 +1,6 @@
 module Oden.Infer.Subsumption (
   SubsumptionError(..),
+  typeSubsumedBy,
   subsumedBy,
   collectSubstitutions
 ) where
@@ -21,7 +22,7 @@ import qualified Data.Map                as Map
 data SubsumptionError = SubsumptionError SourceInfo Type Type
                       deriving (Show, Eq)
 
-type Subsume a = StateT (Map.Map TVar Type) (Except SubsumptionError) a
+type Subsume a = StateT Subst (Except SubsumptionError) a
 
 -- | Collects the substitutions in the 'Subsume' state for matching types and
 -- throws 'SubsumptionError' on mismatches.
@@ -31,11 +32,11 @@ collectSubstitutions (TNamed _ _ t1) t2 = collectSubstitutions t1 t2
 collectSubstitutions (TCon _ n1) (TCon _ n2)
   | n1 == n2 = return ()
 collectSubstitutions t (TVar (Metadata si) tv) = do
-  st <- gets (Map.lookup tv)
-  case st of
+  (Subst s) <- get
+  case Map.lookup tv s of
     Just t' | t == t'   -> return ()
             | otherwise -> throwError (SubsumptionError si t t')
-    Nothing -> modify (Map.insert tv t)
+    Nothing -> modify (insert tv t)
 collectSubstitutions (TFn _ a1 r1) (TFn _ a2 r2) = do
   collectSubstitutions a1 a2
   collectSubstitutions r1 r2
@@ -60,10 +61,17 @@ collectSubstitutions r1 r2 | kindOf r1 == Row && kindOf r2 == Row = do
       Nothing -> throwError (SubsumptionError (getSourceInfo r2) r1 r2)
 collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 t2)
 
+
+-- | Test if a specific type is subsumed by a more general type. If so, return
+-- the corresponding substitution.
+typeSubsumedBy :: Type -> Type -> Either SubsumptionError Subst
+typeSubsumedBy specific general =
+  snd <$> runExcept (runStateT (collectSubstitutions specific general) (Subst Map.empty))
+
 -- | Test if a type scheme is subsumed by an expression with a more general
 -- type. If so, return the expression specialized to the less general type (all
 -- subexpression types being substituted as well).
 subsumedBy :: Scheme -> Typed.TypedExpr -> Either SubsumptionError Typed.CanonicalExpr
 subsumedBy s@(Forall _ _ _ st) expr = do
-  subst <- snd <$> runExcept (runStateT (collectSubstitutions st (typeOf expr)) Map.empty)
-  return (s, apply (Subst subst) expr)
+  subst <- typeSubsumedBy st (typeOf expr)
+  return (s, apply subst expr)

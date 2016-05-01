@@ -18,6 +18,7 @@ import           Oden.Compiler.TypeEncoder
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Monomorphed     as Monomorphed
+import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Typed           as Typed
 
 import           Oden.Identifier
@@ -149,23 +150,23 @@ monomorph e = case e of
 
   Subscript sourceInfo sliceExpr indexExpr polyType ->
     Subscript sourceInfo <$> monomorph sliceExpr
-                              <*> monomorph indexExpr
-                              <*> toMonomorphic sourceInfo polyType
+                         <*> monomorph indexExpr
+                         <*> toMonomorphic sourceInfo polyType
 
   Subslice sourceInfo sliceExpr (Range lowerExpr upperExpr) polyType ->
     Subslice sourceInfo <$> monomorph sliceExpr
-                             <*> (Range <$> monomorph lowerExpr <*> monomorph upperExpr)
-                             <*> toMonomorphic sourceInfo polyType
+                        <*> (Range <$> monomorph lowerExpr <*> monomorph upperExpr)
+                        <*> toMonomorphic sourceInfo polyType
 
   Subslice sourceInfo sliceExpr (RangeTo indexExpr) polyType ->
     Subslice sourceInfo <$> monomorph sliceExpr
-                             <*> (RangeTo <$> monomorph indexExpr)
-                             <*> toMonomorphic sourceInfo polyType
+                        <*> (RangeTo <$> monomorph indexExpr)
+                        <*> toMonomorphic sourceInfo polyType
 
   Subslice sourceInfo sliceExpr (RangeFrom indexExpr) polyType ->
     Subslice sourceInfo <$> monomorph sliceExpr
-                             <*> (RangeFrom <$> monomorph indexExpr)
-                             <*> toMonomorphic sourceInfo polyType
+                        <*> (RangeFrom <$> monomorph indexExpr)
+                        <*> toMonomorphic sourceInfo polyType
 
   UnaryOp si o e1 _ -> do
     mt <- getMonoType e
@@ -273,8 +274,8 @@ monomorph e = case e of
     case reference of
       Unresolved _protocol method ->
         error (show method)
-      Resolved _ _ impl ->
-        error (show impl)
+      Resolved _ _ (MethodImplementation _ _ expr) ->
+        monomorph expr
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
@@ -330,6 +331,10 @@ monomorphDefinitions (ForeignDefinition{} : defs) =
 -- Protocol definitions are not monomorphed or generated to output code, so
 -- ignore.
 monomorphDefinitions (ProtocolDefinition{} : defs) =
+  monomorphDefinitions defs
+-- Implementations are not monomorphed or generated to output code, so
+-- ignore.
+monomorphDefinitions (Implementation{} : defs) =
   monomorphDefinitions defs
 
 -- | Monomorphs a package and returns the complete package with instantiated

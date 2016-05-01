@@ -10,6 +10,7 @@ module Oden.Type.Polymorphic (
   ProtocolConstraint(..),
   ProtocolMethod(..),
   Protocol(..),
+  protocolHead,
   rowToList,
   rowFromList,
   getLeafRow,
@@ -224,6 +225,9 @@ data ProtocolMethod = ProtocolMethod (Metadata SourceInfo) Identifier Scheme
 
 data Protocol = Protocol (Metadata SourceInfo) QualifiedName Type [ProtocolMethod]
               deriving (Show, Eq, Ord)
+
+protocolHead :: Protocol -> Type
+protocolHead (Protocol _ _ head _) = head
 
 instance HasSourceInfo Protocol where
   getSourceInfo (Protocol (Metadata si) _ _ _)   = si

@@ -80,7 +80,8 @@ instance FTV TypingEnvironment where
   ftv (Environment env impls) = ftv (Map.elems env) `Set.union` ftv impls
 
 instance Substitutable TypingEnvironment where
-  apply s (Environment env impls) = Environment (Map.map (apply s) env) impls -- TODO: substitute impls?
+  apply s (Environment env impls) =
+    Environment (Map.map (apply s) env) (apply s impls)
 
 data TypeError
   = UnificationError UnificationError
@@ -522,11 +523,11 @@ inferDef (Untyped.ProtocolDefinition si name (SignatureVarBinding vsi var) metho
   let protocol = Protocol si name boundType methods'
   return (ProtocolDefinition si name protocol, False)
 
-inferDef (Untyped.Implementation si protocolName _type' methods) = do
-  -- TODO: Resolve type
+inferDef (Untyped.Implementation si protocolName type' methods) = do
   protocol <- lookupProtocol si protocolName
+  resolvedType <- resolveType type'
   methodImplementations <- mapM (inferMethodImplementation protocol) methods
-  let impl = ProtocolImplementation si protocol methodImplementations
+  let impl = ProtocolImplementation si protocol resolvedType methodImplementations
   return (Implementation si impl, False)
 
 -- | Infer a top-level definitition, returning a typed version and the typing

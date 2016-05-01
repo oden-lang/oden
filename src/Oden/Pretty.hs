@@ -139,8 +139,8 @@ instance (Pretty r, Pretty t, Pretty m) => Pretty (MethodImplementation (Expr r 
     prettyDefinition methodName expr
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (ProtocolImplementation (Expr r t m)) where
-  pretty (ProtocolImplementation _ (Poly.Protocol _ protocolName _ _) methods) =
-    text "impl" <+> pretty protocolName
+  pretty (ProtocolImplementation _ (Poly.Protocol _ protocolName _ _) implHead methods) =
+    text "impl" <+> pretty protocolName <> parens (pretty implHead)
     <+> indentedInBraces (vcat (map pretty methods))
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (Definition (Expr r t m)) where
@@ -346,4 +346,5 @@ instance Pretty TypingEnvironment where
   pretty env =
     indentedInBraces $
         vcat (map pretty (Env.bindings env)
-              ++ map pretty (Env.implementations env))
+              ++
+              map pretty (toList $ Env.implementations env))

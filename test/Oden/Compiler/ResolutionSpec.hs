@@ -6,7 +6,6 @@ import           Oden.Core.Expr
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Typed
 
-import           Oden.Environment
 import           Oden.Identifier
 import           Oden.Predefined
 import           Oden.Metadata
@@ -47,11 +46,24 @@ testableProtocolMethod =
   (Identifier "test")
   (Forall predefined [] Set.empty (TFn predefined tvarA typeBool))
 
-testableProtocol  =
+testableProtocol =
   Protocol
   predefined
   (FQN [] (Identifier "Testable"))
   (TVar predefined tvA)
+  [testableProtocolMethod]
+
+testableProtocolMethodInt =
+  ProtocolMethod
+  predefined
+  (Identifier "test")
+  (Forall predefined [] Set.empty (TFn predefined typeInt typeBool))
+
+testableProtocolInt =
+  Protocol
+  predefined
+  (FQN [] (Identifier "Testable"))
+  typeInt
   [testableProtocolMethod]
 
 symbol s = Symbol missing (Identifier s) aToBool
@@ -60,7 +72,7 @@ boolTestableMethod s =
   MethodImplementation missing testableProtocolMethod (symbol s)
 
 boolTestableImplementation s =
-  ProtocolImplementation missing testableProtocol [boolTestableMethod s]
+  ProtocolImplementation missing testableProtocol typeBool [boolTestableMethod s]
 
 spec :: Spec
 spec =
@@ -69,7 +81,7 @@ spec =
     it "throws error if there's no matching implementation" $
       shouldFail $
         resolveInExpr
-        []
+        Set.empty
         (unresolved
          testableProtocol
          testableProtocolMethod
@@ -77,7 +89,7 @@ spec =
 
     it "resolves a single matching implementation" $
       resolveInExpr
-      [boolTestableImplementation "myImpl"]
+      (Set.singleton (boolTestableImplementation "myImpl"))
       (unresolved
        testableProtocol
        testableProtocolMethod
@@ -91,12 +103,12 @@ spec =
 
     it "resolves a single matching implementation for a less general type" $
       resolveInExpr
-      [boolTestableImplementation "myImpl"]
+      (Set.singleton (boolTestableImplementation "myImpl"))
       (Application
        missing
        (unresolved
-        testableProtocol
-        testableProtocolMethod
+        testableProtocolInt
+        testableProtocolMethodInt
         boolToBool)
        one
        typeBool)
@@ -104,8 +116,8 @@ spec =
       Application
       missing
       (resolved
-       testableProtocol
-       testableProtocolMethod
+       testableProtocolInt
+       testableProtocolMethodInt
        (boolTestableMethod "myImpl")
        boolToBool)
       one
@@ -113,9 +125,9 @@ spec =
 
     it "throws error if there's multiple matching implementations" $
       resolveInExpr
-      [ boolTestableImplementation "myImpl"
-      , boolTestableImplementation "myOtherImpl"
-      ]
+      (Set.fromList [ boolTestableImplementation "myImpl"
+                    , boolTestableImplementation "myOtherImpl"
+                    ])
       (unresolved
        testableProtocol
        testableProtocolMethod

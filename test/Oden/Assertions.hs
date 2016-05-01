@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Oden.Assertions where
 
 import           Data.Algorithm.Diff
@@ -21,10 +22,13 @@ failWithDiff expected actual =
   where
   showNice = lines . nicify . show
 
+failWithShow :: Show a => String -> a -> Expectation
+failWithShow prefix = expectationFailure . (prefix ++) . nicify . show
+
 shouldSucceed :: (Eq a, Show a, Show e) => Either e a -> Expectation
-shouldSucceed res
-  | isLeft res = expectationFailure ("Failed with:\n" ++ nicify (show res))
-  | isRight res = return ()
+shouldSucceed = \case
+  Left err  -> expectationFailure ("Failed with:\n" ++ nicify (show err))
+  Right _ -> return ()
 
 shouldSucceedWith :: (Eq v, Show v, Show e) => Either e v -> v -> Expectation
 (Left err)    `shouldSucceedWith` _  = expectationFailure . nicify . show $ err
@@ -33,10 +37,18 @@ shouldSucceedWith :: (Eq v, Show v, Show e) => Either e v -> v -> Expectation
   | otherwise         = failWithDiff expected value
 
 shouldFail :: (Eq a, Show a, Show e) => Either e a -> Expectation
-shouldFail res = res `shouldSatisfy` isLeft
+shouldFail = \case
+  Left _  -> return ()
+  Right x -> failWithShow "Expected error but got:\n" x
 
 shouldFailWith :: (Eq a, Show a, Eq e, Show e) => Either e a -> e -> Expectation
-res `shouldFailWith` err = res `shouldSatisfy` (== Left err)
+shouldFailWith res expectedErr =
+  case res of
+    Left err
+      | expectedErr == err -> return ()
+      | otherwise          -> failWithDiff expectedErr err
+    Right x -> failWithShow "Expected error but got:\n" x
+
 
 -- PRETTY PRINTING RESULTS
 

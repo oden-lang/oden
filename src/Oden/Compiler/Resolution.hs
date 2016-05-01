@@ -5,10 +5,15 @@
 -- implementations available for now.
 module Oden.Compiler.Resolution where
 
+import Oden.Core.Expr
 import Oden.Core.Typed
 import Oden.Core.Definition
 import Oden.Core.ProtocolImplementation
 import Oden.Core.Traversal
+
+import Oden.Infer.Subsumption
+import Oden.Infer.Substitution
+
 import Oden.Metadata
 import Oden.SourceInfo
 import Oden.Type.Polymorphic
@@ -16,37 +21,60 @@ import Oden.Type.Polymorphic
 import Control.Monad.Except
 import Control.Monad.State
 
+import qualified Data.Set as Set
+import           Data.Set (Set)
+
 data ResolutionError
-  = NoMatchingImplementationInScope SourceInfo
+  = NoMatchingImplementationInScope SourceInfo Protocol ProtocolMethod [ProtocolImplementation TypedExpr]
   | MultipleMatchingImplementationsInScope SourceInfo [ProtocolImplementation TypedExpr]
   deriving (Show, Eq, Ord)
 
-type ResolutionEnvironment = [ProtocolImplementation TypedExpr]
+type ResolutionEnvironment = Set (ProtocolImplementation TypedExpr)
 
 type Resolve = StateT ResolutionEnvironment (Except ResolutionError)
+
+matching :: ProtocolImplementation TypedExpr
+         -> Protocol
+         -> [ProtocolImplementation TypedExpr]
+matching (ProtocolImplementation _ (Protocol _ implProtocolName _ _) _ _) (Protocol _ protocolName _ _)
+  | implProtocolName /= protocolName = []
+matching impl@(ProtocolImplementation _ _ implHead _) protocol =
+  case implHead `typeSubsumedBy` protocolHead protocol of
+    Left _      -> []
+    Right subst -> [apply subst impl]
+
+instantiateImplementation :: MethodImplementation TypedExpr
+                          -> Type
+                          -> Resolve (MethodImplementation TypedExpr)
+instantiateImplementation (MethodImplementation si method expr) type' =
+  case type' `typeSubsumedBy` typeOf expr of
+    Left err -> error (show err)
+    Right subst -> return (MethodImplementation si method (apply subst expr))
 
 -- | Super-primitive protocol implementation lookup for now. It should check
 -- what methods implementations unify.
 lookupMethodImplementation :: SourceInfo
                            -> Protocol
                            -> ProtocolMethod
+                           -> Type
                            -> Resolve (MethodImplementation TypedExpr)
-lookupMethodImplementation si protocol method@(ProtocolMethod _ methodName _) = do
-  matchingImpls <- filter matchesProtocol <$> get
-  protocolImpl <- selectSingleProtocolImpl matchingImpls
-  selectSingleMethod protocolImpl
+lookupMethodImplementation si protocol method@(ProtocolMethod _ methodName _) type' = do
+  impls <- gets Set.toList
+  protocolImpl <- selectSingleProtocolImpl impls
+  methodImpl <- selectSingleMethod protocolImpl
+  instantiateImplementation methodImpl type'
   where
-  matchesProtocol (ProtocolImplementation _ implProtocol _) =
-    protocol == implProtocol
-  selectSingleProtocolImpl = \case
-    []     -> throwError (NoMatchingImplementationInScope si)
-    [impl] -> return impl
-    impls  -> throwError (MultipleMatchingImplementationsInScope si impls)
+  selectSingleProtocolImpl :: [ProtocolImplementation TypedExpr] -> Resolve (ProtocolImplementation TypedExpr)
+  selectSingleProtocolImpl allImpls =
+    case concatMap (`matching` protocol) allImpls of
+      []     -> throwError (NoMatchingImplementationInScope si protocol method allImpls)
+      [impl] -> return impl
+      impls  -> throwError (MultipleMatchingImplementationsInScope si impls)
   matchesMethod (MethodImplementation _ (ProtocolMethod _ methodName' _) _) =
     methodName == methodName'
   selectSingleMethod :: ProtocolImplementation TypedExpr
                      -> Resolve (MethodImplementation TypedExpr)
-  selectSingleMethod (ProtocolImplementation _ _ methodImpls) =
+  selectSingleMethod (ProtocolImplementation _ _ _ methodImpls) =
     case filter matchesMethod methodImpls of
       [] -> error "OMG no method impl"
       [methodImpl] -> return methodImpl
@@ -59,8 +87,8 @@ resolveInMethodImplementation (MethodImplementation si method expr) =
 
 resolveInImplementation :: ProtocolImplementation TypedExpr
                         -> Resolve (ProtocolImplementation TypedExpr)
-resolveInImplementation (ProtocolImplementation si protocol methods) =
-  ProtocolImplementation si protocol <$> mapM resolveInMethodImplementation methods
+resolveInImplementation (ProtocolImplementation si protocol implHead methods) =
+  ProtocolImplementation si protocol implHead <$> mapM resolveInMethodImplementation methods
 
 resolveInExpr' :: TypedExpr -> Resolve TypedExpr
 resolveInExpr' = traverseExpr traversal
@@ -73,7 +101,7 @@ resolveInExpr' = traverseExpr traversal
   onMethodReference' si reference type' =
     case reference of
       Unresolved protocol method -> do
-        implementationMethod <- lookupMethodImplementation (unwrap si) protocol method
+        implementationMethod <- lookupMethodImplementation (unwrap si) protocol method type'
         return (si, Resolved protocol method implementationMethod, type')
       Resolved{} ->
         return (si, reference, type')
@@ -96,7 +124,7 @@ resolveInDefinition' = \case
       return (ProtocolDefinition si name protocol)
     Implementation si implementation -> do
       resolved <- resolveInImplementation implementation
-      modify ((:) resolved)
+      modify (Set.insert resolved)
       return (Implementation si resolved)
 
 runResolve :: ResolutionEnvironment -> Resolve a -> Either ResolutionError a

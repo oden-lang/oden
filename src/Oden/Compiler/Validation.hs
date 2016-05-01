@@ -134,10 +134,14 @@ repeated fields = snd (foldl check (Set.empty, []) fields)
 validateType :: Type -> Validate ()
 validateType = void . traverseType onType'
   where
-  hasDuplicateFields = null . repeated . sortOn fst
+  duplicateFields = repeated . sortOn fst . rowToList
   onType' = \case
-    r@(RExtension _ name _ _) | hasDuplicateFields (rowToList r) ->
-        throwError (DuplicatedRecordFieldName (getSourceInfo r) name)
+    r@RExtension{} ->
+      case duplicateFields r of
+        [] ->
+          return r
+        (name, _) : _ ->
+          throwError (DuplicatedRecordFieldName (getSourceInfo r) name)
     t -> return t
 
 validatePackage :: TypedPackage -> Validate ()
@@ -160,7 +164,7 @@ validatePackage (TypedPackage _ imports definitions) = do
   validateDefs (TypeDefinition _ (FQN _ n) _ type':defs) = do
     validateType type'
     withIdentifier n (validateDefs defs)
-  validateDefs (Implementation _ (ProtocolImplementation _ _ methods) : defs) = do
+  validateDefs (Implementation _ (ProtocolImplementation _ _ _ methods) : defs) = do
     mapM_ validateMethod methods
     validateDefs defs
     where

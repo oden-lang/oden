@@ -5,16 +5,19 @@ module Oden.Environment where
 
 import qualified Data.Map              as Map
 import           Data.Maybe
+import qualified Data.Set              as Set
+import           Data.Set              (Set)
+
 import           Prelude               hiding (lookup)
 
 import           Oden.Identifier
 
 data Environment b i
-  = Environment (Map.Map Identifier b) [i]
+  = Environment (Map.Map Identifier b) (Set i)
   deriving (Show, Eq)
 
 empty :: Environment b i
-empty = Environment Map.empty []
+empty = Environment Map.empty Set.empty
 
 assocs :: Environment b i -> [(Identifier, b)]
 assocs (Environment m _) = Map.assocs m
@@ -22,7 +25,7 @@ assocs (Environment m _) = Map.assocs m
 bindings :: Environment b i -> [b]
 bindings (Environment m _) = Map.elems m
 
-implementations :: Environment b i -> [i]
+implementations :: Environment b i -> Set i
 implementations (Environment _ impls) = impls
 
 lookup :: Identifier -> Environment b i -> Maybe b
@@ -39,21 +42,21 @@ extend :: Environment b i -> (Identifier, b) -> Environment b i
 extend (Environment m impls) (identifier, binding) =
   Environment (Map.insert identifier binding m) impls
 
-addImplementation :: Environment b i -> i -> Environment b i
-addImplementation (Environment bindings impls) impl =
-  Environment bindings (impls ++ [impl])
+addImplementation :: Ord i => Environment b i -> i -> Environment b i
+addImplementation (Environment bindings' impls) impl =
+  Environment bindings' (impl `Set.insert` impls)
 
-merge :: Environment b i -> Environment b i -> Environment b i
-merge (Environment m1 i1) (Environment m2 i2) = Environment (m1 `Map.union` m2) (i1 ++ i2)
+merge :: Ord i => Environment b i -> Environment b i -> Environment b i
+merge (Environment m1 i1) (Environment m2 i2) = Environment (m1 `Map.union` m2) (i1 `Set.union` i2)
 
 fromList :: [(Identifier, b)] -> Environment b i
-fromList = flip fromLists []
+fromList = flip fromLists Set.empty
 
-fromLists :: [(Identifier, b)] -> [i] -> Environment b i
+fromLists :: [(Identifier, b)] -> Set i -> Environment b i
 fromLists = Environment . Map.fromList
 
 singleton :: Identifier -> b -> Environment b i
-singleton i binding = Environment (Map.singleton i binding) []
+singleton i binding = Environment (Map.singleton i binding) Set.empty
 
 singletonImplementation :: i -> Environment b i
-singletonImplementation impl = Environment Map.empty [impl]
+singletonImplementation impl = Environment Map.empty (Set.singleton impl)

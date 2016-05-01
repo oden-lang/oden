@@ -6,6 +6,8 @@ module Oden.Infer.Substitution where
 
 import           Oden.Core.Typed
 import           Oden.Core.Expr
+import           Oden.Core.ProtocolImplementation
+
 import           Oden.Type.Polymorphic as Poly
 
 import qualified Data.Map              as Map
@@ -17,6 +19,10 @@ newtype Subst = Subst (Map.Map TVar Type)
 -- | The empty substitution
 emptySubst :: Subst
 emptySubst = mempty
+
+-- | Insert into a substitution
+insert :: TVar -> Type -> Subst -> Subst
+insert tvar type' (Subst s) = Subst (Map.insert tvar type' s)
 
 -- | Compose substitutions
 compose :: Subst -> Subst -> Subst
@@ -70,7 +76,7 @@ instance Substitutable TypedMethodReference where
     Unresolved protocol method ->
       Unresolved (apply s protocol) (apply s method)
     Resolved protocol method impl ->
-      Resolved (apply s protocol) (apply s method) impl -- TODO: subst impl
+      Resolved (apply s protocol) (apply s method) (apply s impl)
 
 instance FTV TypedMemberAccess where
   ftv = \case
@@ -129,3 +135,11 @@ instance Substitutable ProtocolMethod where
 instance Substitutable Protocol where
   apply s (Protocol si name var methods) =
     Protocol si name (apply s var) (apply s methods)
+
+instance Substitutable (MethodImplementation TypedExpr) where
+  apply s (MethodImplementation si protocol method) =
+    MethodImplementation si protocol (apply s method)
+
+instance Substitutable (ProtocolImplementation TypedExpr) where
+  apply s (ProtocolImplementation si protocol implHead methods) =
+    ProtocolImplementation si protocol (apply s implHead) (map (apply s) methods)
