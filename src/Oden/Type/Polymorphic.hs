@@ -227,7 +227,7 @@ data Protocol = Protocol (Metadata SourceInfo) QualifiedName Type [ProtocolMetho
               deriving (Show, Eq, Ord)
 
 protocolHead :: Protocol -> Type
-protocolHead (Protocol _ _ head _) = head
+protocolHead (Protocol _ _ head' _) = head'
 
 instance HasSourceInfo Protocol where
   getSourceInfo (Protocol (Metadata si) _ _ _)   = si

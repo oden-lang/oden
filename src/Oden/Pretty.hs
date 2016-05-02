@@ -136,7 +136,9 @@ instance Pretty Poly.Protocol where
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (MethodImplementation (Expr r t m)) where
   pretty (MethodImplementation _ (Poly.ProtocolMethod _ methodName _) expr) =
-    prettyDefinition methodName expr
+    vcat [ pretty methodName <+> equals <+> pretty (typeOf expr)
+         , prettyDefinition methodName expr
+         ]
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (ProtocolImplementation (Expr r t m)) where
   pretty (ProtocolImplementation _ (Poly.Protocol _ protocolName _ _) implHead methods) =
@@ -178,7 +180,7 @@ instance Pretty Poly.TVarBinding where
   pretty (Poly.TVarBinding _ v) = pretty v
 
 instance Pretty QualifiedName where
-  pretty (FQN pkg identifier) = hcat (punctuate (text ".") (map text pkg ++ [pretty identifier]))
+  pretty (FQN pkg identifier) = hcat (punctuate (text "/") (map text pkg ++ [pretty identifier]))
 
 isFunctionType :: Poly.Type -> Bool
 isFunctionType = \case
@@ -334,13 +336,13 @@ instance Pretty TypeBinding where
       PackageBinding _ name env' ->
         text "package" <+> pretty name <+> equals <+> pretty env'
       Local _ name scheme ->
-        text "local" <+> pretty name <+> equals <+> pretty scheme
+        pretty name <+> equals <+> pretty scheme
       Type _ name _bindings type' ->
         text "type" <+> pretty name <+> equals <+> pretty type'
       QuantifiedType _ name type' ->
         text "quantified" <+> pretty name <+> equals <+> pretty type'
-      ProtocolBinding _ name protocol ->
-        text "protocol" <+> pretty name <+> equals <+> pretty protocol
+      ProtocolBinding _ _ protocol ->
+        pretty protocol
 
 instance Pretty TypingEnvironment where
   pretty env =

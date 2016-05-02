@@ -28,6 +28,7 @@ predefined = Metadata Predefined
 tvA = TV "a"
 
 tvarA = TVar predefined tvA
+symbol s = Symbol missing (Identifier s)
 
 boolToBool = TFn predefined typeBool typeBool
 aToBool = TFn predefined tvarA typeBool
@@ -53,26 +54,31 @@ testableProtocol =
   (TVar predefined tvA)
   [testableProtocolMethod]
 
-testableProtocolMethodInt =
-  ProtocolMethod
-  predefined
-  (Identifier "test")
-  (Forall predefined [] Set.empty (TFn predefined typeInt typeBool))
-
-testableProtocolInt =
-  Protocol
-  predefined
-  (FQN [] (Identifier "Testable"))
-  typeInt
-  [testableProtocolMethod]
-
-symbol s = Symbol missing (Identifier s) aToBool
-
+boolTestableMethod :: String -> MethodImplementation TypedExpr
 boolTestableMethod s =
-  MethodImplementation missing testableProtocolMethod (symbol s)
+  MethodImplementation missing testableProtocolMethod (symbol s boolToBool)
 
+boolTestableImplementation :: String -> ProtocolImplementation TypedExpr
 boolTestableImplementation s =
   ProtocolImplementation missing testableProtocol typeBool [boolTestableMethod s]
+
+rowWithResultField =
+  rowFromList [(Identifier "result", typeBool)] (REmpty missing)
+
+recordTestableMethod :: MethodImplementation TypedExpr
+recordTestableMethod =
+  MethodImplementation
+  missing
+  testableProtocolMethod
+  (symbol "recordValue" (TFn missing rowWithResultField typeBool))
+
+recordTestableImplementation :: ProtocolImplementation TypedExpr
+recordTestableImplementation =
+  ProtocolImplementation
+  missing
+  testableProtocol
+  rowWithResultField
+  [recordTestableMethod]
 
 spec :: Spec
 spec =
@@ -93,34 +99,34 @@ spec =
       (unresolved
        testableProtocol
        testableProtocolMethod
-       aToBool)
+       boolToBool)
       `shouldSucceedWith`
       resolved
       testableProtocol
       testableProtocolMethod
       (boolTestableMethod "myImpl")
-      aToBool
+      boolToBool
 
-    it "resolves a single matching implementation for a less general type" $
+    it "resolves a single matching implementation for a record type" $
       resolveInExpr
-      (Set.singleton (boolTestableImplementation "myImpl"))
+      (Set.singleton recordTestableImplementation)
       (Application
        missing
        (unresolved
-        testableProtocolInt
-        testableProtocolMethodInt
-        boolToBool)
-       one
+        testableProtocol
+        testableProtocolMethod
+        (TFn missing rowWithResultField typeBool))
+       (symbol "recordValue" rowWithResultField)
        typeBool)
       `shouldSucceedWith`
       Application
       missing
       (resolved
-       testableProtocolInt
-       testableProtocolMethodInt
-       (boolTestableMethod "myImpl")
-       boolToBool)
-      one
+       testableProtocol
+       testableProtocolMethod
+       recordTestableMethod
+       (TFn missing rowWithResultField typeBool))
+      (symbol "recordValue" rowWithResultField)
       typeBool
 
     it "throws error if there's multiple matching implementations" $
