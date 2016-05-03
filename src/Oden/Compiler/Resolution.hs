@@ -13,6 +13,7 @@ import Oden.Core.Traversal
 
 import Oden.Infer.Subsumption
 import Oden.Infer.Substitution
+import Oden.Infer.Unification
 
 import Oden.Metadata
 import Oden.SourceInfo
@@ -33,15 +34,28 @@ type ResolutionEnvironment = Set (ProtocolImplementation TypedExpr)
 
 type Resolve = StateT ResolutionEnvironment (Except ResolutionError)
 
-matching :: ProtocolImplementation TypedExpr
-         -> Protocol
-         -> [ProtocolImplementation TypedExpr]
-matching (ProtocolImplementation _ (Protocol _ implProtocolName _ _) _ _) (Protocol _ protocolName _ _)
-  | implProtocolName /= protocolName = []
-matching impl@(ProtocolImplementation _ _ implHead _) protocol =
-  case implHead `typeSubsumedBy` protocolHead protocol of
-    Left _      -> []
-    Right subst -> [apply subst impl]
+matching :: Protocol
+         -> ProtocolMethod
+         -> Type
+         -> ProtocolImplementation TypedExpr
+         -> [(ProtocolImplementation TypedExpr, MethodImplementation TypedExpr)]
+matching protocol method type' impl = do
+  let (Protocol _ protocolName _ _) = protocol
+  case impl of
+    ProtocolImplementation _ (Protocol _ implProtocolName _ _) _ _
+      | implProtocolName /= protocolName -> []
+    ProtocolImplementation _ _ _ methodImpls -> do
+      methodImpl <- concatMap matchingMethod methodImpls
+      return (impl, methodImpl)
+  where
+  matchingMethod methodImpl =
+    let (ProtocolMethod _ methodName _) = method
+        (MethodImplementation _ (ProtocolMethod _ implMethodName _) expr) = methodImpl in
+    case runSolve [UnifyConstraint (getSourceInfo type') (typeOf expr) type'] of
+      Left _ -> []
+      Right subst
+        | implMethodName == methodName -> [apply subst methodImpl]
+        | otherwise                    -> []
 
 instantiateImplementation :: MethodImplementation TypedExpr
                           -> Type
@@ -58,27 +72,16 @@ lookupMethodImplementation :: SourceInfo
                            -> ProtocolMethod
                            -> Type
                            -> Resolve (MethodImplementation TypedExpr)
-lookupMethodImplementation si protocol method@(ProtocolMethod _ methodName _) type' = do
+lookupMethodImplementation si protocol method type' = do
   impls <- gets Set.toList
-  protocolImpl <- selectSingleProtocolImpl impls
-  methodImpl <- selectSingleMethod protocolImpl
+  methodImpl <- findProtocolMethodImpl impls
   instantiateImplementation methodImpl type'
   where
-  selectSingleProtocolImpl :: [ProtocolImplementation TypedExpr] -> Resolve (ProtocolImplementation TypedExpr)
-  selectSingleProtocolImpl allImpls =
-    case concatMap (`matching` protocol) allImpls of
+  findProtocolMethodImpl allImpls =
+    case concatMap (matching protocol method type') allImpls of
       []     -> throwError (NoMatchingImplementationInScope si protocol method allImpls)
-      [impl] -> return impl
-      impls  -> throwError (MultipleMatchingImplementationsInScope si impls)
-  matchesMethod (MethodImplementation _ (ProtocolMethod _ methodName' _) _) =
-    methodName == methodName'
-  selectSingleMethod :: ProtocolImplementation TypedExpr
-                     -> Resolve (MethodImplementation TypedExpr)
-  selectSingleMethod (ProtocolImplementation _ _ _ methodImpls) =
-    case filter matchesMethod methodImpls of
-      [] -> error "OMG no method impl"
-      [methodImpl] -> return methodImpl
-      _methodImpls -> error "OMG too many method impls"
+      [(_, methodImpl)] -> return methodImpl
+      impls  -> throwError (MultipleMatchingImplementationsInScope si (map fst impls))
 
 resolveInMethodImplementation :: MethodImplementation TypedExpr
                               -> Resolve (MethodImplementation TypedExpr)

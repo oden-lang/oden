@@ -50,15 +50,24 @@ collectSubstitutions (TTuple _ f1 s1 r1) (TTuple _ f2 s2 r2) = do
   zipWithM_ collectSubstitutions r1 r2
 collectSubstitutions (TRecord _ r1) (TRecord _ r2) =
   collectSubstitutions r1 r2
+collectSubstitutions REmpty{} REmpty{} = return ()
 collectSubstitutions r1 r2 | kindOf r1 == Row && kindOf r2 == Row = do
-  let f1 = rowToList r1
-      f2 = rowToList r2
-  mapM_ (collectFromFields (Map.fromList f2)) f1
-  where
-  collectFromFields general (label, type') =
-    case Map.lookup label general of
-      Just genType -> collectSubstitutions type' genType
-      Nothing -> throwError (SubsumptionError (getSourceInfo r2) r1 r2)
+  let f1 = Map.fromList (rowToList r1)
+      f2 = Map.fromList (rowToList r2)
+      onlyIn1 = f1 `Map.difference` f2
+      onlyIn2 = f2 `Map.difference` f1
+
+  unless (Map.null onlyIn1) $
+    throwError (SubsumptionError (getSourceInfo r2) r1 r2)
+
+  unless (Map.null onlyIn2) $
+    throwError (SubsumptionError (getSourceInfo r2) r1 r2)
+
+  unless (getLeafRow r1 == getLeafRow r2) $
+    throwError (SubsumptionError (getSourceInfo r2) r1 r2)
+
+  sequence_ (Map.elems (Map.intersectionWith collectSubstitutions f1 f2))
+
 collectSubstitutions t1 t2 = throwError (SubsumptionError (getSourceInfo t2) t1 t2)
 
 

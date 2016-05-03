@@ -89,20 +89,20 @@ spec =
         `shouldSucceedWith`
         (scheme emptyRow, expr)
 
-    it "empty record is subsumed by one field record" $
+    it "empty record is not subsumed by one field record" $
       let oneFieldRow = RExtension missing (Identifier "foo") typeInt emptyRow
           expr = Symbol missing (Identifier "x") oneFieldRow in
         scheme emptyRow `subsumedBy` expr
-        `shouldSucceedWith`
-        (scheme emptyRow, expr)
+        `shouldFailWith`
+        SubsumptionError Missing emptyRow oneFieldRow
 
-    it "one field record is subsumed by extended record" $
+    it "one field record is not subsumed by extended record" $
       let oneFieldRow = RExtension missing (Identifier "foo") typeInt emptyRow
           twoFieldRow = RExtension missing (Identifier "bar") typeString oneFieldRow
           expr = Symbol missing (Identifier "x") twoFieldRow in
         scheme oneFieldRow `subsumedBy` expr
-        `shouldSucceedWith`
-        (scheme oneFieldRow, expr)
+        `shouldFailWith`
+        SubsumptionError Missing oneFieldRow twoFieldRow
 
     it "two field record is not subsumed by one field record" $
       let oneFieldRow = RExtension missing (Identifier "foo") typeInt emptyRow
@@ -112,29 +112,29 @@ spec =
         `shouldFailWith`
         SubsumptionError Missing twoFieldRow oneFieldRow
 
-    it "record with row variable is subsumed by other row variable record" $
+    it "record with row variable is not subsumed by other row variable record" $
       let firstRow = RExtension missing (Identifier "foo") typeInt tvarA
           secondRow = RExtension missing (Identifier "foo") typeInt tvarB
           expr = Symbol missing (Identifier "x") secondRow in
         scheme firstRow `subsumedBy` expr
-        `shouldSucceedWith`
-        (scheme firstRow, expr)
+        `shouldFailWith`
+        SubsumptionError Missing firstRow secondRow
 
-    it "record with row variable is subsumed by multi-field record" $
+    it "record with row variable is not subsumed by multi-field record" $
       let firstRow = RExtension missing (Identifier "foo") typeInt tvarA
           twoFieldRow = RExtension missing (Identifier "bar") typeString (RExtension missing (Identifier "foo") typeInt (REmpty missing))
           expr = Symbol missing (Identifier "x") twoFieldRow in
         scheme firstRow `subsumedBy` expr
-        `shouldSucceedWith`
-        (scheme firstRow, expr)
+        `shouldFailWith`
+        SubsumptionError Missing firstRow twoFieldRow
 
-    it "record with row variable is subsumed by multi-field record with row variable" $
+    it "record with row variable is not subsumed by multi-field record with row variable" $
       let firstRow = RExtension missing (Identifier "foo") typeInt tvarA
           twoFieldRow = RExtension missing (Identifier "bar") typeString (RExtension missing (Identifier "foo") typeInt tvarB)
           expr = Symbol missing (Identifier "x") twoFieldRow in
         scheme firstRow `subsumedBy` expr
-        `shouldSucceedWith`
-        (scheme firstRow, expr)
+        `shouldFailWith`
+        SubsumptionError Missing firstRow twoFieldRow
 
     it "{ foo: int | b } -> { foo: int | b } is subsumed by a -> a" $
       let row = RExtension missing (Identifier "bar") typeString (RExtension missing (Identifier "foo") typeInt tvarB)

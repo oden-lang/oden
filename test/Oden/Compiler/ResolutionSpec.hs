@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Oden.Compiler.ResolutionSpec where
 
 import           Oden.Compiler.Resolution
@@ -13,7 +14,8 @@ import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
-import           Data.Set as Set
+import qualified Data.Set as Set
+import           Data.Set (Set)
 
 import           Test.Hspec
 
@@ -35,6 +37,13 @@ aToBool = TFn predefined tvarA typeBool
 
 one = Literal missing (Int 1) typeInt
 
+rowWithResultField =
+  rowFromList [(Identifier "result", typeBool)] (REmpty missing)
+
+rowWithResultAndMessageField =
+  rowFromList [ (Identifier "result", typeBool)
+              , (Identifier "message", typeString)] (REmpty missing)
+
 unresolved protocol method =
   MethodReference missing (Unresolved protocol method)
 
@@ -54,31 +63,26 @@ testableProtocol =
   (TVar predefined tvA)
   [testableProtocolMethod]
 
-boolTestableMethod :: String -> MethodImplementation TypedExpr
-boolTestableMethod s =
-  MethodImplementation missing testableProtocolMethod (symbol s boolToBool)
-
-boolTestableImplementation :: String -> ProtocolImplementation TypedExpr
-boolTestableImplementation s =
-  ProtocolImplementation missing testableProtocol typeBool [boolTestableMethod s]
-
-rowWithResultField =
-  rowFromList [(Identifier "result", typeBool)] (REmpty missing)
-
-recordTestableMethod :: MethodImplementation TypedExpr
-recordTestableMethod =
+testableMethodImplementation :: String -> Type -> MethodImplementation TypedExpr
+testableMethodImplementation identifier t =
   MethodImplementation
   missing
   testableProtocolMethod
-  (symbol "recordValue" (TFn missing rowWithResultField typeBool))
+  (symbol identifier (TFn missing t typeBool))
 
-recordTestableImplementation :: ProtocolImplementation TypedExpr
-recordTestableImplementation =
+testableImplementation :: String -> Type -> ProtocolImplementation TypedExpr
+testableImplementation identifier t =
   ProtocolImplementation
   missing
   testableProtocol
-  rowWithResultField
-  [recordTestableMethod]
+  t
+  [testableMethodImplementation identifier t]
+
+implementationsAsSet :: Either ResolutionError a
+                     -> Set (ProtocolImplementation TypedExpr)
+implementationsAsSet = \case
+  Left (MultipleMatchingImplementationsInScope _ impls) -> Set.fromList impls
+  _ -> Set.empty
 
 spec :: Spec
 spec =
@@ -95,7 +99,7 @@ spec =
 
     it "resolves a single matching implementation" $
       resolveInExpr
-      (Set.singleton (boolTestableImplementation "myImpl"))
+      (Set.singleton (testableImplementation "foo" typeBool))
       (unresolved
        testableProtocol
        testableProtocolMethod
@@ -104,12 +108,12 @@ spec =
       resolved
       testableProtocol
       testableProtocolMethod
-      (boolTestableMethod "myImpl")
+      (testableMethodImplementation "foo" typeBool)
       boolToBool
 
     it "resolves a single matching implementation for a record type" $
       resolveInExpr
-      (Set.singleton recordTestableImplementation)
+      (Set.singleton (testableImplementation "foo" rowWithResultField))
       (Application
        missing
        (unresolved
@@ -124,23 +128,45 @@ spec =
       (resolved
        testableProtocol
        testableProtocolMethod
-       recordTestableMethod
+       (testableMethodImplementation "foo" rowWithResultField)
+       (TFn missing rowWithResultField typeBool))
+      (symbol "recordValue" rowWithResultField)
+      typeBool
+
+    it "resolves the correct matching implementation for a record type" $
+      resolveInExpr
+      (Set.fromList [ testableImplementation "foo" rowWithResultField
+                    , testableImplementation "bar" rowWithResultAndMessageField ])
+      (Application
+       missing
+       (unresolved
+        testableProtocol
+        testableProtocolMethod
+        (TFn missing rowWithResultField typeBool))
+       (symbol "recordValue" rowWithResultField)
+       typeBool)
+      `shouldSucceedWith`
+      Application
+      missing
+      (resolved
+       testableProtocol
+       testableProtocolMethod
+       (testableMethodImplementation "foo" rowWithResultField)
        (TFn missing rowWithResultField typeBool))
       (symbol "recordValue" rowWithResultField)
       typeBool
 
     it "throws error if there's multiple matching implementations" $
-      resolveInExpr
-      (Set.fromList [ boolTestableImplementation "myImpl"
-                    , boolTestableImplementation "myOtherImpl"
-                    ])
-      (unresolved
-       testableProtocol
-       testableProtocolMethod
-       aToBool)
-      `shouldFailWith`
-      MultipleMatchingImplementationsInScope
-      Missing
-      [ boolTestableImplementation "myImpl"
-      , boolTestableImplementation "myOtherImpl"
-      ]
+      implementationsAsSet
+      (resolveInExpr
+       (Set.fromList [ testableImplementation "foo" typeBool
+                     , testableImplementation "bar" typeBool
+                     ])
+       (unresolved
+        testableProtocol
+        testableProtocolMethod
+        boolToBool))
+      `shouldBe`
+      Set.fromList [ testableImplementation "bar" typeBool
+                   , testableImplementation "foo" typeBool
+                   ]
