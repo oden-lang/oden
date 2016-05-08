@@ -1,0 +1,33 @@
+package protocols/error/main
+
+import strconv
+
+// protocol error (builtin)
+
+impl error(string) {
+  Error(s) = "Error: " ++ s
+}
+
+impl error(int) {
+  Error(code) = "E" ++ strconv.Itoa(code)
+}
+
+impl error({ error: string }) {
+  Error(e) = e.error ++ " (no message)"
+}
+
+impl error({ error: string, message: string }) {
+  Error(e) = e.error ++ ": " ++ e.message
+}
+
+main() = {
+  println(error::Error(192))
+  println(error::Error({
+    error = "Unknown failure"
+  }))
+  println(error::Error({
+    error = "Stuff broke",
+    message = "But protocols seems to be working still, right?"
+  }))
+  println(error::Error(error::Error(192)))
+}
