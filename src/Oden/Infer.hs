@@ -417,10 +417,10 @@ infer = \case
       return (FieldInitializer fsi label typedExpr : typedFields, RExtension fsi label (typeOf typedExpr) row)
 
   MethodReference si (NamedMethodReference protocol method) Untyped -> do
-    protocolType <- lookupProtocol si protocol
-    method' <- findMethod (unwrap si) protocolType method
-    methodType <- instantiateMethod protocolType method'
-    let ref = Typed.Unresolved protocolType method'
+    protocolType' <- lookupProtocol si protocol
+    method' <- findMethod (unwrap si) protocolType' method
+    methodType <- instantiateMethod protocolType' method'
+    let ref = Typed.Unresolved protocolType' method'
     return (MethodReference si ref methodType)
 
   ForeignFnApplication (Metadata si) _ _ _ ->
@@ -530,8 +530,8 @@ inferDef =
       let protocol = Protocol si name boundType methods'
       return (ProtocolDefinition si name protocol, False)
 
-    Untyped.Implementation si protocolName type' methods -> do
-      protocol <- lookupProtocol si protocolName
+    Untyped.Implementation si protocolName' type' methods -> do
+      protocol <- lookupProtocol si protocolName'
       resolvedType <- resolveType type'
       uni (unwrap si) (protocolHead protocol) resolvedType
       methodImplementations <- mapM (inferMethodImplementation protocol) methods

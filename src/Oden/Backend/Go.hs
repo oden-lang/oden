@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 module Oden.Backend.Go (
   GoBackend(..),
   prelude,
@@ -360,8 +361,11 @@ genTopLevel name type' expr = do
    return (AST.Decl (AST.VarDecl var))
 
 genInstance :: InstantiatedDefinition -> Codegen AST.TopLevelDeclaration
-genInstance (InstantiatedDefinition (Identifier _defName) _si name expr) =
-  genTopLevel name (typeOf expr) expr
+genInstance = \case
+  InstantiatedDefinition (Identifier _defName) _si name expr ->
+    genTopLevel name (typeOf expr) expr
+  InstantiatedMethod  _si name expr ->
+    genTopLevel name (typeOf expr) expr
 
 genMonomorphed :: MonomorphedDefinition -> Codegen AST.TopLevelDeclaration
 genMonomorphed (MonomorphedDefinition _ name mt expr) =

@@ -39,11 +39,10 @@ matching :: Protocol
          -> Type
          -> ProtocolImplementation TypedExpr
          -> [(ProtocolImplementation TypedExpr, MethodImplementation TypedExpr)]
-matching protocol method type' impl = do
-  let (Protocol _ protocolName _ _) = protocol
+matching protocol method type' impl =
   case impl of
     ProtocolImplementation _ (Protocol _ implProtocolName _ _) _ _
-      | implProtocolName /= protocolName -> []
+      | implProtocolName /= protocolName protocol -> []
     ProtocolImplementation _ _ _ methodImpls -> do
       methodImpl <- concatMap matchingMethod methodImpls
       return (impl, methodImpl)

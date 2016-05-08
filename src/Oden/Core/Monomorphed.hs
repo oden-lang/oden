@@ -21,8 +21,9 @@ type MonoTypedRange = Range MonoTypedExpr
 data MonomorphedDefinition = MonomorphedDefinition (Metadata SourceInfo) Identifier Mono.Type MonoTypedExpr
                            deriving (Show, Eq, Ord)
 
-data InstantiatedDefinition =
-  InstantiatedDefinition Identifier (Metadata SourceInfo) Identifier MonoTypedExpr
+data InstantiatedDefinition
+  = InstantiatedDefinition Identifier (Metadata SourceInfo) Identifier MonoTypedExpr
+  | InstantiatedMethod (Metadata SourceInfo) Identifier MonoTypedExpr
   deriving (Show, Eq, Ord)
 
 data MonomorphedPackage = MonomorphedPackage PackageDeclaration

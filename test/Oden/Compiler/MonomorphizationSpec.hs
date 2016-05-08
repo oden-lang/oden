@@ -19,25 +19,8 @@ import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
+import           Oden.Compiler.Monomorphization.Fixtures
 import           Oden.Assertions
-
-missing :: Metadata SourceInfo
-missing = Metadata Missing
-
-myPkg :: PackageDeclaration
-myPkg = PackageDeclaration missing ["my", "pkg"]
-
-tvA :: Poly.TVar
-tvA = Poly.TV "a"
-
-a :: Poly.Type
-a = Poly.TVar missing tvA
-
-typeInt = Poly.TCon missing (nameInUniverse "int")
-typeBool = Poly.TCon missing (nameInUniverse "bool")
-
-monoInt = Mono.TCon missing (nameInUniverse "int")
-monoBool = Mono.TCon missing (nameInUniverse "bool")
 
 identityDef :: TypedDefinition
 identityDef =

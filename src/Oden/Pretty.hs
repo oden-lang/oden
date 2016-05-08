@@ -308,6 +308,10 @@ instance Pretty InstantiatedDefinition where
       pretty name <+> text ":" <+> pretty (typeOf expr),
       prettyDefinition name expr
     ]
+  pretty (InstantiatedMethod _si name expr) = vcat [
+      pretty name <+> text ":" <+> pretty (typeOf expr),
+      prettyDefinition name expr
+    ]
 
 instance Pretty MonomorphedDefinition where
   pretty (MonomorphedDefinition _ name _ expr) = vcat [

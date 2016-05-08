@@ -220,10 +220,17 @@ instance (FTV a) => FTV [a] where
 instance (FTV a) => FTV (Set.Set a) where
   ftv = foldr (Set.union . ftv) Set.empty
 
-data ProtocolMethod = ProtocolMethod (Metadata SourceInfo) Identifier Scheme
+data ProtocolMethod = ProtocolMethod { protocolMethodSourceInfo :: Metadata SourceInfo
+                                     , protocolMethodName :: Identifier
+                                     , protocolMethodType :: Scheme
+                                     }
                       deriving (Show, Eq, Ord)
 
-data Protocol = Protocol (Metadata SourceInfo) QualifiedName Type [ProtocolMethod]
+data Protocol = Protocol { protocolSourceInfo :: Metadata SourceInfo
+                         , protocolName :: QualifiedName
+                         , protocolType :: Type
+                         , protocolMethods :: [ProtocolMethod]
+                         }
               deriving (Show, Eq, Ord)
 
 protocolHead :: Protocol -> Type

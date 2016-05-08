@@ -77,11 +77,28 @@ addMonomorphed :: Identifier -> MonomorphedDefinition -> Monomorph ()
 addMonomorphed identifier def =
   modify (\s -> s { monomorphed = Map.insert identifier def (monomorphed s) })
 
+instantiateMethod :: Poly.Protocol
+                  -> Poly.ProtocolMethod
+                  -> MethodImplementation TypedExpr
+                  -> Mono.Type
+                  -> Monomorph Identifier
+instantiateMethod protocol method (MethodImplementation _ _ expr) monoType = do
+  let identifier = Identifier (encodeMethodInstance
+                               (Poly.protocolName protocol)
+                               (Poly.protocolMethodName method)
+                               monoType)
+  case instantiate expr monoType of
+    Left err -> throwError (MonomorphInstantiateError err)
+    Right monoExpr -> do
+      addInstanceName (identifier, monoType) identifier
+      me <- monomorph monoExpr
+      addInstance (InstantiatedMethod (Metadata $ getSourceInfo monoType) identifier me)
+      return identifier
+
 instantiateDefinition :: (Identifier, Mono.Type)
-                      -> Poly.Scheme
                       -> TypedExpr
                       -> Monomorph Identifier
-instantiateDefinition key@(pn, t) _ pe = do
+instantiateDefinition key@(pn, t) pe = do
   let identifier = Identifier (encodeTypeInstance pn t)
   case instantiate pe t of
     Left err -> throwError (MonomorphInstantiateError err)
@@ -96,21 +113,25 @@ instantiateDefinition key@(pn, t) _ pe = do
 
 getMonomorphicIn :: CompileEnvironment -> Identifier -> Mono.Type -> Monomorph Identifier
 getMonomorphicIn env ident t = do
-  def <- lookupIn env ident
-  case def of
+  binding <- lookupIn env ident
+  case binding of
     PackageBinding{} -> throwError $ NotInScope ident
-    DefinitionBinding ForeignDefinition{} -> return ident
-    DefinitionBinding (Definition _ _ (sc, pe)) | Poly.isPolymorphic sc -> do
-      let key = (ident, t)
-      is <- gets instanceNames
-      case Map.lookup key is of
-        Just name -> return name
-        Nothing -> instantiateDefinition key sc pe
-    DefinitionBinding (Definition _ pn _) -> return pn
-    -- Types cannot be referred to at this stage.
-    DefinitionBinding TypeDefinition{} -> throwError $ NotInScope ident
-    -- Protocols cannot be referred to at this stage.
-    DefinitionBinding ProtocolDefinition{} -> throwError $ NotInScope ident
+    DefinitionBinding definition ->
+      case definition of
+        ForeignDefinition{} -> return ident
+        Definition _ _ (sc, pe) | Poly.isPolymorphic sc -> do
+          let key = (ident, t)
+          is <- gets instanceNames
+          case Map.lookup key is of
+            Just name -> return name
+            Nothing -> instantiateDefinition key pe
+        Definition _ pn _ -> return pn
+        -- Types cannot be referred to at this stage.
+        TypeDefinition{} -> throwError $ NotInScope ident
+        -- Protocols cannot be referred to at this stage.
+        ProtocolDefinition{} -> throwError $ NotInScope ident
+        -- Implementations cannot be referred to at this stage.
+        Implementation{} -> throwError $ NotInScope ident
 
     LetBinding (NameBinding _ boundIdentifier) expr ->
       getMonomorphicLetBinding boundIdentifier t (typeOf expr)
@@ -270,12 +291,14 @@ monomorph e = case e of
             return (MemberAccess si (Monomorphed.PackageMemberAccess pkgAlias m) monoType)
           _ -> error "cannot access member in non-existing package"
 
-  MethodReference _ reference _methodType ->
+  MethodReference si reference methodType ->
     case reference of
       Unresolved _protocol method ->
         error (show method)
-      Resolved _ _ (MethodImplementation _ _ expr) ->
-        monomorph expr
+      Resolved protocol method methodImpl -> do
+        monoType <- toMonomorphic si methodType
+        name <- instantiateMethod protocol method methodImpl monoType
+        return (Symbol si name monoType)
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.

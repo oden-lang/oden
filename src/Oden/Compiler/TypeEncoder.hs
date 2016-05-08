@@ -1,5 +1,6 @@
 module Oden.Compiler.TypeEncoder (
-    encodeTypeInstance
+    encodeTypeInstance,
+    encodeMethodInstance
 ) where
 
 import           Control.Monad.State
@@ -86,15 +87,16 @@ writeType row@Mono.RExtension{} = do
       writeType t
     pad
 
-writeTypeInstance :: Identifier -> Mono.Type -> TypeEncoder ()
-writeTypeInstance identifier typeInstance = do
-  tell (asString identifier)
-  pad
-  tell "inst"
-  pad
-  writeType typeInstance
+encodeType :: Mono.Type -> String
+encodeType t = snd (runWriter (runStateT (writeType t) 1))
 
 encodeTypeInstance :: Identifier -> Mono.Type -> String
-encodeTypeInstance i t =
-  let (_, encoded) = runWriter (runStateT (writeTypeInstance i t) 1)
-  in encoded
+encodeTypeInstance identifier type' =
+  asString identifier ++ "_inst_" ++ encodeType type'
+
+encodeMethodInstance :: QualifiedName
+                     -> Identifier
+                     -> Mono.Type
+                     -> String
+encodeMethodInstance (FQN _ protocolName) methodName type' =
+  asString protocolName ++ "_method_" ++ asString methodName ++ "_inst_" ++ encodeType type'
