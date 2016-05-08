@@ -26,7 +26,7 @@ import qualified Data.Set as Set
 import           Data.Set (Set)
 
 data ResolutionError
-  = NoMatchingImplementationInScope SourceInfo Protocol ProtocolMethod [ProtocolImplementation TypedExpr]
+  = NoMatchingImplementationInScope SourceInfo ProtocolName MethodName Type [ProtocolImplementation TypedExpr]
   | MultipleMatchingImplementationsInScope SourceInfo [ProtocolImplementation TypedExpr]
   deriving (Show, Eq, Ord)
 
@@ -34,51 +34,41 @@ type ResolutionEnvironment = Set (ProtocolImplementation TypedExpr)
 
 type Resolve = StateT ResolutionEnvironment (Except ResolutionError)
 
-matching :: Protocol
-         -> ProtocolMethod
+matching :: ProtocolName
+         -> MethodName
          -> Type
          -> ProtocolImplementation TypedExpr
          -> [(ProtocolImplementation TypedExpr, MethodImplementation TypedExpr)]
-matching protocol method type' impl =
+matching protocolName' methodName type' impl =
   case impl of
-    ProtocolImplementation _ (Protocol _ implProtocolName _ _) _ _
-      | implProtocolName /= protocolName protocol -> []
+    ProtocolImplementation _ implProtocolName _ _
+      | implProtocolName /= protocolName' -> []
     ProtocolImplementation _ _ _ methodImpls -> do
       methodImpl <- concatMap matchingMethod methodImpls
       return (impl, methodImpl)
   where
   matchingMethod methodImpl =
-    let (ProtocolMethod _ methodName _) = method
-        (MethodImplementation _ (ProtocolMethod _ implMethodName _) expr) = methodImpl in
+    let (MethodImplementation _ implMethodName expr) = methodImpl in
     case runSolve [UnifyConstraint (getSourceInfo type') (typeOf expr) type'] of
       Left _ -> []
       Right subst
         | implMethodName == methodName -> [apply subst methodImpl]
         | otherwise                    -> []
 
-instantiateImplementation :: MethodImplementation TypedExpr
-                          -> Type
-                          -> Resolve (MethodImplementation TypedExpr)
-instantiateImplementation (MethodImplementation si method expr) type' =
-  case type' `typeSubsumedBy` typeOf expr of
-    Left err -> error (show err)
-    Right subst -> return (MethodImplementation si method (apply subst expr))
-
 -- | Super-primitive protocol implementation lookup for now. It should check
 -- what methods implementations unify.
 lookupMethodImplementation :: SourceInfo
-                           -> Protocol
-                           -> ProtocolMethod
+                           -> ProtocolName
+                           -> MethodName
                            -> Type
                            -> Resolve (MethodImplementation TypedExpr)
-lookupMethodImplementation si protocol method type' = do
+lookupMethodImplementation si protocolName' methodName type' = do
   impls <- gets Set.toList
-  methodImpl <- findProtocolMethodImpl impls
-  instantiateImplementation methodImpl type'
+  findProtocolMethodImpl impls
   where
   findProtocolMethodImpl allImpls =
-    case concatMap (matching protocol method type') allImpls of
-      []     -> throwError (NoMatchingImplementationInScope si protocol method allImpls)
+    case concatMap (matching protocolName' methodName type') allImpls of
+      []     -> throwError (NoMatchingImplementationInScope si protocolName' methodName type' allImpls)
       [(_, methodImpl)] -> return methodImpl
       impls  -> throwError (MultipleMatchingImplementationsInScope si (map fst impls))
 

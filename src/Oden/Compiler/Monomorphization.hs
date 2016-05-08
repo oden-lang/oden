@@ -77,16 +77,13 @@ addMonomorphed :: Identifier -> MonomorphedDefinition -> Monomorph ()
 addMonomorphed identifier def =
   modify (\s -> s { monomorphed = Map.insert identifier def (monomorphed s) })
 
-instantiateMethod :: Poly.Protocol
-                  -> Poly.ProtocolMethod
+instantiateMethod :: Poly.ProtocolName
+                  -> Poly.MethodName
                   -> MethodImplementation TypedExpr
                   -> Mono.Type
                   -> Monomorph Identifier
-instantiateMethod protocol method (MethodImplementation _ _ expr) monoType = do
-  let identifier = Identifier (encodeMethodInstance
-                               (Poly.protocolName protocol)
-                               (Poly.protocolMethodName method)
-                               monoType)
+instantiateMethod protocolName methodName (MethodImplementation _ _ expr) monoType = do
+  let identifier = Identifier (encodeMethodInstance protocolName methodName monoType)
   case instantiate expr monoType of
     Left err -> throwError (MonomorphInstantiateError err)
     Right monoExpr -> do
@@ -293,11 +290,11 @@ monomorph e = case e of
 
   MethodReference si reference methodType ->
     case reference of
-      Unresolved _protocol method ->
-        error (show method)
-      Resolved protocol method methodImpl -> do
+      Unresolved _ methodName ->
+        error ("unresolved: " ++ show methodName)
+      Resolved protocolName' methodName methodImpl -> do
         monoType <- toMonomorphic si methodType
-        name <- instantiateMethod protocol method methodImpl monoType
+        name <- instantiateMethod protocolName' methodName methodImpl monoType
         return (Symbol si name monoType)
 
 -- Given a let-bound expression and a reference to that binding, create a

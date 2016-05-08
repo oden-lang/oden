@@ -5,11 +5,11 @@ import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
 data MethodImplementation e
-  = MethodImplementation (Metadata SourceInfo) ProtocolMethod e
+  = MethodImplementation (Metadata SourceInfo) MethodName e
   deriving (Show, Eq, Ord)
 
 data ProtocolImplementation e
-  = ProtocolImplementation (Metadata SourceInfo) Protocol Type [MethodImplementation e]
+  = ProtocolImplementation (Metadata SourceInfo) ProtocolName Type [MethodImplementation e]
   deriving (Show, Eq, Ord)
 
 instance FTV e => FTV (MethodImplementation e) where

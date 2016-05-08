@@ -13,8 +13,8 @@ data TypedMemberAccess
   deriving (Show, Eq, Ord)
 
 data TypedMethodReference
-  = Unresolved Poly.Protocol Poly.ProtocolMethod
-  | Resolved Poly.Protocol Poly.ProtocolMethod (MethodImplementation TypedExpr)
+  = Unresolved Poly.ProtocolName Poly.MethodName
+  | Resolved Poly.ProtocolName Poly.MethodName (MethodImplementation TypedExpr)
   deriving (Show, Eq, Ord)
 
 type CanonicalExpr = (Poly.Scheme, TypedExpr)

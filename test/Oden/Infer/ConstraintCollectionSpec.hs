@@ -26,8 +26,11 @@ tvarB = TVar missing tvB
 
 fooId = Identifier "foo"
 
-protocolFoo = Protocol missing (nameInUniverse "Foo") (TVar missing tvA) []
-protocolBar = Protocol missing (nameInUniverse "Bar") (TVar missing tvA) []
+protocolFooName = nameInUniverse "Foo"
+protocolBarName = nameInUniverse "Bar"
+
+protocolFoo = Protocol missing protocolFooName (TVar missing tvA) []
+protocolBar = Protocol missing protocolBarName (TVar missing tvA) []
 
 spec = describe "collectConstraints" $ do
   it "strips empty TConstrained" $
@@ -38,16 +41,16 @@ spec = describe "collectConstraints" $ do
     (unconstrained, Set.empty)
 
   it "collects constraints" $
-    let constraint = ProtocolConstraint missing protocolFoo tvarA
+    let constraint = ProtocolConstraint missing protocolFooName tvarA
         symbol = Symbol missing fooId (TConstrained (Set.singleton constraint) tvarA)
         unconstrained = Symbol missing fooId tvarA
     in collectConstraints symbol
     `shouldBe`
-    (unconstrained, (Set.singleton constraint))
+    (unconstrained, Set.singleton constraint)
 
   it "collects nested constraints" $
-    let fooConstraint = ProtocolConstraint missing protocolFoo tvarA
-        barConstraint = ProtocolConstraint missing protocolBar tvarA
+    let fooConstraint = ProtocolConstraint missing protocolFooName tvarA
+        barConstraint = ProtocolConstraint missing protocolBarName tvarA
         symbol = Symbol
                  missing
                  fooId
@@ -55,11 +58,11 @@ spec = describe "collectConstraints" $ do
         unconstrained = Symbol missing fooId tvarA
     in collectConstraints symbol
     `shouldBe`
-    (unconstrained, (Set.fromList [fooConstraint, barConstraint]))
+    (unconstrained, Set.fromList [fooConstraint, barConstraint])
 
   it "collects unrelated nested constraints" $
-    let fooConstraint = ProtocolConstraint missing protocolFoo tvarA
-        barConstraint = ProtocolConstraint missing protocolBar tvarB
+    let fooConstraint = ProtocolConstraint missing protocolFooName tvarA
+        barConstraint = ProtocolConstraint missing protocolBarName tvarB
         symbol = Symbol
                  missing
                  fooId
@@ -70,8 +73,8 @@ spec = describe "collectConstraints" $ do
     (unconstrained, Set.fromList [fooConstraint, barConstraint])
 
   it "collects constraints in different branches" $
-    let fooConstraint = ProtocolConstraint missing protocolFoo tvarA
-        barConstraint = ProtocolConstraint missing protocolBar tvarB
+    let fooConstraint = ProtocolConstraint missing protocolFooName tvarA
+        barConstraint = ProtocolConstraint missing protocolBarName tvarB
         symbol = Symbol
                  missing
                  fooId

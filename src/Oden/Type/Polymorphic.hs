@@ -8,8 +8,10 @@ module Oden.Type.Polymorphic (
   TVarBinding(..),
   Scheme(..),
   ProtocolConstraint(..),
-  ProtocolMethod(..),
+  ProtocolName,
+  MethodName,
   Protocol(..),
+  ProtocolMethod(..),
   protocolHead,
   rowToList,
   rowFromList,
@@ -37,7 +39,7 @@ import qualified Data.Set              as Set
 newtype TVar = TV String
   deriving (Show, Eq, Ord)
 
-data ProtocolConstraint = ProtocolConstraint (Metadata SourceInfo) Protocol Type
+data ProtocolConstraint = ProtocolConstraint (Metadata SourceInfo) ProtocolName Type
                         deriving (Show, Eq, Ord)
 
 instance FTV ProtocolConstraint where
@@ -220,18 +222,19 @@ instance (FTV a) => FTV [a] where
 instance (FTV a) => FTV (Set.Set a) where
   ftv = foldr (Set.union . ftv) Set.empty
 
-data ProtocolMethod = ProtocolMethod { protocolMethodSourceInfo :: Metadata SourceInfo
-                                     , protocolMethodName :: Identifier
-                                     , protocolMethodType :: Scheme
-                                     }
-                      deriving (Show, Eq, Ord)
+type ProtocolName = QualifiedName
+type MethodName = Identifier
 
 data Protocol = Protocol { protocolSourceInfo :: Metadata SourceInfo
-                         , protocolName :: QualifiedName
+                         , protocolName :: ProtocolName
                          , protocolType :: Type
                          , protocolMethods :: [ProtocolMethod]
-                         }
-              deriving (Show, Eq, Ord)
+                         } deriving (Show, Eq, Ord)
+
+data ProtocolMethod = ProtocolMethod { protocolMethodSourceInfo :: Metadata SourceInfo
+                                     , protocolMethodName :: MethodName
+                                     , protocolMethodType :: Scheme
+                                     } deriving (Show, Eq, Ord)
 
 protocolHead :: Protocol -> Type
 protocolHead (Protocol _ _ head' _) = head'

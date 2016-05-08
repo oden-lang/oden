@@ -103,8 +103,8 @@ spec =
 
     it "unifies constrained type variables" $
       unify
-      (TConstrained (Set.singleton $ ProtocolConstraint missing testableProtocol tvarA) $ tvarA)
-      (TConstrained (Set.singleton $ ProtocolConstraint missing testableProtocol tvarB) $ tvarB)
+      (TConstrained (Set.singleton $ ProtocolConstraint missing testableProtocolName tvarA) tvarA)
+      (TConstrained (Set.singleton $ ProtocolConstraint missing testableProtocolName tvarB) tvarB)
       `shouldSucceedWith`
       Subst (singleton (TV "a") tvarB)
 

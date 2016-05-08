@@ -50,31 +50,34 @@ unresolved protocol method =
 resolved protocol method implMethod =
   MethodReference missing (Resolved protocol method implMethod)
 
-testableProtocolMethod =
-  ProtocolMethod
-  predefined
-  (Identifier "test")
-  (Forall predefined [] Set.empty (TFn predefined tvarA typeBool))
+testableProtocolName = FQN [] (Identifier "Testable")
+testableMethodName = Identifier "test"
 
 testableProtocol =
   Protocol
   predefined
-  (FQN [] (Identifier "Testable"))
+  testableProtocolName
   (TVar predefined tvA)
   [testableProtocolMethod]
+
+testableProtocolMethod =
+  ProtocolMethod
+  predefined
+  testableMethodName
+  (Forall predefined [] Set.empty (TFn predefined tvarA typeBool))
 
 testableMethodImplementation :: String -> Type -> MethodImplementation TypedExpr
 testableMethodImplementation identifier t =
   MethodImplementation
   missing
-  testableProtocolMethod
+  testableMethodName
   (symbol identifier (TFn missing t typeBool))
 
 testableImplementation :: String -> Type -> ProtocolImplementation TypedExpr
 testableImplementation identifier t =
   ProtocolImplementation
   missing
-  testableProtocol
+  testableProtocolName
   t
   [testableMethodImplementation identifier t]
 
@@ -93,21 +96,21 @@ spec =
         resolveInExpr
         Set.empty
         (unresolved
-         testableProtocol
-         testableProtocolMethod
+         testableProtocolName
+         testableMethodName
          aToBool)
 
     it "resolves a single matching implementation" $
       resolveInExpr
       (Set.singleton (testableImplementation "foo" typeBool))
       (unresolved
-       testableProtocol
-       testableProtocolMethod
+       testableProtocolName
+       testableMethodName
        boolToBool)
       `shouldSucceedWith`
       resolved
-      testableProtocol
-      testableProtocolMethod
+      testableProtocolName
+      testableMethodName
       (testableMethodImplementation "foo" typeBool)
       boolToBool
 
@@ -117,8 +120,8 @@ spec =
       (Application
        missing
        (unresolved
-        testableProtocol
-        testableProtocolMethod
+        testableProtocolName
+        testableMethodName
         (TFn missing rowWithResultField typeBool))
        (symbol "recordValue" rowWithResultField)
        typeBool)
@@ -126,8 +129,8 @@ spec =
       Application
       missing
       (resolved
-       testableProtocol
-       testableProtocolMethod
+       testableProtocolName
+       testableMethodName
        (testableMethodImplementation "foo" rowWithResultField)
        (TFn missing rowWithResultField typeBool))
       (symbol "recordValue" rowWithResultField)
@@ -140,8 +143,8 @@ spec =
       (Application
        missing
        (unresolved
-        testableProtocol
-        testableProtocolMethod
+        testableProtocolName
+        testableMethodName
         (TFn missing rowWithResultField typeBool))
        (symbol "recordValue" rowWithResultField)
        typeBool)
@@ -149,8 +152,8 @@ spec =
       Application
       missing
       (resolved
-       testableProtocol
-       testableProtocolMethod
+       testableProtocolName
+       testableMethodName
        (testableMethodImplementation "foo" rowWithResultField)
        (TFn missing rowWithResultField typeBool))
       (symbol "recordValue" rowWithResultField)
@@ -163,8 +166,8 @@ spec =
                      , testableImplementation "bar" typeBool
                      ])
        (unresolved
-        testableProtocol
-        testableProtocolMethod
+        testableProtocolName
+        testableMethodName
         boolToBool))
       `shouldBe`
       Set.fromList [ testableImplementation "bar" typeBool

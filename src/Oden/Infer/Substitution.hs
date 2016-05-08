@@ -56,8 +56,8 @@ instance Substitutable Type where
   apply s (TConstrained cs t)           = TConstrained (apply s cs) (apply s t)
 
 instance Substitutable ProtocolConstraint where
-  apply s (ProtocolConstraint si protocol type') =
-    ProtocolConstraint si (apply s protocol) (apply s type')
+  apply s (ProtocolConstraint si protocolName' type') =
+    ProtocolConstraint si protocolName' (apply s type')
 
 instance Substitutable Scheme where
   apply (Subst s) (Forall si qs cs t) =
@@ -66,17 +66,15 @@ instance Substitutable Scheme where
 
 instance FTV TypedMethodReference where
   ftv = \case
-    Unresolved protocol method ->
-      ftv protocol `Set.union` ftv method
-    Resolved protocol method impl ->
-      ftv protocol `Set.union` ftv method `Set.union` ftv impl
+    Unresolved _ _    -> Set.empty
+    Resolved _ _ impl -> ftv impl
 
 instance Substitutable TypedMethodReference where
   apply s = \case
     Unresolved protocol method ->
-      Unresolved (apply s protocol) (apply s method)
+      Unresolved protocol method
     Resolved protocol method impl ->
-      Resolved (apply s protocol) (apply s method) (apply s impl)
+      Resolved protocol method (apply s impl)
 
 instance FTV TypedMemberAccess where
   ftv = \case
@@ -137,9 +135,9 @@ instance Substitutable Protocol where
     Protocol si name (apply s var) (apply s methods)
 
 instance Substitutable (MethodImplementation TypedExpr) where
-  apply s (MethodImplementation si protocol method) =
-    MethodImplementation si protocol (apply s method)
+  apply s (MethodImplementation si name method) =
+    MethodImplementation si name (apply s method)
 
 instance Substitutable (ProtocolImplementation TypedExpr) where
-  apply s (ProtocolImplementation si protocol implHead methods) =
-    ProtocolImplementation si protocol (apply s implHead) (map (apply s) methods)
+  apply s (ProtocolImplementation si name implHead methods) =
+    ProtocolImplementation si name (apply s implHead) (apply s methods)

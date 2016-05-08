@@ -19,33 +19,36 @@ import qualified Oden.Type.Polymorphic as Poly
 import           Oden.Compiler.Monomorphization.Fixtures
 import           Oden.Assertions
 
-fooProtocolMethod =
-  Poly.ProtocolMethod
-  missing
-  (Identifier "foo")
-  (Poly.Forall missing [] Set.empty a)
+fooProtocolName = FQN [] (Identifier "Foo")
+fooMethodName = Identifier "foo"
 
 fooProtocol =
   Poly.Protocol
   missing
-  (FQN [] (Identifier "Foo"))
+  fooProtocolName
   a
   [fooProtocolMethod]
 
-fooMethodImplementation :: MethodImplementation TypedExpr
-fooMethodImplementation =
-  MethodImplementation
+fooProtocolMethod =
+  Poly.ProtocolMethod
   missing
-  fooProtocolMethod
-  (Literal missing (Int 1) typeInt)
+  fooMethodName
+  (Poly.Forall missing [] Set.empty a)
 
 fooImplementation :: ProtocolImplementation TypedExpr
 fooImplementation =
   ProtocolImplementation
   missing
-  fooProtocol
+  fooProtocolName
   typeInt
   [fooMethodImplementation]
+
+fooMethodImplementation :: MethodImplementation TypedExpr
+fooMethodImplementation =
+  MethodImplementation
+  missing
+  fooMethodName
+  (Literal missing (Int 1) typeInt)
 
 intFooMethodInstance :: InstantiatedDefinition
 intFooMethodInstance =
@@ -63,8 +66,8 @@ resolvedReference =
      MethodReference
      missing
      (Resolved
-      fooProtocol
-      fooProtocolMethod
+      fooProtocolName
+      fooMethodName
       fooMethodImplementation)
      typeInt)
 

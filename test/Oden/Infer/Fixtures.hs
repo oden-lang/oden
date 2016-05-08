@@ -111,18 +111,22 @@ predefAndMax =  predef `extend` (Identifier "max",
 predefAndMaxVariadic :: TypingEnvironment
 predefAndMaxVariadic = predef `extend` (Identifier "max",
                                         Local predefined (Identifier "max") $ scheme (typeForeign True [TSlice missing typeInt] [typeInt]))
-testableProtocolMethod =
-  ProtocolMethod
-  predefined
-  (Identifier "test")
-  (Forall predefined [] Set.empty (TFn predefined tvarA typeBool))
+
+testableProtocolName = FQN [] (Identifier "Testable")
+testableMethodName = Identifier "test"
 
 testableProtocol =
   Protocol
   predefined
-  (FQN [] (Identifier "Testable"))
+  testableProtocolName
   (TVar predefined tvA)
   [testableProtocolMethod]
+
+testableProtocolMethod =
+  ProtocolMethod
+  predefined
+  testableMethodName
+  (Forall predefined [] Set.empty (TFn predefined tvarA typeBool))
 
 predefAndTestableProtocol :: TypingEnvironment
 predefAndTestableProtocol =

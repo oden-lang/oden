@@ -6,7 +6,6 @@ import           Text.PrettyPrint.Leijen
 import           Oden.Compiler.Resolution
 import           Oden.Output
 import           Oden.Pretty                    ()
-import           Oden.Type.Polymorphic
 
 instance OdenOutput ResolutionError where
   outputType _ = Error
@@ -18,20 +17,20 @@ instance OdenOutput ResolutionError where
       "Compiler.Resolution.MultipleMatchingImplementationsInScope"
 
   header e _s = case e of
-    NoMatchingImplementationInScope _ (Protocol _ protocol _ _) (ProtocolMethod _ method methodType) _ ->
+    NoMatchingImplementationInScope _ protocol method type' _ ->
       text "No matching implementation in scope for"
       <+> pretty protocol <> text "::" <> pretty method
-      <+> colon <+> pretty methodType
+      <+> text "with type" <+> pretty type'
     MultipleMatchingImplementationsInScope{} ->
       text "Multiple matching implementations in scope"
 
   details e _s = case e of
-    NoMatchingImplementationInScope _ _ _ allImpls ->
+    NoMatchingImplementationInScope _ _ _ _ allImpls ->
       vcat (text "The following implementations are in scope:" : map pretty allImpls)
     MultipleMatchingImplementationsInScope _ impls ->
       vcat (text "The following implementations matched:" : map pretty impls)
 
   sourceInfo = \case
-    NoMatchingImplementationInScope si _ _ _    -> Just si
+    NoMatchingImplementationInScope si _ _ _ _  -> Just si
     MultipleMatchingImplementationsInScope si _ -> Just si
 

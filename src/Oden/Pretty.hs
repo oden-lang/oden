@@ -65,9 +65,9 @@ instance Pretty e => Pretty (FieldInitializer e) where
   pretty (FieldInitializer _ l e) = pretty l <+> text "=" <+> pretty e
 
 instance Pretty TypedMethodReference where
-  pretty (Unresolved (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _)) =
+  pretty (Unresolved (FQN _ protocolName) methodName) =
     pretty protocolName <> text "::" <> pretty methodName
-  pretty (Resolved (Poly.Protocol _ (FQN _ protocolName) _ _) (Poly.ProtocolMethod _ methodName _) _) =
+  pretty (Resolved (FQN _ protocolName) methodName _) =
     pretty protocolName <> text "::" <> pretty methodName
 
 instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
@@ -135,14 +135,14 @@ instance Pretty Poly.Protocol where
       <+> indentedInBraces (vcat (map pretty methods))
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (MethodImplementation (Expr r t m)) where
-  pretty (MethodImplementation _ (Poly.ProtocolMethod _ methodName _) expr) =
+  pretty (MethodImplementation _ methodName expr) =
     vcat [ pretty methodName <+> equals <+> pretty (typeOf expr)
          , prettyDefinition methodName expr
          ]
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (ProtocolImplementation (Expr r t m)) where
-  pretty (ProtocolImplementation _ (Poly.Protocol _ protocolName _ _) implHead methods) =
-    text "impl" <+> pretty protocolName <> parens (pretty implHead)
+  pretty (ProtocolImplementation _ name implHead methods) =
+    text "impl" <+> pretty name <> parens (pretty implHead)
     <+> indentedInBraces (vcat (map pretty methods))
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (Definition (Expr r t m)) where
@@ -224,7 +224,7 @@ ppFields r =
   printField (label, type') = pretty label <> colon <+> pretty type'
 
 instance Pretty Poly.ProtocolConstraint where
-  pretty (Poly.ProtocolConstraint _ (Poly.Protocol _ (FQN _ name) _ _) type') =
+  pretty (Poly.ProtocolConstraint _ (FQN _ name) type') =
     pretty name <> parens (pretty type')
 
 instance Pretty Poly.Scheme where
