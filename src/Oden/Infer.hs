@@ -97,6 +97,7 @@ data TypeError
   | NotAProtocol SourceInfo Identifier
   | NoSuchMethodInProtocol SourceInfo Protocol Identifier
   | InvalidForeignFnApplication SourceInfo
+  | TypeAlreadyBound SourceInfo Identifier
   deriving (Show, Eq)
 
 -- | Run the inference monad.
@@ -528,12 +529,23 @@ inferDef =
       convertParams (NameBinding bsi bn) = NameBinding bsi bn
 
     Untyped.ProtocolDefinition si name (SignatureVarBinding vsi var) methods -> do
-      -- boundType <- fresh (Metadata vsi)
+      validateUnboundType var
       let boundType = TVar (Metadata vsi) (TV (asString var))
       methods' <- local (`extend` (var, QuantifiedType (Metadata vsi) var boundType))
                         (mapM resolveMethod methods)
       let protocol = Protocol si name boundType methods'
       return (ProtocolDefinition si name protocol, False)
+      where
+      validateUnboundType :: Identifier -> Infer ()
+      validateUnboundType identifier = do
+        env <- ask
+        case Environment.lookup identifier env of
+          Just PackageBinding{}  -> throwError $ InvalidPackageReference vsi identifier
+          Just Local{}           -> throwError $ ValueUsedAsType vsi identifier
+          Just ProtocolBinding{} -> throwError $ ProtocolUsedAsType vsi identifier
+          Just Type{}            -> throwError $ TypeAlreadyBound vsi identifier
+          Just QuantifiedType{}  -> throwError $ TypeAlreadyBound vsi identifier
+          Nothing                -> return ()
 
     Untyped.Implementation si protocolName' type' methods -> do
       protocol <- lookupProtocol si protocolName'
@@ -545,7 +557,7 @@ inferDef =
 
 
 -- | Infer a top-level definitition, returning a typed version and the typing
--- environment extended with the definitions name and type.
+-- environment extended with the definition.
 inferDefinition :: TypingEnvironment
                 -> Untyped.Definition
                 -> Either TypeError (TypingEnvironment, Typed.TypedDefinition)

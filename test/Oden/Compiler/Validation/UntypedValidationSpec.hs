@@ -39,7 +39,7 @@ block exprs = Block missing exprs (typeOf (last exprs))
 emptyPkg = UntypedPackage (PackageDeclaration missing ["empty", "pkg"]) [] []
 
 spec :: Spec
-spec = do
+spec =
   describe "validateExpr" $ do
 
     it "accepts uniquely named definitions" $

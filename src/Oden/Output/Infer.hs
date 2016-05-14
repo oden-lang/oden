@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Oden.Output.Infer where
 
 import           Text.PrettyPrint.Leijen
@@ -12,19 +13,22 @@ import           Oden.Type.Polymorphic
 instance OdenOutput TypeError where
   outputType _ = Error
 
-  name (UnificationError e)                                 = name e
-  name InvalidPackageReference{}                            = "Infer.InvalidPackageReference"
-  name (NotInScope _ _)                                     = "Infer.NotInScope"
-  name MemberNotInPackage{}                                 = "Infer.MemberNotInPackage"
-  name PackageNotInScope{}                                  = "Infer.PackageNotInScope"
-  name ArgumentCountMismatch{}                              = "Infer.ArgumentCountMismatch"
-  name (TypeSignatureSubsumptionError _ SubsumptionError{}) = "Infer.TypeSignatureSubsumptionError"
-  name ValueUsedAsType{}                                    = "Infer.ValueUsedAsType"
-  name ProtocolUsedAsType{}                                 = "Infer.ProtocolUsedAsType"
-  name NotAnExpression{}                                    = "Infer.NotAnExpression"
-  name NotAProtocol{}                                       = "Infer.NotAProtocol"
-  name NoSuchMethodInProtocol{}                             = "Infer.NoSuchMethodInProtocol"
-  name InvalidForeignFnApplication{}                        = "Infer.InvalidForeignFnApplication"
+  name =
+    \case
+      (UnificationError e)                                 -> name e
+      InvalidPackageReference{}                            -> "Infer.InvalidPackageReference"
+      (NotInScope _ _)                                     -> "Infer.NotInScope"
+      MemberNotInPackage{}                                 -> "Infer.MemberNotInPackage"
+      PackageNotInScope{}                                  -> "Infer.PackageNotInScope"
+      ArgumentCountMismatch{}                              -> "Infer.ArgumentCountMismatch"
+      (TypeSignatureSubsumptionError _ SubsumptionError{}) -> "Infer.TypeSignatureSubsumptionError"
+      ValueUsedAsType{}                                    -> "Infer.ValueUsedAsType"
+      ProtocolUsedAsType{}                                 -> "Infer.ProtocolUsedAsType"
+      NotAnExpression{}                                    -> "Infer.NotAnExpression"
+      NotAProtocol{}                                       -> "Infer.NotAProtocol"
+      NoSuchMethodInProtocol{}                             -> "Infer.NoSuchMethodInProtocol"
+      InvalidForeignFnApplication{}                        -> "Infer.InvalidForeignFnApplication"
+      TypeAlreadyBound{}                                   -> "Infer.TypeAlreadyBound"
 
   header (UnificationError e) s                             = header e s
   header (InvalidPackageReference _ p) s = text "Invalid reference to package" <+> code s (pretty p)
@@ -55,6 +59,8 @@ instance OdenOutput TypeError where
     <+> code s (pretty protocolName')
   header (InvalidForeignFnApplication _) _ =
     text "Invalid foreign function application"
+  header (TypeAlreadyBound _ t) s =
+    text "Type" <+> code s (pretty t) <+> text "is already bound"
 
   details (UnificationError e) s = details e s
   details InvalidPackageReference{} _ = text "Packages cannot be referenced as values"
@@ -80,17 +86,21 @@ instance OdenOutput TypeError where
       "get this error it's probably because of a programming error in the",
       "compiler itself, or a tool using the compiler."
     ]
+  details TypeAlreadyBound{} _ = empty
 
-  sourceInfo (UnificationError e)                                        = sourceInfo e
-  sourceInfo (ArgumentCountMismatch e _ _)                               = Just (getSourceInfo e)
-  sourceInfo (NotInScope si _)                                           = Just si
-  sourceInfo (PackageNotInScope si _)                                    = Just si
-  sourceInfo (MemberNotInPackage si _ _)                                 = Just si
-  sourceInfo (InvalidPackageReference si _)                              = Just si
-  sourceInfo (TypeSignatureSubsumptionError _ (SubsumptionError si _ _)) = Just si
-  sourceInfo (ValueUsedAsType si _)                                      = Just si
-  sourceInfo (ProtocolUsedAsType si _)                                   = Just si
-  sourceInfo (NotAnExpression si _)                                      = Just si
-  sourceInfo (NotAProtocol si _)                                         = Just si
-  sourceInfo (NoSuchMethodInProtocol si _ _)                             = Just si
-  sourceInfo (InvalidForeignFnApplication si)                            = Just si
+  sourceInfo =
+    \case
+      (UnificationError e)                                        -> sourceInfo e
+      (ArgumentCountMismatch e _ _)                               -> Just (getSourceInfo e)
+      (NotInScope si _)                                           -> Just si
+      (PackageNotInScope si _)                                    -> Just si
+      (MemberNotInPackage si _ _)                                 -> Just si
+      (InvalidPackageReference si _)                              -> Just si
+      (TypeSignatureSubsumptionError _ (SubsumptionError si _ _)) -> Just si
+      (ValueUsedAsType si _)                                      -> Just si
+      (ProtocolUsedAsType si _)                                   -> Just si
+      (NotAnExpression si _)                                      -> Just si
+      (NotAProtocol si _)                                         -> Just si
+      (NoSuchMethodInProtocol si _ _)                             -> Just si
+      (InvalidForeignFnApplication si)                            -> Just si
+      (TypeAlreadyBound si _)                                     -> Just si
