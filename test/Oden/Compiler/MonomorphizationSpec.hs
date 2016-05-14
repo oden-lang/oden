@@ -9,13 +9,9 @@ import           Oden.Compiler.Monomorphization
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Monomorphed
-import           Oden.Core.Package
 import           Oden.Core.Typed
 
 import           Oden.Identifier
-import           Oden.Metadata
-import           Oden.QualifiedName
-import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 

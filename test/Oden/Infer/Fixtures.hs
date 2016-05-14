@@ -5,7 +5,6 @@ import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
 import           Oden.Core.Untyped      hiding (Definition (..))
-import qualified Oden.Core.Untyped      as Untyped
 import           Oden.Environment       hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.Environment
