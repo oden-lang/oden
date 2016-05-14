@@ -1,15 +1,16 @@
 module Oden.CLI where
 
-import qualified Oden.Output                     as Output
-import           Oden.Output.Backend             ()
-import           Oden.Output.Compiler            ()
-import           Oden.Output.Compiler.Validation ()
-import           Oden.Output.Compiler.Resolution ()
-import           Oden.Output.Explode             ()
-import           Oden.Output.Go                  ()
-import           Oden.Output.Infer               ()
-import           Oden.Output.Instantiate         ()
-import           Oden.Output.Parser              ()
+import qualified Oden.Output                             as Output
+import           Oden.Output.Backend                     ()
+import           Oden.Output.Compiler                    ()
+import           Oden.Output.Compiler.Resolution         ()
+import           Oden.Output.Compiler.Validation.Typed   ()
+import           Oden.Output.Compiler.Validation.Untyped ()
+import           Oden.Output.Explode                     ()
+import           Oden.Output.Go                          ()
+import           Oden.Output.Infer                       ()
+import           Oden.Output.Instantiate                 ()
+import           Oden.Output.Parser                      ()
 
 
 import           Control.Monad.Except

@@ -4,27 +4,30 @@ import           Oden.Backend
 import           Oden.Backend.Go
 
 import           Oden.Compiler
-import           Oden.Compiler.Validation
 import           Oden.Compiler.Resolution
+import           Oden.Compiler.Validation.Typed   as TypedValidation
+import           Oden.Compiler.Validation.Untyped as UntypedValidation
 
-import           Oden.Core.Monomorphed           (MonomorphedPackage(..))
+import           Oden.Core.Monomorphed            (MonomorphedPackage (..))
+import           Oden.Core.Package                (ImportReference)
 import           Oden.Core.Typed
+import           Oden.Core.Untyped                (UntypedPackage)
 
 import           Oden.Environment
 import           Oden.Explode
-import qualified Oden.Go.Importer                as Go
+import qualified Oden.Go.Importer                 as Go
 import           Oden.Imports
 import           Oden.Infer
-import           Oden.Parser                     (parsePackage)
+import           Oden.Parser                      (parsePackage)
 import           Oden.Scanner
-import qualified Oden.Syntax                     as Syntax
+import qualified Oden.Syntax                      as Syntax
 
 import           Control.Monad.Reader
-import qualified Data.Text.Lazy.IO               as L
+import qualified Data.Text.Lazy.IO                as L
 import           System.Directory
 import           System.FilePath
 
-import Oden.CLI
+import           Oden.CLI
 
 writeCompiledFile :: CompiledFile -> CLI ()
 writeCompiledFile (CompiledFile name contents) =
@@ -37,8 +40,11 @@ readPackage fname = do
   contents <- liftIO $ L.readFile fname
   liftEither $ parsePackage fname contents
 
-validatePkg :: TypedPackage -> CLI ()
-validatePkg pkg' = liftEither (validate pkg') >>= mapM_ logWarning
+validateUntypedPkg :: UntypedPackage ImportReference -> CLI ()
+validateUntypedPkg pkg' = liftEither (UntypedValidation.validate pkg') >>= mapM_ logWarning
+
+validateTypedPkg :: TypedPackage -> CLI ()
+validateTypedPkg pkg' = liftEither (TypedValidation.validate pkg') >>= mapM_ logWarning
 
 logCompiledFiles :: [CompiledFile] -> CLI ()
 logCompiledFiles [_] = liftIO $ putStrLn "Compiled 1 Go source file."
@@ -49,6 +55,7 @@ inferFile (OdenSourceFile fname _) = do
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
   untypedPkg <- liftEither' (explodePackage syntaxPkg)
+  validateUntypedPkg untypedPkg
   (untypedPkgWithImports, warnings') <- liftIO (resolveImports Go.importer untypedPkg) >>= liftEither
   mapM_ logWarning warnings'
   liftEither (inferPackage untypedPkgWithImports)
@@ -60,7 +67,7 @@ resolvePkg typingEnv pkg' =
 compileFile :: SourceFile -> CLI MonomorphedPackage
 compileFile sourceFile = do
   (typingEnv, inferredPkg) <- inferFile sourceFile
-  validatePkg inferredPkg
+  validateTypedPkg inferredPkg
   resolvedPkg <- resolvePkg typingEnv inferredPkg
   liftEither (compile resolvedPkg)
 

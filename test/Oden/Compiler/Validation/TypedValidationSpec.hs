@@ -1,8 +1,8 @@
-module Oden.Compiler.ValidationSpec where
+module Oden.Compiler.Validation.TypedValidationSpec where
 
 import           Test.Hspec
 
-import           Oden.Compiler.Validation
+import           Oden.Compiler.Validation.Typed
 
 import           Oden.Core.Typed      as Typed
 import           Oden.Core.Definition
@@ -81,63 +81,6 @@ spec = do
         ])
       `shouldSucceedWith`
       []
-
-    it "throws an error on duplicate top-level names" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
-            Definition missing (Identifier "foo") $ canonical strExpr,
-            Definition missing (Identifier "bar") $ canonical strExpr,
-            Definition missing (Identifier "foo") $ canonical strExpr
-        ])
-      `shouldFailWith`
-      Redefinition Missing (Identifier "foo")
-
-    it "throws an error on let-bound name shadowing top-level definition" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
-            Definition
-            missing
-            (Identifier "foo")
-            (canonical strExpr),
-            Definition
-            missing
-            (Identifier "bar")
-            (canonical (letExpr (Identifier "foo") strExpr strExpr))
-        ])
-      `shouldFailWith`
-      Redefinition Missing (Identifier "foo")
-
-    it "throws an error on let-bound name shadowing other let-bound name" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
-            Definition
-            missing
-            (Identifier "bar")
-            (canonical (letExpr (Identifier "foo") strExpr (letExpr (Identifier "foo") strExpr strExpr)))
-        ])
-      `shouldFailWith`
-      Redefinition Missing (Identifier "foo")
-
-    it "throws an error on arg shadowing top-level definition" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
-            Definition
-            missing
-            (Identifier "foo")
-            (canonical strExpr),
-            Definition
-            missing
-            (Identifier "bar")
-            (canonical (fnExpr (Identifier "foo") strExpr))
-        ])
-      `shouldFailWith`
-      Redefinition Missing (Identifier "foo")
-
-    it "throws an error on fn arg shadowing other fn arg" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
-            Definition
-            missing
-            (Identifier "bar")
-            (canonical (fnExpr (Identifier "foo") (fnExpr (Identifier "foo") strExpr)))
-        ])
-      `shouldFailWith`
-      Redefinition Missing (Identifier "foo")
 
     it "throws an error on literal division by zero" $
       validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
