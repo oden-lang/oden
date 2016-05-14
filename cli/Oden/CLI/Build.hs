@@ -54,8 +54,8 @@ inferFile (OdenSourceFile fname _) = do
   liftEither (inferPackage untypedPkgWithImports)
 
 resolvePkg :: TypingEnvironment -> TypedPackage -> CLI TypedPackage
-resolvePkg typingEnv pkg =
-  liftEither (resolveInPackage (implementations typingEnv) pkg)
+resolvePkg typingEnv pkg' =
+  liftEither (resolveInPackage (implementations typingEnv) pkg')
 
 compileFile :: SourceFile -> CLI MonomorphedPackage
 compileFile sourceFile = do

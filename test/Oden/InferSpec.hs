@@ -13,8 +13,6 @@ import           Oden.Predefined
 import           Oden.Pretty           ()
 import           Oden.Type.Polymorphic
 
-import qualified Data.Set as Set
-
 import           Oden.Assertions
 import           Oden.Infer.Fixtures
 
@@ -423,46 +421,3 @@ spec = describe "inferExpr" $ do
       (RecordFieldAccess (tSymbol (Identifier "x") recordType) (Identifier "a"))
       tvarA)
      functionType)
-
-  it "infers type with constraints" $
-    let methodType = typeFn tvarA typeBool in
-    inferExpr predefAndTestableProtocol (MethodReference missing (NamedMethodReference (Identifier "Testable") (Identifier "test")) Untyped)
-    `shouldSucceedWith`
-    (Forall predefined [tvarBinding tvA] (Set.singleton (ProtocolConstraint missing testableProtocolName tvarA)) methodType,
-     MethodReference missing (Unresolved testableProtocolName testableMethodName) methodType)
-
-  it "infers multiple usages of method" $
-    inferExpr
-    predefAndTestableProtocol
-    (Tuple
-     missing
-     (Application
-      missing
-      (MethodReference missing (NamedMethodReference (Identifier "Testable") (Identifier "test")) Untyped)
-      (Literal missing (Int 1) Untyped)
-      Untyped)
-     (Application
-      missing
-      (MethodReference missing (NamedMethodReference (Identifier "Testable") (Identifier "test")) Untyped)
-      (Literal missing (Bool True) Untyped)
-      Untyped)
-     []
-     Untyped)
-    `shouldSucceedWith`
-    (Forall predefined [] (Set.fromList [ ProtocolConstraint missing testableProtocolName typeBool
-                                        , ProtocolConstraint missing testableProtocolName typeInt
-                                        ]) (TTuple missing typeBool typeBool []),
-     Tuple
-     missing
-     (Application
-      missing
-      (MethodReference missing (Unresolved testableProtocolName testableMethodName) (TFn missing typeInt typeBool))
-      (Literal missing (Int 1) typeInt)
-      typeBool)
-     (Application
-      missing
-      (MethodReference missing (Unresolved testableProtocolName testableMethodName) (TFn missing typeBool typeBool))
-      (Literal missing (Bool True) typeBool)
-      typeBool)
-     []
-     (TTuple missing typeBool typeBool []))

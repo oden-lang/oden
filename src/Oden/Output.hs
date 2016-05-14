@@ -69,7 +69,7 @@ format e = do
   wl <- wikiLink e
   return (vcat [
       pos <+> t <+> header e s,
-      nest 2 (details e s),
+      indent 2 (details e s),
       wl
     ])
 

@@ -6,7 +6,8 @@ module Oden.Infer.Unification (
   UnifyConstraint(..),
   runSolve,
   unifyMany,
-  unifies
+  unifies,
+  unifiesWith
 ) where
 
 import           Control.Monad.Except
@@ -127,3 +128,11 @@ occursCheck a t = a `Set.member` ftv t
 -- | Run the UnifyConstraint solver
 runSolve :: [UnifyConstraint] -> Either UnificationError Subst
 runSolve cs = runIdentity $ runExceptT $ solver emptySubst cs
+
+
+-- | Checks if two types unify.
+unifiesWith :: Type -> Type -> Bool
+unifiesWith t1 t2 =
+  case runSolve [UnifyConstraint (getSourceInfo t1) t1 t2] of
+    Left _  -> False
+    Right _ -> True

@@ -49,10 +49,10 @@ instance OdenOutput TypeError where
     <+> text "is not an expression"
   header (NotAProtocol _ n) s =
     code s (pretty n) <+> text "is not a protocol"
-  header (NoSuchMethodInProtocol _ (Protocol _ protocolName _ _) n) s =
+  header (NoSuchMethodInProtocol _ (Protocol _ protocolName' _ _) n) s =
     code s (pretty n)
-    <+> text "is not a method in"
-    <+> code s (pretty protocolName)
+    <+> text "is not a method of"
+    <+> code s (pretty protocolName')
   header (InvalidForeignFnApplication _) _ =
     text "Invalid foreign function application"
 

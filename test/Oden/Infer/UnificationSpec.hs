@@ -4,7 +4,7 @@ import           Test.Hspec
 
 import           Oden.SourceInfo
 import           Oden.Identifier
-import           Oden.Infer.Substitution
+import           Oden.Infer.Substitution hiding (fromList)
 import           Oden.Infer.Unification
 import           Oden.Predefined
 import           Oden.Type.Polymorphic

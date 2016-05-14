@@ -1,4 +1,6 @@
-{-# LANGUAGE TupleSections, FlexibleInstances #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase #-}
 -- | This module contains values representing polymorphic types, i.e. types
 -- that can be instantiated into other polymorphic types and purely monomorphic
 -- types.
@@ -12,7 +14,6 @@ module Oden.Type.Polymorphic (
   MethodName,
   Protocol(..),
   ProtocolMethod(..),
-  protocolHead,
   rowToList,
   rowFromList,
   getLeafRow,
@@ -23,7 +24,8 @@ module Oden.Type.Polymorphic (
   FTV,
   ftv,
   getBindingVar,
-  underlying
+  underlying,
+  dropConstraint
 ) where
 
 import           Oden.Identifier
@@ -227,7 +229,7 @@ type MethodName = Identifier
 
 data Protocol = Protocol { protocolSourceInfo :: Metadata SourceInfo
                          , protocolName :: ProtocolName
-                         , protocolType :: Type
+                         , protocolHead :: Type
                          , protocolMethods :: [ProtocolMethod]
                          } deriving (Show, Eq, Ord)
 
@@ -235,9 +237,6 @@ data ProtocolMethod = ProtocolMethod { protocolMethodSourceInfo :: Metadata Sour
                                      , protocolMethodName :: MethodName
                                      , protocolMethodType :: Scheme
                                      } deriving (Show, Eq, Ord)
-
-protocolHead :: Protocol -> Type
-protocolHead (Protocol _ _ head' _) = head'
 
 instance HasSourceInfo Protocol where
   getSourceInfo (Protocol (Metadata si) _ _ _)   = si
@@ -250,4 +249,14 @@ instance FTV ProtocolMethod where
 instance FTV Protocol where
   ftv (Protocol _ _ param methods) =
     ftv param `Set.union` ftv methods
+
+dropConstraint :: ProtocolConstraint -> Type -> Type
+dropConstraint constraint =
+  \case
+    TConstrained constraints innerType ->
+      let remaining = Set.filter (/= constraint) constraints
+      in if Set.null remaining
+         then innerType
+         else TConstrained remaining innerType
+    t -> t
 

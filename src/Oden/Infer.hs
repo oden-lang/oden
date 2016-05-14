@@ -35,7 +35,7 @@ import           Oden.Environment                as Environment hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.ConstraintCollection
 import           Oden.Infer.Environment
-import           Oden.Infer.Substitution
+import           Oden.Infer.Substitution         as Substitution
 import           Oden.Infer.Subsumption
 import           Oden.Infer.Unification
 import           Oden.Metadata
@@ -45,8 +45,6 @@ import           Oden.QualifiedName              (QualifiedName (..),
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 import           Oden.Type.Signature
-
-import Debug.Trace
 
 -- | Inference monad.
 type Infer a = (RWST
@@ -159,7 +157,7 @@ lookupValueIn env (Metadata si) identifier = do
   type' <- case Environment.lookup identifier env of
             Nothing                -> throwError $ NotInScope si identifier
             Just PackageBinding{}  -> throwError $ InvalidPackageReference si identifier
-            Just (Local _ _ sc)    -> instantiate sc
+            Just (Local _ _ sc)    -> instantiate si sc
             Just Type{}            -> throwError (NotAnExpression si identifier)
             Just QuantifiedType{}  -> throwError (NotAnExpression si identifier)
             Just ProtocolBinding{} -> throwError (NotAnExpression si identifier)
@@ -205,51 +203,39 @@ fresh si = do
     put s{count = count s + 1}
     return $ TVar si (TV ("_t" ++ show (count s)))
 
--- | Transforms a TVarBinding to a tuple used in 'instantiateType'.
-bindingAsTuple :: TVarBinding -> (TVar, SourceInfo)
-bindingAsTuple (TVarBinding (Metadata si) var) = (var, si)
-
--- | Create a type based on another type, with all specified type variables
--- substituted for fresh type variables.
-instantiateType :: Type
-                -> [(TVar, SourceInfo)]
-                -> Infer Type
-instantiateType type' vars = do
-  subst <- Subst . Map.fromList <$> mapM freshType vars
-  return (apply subst type')
-  where
-  freshType (var, si) = do
-    t <- fresh (Metadata si)
-    return (var, t)
-
 -- | Create a type based on a scheme but with all fresh type variables.
-instantiate :: Scheme -> Infer Type
-instantiate (Forall _ qs cs t) = do
-  t' <- instantiateType t (map bindingAsTuple qs)
-  return $
-    if Set.null cs
-    then t'
-    else TConstrained cs t'
+instantiate :: SourceInfo -> Scheme -> Infer Type
+instantiate si (Forall _ qs cs t) = do
+  subst <- Substitution.fromList <$> mapM freshType qs
+  let withConstraints = if Set.null cs
+                        then t
+                        else TConstrained (Set.map setConstraintSourceInfo cs) t
+  return (apply subst withConstraints)
+  where
+  freshType (TVarBinding si' var) =
+    (var,) <$> fresh si'
+  setConstraintSourceInfo (ProtocolConstraint _ protocolName' type') =
+    ProtocolConstraint (Metadata si) protocolName' type'
 
 -- | Given a typed expression, return a canonical expression with the free
 -- type variables (not present in the environment) declared as type quantifiers
 -- for the expression.
 generalize :: TypingEnvironment -> Typed.TypedExpr -> Typed.CanonicalExpr
-generalize env expr = (scheme, expr')
+generalize env expr = (scheme, expr)
   where quantifiers = map (TVarBinding $ Metadata Missing) (Set.toList $ ftv expr `Set.difference` ftv env)
-        (expr', constraints) = collectConstraints expr
-        scheme = Forall (Metadata $ getSourceInfo expr) quantifiers constraints (typeOf expr')
+        scheme = Forall (Metadata $ getSourceInfo expr) quantifiers (collectConstraints expr) (typeOf expr)
 
-instantiateMethod :: Protocol -> ProtocolMethod -> Infer Type
-instantiateMethod (Protocol _ protocolName' param _) (ProtocolMethod _ _ (Forall _ qs cs methodType)) = do
-  let headTypeVariables = map (,getSourceInfo param) (Set.toList (ftv param))
-  subst <- Subst . Map.fromList <$> mapM freshType (headTypeVariables ++ map bindingAsTuple qs)
-  let constraint = ProtocolConstraint (Metadata Missing) protocolName' param
-  return (apply subst (TConstrained (Set.insert constraint cs) methodType))
+instantiateMethod :: Protocol -> ProtocolMethod -> Infer (TypedMethodReference, Type)
+instantiateMethod (Protocol _ protocolName' param _) (ProtocolMethod _ methodName (Forall _ qs cs methodType)) = do
+  headTypeVariables <- mapM (freshTypeForFreeVar (getSourceInfo param)) (Set.toList (ftv param))
+  subst <- Substitution.fromList <$> ((headTypeVariables ++) <$> mapM freshTypeForBinding qs)
+  let constraint = apply subst (ProtocolConstraint (Metadata Missing) protocolName' param)
+      constrainedType = TConstrained (Set.insert constraint cs) (apply subst methodType)
+  return (Typed.Unresolved protocolName' methodName constraint, constrainedType)
   where
-  freshType (var, si) = do
-    t <- fresh (Metadata si)
-    return (var, t)
+  freshTypeForFreeVar si var = (var,) <$> fresh (Metadata si)
+  freshTypeForBinding (TVarBinding si var) =
+    (var,) <$> fresh si
 
 universeType :: Metadata SourceInfo -> String -> Type
 universeType si n = TCon si (nameInUniverse n)
@@ -439,8 +425,7 @@ infer = \case
   MethodReference si (NamedMethodReference protocol method) Untyped -> do
     protocolType' <- lookupProtocol si protocol
     method' <- findMethod (unwrap si) protocolType' method
-    methodType <- instantiateMethod protocolType' method'
-    let ref = Typed.Unresolved (protocolName protocolType') (protocolMethodName method')
+    (ref, methodType) <- instantiateMethod protocolType' method'
     return (MethodReference si ref methodType)
 
   ForeignFnApplication (Metadata si) _ _ _ ->

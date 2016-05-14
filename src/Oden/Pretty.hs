@@ -65,7 +65,7 @@ instance Pretty e => Pretty (FieldInitializer e) where
   pretty (FieldInitializer _ l e) = pretty l <+> text "=" <+> pretty e
 
 instance Pretty TypedMethodReference where
-  pretty (Unresolved (FQN _ protocolName) methodName) =
+  pretty (Unresolved (FQN _ protocolName) methodName _) =
     pretty protocolName <> text "::" <> pretty methodName
   pretty (Resolved (FQN _ protocolName) methodName _) =
     pretty protocolName <> text "::" <> pretty methodName

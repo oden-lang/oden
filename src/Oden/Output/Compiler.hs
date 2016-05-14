@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Oden.Output.Compiler where
 
 import           Text.PrettyPrint.Leijen
@@ -10,21 +11,42 @@ import           Oden.Pretty                    ()
 
 instance OdenOutput MonomorphError where
   outputType _ = Error
-  name (NotInScope _)                   = "Compiler.Monomorph.NotInScope"
-  name (UnexpectedPolyType _ _)         = "Compiler.Monomorph.UnexpectedPolyType"
-  name (MonomorphInstantiateError err)  = name err
 
-  header (NotInScope i) s                   = code s (pretty i) <+> text "is not in scope"
-  header (UnexpectedPolyType _ e) s         = text "Unexpected polymorphic type" <+> code s (pretty e)
-  header (MonomorphInstantiateError err) s  = header err s
+  name =
+    \case
+      NotInScope{}                  -> "Compiler.Monomorph.NotInScope"
+      UnexpectedPolyType{}          -> "Compiler.Monomorph.UnexpectedPolyType"
+      MonomorphInstantiateError err -> name err
+      UnresolvedMethodReference{}   -> "Compiler.Monomorph.UnresolvedMethodReference"
 
-  details (MonomorphInstantiateError e) s = details e s
-  details (NotInScope _) _           = empty
-  details (UnexpectedPolyType _ _) _ = text "This can usually be fixed by adding (stricter) type signatures to top-level forms."
+  header err s =
+    case err of
+      NotInScope i ->
+        code s (pretty i) <+> text "is not in scope"
+      UnexpectedPolyType _ e ->
+        text "Unexpected polymorphic type" <+> code s (pretty e)
+      MonomorphInstantiateError nestedError ->
+        header nestedError s
+      UnresolvedMethodReference _ _ _ constraint ->
+        text "Unresolved method reference for constraint" <+> code s (pretty constraint)
 
-  sourceInfo (MonomorphInstantiateError e) = sourceInfo e
-  sourceInfo (UnexpectedPolyType si _) = Just si
-  sourceInfo _ = Nothing
+  details err s =
+    case err of
+      MonomorphInstantiateError e -> details e s
+      NotInScope _                -> empty
+      UnexpectedPolyType _ _      ->
+        text "This can usually be fixed by adding (stricter) type signatures to top-level forms."
+      UnresolvedMethodReference _ protocol method _ ->
+        vcat [ text "Caused by the use of" <+> code s (pretty protocol <> text "::" <> pretty method)
+             , text "This error should have been caught in the resolution phase and should be considered a compiler bug."
+             ]
+
+  sourceInfo =
+    \case
+      NotInScope{}                       -> Nothing
+      UnexpectedPolyType si _            -> Just si
+      MonomorphInstantiateError e        -> sourceInfo e
+      UnresolvedMethodReference si _ _ _ -> Just si
 
 instance OdenOutput CompilationError where
   outputType (MonomorphError e) = outputType e

@@ -3,6 +3,7 @@ module Oden.Compiler.ResolutionSpec where
 
 import           Oden.Compiler.Resolution
 
+import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Typed
@@ -44,11 +45,17 @@ rowWithResultAndMessageField =
   rowFromList [ (Identifier "result", typeBool)
               , (Identifier "message", typeString)] (REmpty missing)
 
-unresolved protocol method =
-  MethodReference missing (Unresolved protocol method)
+unresolved protocol method type' constraintType =
+  let constraint = ProtocolConstraint missing protocol constraintType
+  in MethodReference
+     missing
+     (Unresolved protocol method constraint)
+     (TConstrained
+      (Set.singleton constraint)
+      type')
 
-resolved protocol method implMethod =
-  MethodReference missing (Resolved protocol method implMethod)
+resolved protocol method impl =
+  MethodReference missing (Resolved protocol method impl)
 
 testableProtocolName = FQN [] (Identifier "Testable")
 testableMethodName = Identifier "test"
@@ -88,7 +95,7 @@ implementationsAsSet = \case
   _ -> Set.empty
 
 spec :: Spec
-spec =
+spec = do
   describe "resolveInExpr" $ do
 
     it "throws error if there's no matching implementation" $
@@ -98,7 +105,16 @@ spec =
         (unresolved
          testableProtocolName
          testableMethodName
-         aToBool)
+         boolToBool
+         typeBool)
+
+    it "does not try to resolve constraints on type variables" $
+      let expr = unresolved
+                 testableProtocolName
+                 testableMethodName
+                 aToBool
+                 tvarA in
+      resolveInExpr Set.empty expr `shouldSucceedWith` expr
 
     it "resolves a single matching implementation" $
       resolveInExpr
@@ -106,7 +122,8 @@ spec =
       (unresolved
        testableProtocolName
        testableMethodName
-       boolToBool)
+       boolToBool
+       typeBool)
       `shouldSucceedWith`
       resolved
       testableProtocolName
@@ -122,7 +139,8 @@ spec =
        (unresolved
         testableProtocolName
         testableMethodName
-        (TFn missing rowWithResultField typeBool))
+        (TFn missing rowWithResultField typeBool)
+        rowWithResultField)
        (symbol "recordValue" rowWithResultField)
        typeBool)
       `shouldSucceedWith`
@@ -145,7 +163,8 @@ spec =
        (unresolved
         testableProtocolName
         testableMethodName
-        (TFn missing rowWithResultField typeBool))
+        (TFn missing rowWithResultField typeBool)
+        rowWithResultField)
        (symbol "recordValue" rowWithResultField)
        typeBool)
       `shouldSucceedWith`
@@ -168,8 +187,33 @@ spec =
        (unresolved
         testableProtocolName
         testableMethodName
-        boolToBool))
+        boolToBool
+        typeBool))
       `shouldBe`
       Set.fromList [ testableImplementation "bar" typeBool
                    , testableImplementation "foo" typeBool
                    ]
+
+  describe "resolveInDefinition" $
+
+    it "does not try to resolve implementation for constrained type variable" $
+      let constraint = ProtocolConstraint missing testableProtocolName tvarA
+          definition = Definition
+                       missing
+                       (Identifier "")
+                       (Forall
+                         missing
+                         []
+                         (Set.singleton constraint)
+                         (TFn missing tvarA typeBool),
+                         unresolved
+                         testableProtocolName
+                         testableMethodName
+                         (TFn missing tvarA typeBool)
+                         tvarA) in
+      resolveInDefinition
+      (Set.fromList [ testableImplementation "foo" rowWithResultField
+                    , testableImplementation "bar" rowWithResultAndMessageField ])
+      definition
+      `shouldSucceedWith`
+      definition

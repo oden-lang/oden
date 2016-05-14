@@ -141,7 +141,7 @@ explodeTopLevel' pkg top = do
   iter :: ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
        -> Syntax.TopLevel
        -> Writer [ExplodeError] ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
-  iter (is, ts, defs) (Syntax.TopLevelDefinition topLevelDef) = do
+  iter (is, ts, defs) (Syntax.TopLevelDefinition topLevelDef) =
     case explodeFnShortHand topLevelDef of
       Left err -> do
         tell [err]
@@ -163,7 +163,7 @@ explodeTopLevel' pkg top = do
   iter (is, ts, defs) (Syntax.ProtocolDefinition si name varBinding methods) =
     let def = ProtocolDefinition (Metadata si) (FQN pkg name) varBinding methods
     in return (is, ts, defs ++ [def])
-  iter (is, ts, defs) (Syntax.Implementation si protocolName typeSignature methods) = do
+  iter (is, ts, defs) (Syntax.Implementation si protocolName typeSignature methods) =
     case mapM explodeMethodImpls methods of
       Left err -> do
         tell [err]

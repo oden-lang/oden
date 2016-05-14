@@ -9,8 +9,6 @@ import           Oden.CLI.Build
 import           Oden.Core.Definition
 import           Oden.Core.Typed
 
-import qualified Oden.Environment     as Env
-
 import           Control.Monad.Reader
 
 import           Text.PrettyPrint.Leijen

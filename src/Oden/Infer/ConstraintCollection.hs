@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE LambdaCase       #-}
 
 -- | Collects all ProtocolConstraints, removing TConstrained recursively in
 -- the tree.
@@ -11,20 +13,25 @@ import           Oden.Core.Traversal
 import           Oden.Type.Polymorphic
 import           Oden.Type.Traversal
 
-import Data.Set
+import Data.Set as Set
 
 
-collectConstraints :: TypedExpr -> (TypedExpr, Set ProtocolConstraint)
-collectConstraints = runWriter . traverseExpr traversal
+collectConstraints :: TypedExpr -> Set ProtocolConstraint
+collectConstraints = execWriter . traverseExpr traversal
   where
   traversal = identityTraversal { onType = traverseType onType'
                                 , onMethodReference = onMethodReference'
                                 , onMemberAccess = return
                                 }
     where
-    onType' (TConstrained cs t) = tell cs >> return t
+    onType' t@(TConstrained cs _) = do
+      tell (Set.filter isTypeVarConstraint cs)
+      return t
     onType' t = return t
 
-    onMethodReference' si reference type' = do
-      unconstrainedType <- onType' type'
-      return (si, reference, unconstrainedType)
+    onMethodReference' si reference type' = (si, reference,) <$> onType' type'
+
+    isTypeVarConstraint =
+      \case
+        ProtocolConstraint _ _ TVar{} -> True
+        _                             -> False

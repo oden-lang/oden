@@ -29,10 +29,12 @@ import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
-data MonomorphError   = NotInScope Identifier
-                      | UnexpectedPolyType SourceInfo Poly.Type
-                      | MonomorphInstantiateError InstantiateError
-                      deriving (Show, Eq, Ord)
+data MonomorphError
+  = NotInScope Identifier
+  | UnexpectedPolyType SourceInfo Poly.Type
+  | MonomorphInstantiateError InstantiateError
+  | UnresolvedMethodReference SourceInfo Poly.ProtocolName Poly.MethodName Poly.ProtocolConstraint
+  deriving (Show, Eq, Ord)
 
 -- | Represents a reference to a let-bound identifier and the monomorphic type it was
 -- inferred to.
@@ -290,8 +292,8 @@ monomorph e = case e of
 
   MethodReference si reference methodType ->
     case reference of
-      Unresolved _ methodName ->
-        error ("unresolved: " ++ show methodName)
+      Unresolved protocolName methodName constraint ->
+        throwError (UnresolvedMethodReference (unwrap si) protocolName methodName constraint)
       Resolved protocolName' methodName methodImpl -> do
         monoType <- toMonomorphic si methodType
         name <- instantiateMethod protocolName' methodName methodImpl monoType
@@ -332,30 +334,33 @@ unwrapLetInstances (LetInstance si mn me:is) body =
 monomorphDefinitions :: [TypedDefinition]
                      -> Monomorph ()
 monomorphDefinitions [] = return ()
-monomorphDefinitions (d@(Definition si identifier (Poly.Forall _ _ _ st, expr)) : defs) = do
-  case Poly.toMonomorphic st of
-    Left _ -> return ()
-    Right mt -> do
-      mExpr <- monomorph expr
-      addMonomorphed identifier (MonomorphedDefinition si identifier mt mExpr)
-  -- Monomorph rest of the definitions with this definitions identifier in
-  -- the environment.
-  local (`extend` (identifier, DefinitionBinding d)) (monomorphDefinitions defs)
--- Type definitions are not monomorphed or generated to output code, so ignore.
-monomorphDefinitions (TypeDefinition{} : defs) =
-  monomorphDefinitions defs
--- Foreign definitions are are already monomorphic and not generated to out
--- code, so ignore.
-monomorphDefinitions (ForeignDefinition{} : defs) =
-  monomorphDefinitions defs
--- Protocol definitions are not monomorphed or generated to output code, so
--- ignore.
-monomorphDefinitions (ProtocolDefinition{} : defs) =
-  monomorphDefinitions defs
--- Implementations are not monomorphed or generated to output code, so
--- ignore.
-monomorphDefinitions (Implementation{} : defs) =
-  monomorphDefinitions defs
+monomorphDefinitions (def : defs) =
+  case def of
+    Definition si identifier (Poly.Forall _ _ _ st, expr) -> do
+      case Poly.toMonomorphic st of
+        Left _ -> return ()
+        Right mt -> do
+          mExpr <- monomorph expr
+          addMonomorphed identifier (MonomorphedDefinition si identifier mt mExpr)
+      -- Monomorph rest of the definitions with this definitions identifier in
+      -- the environment.
+      local (`extend` (identifier, DefinitionBinding def)) (monomorphDefinitions defs)
+
+    -- Type definitions are not monomorphed or generated to output code, so ignore.
+    TypeDefinition{} ->
+      monomorphDefinitions defs
+    -- Foreign definitions are are already monomorphic and not generated to out
+    -- code, so ignore.
+    ForeignDefinition{} ->
+      monomorphDefinitions defs
+    -- Protocol definitions are not monomorphed or generated to output code, so
+    -- ignore.
+    ProtocolDefinition{} ->
+      monomorphDefinitions defs
+    -- Implementations are not monomorphed or generated to output code, so
+    -- ignore.
+    Implementation{} ->
+      monomorphDefinitions defs
 
 -- | Monomorphs a package and returns the complete package with instantiated
 -- and monomorphed definitions.

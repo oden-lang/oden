@@ -21,16 +21,17 @@ type CompileEnvironment = Environment Binding (ProtocolImplementation TypedExpr)
 
 fromPackage :: TypedPackage -> CompileEnvironment
 fromPackage (TypedPackage _ _ defs) =
-  fromList (concatMap convert defs)
+  foldl1 merge (map convert defs)
   where
-  convert d@(Definition _ n _) = [(n, DefinitionBinding d)]
-  convert d@(ForeignDefinition _ n _) = [(n, DefinitionBinding d)]
-  -- All type and protocol usage should already be resolved before the
-  -- compilation phase so we can safely ignore these.
-  convert TypeDefinition{} = []
-  convert ProtocolDefinition{} = []
-  convert Implementation{} = []
-
+  convert def =
+    case def of
+      Definition _ n _        -> singleton n (DefinitionBinding def)
+      ForeignDefinition _ n _ -> singleton n (DefinitionBinding def)
+      -- All type and protocol usage should already be resolved before the
+      -- compilation phase so we can safely ignore these.
+      TypeDefinition{}        -> empty
+      ProtocolDefinition{}    -> empty
+      Implementation{}        -> empty
 fromPackages :: [ImportedPackage TypedPackage] -> CompileEnvironment
 fromPackages =
   foldl iter empty

@@ -32,6 +32,10 @@ compose :: Subst -> Subst -> Subst
 union :: Subst -> Subst -> Subst
 (Subst s1) `union` (Subst s2) = Subst (s1 `Map.union` s2)
 
+-- | Create a substitution from a list of vars and types.
+fromList :: [(TVar, Type)] -> Subst
+fromList = Subst . Map.fromList
+
 class FTV a => Substitutable a where
   apply :: Subst -> a -> a
 
@@ -66,13 +70,13 @@ instance Substitutable Scheme where
 
 instance FTV TypedMethodReference where
   ftv = \case
-    Unresolved _ _    -> Set.empty
+    Unresolved{}      -> Set.empty
     Resolved _ _ impl -> ftv impl
 
 instance Substitutable TypedMethodReference where
   apply s = \case
-    Unresolved protocol method ->
-      Unresolved protocol method
+    Unresolved protocol method constraint ->
+      Unresolved protocol method (apply s constraint)
     Resolved protocol method impl ->
       Resolved protocol method (apply s impl)
 
