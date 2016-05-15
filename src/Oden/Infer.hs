@@ -49,11 +49,11 @@ import           Oden.Type.Signature
 -- | Inference monad.
 type Infer a = (RWST
                   TypingEnvironment -- Typing environment
-                  [UnifyConstraint]              -- Generated constraints
-                  InferState                -- Inference state
-                  (Except                   -- Inference errors
+                  [UnifyConstraint] -- Generated constraints
+                  InferState        -- Inference state
+                  (Except           -- Inference errors
                     TypeError)
-                  a)                        -- Result
+                  a)                -- Result
 
 -- | Inference state.
 data InferState = InferState { count :: Int }
