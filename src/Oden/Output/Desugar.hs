@@ -1,21 +1,21 @@
 {-# LANGUAGE LambdaCase #-}
-module Oden.Output.Explode where
+module Oden.Output.Desugar where
 
 import           Text.PrettyPrint.Leijen
 
-import           Oden.Explode
+import           Oden.Desugar
 import           Oden.Output
 import           Oden.Pretty             ()
 import           Oden.Type.Signature
 
-instance OdenOutput ExplodeError where
+instance OdenOutput DesugarError where
   outputType _ = Error
 
   name = \case
-    TypeSignatureWithoutDefinition{} -> "Explode.TypeSignatureWithoutDefinition"
-    TypeSignatureRedefinition{}      -> "Explode.TypeSignatureRedefinition"
-    InvalidMemberAccessExpression{}  -> "Explode.InvalidMemberAccessExpression"
-    InvalidProtocolMethodReference{} -> "Explode.InvalidProtocolMethodReference"
+    TypeSignatureWithoutDefinition{} -> "Desugar.TypeSignatureWithoutDefinition"
+    TypeSignatureRedefinition{}      -> "Desugar.TypeSignatureRedefinition"
+    InvalidMemberAccessExpression{}  -> "Desugar.InvalidMemberAccessExpression"
+    InvalidProtocolMethodReference{} -> "Desugar.InvalidProtocolMethodReference"
 
   header expr s = case expr of
     TypeSignatureWithoutDefinition{} ->

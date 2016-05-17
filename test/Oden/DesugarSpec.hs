@@ -1,10 +1,10 @@
-module Oden.ExplodeSpec where
+module Oden.DesugarSpec where
 
 import qualified Oden.Core.Expr        as Expr
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Untyped     (Untyped(..))
-import qualified Oden.Explode          as E
-import           Oden.Explode          hiding (explodeTopLevel)
+import qualified Oden.Desugar          as E
+import           Oden.Desugar          hiding (desugarTopLevel)
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -21,28 +21,28 @@ src l c = SourceInfo (Position "<test>" l c)
 ignored :: Metadata SourceInfo
 ignored = Metadata Missing
 
-explodeTopLevel top = snd <$> E.explodeTopLevel ["pkg"] top
+desugarTopLevel top = snd <$> E.desugarTopLevel ["pkg"] top
 
 spec :: Spec
 spec = do
-  describe "explodeExpr" $ do
+  describe "desugarExpr" $ do
     it "converts symbol" $
-       explodeExpr (Symbol (src 1 1) (Identifier "x"))
+       desugarExpr (Symbol (src 1 1) (Identifier "x"))
       `shouldSucceedWith`
       Expr.Symbol ignored (Identifier "x") Untyped
 
     it "converts int literal" $
-       explodeExpr (Literal (src 1 1) (Int 1))
+       desugarExpr (Literal (src 1 1) (Int 1))
       `shouldSucceedWith`
       Expr.Literal ignored (Expr.Int 1) Untyped
 
     it "converts bool literal" $
-       explodeExpr (Literal (src 1 1) (Bool True))
+       desugarExpr (Literal (src 1 1) (Bool True))
       `shouldSucceedWith`
       Expr.Literal ignored (Expr.Bool True) Untyped
 
     it "converts fn application with no params" $
-       explodeExpr (Application
+       desugarExpr (Application
                    (src 1 1)
                    (Fn (src 1 1) [] (Symbol (src 1 3) (Identifier "x")))
                    [])
@@ -56,7 +56,7 @@ spec = do
       Untyped
 
     it "converts fn application with multiple params" $
-       explodeExpr (Application
+       desugarExpr (Application
                    (src 1 1)
                    (Fn
                     (src 1 1)
@@ -84,9 +84,9 @@ spec = do
       (Expr.Symbol ignored (Identifier "y") Untyped)
       Untyped
 
-  describe "explodeTopLevel" $ do
+  describe "desugarTopLevel" $ do
     it "converts fn definition with no argument" $
-      explodeTopLevel
+      desugarTopLevel
       [TopLevelDefinition
        (FnDefinition (src 1 1) (Identifier "f") [] (Symbol (src 1 3) (Identifier "x")))]
       `shouldSucceedWith`
@@ -100,7 +100,7 @@ spec = do
         Untyped)]
 
     it "converts fn definition with single argument" $
-      explodeTopLevel
+      desugarTopLevel
       [TopLevelDefinition
        (FnDefinition
         (src 1 1)
@@ -119,7 +119,7 @@ spec = do
         Untyped)]
 
     it "converts fn definition with multiple arguments" $
-      explodeTopLevel
+      desugarTopLevel
       [TopLevelDefinition
        (FnDefinition
         (src 1 1)
@@ -142,7 +142,7 @@ spec = do
         Untyped)]
 
     it "converts struct definition and uses empty list for type parameters" $
-      explodeTopLevel
+      desugarTopLevel
       [TypeDefinition
        (src 1 1)
        (Identifier "S")
