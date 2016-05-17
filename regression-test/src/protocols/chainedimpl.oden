@@ -1,0 +1,19 @@
+package protocols/chainedimpl/main
+
+protocol Foo(a) {
+  Foo : a -> a
+}
+
+protocol Bar(b) {
+  Bar : b -> b
+}
+
+impl Bar(int) {
+  Bar(n) = n
+}
+
+impl Foo(int) {
+  Foo(n) = Bar::Bar(n)
+}
+
+main() = println(Foo::Foo(1))

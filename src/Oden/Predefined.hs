@@ -52,7 +52,7 @@ types = [
 universe :: TypedPackage
 universe =
   TypedPackage
-  (PackageDeclaration (Metadata Missing) [])
+  (PackageDeclaration (Metadata Predefined) [])
   []
   (concat [ map toProtocolDef protocols
           , map toForeignDef foreignFns

@@ -226,11 +226,14 @@ generalize env expr = (scheme, expr)
   where quantifiers = map (TVarBinding $ Metadata Missing) (Set.toList $ ftv expr `Set.difference` ftv env)
         scheme = Forall (Metadata $ getSourceInfo expr) quantifiers (collectConstraints expr) (typeOf expr)
 
-instantiateMethod :: Protocol -> ProtocolMethod -> Infer (TypedMethodReference, Type)
-instantiateMethod (Protocol _ protocolName' param _) (ProtocolMethod _ methodName (Forall _ qs cs methodType)) = do
+instantiateMethod :: Metadata SourceInfo
+                  -> Protocol
+                  -> ProtocolMethod
+                  -> Infer (TypedMethodReference, Type)
+instantiateMethod constraintSi (Protocol _ protocolName' param _) (ProtocolMethod _ methodName (Forall _ qs cs methodType)) = do
   headTypeVariables <- mapM (freshTypeForFreeVar (getSourceInfo param)) (Set.toList (ftv param))
   subst <- Substitution.fromList <$> ((headTypeVariables ++) <$> mapM freshTypeForBinding qs)
-  let constraint = apply subst (ProtocolConstraint (Metadata Missing) protocolName' param)
+  let constraint = apply subst (ProtocolConstraint constraintSi protocolName' param)
       constrainedType = TConstrained (Set.insert constraint cs) (apply subst methodType)
   return (Typed.Unresolved protocolName' methodName constraint, constrainedType)
   where
@@ -426,7 +429,7 @@ infer = \case
   MethodReference si (NamedMethodReference protocol method) Untyped -> do
     protocolType' <- lookupProtocol si protocol
     method' <- findMethod (unwrap si) protocolType' method
-    (ref, methodType) <- instantiateMethod protocolType' method'
+    (ref, methodType) <- instantiateMethod si protocolType' method'
     return (MethodReference si ref methodType)
 
   ForeignFnApplication (Metadata si) _ _ _ ->

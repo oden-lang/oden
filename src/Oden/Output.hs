@@ -35,17 +35,21 @@ code settings d =
   escape settings [1, 34] <> contents <> escape settings [0]
   where contents = backtick <> d <> backtick
 
+instance Pretty SourceInfo where
+  pretty e =
+    case e of
+      SourceInfo pos ->
+        text (fileName pos)
+                <> colon <> int (line pos)
+                <> colon <> int (column pos)
+      Predefined -> empty
+      Missing    -> empty
+
 formatSourceInfo :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 formatSourceInfo e =
   case sourceInfo e of
-    Just (SourceInfo pos) ->
-      return $ text (fileName pos)
-               <> colon <> int (line pos)
-               <> colon <> int (column pos)
-               <> colon
-    Just Predefined                         -> return empty
-    Just Missing                            -> return empty
-    Nothing                                 -> return empty
+    Just si -> return (pretty si <> colon <> space)
+    Nothing -> return empty
 
 formatOutputType :: (MonadReader OutputSettings m, OdenOutput e) => e -> m Doc
 formatOutputType e = do
@@ -68,7 +72,7 @@ format e = do
   t <- formatOutputType e
   wl <- wikiLink e
   return (vcat [
-      pos <+> t <+> header e s,
+      pos <> t <+> header e s,
       indent 2 (details e s),
       wl
     ])

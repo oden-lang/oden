@@ -110,7 +110,8 @@ resolveInExpr' = traverseExpr traversal
 
 
 resolveInDefinition' :: TypedDefinition -> Resolve TypedDefinition
-resolveInDefinition' = \case
+resolveInDefinition' =
+  \case
     Definition si name (scheme, expr) -> do
       expr' <- resolveInExpr' expr
       return (Definition si name (scheme, expr'))
@@ -122,7 +123,7 @@ resolveInDefinition' = \case
       return (ProtocolDefinition si name protocol)
     Implementation si implementation -> do
       resolved <- resolveInImplementation implementation
-      modify (Set.insert resolved)
+      modify (Set.insert resolved . Set.delete implementation)
       return (Implementation si resolved)
 
 

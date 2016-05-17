@@ -42,6 +42,7 @@ endif
 
 .PHONY: clean
 clean:
+	stack clean
 	rm -rf build
 
 .PHONY: test

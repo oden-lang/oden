@@ -136,7 +136,7 @@ instance Pretty Poly.Protocol where
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (MethodImplementation (Expr r t m)) where
   pretty (MethodImplementation _ methodName expr) =
-    vcat [ pretty methodName <+> equals <+> pretty (typeOf expr)
+    vcat [ pretty methodName <+> colon <+> pretty (typeOf expr)
          , prettyDefinition methodName expr
          ]
 
