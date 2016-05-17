@@ -34,8 +34,8 @@ build/oden: $(STACK_ODEN_EXE)
 	cp CHANGELOG.md build/oden/CHANGELOG.txt
 	cp $(STACK_ODEN_EXE) build/oden/bin/oden-exe
 	cp distribution/oden.sh build/oden/bin/oden
-	cp -r build/lib build/oden/lib
 	rm -f build/lib/libimporter.h
+	cp -r build/lib build/oden/lib
 ifeq ($(OS),osx)
 		./tools/change_osx_install_names.sh
 endif
