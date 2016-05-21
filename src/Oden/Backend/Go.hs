@@ -26,7 +26,7 @@ import           Oden.Backend
 import           Oden.Core.Expr
 import           Oden.Core.Monomorphed as Monomorphed
 import           Oden.Core.Package
-import           Oden.Core.Operator
+import           Oden.Core.Foreign
 import           Oden.Core.Typed
 
 import           Oden.Identifier
@@ -108,6 +108,7 @@ genBinaryOperator op = case op of
   Multiply -> AST.Product
   Divide -> AST.Quotient
   Equals -> AST.EQ
+  NotEquals -> AST.NEQ
   Concat -> AST.Sum
   LessThan -> AST.LT
   GreaterThan -> AST.GT
@@ -117,8 +118,7 @@ genBinaryOperator op = case op of
   Or -> AST.Or
 
 genUnaryOperator :: UnaryOperator -> AST.UnaryOperator
-genUnaryOperator Negative = AST.UnaryNegation
-genUnaryOperator Positive = AST.UnaryPlus
+genUnaryOperator Negate = AST.UnaryNegation
 genUnaryOperator Not = AST.Not
 
 genRange :: MonoTypedRange -> Codegen AST.SliceExpression
@@ -139,6 +139,9 @@ genRawForeignFnApplication f args =
       return (AST.Application fc (args' ++ [variadicArg]))
     _ -> AST.Application <$> genPrimaryExpression f
                          <*> (map AST.Argument <$> mapM genExpr args)
+
+grouped :: AST.Expression -> AST.Expression
+grouped = AST.Expression . AST.Operand . AST.GroupedExpression
 
 operandName :: GI.Identifier -> AST.Expression
 operandName = AST.Expression . AST.Operand . AST.OperandName
@@ -224,12 +227,12 @@ genExpr expr = case expr of
     AST.Expression <$> (AST.Index <$> genPrimaryExpression s <*> genExpr i)
   Subslice _ s r _ ->
     AST.Expression <$> (AST.Slice <$> genPrimaryExpression s <*> genRange r)
-  UnaryOp _ o e _ ->
-    AST.UnaryOp (genUnaryOperator o) <$> genPrimaryExpression e
 
-  -- Foreign operators are applied in a special manner.
-  Application _ (Application _ (Foreign _ (ForeignOperator o) _) lhs _) rhs _ ->
-    AST.BinaryOp (genBinaryOperator o) <$> genExpr lhs <*> genExpr rhs
+  -- Foreign operators are code generated in a special manner.
+  Application _ (Foreign _ (ForeignUnaryOperator o) _) operand _ ->
+    grouped <$> (AST.UnaryOp (genUnaryOperator o) <$> genPrimaryExpression operand)
+  Application _ (Application _ (Foreign _ (ForeignBinaryOperator o) _) lhs _) rhs _ ->
+    grouped <$> (AST.BinaryOp (genBinaryOperator o) <$> genExpr lhs <*> genExpr rhs)
 
   Application _ f arg _ ->
     AST.Expression <$> (AST.Application <$> genPrimaryExpression f
@@ -341,7 +344,10 @@ genExpr expr = case expr of
   Foreign _ (ForeignSymbol s) _ ->
     (AST.Expression . AST.Operand . AST.OperandName) <$> genIdentifier s
 
-  Foreign _ (ForeignOperator o) _ ->
+  Foreign _ (ForeignUnaryOperator _) _ ->
+    error "cannot codegen foreign unary operator without an application"
+
+  Foreign _ (ForeignBinaryOperator _) _ ->
     error "cannot codegen foreign binary operator without a full binary application"
 
 genBlock :: MonoTypedExpr -> Codegen AST.Block

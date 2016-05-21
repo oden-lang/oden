@@ -3,9 +3,10 @@ module Oden.Infer.Fixtures where
 import           Oden.Core.Typed        as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Operator
+import           Oden.Core.Foreign
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Untyped      hiding (Definition (..), MethodImplementation(..))
+
 import           Oden.Environment       hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.Environment
@@ -38,7 +39,7 @@ constrainedScheme :: Set.Set ProtocolConstraint -> Type -> Scheme
 constrainedScheme constraints t = Forall predefined (map (TVarBinding missing) $ Set.toList (ftv t)) constraints t
 
 scheme :: Type -> Scheme
-scheme t = constrainedScheme Set.empty t
+scheme = constrainedScheme Set.empty
 
 typeFn :: Type -> Type -> Type
 typeFn = TFn missing
@@ -195,7 +196,7 @@ equalsImplInt =
   missing
   (Identifier "EqualTo")
   (Foreign missing
-    (ForeignOperator Equals)
+    (ForeignBinaryOperator Equals)
     (typeFn typeInt (typeFn typeInt typeBool)))
 
 subtractImplInt :: MethodImplementation TypedExpr
@@ -203,7 +204,7 @@ subtractImplInt =
   MethodImplementation
   missing
   (Identifier "Subtract")
-  (Foreign missing (ForeignOperator Subtract) intToIntToInt)
+  (Foreign missing (ForeignBinaryOperator Subtract) intToIntToInt)
 
 countToZeroTyped :: Typed.TypedDefinition
 countToZeroTyped =

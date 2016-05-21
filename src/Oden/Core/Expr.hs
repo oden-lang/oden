@@ -1,6 +1,6 @@
 module Oden.Core.Expr where
 
-import           Oden.Core.Operator
+import           Oden.Core.Foreign
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.SourceInfo
@@ -25,17 +25,10 @@ data Range e
   | RangeFrom e
   deriving (Show, Eq, Ord)
 
-data ForeignFunction
-  = ForeignOperator BinaryOperator
-  | ForeignUnaryOperator UnaryOperator
-  | ForeignSymbol Identifier
-  deriving (Show, Eq, Ord)
-
 data Expr r t m
   = Symbol (Metadata SourceInfo) Identifier t
   | Subscript (Metadata SourceInfo) (Expr r t m) (Expr r t m) t
   | Subslice (Metadata SourceInfo) (Expr r t m) (Range (Expr r t m)) t
-  | UnaryOp (Metadata SourceInfo) UnaryOperator (Expr r t m) t
   | Application (Metadata SourceInfo) (Expr r t m) (Expr r t m) t
   | NoArgApplication (Metadata SourceInfo) (Expr r t m) t
   | ForeignFnApplication (Metadata SourceInfo) (Expr r t m) [Expr r t m] t
@@ -50,7 +43,7 @@ data Expr r t m
   | RecordInitializer (Metadata SourceInfo) [FieldInitializer (Expr r t m)] t
   | MemberAccess (Metadata SourceInfo) m t
   | MethodReference (Metadata SourceInfo) r t
-  | Foreign (Metadata SourceInfo) ForeignFunction t
+  | Foreign (Metadata SourceInfo) ForeignExpr t
   deriving (Show, Eq, Ord)
 
 typeOf :: Expr r t m -> t
@@ -58,7 +51,6 @@ typeOf expr = case expr of
   Symbol _ _ t                    -> t
   Subscript _ _ _ t               -> t
   Subslice _ _ _ t                -> t
-  UnaryOp _ _ _ t                 -> t
   Application _ _ _ t             -> t
   NoArgApplication _ _ t          -> t
   ForeignFnApplication _ _ _ t    -> t
@@ -80,7 +72,6 @@ instance HasSourceInfo (Expr r t m) where
     Symbol (Metadata si) _ _                 -> si
     Subscript (Metadata si) _ _ _            -> si
     Subslice (Metadata si) _ _ _             -> si
-    UnaryOp (Metadata si) _ _ _              -> si
     Application (Metadata si) _ _ _          -> si
     NoArgApplication (Metadata si) _ _       -> si
     ForeignFnApplication (Metadata si) _ _ _ -> si
@@ -101,7 +92,6 @@ instance HasSourceInfo (Expr r t m) where
     Symbol _ i t                 -> Symbol (Metadata si) i t
     Subscript _ s i t            -> Subscript (Metadata si) s i t
     Subslice _ s r t             -> Subslice (Metadata si) s r t
-    UnaryOp _ o r t              -> UnaryOp (Metadata si) o r t
     Application _ f a t          -> Application (Metadata si) f a t
     NoArgApplication _ f t       -> NoArgApplication (Metadata si) f t
     ForeignFnApplication _ f a t -> ForeignFnApplication (Metadata si) f a t

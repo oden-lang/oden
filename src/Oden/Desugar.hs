@@ -10,11 +10,12 @@ module Oden.Desugar
 import           Oden.Core.Expr
 import           Oden.Core.Package
 import           Oden.Core.Untyped
-import           Oden.Core.Operator
+
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Syntax as Syntax
+import           Oden.Syntax (UnaryOperator(..), BinaryOperator(..))
 import           Oden.SourceInfo
 import           Oden.Type.Signature
 
@@ -36,6 +37,12 @@ desugarFieldInitializer :: Syntax.FieldInitializer
 desugarFieldInitializer (Syntax.FieldInitializer si label expr) =
   FieldInitializer (Metadata si) label <$> desugarExpr expr
 
+methodForUnaryOperator :: Syntax.UnaryOperator -> NamedMethodReference
+methodForUnaryOperator =
+  \case
+    Syntax.Negate -> NamedMethodReference (Identifier "Num") (Identifier "Negate")
+    Syntax.Not    -> NamedMethodReference (Identifier "Logical") (Identifier "Not")
+
 methodForBinaryOperator :: BinaryOperator -> NamedMethodReference
 methodForBinaryOperator =
   \case
@@ -43,9 +50,9 @@ methodForBinaryOperator =
     Subtract         -> NamedMethodReference (Identifier "Subtraction") (Identifier "Subtract")
     Multiply         -> NamedMethodReference (Identifier "Multiplication") (Identifier "Multiply")
     Divide           -> NamedMethodReference (Identifier "Division") (Identifier "Divide")
-    Equals           -> NamedMethodReference (Identifier "Equality") (Identifier "EqualTo")
-    NotEquals        -> NamedMethodReference (Identifier "Equality") (Identifier "NotEqualTo")
-    Concat           -> NamedMethodReference (Identifier "Monoid") (Identifier "Apply")
+    EqualTo          -> NamedMethodReference (Identifier "Equality") (Identifier "EqualTo")
+    NotEqualTo       -> NamedMethodReference (Identifier "Equality") (Identifier "NotEqualTo")
+    MonoidApply      -> NamedMethodReference (Identifier "Monoid") (Identifier "Apply")
     LessThan         -> NamedMethodReference (Identifier "Ordered") (Identifier "LessThan")
     LessThanEqual    -> NamedMethodReference (Identifier "Ordered") (Identifier "LessThanEqual")
     GreaterThan      -> NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThan")
@@ -70,8 +77,12 @@ desugarExpr = \case
   Syntax.Subscript si es (i:ir) ->
     desugarExpr (Syntax.Subscript si (Syntax.Subscript si es [i]) ir)
 
-  Syntax.UnaryOp si o e ->
-    UnaryOp (Metadata si) o <$> desugarExpr e <*> untyped
+  Syntax.UnaryOp si op expr ->
+    Application
+    (Metadata si)
+    (MethodReference (Metadata si) (methodForUnaryOperator op) Untyped)
+    <$> desugarExpr expr
+    <*> untyped
   Syntax.BinaryOp si op e1 e2 ->
     Application
     (Metadata si)

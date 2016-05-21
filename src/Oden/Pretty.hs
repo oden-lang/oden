@@ -6,7 +6,7 @@ import           Oden.Core.Definition
 import           Oden.Core.Expr
 import qualified Oden.Core.Untyped as Untyped
 import           Oden.Core.Package
-import           Oden.Core.Operator
+import           Oden.Core.Foreign
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Monomorphed as Monomorphed
 
@@ -40,9 +40,8 @@ instance Pretty NameBinding where
   pretty (NameBinding _ identifier) = pretty identifier
 
 instance Pretty UnaryOperator where
-  pretty Positive = text "+"
-  pretty Negative = text "-"
-  pretty Not      = text "!"
+  pretty Negate = text "-"
+  pretty Not    = text "!"
 
 instance Pretty BinaryOperator where
   pretty Add = text "+"
@@ -75,7 +74,6 @@ instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
   pretty (Symbol _ i _) = pretty i
   pretty (Subscript _ s i _) = pretty s <> text "[" <> pretty i <> text "]"
   pretty (Subslice _ s r _) = pretty s <> pretty r
-  pretty (UnaryOp _ op e _) = pretty op <+> pretty e
   pretty (Application _ f a _) = pretty f <> text "(" <> pretty a <> text ")"
   pretty (NoArgApplication _ f _) = pretty f <> text "()"
   pretty (ForeignFnApplication _ f as _) = pretty f <> commaSepParens as
@@ -99,7 +97,7 @@ instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
     braces (hcat (punctuate (text ", ") (map pretty fields)))
   pretty (MemberAccess _ access _) = pretty access
   pretty (MethodReference _ ref _) = pretty ref
-  pretty (Foreign _ (ForeignOperator op) _) = parens (pretty op)
+  pretty (Foreign _ (ForeignBinaryOperator op) _) = parens (pretty op)
   pretty (Foreign _ (ForeignUnaryOperator op) _) = parens (pretty op)
   pretty (Foreign _ (ForeignSymbol s) _) = pretty s
 

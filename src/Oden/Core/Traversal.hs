@@ -55,8 +55,6 @@ traverseExpr traversal@Traversal{ onExpr = onExpr'
       Subscript si <$> traverseExpr' slice <*> traverseExpr' i <*> onType' t
     Subslice si slice range t ->
       Subslice si <$> traverseExpr' slice <*> traverseRange range <*> onType' t
-    UnaryOp si operator operand t ->
-      UnaryOp si operator <$> traverseExpr' operand <*> onType' t
     Application si f arg t ->
       Application si <$> traverseExpr' f <*> traverseExpr' arg <*> onType' t
     NoArgApplication si f t ->

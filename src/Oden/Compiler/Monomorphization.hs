@@ -189,11 +189,6 @@ monomorph e = case e of
                         <*> (RangeFrom <$> monomorph indexExpr)
                         <*> toMonomorphic sourceInfo polyType
 
-  UnaryOp si o e1 _ -> do
-    mt <- getMonoType e
-    me <- monomorph e1
-    return (UnaryOp si o me mt)
-
   Application si f p _ -> do
     mt <- getMonoType e
     mf <- monomorph f

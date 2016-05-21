@@ -113,7 +113,6 @@ instance (Substitutable r, Substitutable m) => Substitutable (Expr r Type m) whe
     Subslice si es (Range e1 e2) t -> Subslice si (apply s es) (Range (apply s e1) (apply s e2)) (apply s t)
     Subslice si es (RangeTo e) t   -> Subslice si (apply s es) (RangeTo (apply s e)) (apply s t)
     Subslice si es (RangeFrom e) t -> Subslice si (apply s es) (RangeFrom (apply s e)) (apply s t)
-    UnaryOp si o e t               -> UnaryOp si o (apply s e) (apply s t)
     Application si f p t           -> Application si (apply s f) (apply s p) (apply s t)
     NoArgApplication si f t        -> NoArgApplication si (apply s f) (apply s t)
     ForeignFnApplication si f p t  -> ForeignFnApplication si (apply s f) (apply s p) (apply s t)

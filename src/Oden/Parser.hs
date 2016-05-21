@@ -14,7 +14,6 @@ import qualified Oden.Lexer            as Lexer
 import           Oden.Syntax           as Syntax
 import           Oden.Type.Signature
 import           Oden.SourceInfo
-import           Oden.Core.Operator
 
 sign :: Parser (Integer -> Integer)
 sign = (char '-' >> return negate)
@@ -253,8 +252,7 @@ table = [
       application
     ],
     [
-      prefixOp "+" Positive,
-      prefixOp "-" Negative,
+      prefixOp "-" Negate,
       prefixOp "!" Not
     ],
     [
@@ -265,14 +263,14 @@ table = [
       infixOp "+" Add Ex.AssocLeft,
       infixOp "-" Subtract Ex.AssocLeft,
 
-      infixOp "++" Concat Ex.AssocLeft
+      infixOp "++" MonoidApply Ex.AssocLeft
     ],
     [
       infixOp "<" LessThan Ex.AssocLeft,
       infixOp ">" GreaterThan Ex.AssocLeft,
       infixOp "<=" LessThanEqual Ex.AssocLeft,
       infixOp ">=" GreaterThanEqual Ex.AssocLeft,
-      infixOp "==" Equals Ex.AssocLeft
+      infixOp "==" EqualTo Ex.AssocLeft
     ],
     [
       infixOp "&&" And Ex.AssocLeft,

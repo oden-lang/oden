@@ -9,7 +9,7 @@ import           Oden.Compiler.Monomorphization
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Monomorphed
-import           Oden.Core.Operator
+import           Oden.Core.Foreign
 import           Oden.Core.Typed
 import           Oden.Core.ProtocolImplementation
 
@@ -56,7 +56,7 @@ intFooMethodInstance :: InstantiatedDefinition
 intFooMethodInstance =
   InstantiatedMethod
   missing
-  (Identifier "Foo_method_foo_inst_int")
+  (Identifier "Foo_method_foo_inst_int_to_int")
   (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") monoInt) (Mono.TFn missing monoInt monoInt))
 
 resolvedReferenceFooExpr :: TypedDefinition
@@ -64,22 +64,22 @@ resolvedReferenceFooExpr =
   Definition
     missing
     (Identifier "resolvedReferenceFooExpr")
-    (Poly.Forall missing [] Set.empty typeInt,
+    (Poly.Forall missing [] Set.empty (Poly.TFn missing typeInt typeInt),
      MethodReference
      missing
      (Resolved
       fooProtocolName
       fooMethodName
       fooMethodImplementation)
-     typeInt)
+     (Poly.TFn missing typeInt typeInt))
 
 resolvedReferenceFooMonomorphed :: MonomorphedDefinition
 resolvedReferenceFooMonomorphed =
   MonomorphedDefinition
     missing
     (Identifier "resolvedReferenceFooExpr")
-    monoInt
-    (Symbol missing (Identifier "Foo_method_foo_inst_int") monoInt)
+    (Mono.TFn missing monoInt monoInt)
+    (Symbol missing (Identifier "Foo_method_foo_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
 
 resolvedReferenceAddExpr :: TypedDefinition
 resolvedReferenceAddExpr =
@@ -95,7 +95,7 @@ resolvedReferenceAddExpr =
       (MethodImplementation
        missing
        (Identifier "Add")
-       (Foreign missing (ForeignOperator Add) (Poly.TFn missing typeInt (Poly.TFn missing typeInt typeInt)))))
+       (Foreign missing (ForeignBinaryOperator Add) (Poly.TFn missing typeInt (Poly.TFn missing typeInt typeInt)))))
       typeInt)
 
 resolvedReferenceAddMonomorphed :: MonomorphedDefinition
@@ -104,7 +104,7 @@ resolvedReferenceAddMonomorphed =
   missing
   (Identifier "resolvedReferenceAddExpr")
   (Mono.TFn missing monoInt monoInt)
-  (Foreign missing (ForeignOperator Add) (Mono.TFn missing monoInt (Mono.TFn missing monoInt monoInt)))
+  (Foreign missing (ForeignBinaryOperator Add) (Mono.TFn missing monoInt (Mono.TFn missing monoInt monoInt)))
 
 spec :: Spec
 spec = do

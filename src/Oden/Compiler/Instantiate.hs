@@ -146,8 +146,6 @@ instantiateExpr (Subslice si s (RangeFrom e) t) =
                    <*> (RangeFrom <$> instantiateExpr e)
                    <*> replace t
 
-instantiateExpr (UnaryOp si o e t) =
-  UnaryOp si o <$> instantiateExpr e <*> replace t
 instantiateExpr (Application si f p t) =
   Application si <$> instantiateExpr f
                       <*> instantiateExpr p

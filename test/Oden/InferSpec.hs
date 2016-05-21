@@ -6,7 +6,6 @@ import qualified Data.Set              as Set
 
 import           Oden.Core.Typed
 import           Oden.Core.Expr
-import           Oden.Core.Operator
 import           Oden.Core.Untyped
 import           Oden.Environment
 import           Oden.Identifier

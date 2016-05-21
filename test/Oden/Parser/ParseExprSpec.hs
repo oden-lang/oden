@@ -3,7 +3,6 @@ module Oden.Parser.ParseExprSpec where
 
 import           Test.Hspec
 
-import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Parser
 import           Oden.SourceInfo
@@ -166,16 +165,8 @@ spec = describe "parseExpr" $ do
     `shouldSucceedWith`
     UnaryOp
     (src 1 1)
-    Negative
+    Negate
     (Symbol (src 1 2) (Identifier "x"))
-
-  it "parses unary positve operator application" $
-    parseExpr "+ x"
-    `shouldSucceedWith`
-    UnaryOp
-    (src 1 1)
-    Positive
-    (Symbol (src 1 3) (Identifier "x"))
 
   it "parses binary operator application" $
     parseExpr "x + y"
@@ -191,7 +182,7 @@ spec = describe "parseExpr" $ do
     `shouldSucceedWith`
     BinaryOp
     (src 1 3)
-    Concat
+    MonoidApply
     (Symbol (src 1 1) (Identifier "x"))
     (Symbol (src 1 6) (Identifier "y"))
 
@@ -200,7 +191,7 @@ spec = describe "parseExpr" $ do
     `shouldSucceedWith`
     BinaryOp
     (src 1 8)
-    Concat
+    MonoidApply
     (Application
       (src 1 4)
       (Symbol (src 1 1) (Identifier "foo"))

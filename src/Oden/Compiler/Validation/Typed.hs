@@ -5,7 +5,6 @@ module Oden.Compiler.Validation.Typed where
 import           Oden.Core.Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Operator
 import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Traversal

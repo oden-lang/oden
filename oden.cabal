@@ -45,7 +45,7 @@ library
     Oden.Core.Typed,
     Oden.Core.Definition,
     Oden.Core.Expr,
-    Oden.Core.Operator,
+    Oden.Core.Foreign,
     Oden.Core.Monomorphed,
     Oden.Core.Package,
     Oden.Core.ProtocolImplementation,

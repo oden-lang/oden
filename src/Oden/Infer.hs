@@ -25,7 +25,7 @@ import qualified Data.Set                        as Set
 import           Oden.Core.Typed                 as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Operator
+import           Oden.Core.Foreign
 import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Untyped               hiding (Definition(..), MethodImplementation(..))
@@ -312,15 +312,6 @@ infer = \case
       uni (getSourceInfo st) (typeOf st) (TSlice (Metadata $ getSourceInfo s) tv)
       uni (getSourceInfo boundExprTyped) (typeOf boundExprTyped) (universeType si "int")
       return (Subslice si st (f boundExprTyped) (TSlice si tv))
-
-  UnaryOp si o e Untyped -> do
-    rt <- case o of
-              Positive   -> return (universeType si "int")
-              Negative -> return (universeType si "int")
-              Not    -> return (universeType si "bool")
-    te <- infer e
-    uni (getSourceInfo te) (typeOf te) rt
-    return (UnaryOp si o te rt)
 
   Symbol si x Untyped -> do
     t <- lookupValue si x

@@ -1,6 +1,7 @@
+-- | This module containts the Oden AST - the representation of the syntax.
+{-# LANGUAGE LambdaCase #-}
 module Oden.Syntax where
 
-import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.SourceInfo
 import           Oden.Type.Signature
@@ -14,55 +15,81 @@ data LetPair = LetPair SourceInfo NameBinding Expr
 data FieldInitializer = FieldInitializer SourceInfo Identifier Expr
                       deriving (Show, Eq, Ord)
 
-data Expr = Symbol SourceInfo Identifier
-          | Subscript SourceInfo Expr [Subscript]
-          | UnaryOp SourceInfo UnaryOperator Expr
-          | BinaryOp SourceInfo BinaryOperator Expr Expr
-          | Application SourceInfo Expr [Expr]
-          | Fn SourceInfo [NameBinding] Expr
-          | Let SourceInfo [LetPair] Expr
-          | Literal SourceInfo Literal
-          | If SourceInfo Expr Expr Expr
-          | Slice SourceInfo [Expr]
-          | Tuple SourceInfo Expr Expr [Expr]
-          | Block SourceInfo [Expr]
-          | RecordInitializer SourceInfo [FieldInitializer]
-          | MemberAccess SourceInfo Expr Expr
-          | ProtocolMethodReference SourceInfo Expr Expr
-          deriving (Show, Eq, Ord)
+data BinaryOperator
+  = Add
+  | Subtract
+  | Multiply
+  | Divide
+  | EqualTo
+  | NotEqualTo
+  | MonoidApply
+  | LessThan
+  | GreaterThan
+  | LessThanEqual
+  | GreaterThanEqual
+  | And
+  | Or
+  deriving (Show, Eq, Ord)
+
+data UnaryOperator
+  = Negate
+  | Not
+  deriving (Show, Eq, Ord)
+
+data Expr
+  = Symbol SourceInfo Identifier
+  | Subscript SourceInfo Expr [Subscript]
+  | UnaryOp SourceInfo UnaryOperator Expr
+  | BinaryOp SourceInfo BinaryOperator Expr Expr
+  | Application SourceInfo Expr [Expr]
+  | Fn SourceInfo [NameBinding] Expr
+  | Let SourceInfo [LetPair] Expr
+  | Literal SourceInfo Literal
+  | If SourceInfo Expr Expr Expr
+  | Slice SourceInfo [Expr]
+  | Tuple SourceInfo Expr Expr [Expr]
+  | Block SourceInfo [Expr]
+  | RecordInitializer SourceInfo [FieldInitializer]
+  | MemberAccess SourceInfo Expr Expr
+  | ProtocolMethodReference SourceInfo Expr Expr
+  deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Expr where
-  getSourceInfo (Symbol si _)                    = si
-  getSourceInfo (Subscript si _ _)               = si
-  getSourceInfo (UnaryOp si _ _)                 = si
-  getSourceInfo (BinaryOp si _ _ _)              = si
-  getSourceInfo (Application si _ _)             = si
-  getSourceInfo (Fn si _ _)                      = si
-  getSourceInfo (Let si _ _)                     = si
-  getSourceInfo (Literal si _)                   = si
-  getSourceInfo (If si _ _ _)                    = si
-  getSourceInfo (Slice si _)                     = si
-  getSourceInfo (Tuple si _ _ _)                 = si
-  getSourceInfo (Block si _)                     = si
-  getSourceInfo (RecordInitializer si _)         = si
-  getSourceInfo (MemberAccess si _ _)            = si
-  getSourceInfo (ProtocolMethodReference si _ _) = si
+  getSourceInfo =
+    \case
+      Symbol si _                    -> si
+      Subscript si _ _               -> si
+      UnaryOp si _ _                 -> si
+      BinaryOp si _ _ _              -> si
+      Application si _ _             -> si
+      Fn si _ _                      -> si
+      Let si _ _                     -> si
+      Literal si _                   -> si
+      If si _ _ _                    -> si
+      Slice si _                     -> si
+      Tuple si _ _ _                 -> si
+      Block si _                     -> si
+      RecordInitializer si _         -> si
+      MemberAccess si _ _            -> si
+      ProtocolMethodReference si _ _ -> si
 
-  setSourceInfo si (Symbol _ i)                                = Symbol si i
-  setSourceInfo si (Subscript _ s i)                           = Subscript si s i
-  setSourceInfo si (UnaryOp _ o r)                             = UnaryOp si o r
-  setSourceInfo si (BinaryOp _ p l r)                          = BinaryOp si p l r
-  setSourceInfo si (Application _ f a)                         = Application si f a
-  setSourceInfo si (Fn _ n b)                                  = Fn si n b
-  setSourceInfo si (Let _ p b)                                 = Let si p b
-  setSourceInfo si (Literal _ l)                               = Literal si l
-  setSourceInfo si (If _ c t e)                                = If si c t e
-  setSourceInfo si (Slice _ e)                                 = Slice si e
-  setSourceInfo si (Tuple _ f s r)                             = Tuple si f s r
-  setSourceInfo si (Block _ e)                                 = Block si e
-  setSourceInfo si (RecordInitializer _ fs)                    = RecordInitializer si fs
-  setSourceInfo si (MemberAccess _ pkgAlias name)              = MemberAccess si pkgAlias name
-  setSourceInfo si (ProtocolMethodReference _ protocol method) = ProtocolMethodReference si protocol method
+  setSourceInfo si =
+    \case
+      Symbol _ i                                -> Symbol si i
+      Subscript _ s i                           -> Subscript si s i
+      UnaryOp _ o r                             -> UnaryOp si o r
+      BinaryOp _ p l r                          -> BinaryOp si p l r
+      Application _ f a                         -> Application si f a
+      Fn _ n b                                  -> Fn si n b
+      Let _ p b                                 -> Let si p b
+      Literal _ l                               -> Literal si l
+      If _ c t e                                -> If si c t e
+      Slice _ e                                 -> Slice si e
+      Tuple _ f s r                             -> Tuple si f s r
+      Block _ e                                 -> Block si e
+      RecordInitializer _ fs                    -> RecordInitializer si fs
+      MemberAccess _ pkgAlias name              -> MemberAccess si pkgAlias name
+      ProtocolMethodReference _ protocol method -> ProtocolMethodReference si protocol method
 
 data Subscript = Singular Expr
                | RangeTo Expr
@@ -88,14 +115,15 @@ data Definition
   | FnDefinition SourceInfo Identifier [NameBinding] Expr
   deriving (Show, Eq, Ord)
 
-data TopLevel = ImportDeclaration SourceInfo PackageName
-              | TypeSignatureDeclaration SourceInfo Identifier (TypeSignature SourceInfo)
-              | TopLevelDefinition Definition
-              -- TODO: Add support for type parameters
-              | TypeDefinition SourceInfo Identifier (SignatureExpr SourceInfo)
-              | ProtocolDefinition SourceInfo Identifier (SignatureVarBinding SourceInfo) [ProtocolMethodSignature SourceInfo]
-              | Implementation SourceInfo Identifier (SignatureExpr SourceInfo) [Definition]
-              deriving (Show, Eq, Ord)
+data TopLevel
+  = ImportDeclaration SourceInfo PackageName
+  | TypeSignatureDeclaration SourceInfo Identifier (TypeSignature SourceInfo)
+  | TopLevelDefinition Definition
+  -- TODO: Add support for type parameters
+  | TypeDefinition SourceInfo Identifier (SignatureExpr SourceInfo)
+  | ProtocolDefinition SourceInfo Identifier (SignatureVarBinding SourceInfo) [ProtocolMethodSignature SourceInfo]
+  | Implementation SourceInfo Identifier (SignatureExpr SourceInfo) [Definition]
+  deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]
              deriving (Show, Eq, Ord)
