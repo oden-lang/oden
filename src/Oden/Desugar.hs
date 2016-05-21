@@ -43,14 +43,15 @@ methodForBinaryOperator =
     Subtract         -> NamedMethodReference (Identifier "Subtraction") (Identifier "Subtract")
     Multiply         -> NamedMethodReference (Identifier "Multiplication") (Identifier "Multiply")
     Divide           -> NamedMethodReference (Identifier "Division") (Identifier "Divide")
-    Equals           -> NamedMethodReference (Identifier "Equality") (Identifier "Equals")
-    Concat           -> NamedMethodReference (Identifier "Concat") (Identifier "Concat")
+    Equals           -> NamedMethodReference (Identifier "Equality") (Identifier "EqualTo")
+    NotEquals        -> NamedMethodReference (Identifier "Equality") (Identifier "NotEqualTo")
+    Concat           -> NamedMethodReference (Identifier "Monoid") (Identifier "Apply")
     LessThan         -> NamedMethodReference (Identifier "Ordered") (Identifier "LessThan")
     LessThanEqual    -> NamedMethodReference (Identifier "Ordered") (Identifier "LessThanEqual")
     GreaterThan      -> NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThan")
     GreaterThanEqual -> NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThanEqual")
-    And              -> NamedMethodReference (Identifier "Logical") (Identifier "And")
-    Or               -> NamedMethodReference (Identifier "Logical") (Identifier "Or")
+    And              -> NamedMethodReference (Identifier "Logical") (Identifier "Conjunction")
+    Or               -> NamedMethodReference (Identifier "Logical") (Identifier "Disjunction")
 
 
 untyped :: Either DesugarError Untyped

@@ -6,6 +6,9 @@ current = { x = 12, y = 24 }
 
 delta = { x = 1, y = 1 }
 
+// This can be polymorphic again when https://github.com/oden-lang/oden/issues/94
+// is resolved.
+add : Point -> Point -> Point
 add(p1, p2) = { x = p1.x + p2.x, y = p1.y + p2.y }
 
 printPoint(p) = println((p.x, p.y))

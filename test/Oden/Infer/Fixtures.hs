@@ -168,7 +168,7 @@ countToZero =
     missing
     (Application
      missing
-     (MethodReference missing (NamedMethodReference (Identifier "Equality") (Identifier "Equals")) Untyped)
+     (MethodReference missing (NamedMethodReference (Identifier "Equality") (Identifier "EqualTo")) Untyped)
      (Symbol missing (Identifier "x") Untyped)
      Untyped)
     (Literal missing (Int 0) Untyped)
@@ -193,7 +193,7 @@ equalsImplInt :: MethodImplementation TypedExpr
 equalsImplInt =
   MethodImplementation
   missing
-  (Identifier "Equals")
+  (Identifier "EqualTo")
   (Foreign missing
     (ForeignOperator Equals)
     (typeFn typeInt (typeFn typeInt typeBool)))
@@ -225,7 +225,7 @@ countToZeroTyped =
      (tApplication
       (tApplication
        (MethodReference missing
-        (Unresolved (nameInUniverse "Equality") (Identifier "Equals") equalityConstraint)
+        (Unresolved (nameInUniverse "Equality") (Identifier "EqualTo") equalityConstraint)
         (TConstrained (Set.singleton equalityConstraint) intToIntToBool))
        (tSymbol (Identifier "x") typeInt)
        (typeFn typeInt typeBool))

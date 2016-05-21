@@ -1,29 +1,8 @@
 package protocols/operators/main
 
-// If we use protocols to abstract Oden operators
+mean(x, y) = (x + y) / 2
 
-protocol Addition(a) {
-  Add : a -> a -> a
-}
-
-protocol Division(a) {
-  Divide : a -> a -> a
-}
-
-// we could have built-in implementations using the actual Go operators
-
-impl Addition(int) {
-  Add(x, y) = x + y
-}
-impl Division(int) {
-  Divide(x, y) = x / y
-}
-
-// Oden operators would map to these protocols, e.g.
-// `mean(x, y) = (x + y) / 2` would expand to:
-mean(x, y) = Division::Divide(Addition::Add(x, y), 2)
-
-// The user could overload with custom implementations for data types
+// The user can overload with custom implementations for data types.
 
 type Vector2D = { x: int, y: int }
 
@@ -37,8 +16,6 @@ impl Addition(Vector2D) {
 position = { x = 1, y = 3 }
 distance = { x = 5, y = 7 }
 
-// and the custom data types would be able to use built-in operators, e.g.
-// `target = location + distance` would expand to:
 target : Vector2D
 target = Addition::Add(position, distance)
 

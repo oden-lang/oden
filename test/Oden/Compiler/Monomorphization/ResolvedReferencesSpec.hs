@@ -42,7 +42,7 @@ fooImplementation =
   ProtocolImplementation
   missing
   fooProtocolName
-  typeInt
+  (Poly.TFn missing typeInt typeInt)
   [fooMethodImplementation]
 
 fooMethodImplementation :: MethodImplementation TypedExpr
@@ -50,14 +50,14 @@ fooMethodImplementation =
   MethodImplementation
   missing
   fooMethodName
-  (Literal missing (Int 1) typeInt)
+  (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") typeInt) (Poly.TFn missing typeInt typeInt))
 
 intFooMethodInstance :: InstantiatedDefinition
 intFooMethodInstance =
   InstantiatedMethod
   missing
   (Identifier "Foo_method_foo_inst_int")
-  (Literal missing (Int 1) monoInt)
+  (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") monoInt) (Mono.TFn missing monoInt monoInt))
 
 resolvedReferenceFooExpr :: TypedDefinition
 resolvedReferenceFooExpr =

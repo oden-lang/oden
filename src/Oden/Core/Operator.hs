@@ -5,6 +5,7 @@ data BinaryOperator = Add
                     | Multiply
                     | Divide
                     | Equals
+                    | NotEquals
                     | Concat
                     | LessThan
                     | GreaterThan
@@ -25,6 +26,7 @@ instance Show BinaryOperator where
   show Multiply = "*"
   show Divide = "/"
   show Equals = "=="
+  show NotEquals = "/="
   show Concat = "++"
   show LessThan = "<"
   show GreaterThan = ">"

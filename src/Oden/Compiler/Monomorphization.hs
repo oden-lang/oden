@@ -4,6 +4,7 @@
 -- does monomorpization for let-bound polymorphic values.
 --
 -- Any polymorphic definitions and let bindings not used will be ignored.
+{-# LANGUAGE LambdaCase #-}
 module Oden.Compiler.Monomorphization where
 
 import           Control.Monad.Except
@@ -284,19 +285,22 @@ monomorph e = case e of
             return (MemberAccess si (Monomorphed.PackageMemberAccess pkgAlias m) monoType)
           _ -> error "cannot access member in non-existing package"
 
-  MethodReference si reference methodType ->
+  MethodReference si reference methodType -> do
+    monoType <- toMonomorphic si methodType
     case reference of
       Unresolved protocolName methodName constraint ->
         throwError (UnresolvedMethodReference (unwrap si) protocolName methodName constraint)
-      Resolved protocolName' methodName (MethodImplementation _ _ expr) -> do
-        monoType <- toMonomorphic si methodType
-        case expr of
-          Foreign{} ->
-            monomorph expr
-          _ -> do
+      Resolved protocolName' methodName (MethodImplementation _ _ expr) 
+        | shouldInline expr -> monomorph expr
+        | otherwise -> do
             name <- instantiateMethod protocolName' methodName expr monoType
             return (Symbol si name monoType)
-        -- TODO: instantiate expr and line if it's a foreign expression
+    where
+    shouldInline =
+      \case
+        Foreign{} -> True
+        Literal{} -> True
+        _         -> False
 
   Foreign si f t -> do
     mt <- toMonomorphic si t

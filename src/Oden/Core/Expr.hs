@@ -27,6 +27,7 @@ data Range e
 
 data ForeignFunction
   = ForeignOperator BinaryOperator
+  | ForeignUnaryOperator UnaryOperator
   | ForeignSymbol Identifier
   deriving (Show, Eq, Ord)
 

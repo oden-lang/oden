@@ -50,6 +50,7 @@ instance Pretty BinaryOperator where
   pretty Multiply = text "*"
   pretty Divide = text "/"
   pretty Equals = text "=="
+  pretty NotEquals = text "/="
   pretty Concat = text "++"
   pretty LessThan = text "<"
   pretty GreaterThan = text ">"
@@ -99,6 +100,7 @@ instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
   pretty (MemberAccess _ access _) = pretty access
   pretty (MethodReference _ ref _) = pretty ref
   pretty (Foreign _ (ForeignOperator op) _) = parens (pretty op)
+  pretty (Foreign _ (ForeignUnaryOperator op) _) = parens (pretty op)
   pretty (Foreign _ (ForeignSymbol s) _) = pretty s
 
 collectCurried :: Expr r t m -> ([NameBinding], Expr r t m)

@@ -1,5 +1,8 @@
 package numbers/main
 
+// This can be polymorphic again when https://github.com/oden-lang/oden/issues/94
+// is resolved.
+plus : int -> int -> int
 plus(x, y) = x + y
 
 plus1 = plus(1)
