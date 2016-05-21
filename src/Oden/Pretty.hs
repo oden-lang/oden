@@ -267,10 +267,10 @@ instance Pretty Mono.Type where
   pretty Mono.REmpty{} = braces empty
   pretty r@Mono.RExtension{} = parens (ppMonoFields r)
 
-instance Pretty (SignatureVarBinding a) where
+instance Pretty SignatureVarBinding where
   pretty (SignatureVarBinding _ s) = pretty s
 
-instance Pretty (SignatureExpr a) where
+instance Pretty SignatureExpr where
   pretty (TSUnit _) = text "()"
   pretty (TSSymbol _ i) = pretty i
   pretty (TSApp _ d r) = pretty d <> parens (pretty r)
@@ -286,7 +286,7 @@ instance Pretty (SignatureExpr a) where
   -- TODO: Better printing with braces
   pretty (TSRecord _ row) = text "record " <> pretty row
 
-instance Pretty (TypeSignature a) where
+instance Pretty TypeSignature where
   pretty (TypeSignature _ [] expr) = pretty expr
   pretty (TypeSignature _ vars expr) =
     text "forall" <+> hsep (map pretty vars) <> text "." <+> pretty expr

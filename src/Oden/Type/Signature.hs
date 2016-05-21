@@ -8,28 +8,29 @@
 module Oden.Type.Signature where
 
 import Oden.Identifier
+import Oden.SourceInfo
 
 -- | A type expression used in type signatures and type annotations.
-data SignatureExpr s = TSUnit s
-                     | TSSymbol s Identifier
-                     | TSApp s (SignatureExpr s) (SignatureExpr s)
-                     | TSFn s (SignatureExpr s) (SignatureExpr s)
-                     | TSNoArgFn s (SignatureExpr s)
-                     | TSTuple s (SignatureExpr s) (SignatureExpr s) [SignatureExpr s]
-                     | TSSlice s (SignatureExpr s)
-                     | TSRowEmpty s
-                     | TSRowExtension s Identifier (SignatureExpr s) (SignatureExpr s)
-                     | TSRecord s (SignatureExpr s)
-                     deriving (Show, Eq, Ord)
+data SignatureExpr = TSUnit SourceInfo
+                   | TSSymbol SourceInfo Identifier
+                   | TSApp SourceInfo SignatureExpr SignatureExpr
+                   | TSFn SourceInfo SignatureExpr SignatureExpr
+                   | TSNoArgFn SourceInfo SignatureExpr
+                   | TSTuple SourceInfo SignatureExpr SignatureExpr [SignatureExpr]
+                   | TSSlice SourceInfo SignatureExpr
+                   | TSRowEmpty SourceInfo
+                   | TSRowExtension SourceInfo Identifier SignatureExpr SignatureExpr
+                   | TSRecord SourceInfo SignatureExpr
+                   deriving (Show, Eq, Ord)
 
 -- | A type variable binding in an explicit quantification.
-data SignatureVarBinding s = SignatureVarBinding s Identifier
+data SignatureVarBinding = SignatureVarBinding SourceInfo Identifier
                            deriving (Show, Eq, Ord)
 
 -- | A top level type signature with explicit or implicit type variable
 -- quantification.
-data TypeSignature s = TypeSignature s [SignatureVarBinding s] (SignatureExpr s)
+data TypeSignature = TypeSignature SourceInfo [SignatureVarBinding] SignatureExpr
                      deriving (Show, Eq, Ord)
 
-data ProtocolMethodSignature s = ProtocolMethodSignature s Identifier (TypeSignature s)
+data ProtocolMethodSignature = ProtocolMethodSignature SourceInfo Identifier TypeSignature
                                deriving (Show, Eq, Ord)

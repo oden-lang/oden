@@ -178,13 +178,13 @@ tvar :: Parser String
 -- TODO: Parse type variables as just like identifiers.
 tvar = char '#' *> (asString <$> identifier)
 
-type' :: Parser (SignatureExpr SourceInfo)
+type' :: Parser SignatureExpr
 type' = do
   si <- currentSourceInfo
   ts <- simple `sepBy1` rArrow
   return (foldr1 (TSFn si) ts)
   where
-  simple :: Parser (SignatureExpr SourceInfo)
+  simple :: Parser SignatureExpr
   simple = slice'
         <|> noArgFn
         <|> identified TSSymbol
@@ -200,14 +200,14 @@ type' = do
       (f:s:r) -> return (TSTuple si f s r)
   slice' = TSSlice <$> currentSourceInfo
                    <*> (emptyBrackets *> braces type')
-  recordType :: Parser (SignatureExpr SourceInfo)
+  recordType :: Parser SignatureExpr
   recordType = do
     si <- currentSourceInfo
     braces $ do
       fields <- recordFieldType `sepBy1` comma
       leaf <- try (pipe *> type') <|> return (TSRowEmpty si)
       return $ TSRecord si (foldr ($) leaf fields)
-  recordFieldType :: Parser (SignatureExpr SourceInfo -> SignatureExpr SourceInfo)
+  recordFieldType :: Parser (SignatureExpr -> SignatureExpr)
   recordFieldType =
     TSRowExtension <$> currentSourceInfo
                    <*> identifier
@@ -286,10 +286,10 @@ pkgDecl = do
   topSeparator
   return (PackageDeclaration si pkg)
 
-tvarBinding :: Parser (SignatureVarBinding SourceInfo)
+tvarBinding :: Parser SignatureVarBinding
 tvarBinding = SignatureVarBinding <$> currentSourceInfo <*> identifier
 
-namedSignature :: (SourceInfo -> Identifier -> TypeSignature SourceInfo -> a) -> Parser a
+namedSignature :: (SourceInfo -> Identifier -> TypeSignature -> a) -> Parser a
 namedSignature f = do
   si <- currentSourceInfo
   i <- identifier

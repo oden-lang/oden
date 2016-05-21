@@ -32,10 +32,10 @@ data MethodImplementation
   deriving (Show, Eq, Ord)
 
 data Definition
-  = Definition (Metadata SourceInfo) Identifier (Maybe (TypeSignature SourceInfo)) UntypedExpr
-  | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] (SignatureExpr SourceInfo)
-  | ProtocolDefinition (Metadata SourceInfo) QualifiedName (SignatureVarBinding SourceInfo) [ProtocolMethodSignature SourceInfo]
-  | Implementation (Metadata SourceInfo) Identifier (SignatureExpr SourceInfo) [MethodImplementation]
+  = Definition (Metadata SourceInfo) Identifier (Maybe TypeSignature) UntypedExpr
+  | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] SignatureExpr
+  | ProtocolDefinition (Metadata SourceInfo) QualifiedName SignatureVarBinding [ProtocolMethodSignature]
+  | Implementation (Metadata SourceInfo) Identifier SignatureExpr [MethodImplementation]
   deriving (Show, Eq, Ord)
 
 data UntypedPackage i = UntypedPackage PackageDeclaration [i] [Definition]

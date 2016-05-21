@@ -15,7 +15,7 @@ import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName    (QualifiedName(..))
 import qualified Oden.Syntax as Syntax
-import           Oden.Syntax (UnaryOperator(..), BinaryOperator(..))
+import           Oden.Syntax (BinaryOperator(..))
 import           Oden.SourceInfo
 import           Oden.Type.Signature
 
@@ -23,8 +23,8 @@ import           Control.Monad
 import           Control.Monad.Writer
 import qualified Data.Map              as Map
 
-data DesugarError = TypeSignatureWithoutDefinition SourceInfo Identifier (TypeSignature SourceInfo)
-                  | TypeSignatureRedefinition SourceInfo Identifier (Maybe (TypeSignature SourceInfo))
+data DesugarError = TypeSignatureWithoutDefinition SourceInfo Identifier TypeSignature
+                  | TypeSignatureRedefinition SourceInfo Identifier (Maybe TypeSignature)
                   | InvalidMemberAccessExpression SourceInfo UntypedExpr UntypedExpr
                   | InvalidProtocolMethodReference SourceInfo UntypedExpr UntypedExpr
                   deriving (Show, Eq)
@@ -151,7 +151,7 @@ desugarExpr = \case
 -- temporary metadata for top level definitions, used for keeping track
 -- of duplications and detecting missing terms for type signatures
 data TempTopLevel = TempTop {
-    tempType :: (SourceInfo, Maybe (TypeSignature SourceInfo)),
+    tempType :: (SourceInfo, Maybe TypeSignature),
     -- whether this signature has a corresponding definition
     hasValue :: Bool
 }

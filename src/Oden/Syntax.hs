@@ -108,7 +108,7 @@ type PackageName = [String]
 data PackageDeclaration = PackageDeclaration SourceInfo PackageName
                           deriving (Show, Eq, Ord)
 
-data RecordFieldExpr = RecordFieldExpr SourceInfo Identifier (SignatureExpr SourceInfo)
+data RecordFieldExpr = RecordFieldExpr SourceInfo Identifier SignatureExpr
                      deriving (Show, Eq, Ord)
 data Definition
   = ValueDefinition SourceInfo Identifier Expr
@@ -117,12 +117,12 @@ data Definition
 
 data TopLevel
   = ImportDeclaration SourceInfo PackageName
-  | TypeSignatureDeclaration SourceInfo Identifier (TypeSignature SourceInfo)
+  | TypeSignatureDeclaration SourceInfo Identifier TypeSignature
   | TopLevelDefinition Definition
   -- TODO: Add support for type parameters
-  | TypeDefinition SourceInfo Identifier (SignatureExpr SourceInfo)
-  | ProtocolDefinition SourceInfo Identifier (SignatureVarBinding SourceInfo) [ProtocolMethodSignature SourceInfo]
-  | Implementation SourceInfo Identifier (SignatureExpr SourceInfo) [Definition]
+  | TypeDefinition SourceInfo Identifier SignatureExpr
+  | ProtocolDefinition SourceInfo Identifier SignatureVarBinding [ProtocolMethodSignature]
+  | Implementation SourceInfo Identifier SignatureExpr [Definition]
   deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]

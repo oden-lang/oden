@@ -422,7 +422,7 @@ infer = \case
     return (MemberAccess si (RecordFieldAccess typedExpr label) fieldType)
 
 -- | Tries to resolve a user-supplied type expression to an actual type.
-resolveType :: SignatureExpr SourceInfo -> Infer Type
+resolveType :: SignatureExpr -> Infer Type
 resolveType (TSUnit si) = return (universeType (Metadata si) "unit")
 resolveType (TSSymbol si i) = lookupType (Metadata si) i
 resolveType (TSApp _si _e1 _e2) = error "Type constructor application not implemented yet."
@@ -439,7 +439,7 @@ resolveType (TSRowExtension si label type' row) =
 resolveType (TSRecord si r) = TRecord (Metadata si) <$> resolveType r
 
 -- | Tries to resolve a user-supplied type signature to an actual type scheme.
-resolveTypeSignature :: TypeSignature SourceInfo -> Infer (Scheme, TypingEnvironment)
+resolveTypeSignature :: TypeSignature -> Infer (Scheme, TypingEnvironment)
 resolveTypeSignature (TypeSignature si bindings' expr) = do
   env <- ask
   envWithBindings <- foldM extendWithBinding env bindings'
@@ -454,7 +454,7 @@ resolveTypeSignature (TypeSignature si bindings' expr) = do
     return $ env' `extend` (v, QuantifiedType (Metadata si') v tv)
   toVarBinding (SignatureVarBinding si' (Identifier v)) = TVarBinding (Metadata si') (TV v)
 
-resolveMethod :: ProtocolMethodSignature SourceInfo -> Infer ProtocolMethod
+resolveMethod :: ProtocolMethodSignature -> Infer ProtocolMethod
 resolveMethod (ProtocolMethodSignature si name signature) = do
   (scheme, _) <- resolveTypeSignature signature
   return (ProtocolMethod (Metadata si) name scheme)
