@@ -148,10 +148,6 @@ instantiateExpr (Subslice si s (RangeFrom e) t) =
 
 instantiateExpr (UnaryOp si o e t) =
   UnaryOp si o <$> instantiateExpr e <*> replace t
-instantiateExpr (BinaryOp si o e1 e2 t) =
-  BinaryOp si o <$> instantiateExpr e1
-                     <*> instantiateExpr e2
-                     <*> replace t
 instantiateExpr (Application si f p t) =
   Application si <$> instantiateExpr f
                       <*> instantiateExpr p
@@ -197,6 +193,8 @@ instantiateExpr (MemberAccess si access t) =
   MemberAccess si <$> instantiateMemberAccess access <*> replace t
 instantiateExpr (MethodReference si ref t) =
   MethodReference si ref <$> replace t
+instantiateExpr (Foreign si f t) =
+  Foreign si f <$> replace t
 
 -- | Given a polymorphically typed expression and a monomorphic type, return
 -- the expression with all types substitued for monomorphic ones. If there's

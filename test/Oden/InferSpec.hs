@@ -2,6 +2,8 @@ module Oden.InferSpec where
 
 import           Test.Hspec
 
+import qualified Data.Set              as Set
+
 import           Oden.Core.Typed
 import           Oden.Core.Expr
 import           Oden.Core.Operator
@@ -11,6 +13,7 @@ import           Oden.Identifier
 import           Oden.Infer            (inferExpr)
 import           Oden.Predefined
 import           Oden.Pretty           ()
+import           Oden.QualifiedName    (nameInUniverse)
 import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
@@ -197,38 +200,33 @@ spec = describe "inferExpr" $ do
        (untypedSymbol "stringLength")
        (untypedInt 1))
 
-  it "infers nested fn application" $
-    inferExpr
-    predef
-    (BinaryOp
-     missing
-     Or
-     (BinaryOp missing And untypedFalse untypedFalse Untyped)
-     untypedTrue
-     Untyped)
-    `shouldSucceedWith`
-    (scheme typeBool,
-     tOp
-     Or
-     (tOp
-      And
-      (tLiteral (tBool False) typeBool)
-      (tLiteral (tBool False) typeBool)
-      typeBool)
-     (tLiteral (tBool True) typeBool)
-     typeBool)
-
   it "infers 1 + 1" $
     inferExpr
     predef
-    (BinaryOp missing Add (untypedInt 1) (untypedInt 1) Untyped)
+    (Application
+     missing
+     (Application
+      missing
+      (MethodReference missing (NamedMethodReference (Identifier "Addition") (Identifier "Add")) Untyped)
+      (untypedInt 1)
+      Untyped)
+      (untypedInt 1)
+     Untyped)
     `shouldSucceedWith`
+    let constraint = ProtocolConstraint missing (nameInUniverse "Addition") typeInt in
     (scheme typeInt,
-      tOp
-      Add
+     Application
+     missing
+     (Application
+      missing
+      (MethodReference
+       missing
+       (Unresolved (nameInUniverse "Addition") (Identifier "Add") constraint)
+       (TConstrained (Set.singleton constraint) (typeFn typeInt (typeFn typeInt typeInt))))
       (tLiteral (tInt 1) typeInt)
-      (tLiteral (tInt 1) typeInt)
-      typeInt)
+      (typeFn typeInt typeInt))
+     (tLiteral (tInt 1) typeInt)
+     typeInt)
 
   it "infers let" $
     inferExpr

@@ -10,6 +10,7 @@ module Oden.Desugar
 import           Oden.Core.Expr
 import           Oden.Core.Package
 import           Oden.Core.Untyped
+import           Oden.Core.Operator
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName    (QualifiedName(..))
@@ -35,6 +36,12 @@ desugarFieldInitializer :: Syntax.FieldInitializer
 desugarFieldInitializer (Syntax.FieldInitializer si label expr) =
   FieldInitializer (Metadata si) label <$> desugarExpr expr
 
+methodForBinaryOperator :: BinaryOperator -> NamedMethodReference
+methodForBinaryOperator =
+  \case
+    Add -> NamedMethodReference (Identifier "Add") (Identifier "Add")
+    _   -> NamedMethodReference (Identifier "Foo") (Identifier "Add")
+
 untyped :: Either DesugarError Untyped
 untyped = pure Untyped
 
@@ -53,8 +60,16 @@ desugarExpr = \case
 
   Syntax.UnaryOp si o e ->
     UnaryOp (Metadata si) o <$> desugarExpr e <*> untyped
-  Syntax.BinaryOp si o e1 e2 ->
-    BinaryOp (Metadata si) o <$> desugarExpr e1 <*> desugarExpr e2 <*> untyped
+  Syntax.BinaryOp si op e1 e2 ->
+    Application
+    (Metadata si)
+    <$> (Application
+         (Metadata si)
+         (MethodReference (Metadata si) (methodForBinaryOperator op) Untyped)
+         <$> desugarExpr e1
+         <*> untyped)
+    <*> desugarExpr e2
+    <*> untyped
   Syntax.Symbol si i ->
     return $ Symbol (Metadata si) i Untyped
   Syntax.Literal si (Syntax.Bool b) ->

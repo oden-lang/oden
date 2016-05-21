@@ -226,8 +226,11 @@ genExpr expr = case expr of
     AST.Expression <$> (AST.Slice <$> genPrimaryExpression s <*> genRange r)
   UnaryOp _ o e _ ->
     AST.UnaryOp (genUnaryOperator o) <$> genPrimaryExpression e
-  BinaryOp _ o lhs rhs _ ->
+
+  -- Foreign operators are applied in a special manner.
+  Application _ (Application _ (Foreign _ (ForeignOperator o) _) lhs _) rhs _ ->
     AST.BinaryOp (genBinaryOperator o) <$> genExpr lhs <*> genExpr rhs
+
   Application _ f arg _ ->
     AST.Expression <$> (AST.Application <$> genPrimaryExpression f
                                         <*> (((:[]) . AST.Argument) <$> genExpr arg))
@@ -334,6 +337,12 @@ genExpr expr = case expr of
   -- TODO: is this needed? Monomorphed method references can be regular symbols
   -- at this phase?
   MethodReference _ _ref _ -> error "invalid protocol method reference in codegen phase"
+
+  Foreign _ (ForeignSymbol s) _ ->
+    (AST.Expression . AST.Operand . AST.OperandName) <$> genIdentifier s
+
+  Foreign _ (ForeignOperator o) _ ->
+    error "cannot codegen foreign binary operator without a full binary application"
 
 genBlock :: MonoTypedExpr -> Codegen AST.Block
 genBlock expr = (AST.Block . (:[]) . AST.ReturnStmt . (:[])) <$> genExpr expr

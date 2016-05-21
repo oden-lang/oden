@@ -12,7 +12,7 @@ import           Oden.Core.Traversal
 
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName        (QualifiedName (..))
+import           Oden.QualifiedName        (QualifiedName (..), nameInUniverse)
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
@@ -85,10 +85,9 @@ validateExpr = void . traverseExpr identityTraversal { onExpr = onExpr'
     Subslice _ _ r _ -> do
       validateRange r
       return $ Just expr
-    BinaryOp _ Divide _ rhs _ -> do
-      when (evaluate rhs == Just (Int 0)) $
-        throwError $ DivisionByZero expr
-      return $ Just expr
+    Application _ (Application _ _ (MethodReference _ ref _) _) (Literal _ (Int 0) _) _
+      | isDivideRef ref -> throwError $ DivisionByZero expr
+      | otherwise -> return Nothing
     Block _ exprs _ -> do
       mapM_ warnOnDiscarded (init exprs)
       return $ Just expr
@@ -103,6 +102,13 @@ validateExpr = void . traverseExpr identityTraversal { onExpr = onExpr'
     addPackageReference alias
     return p
   onMemberAccess' a = return a
+
+  divisionName = nameInUniverse "Division"
+  divideName = Identifier "Divide"
+  isDivideRef =
+    \case
+      Unresolved protocol method _ -> protocol == divisionName && method == divideName
+      Resolved protocol method _ -> protocol == divisionName && method == divideName
 
 repeated :: [(Identifier, Type)] -> [(Identifier, Type)]
 repeated fields = snd (foldl check (Set.empty, []) fields)

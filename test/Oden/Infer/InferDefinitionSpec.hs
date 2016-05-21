@@ -2,15 +2,18 @@ module Oden.Infer.InferDefinitionSpec where
 
 import           Test.Hspec
 
+import qualified Data.Set as Set
+
 import           Oden.Core.Typed       as Typed
 import           Oden.Core.Untyped     as Untyped
 import           Oden.Core.Expr
-import           Oden.Core.Operator
+import           Oden.QualifiedName
 import           Oden.Environment
 import           Oden.Identifier
 import qualified Oden.Infer            as Infer
 import           Oden.Infer.Environment
 import           Oden.Predefined
+import           Oden.Type.Polymorphic
 
 import           Oden.Assertions
 import           Oden.Infer.Fixtures
@@ -25,19 +28,28 @@ spec = describe "inferDefinition" $ do
                             missing
                             (Identifier "n")
                             Nothing
-                            (BinaryOp
+                            (Application
                              missing
-                             Add
-                             (Literal missing (Int 1) Untyped)
+                             (Application
+                              missing
+                              (MethodReference missing (NamedMethodReference (Identifier "Addition") (Identifier "Add")) Untyped)
+                              (Literal missing (Int 1) Untyped)
+                              Untyped)
                              (Literal missing (Int 1) Untyped)
                              Untyped))
     `shouldSucceedWith`
+    let constraint = ProtocolConstraint missing (nameInUniverse "Addition") typeInt in
     tDefinition
     (Identifier "n")
     (scheme typeInt,
-     tOp
-     Add
-     (tLiteral (tInt 1) typeInt)
+     tApplication
+     (tApplication
+      (MethodReference
+       missing
+       (Unresolved (nameInUniverse "Addition") (Identifier "Add") constraint)
+       (TConstrained (Set.singleton constraint) (typeFn typeInt (typeFn typeInt typeInt))))
+      (tLiteral (tInt 1) typeInt)
+      (typeFn typeInt typeInt))
      (tLiteral (tInt 1) typeInt)
      typeInt)
 
@@ -82,15 +94,6 @@ spec = describe "inferDefinition" $ do
                              (Identifier "some-number")
                              (Just $ implicit (tsSymbol (Identifier "bool")))
                              (Literal missing (Int 1) Untyped))
-
-  it "any is subsumed by int (maybe this will be supported in the future)" $
-    shouldFail $
-      inferDefinition empty (Untyped.Definition
-                             missing
-                             (Identifier "some-number")
-                             (Just $ implicit (tsSymbol (Identifier "any")))
-                             (Literal missing (Int 1) Untyped))
-
 
   it "infers twice function with correct type signature" $
     inferDefinition

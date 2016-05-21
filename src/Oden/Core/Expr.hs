@@ -25,12 +25,16 @@ data Range e
   | RangeFrom e
   deriving (Show, Eq, Ord)
 
+data ForeignFunction
+  = ForeignOperator BinaryOperator
+  | ForeignSymbol Identifier
+  deriving (Show, Eq, Ord)
+
 data Expr r t m
   = Symbol (Metadata SourceInfo) Identifier t
   | Subscript (Metadata SourceInfo) (Expr r t m) (Expr r t m) t
   | Subslice (Metadata SourceInfo) (Expr r t m) (Range (Expr r t m)) t
   | UnaryOp (Metadata SourceInfo) UnaryOperator (Expr r t m) t
-  | BinaryOp (Metadata SourceInfo) BinaryOperator (Expr r t m) (Expr r t m) t
   | Application (Metadata SourceInfo) (Expr r t m) (Expr r t m) t
   | NoArgApplication (Metadata SourceInfo) (Expr r t m) t
   | ForeignFnApplication (Metadata SourceInfo) (Expr r t m) [Expr r t m] t
@@ -45,6 +49,7 @@ data Expr r t m
   | RecordInitializer (Metadata SourceInfo) [FieldInitializer (Expr r t m)] t
   | MemberAccess (Metadata SourceInfo) m t
   | MethodReference (Metadata SourceInfo) r t
+  | Foreign (Metadata SourceInfo) ForeignFunction t
   deriving (Show, Eq, Ord)
 
 typeOf :: Expr r t m -> t
@@ -53,7 +58,6 @@ typeOf expr = case expr of
   Subscript _ _ _ t               -> t
   Subslice _ _ _ t                -> t
   UnaryOp _ _ _ t                 -> t
-  BinaryOp _ _ _ _ t              -> t
   Application _ _ _ t             -> t
   NoArgApplication _ _ t          -> t
   ForeignFnApplication _ _ _ t    -> t
@@ -68,6 +72,7 @@ typeOf expr = case expr of
   RecordInitializer _ _ t         -> t
   MemberAccess _ _ t              -> t
   MethodReference _ _ t           -> t
+  Foreign _ _ t                   -> t
 
 instance HasSourceInfo (Expr r t m) where
   getSourceInfo expr = case expr of
@@ -75,7 +80,6 @@ instance HasSourceInfo (Expr r t m) where
     Subscript (Metadata si) _ _ _            -> si
     Subslice (Metadata si) _ _ _             -> si
     UnaryOp (Metadata si) _ _ _              -> si
-    BinaryOp (Metadata si) _ _ _ _           -> si
     Application (Metadata si) _ _ _          -> si
     NoArgApplication (Metadata si) _ _       -> si
     ForeignFnApplication (Metadata si) _ _ _ -> si
@@ -90,13 +94,13 @@ instance HasSourceInfo (Expr r t m) where
     RecordInitializer (Metadata si) _ _      -> si
     MemberAccess (Metadata si) _ _           -> si
     MethodReference (Metadata si) _ _        -> si
+    Foreign (Metadata si) _ _                -> si
 
   setSourceInfo si expr = case expr of
     Symbol _ i t                 -> Symbol (Metadata si) i t
     Subscript _ s i t            -> Subscript (Metadata si) s i t
     Subslice _ s r t             -> Subslice (Metadata si) s r t
     UnaryOp _ o r t              -> UnaryOp (Metadata si) o r t
-    BinaryOp _ p l r t           -> BinaryOp (Metadata si) p l r t
     Application _ f a t          -> Application (Metadata si) f a t
     NoArgApplication _ f t       -> NoArgApplication (Metadata si) f t
     ForeignFnApplication _ f a t -> ForeignFnApplication (Metadata si) f a t
@@ -111,4 +115,5 @@ instance HasSourceInfo (Expr r t m) where
     RecordInitializer _ t vs     -> RecordInitializer (Metadata si) t vs
     MemberAccess _ m t           -> MemberAccess (Metadata si) m t
     MethodReference _ ref t      -> MethodReference (Metadata si) ref t
+    Foreign _ f t                -> Foreign (Metadata si) f t
 

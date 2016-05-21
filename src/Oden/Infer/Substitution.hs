@@ -114,7 +114,6 @@ instance (Substitutable r, Substitutable m) => Substitutable (Expr r Type m) whe
     Subslice si es (RangeTo e) t   -> Subslice si (apply s es) (RangeTo (apply s e)) (apply s t)
     Subslice si es (RangeFrom e) t -> Subslice si (apply s es) (RangeFrom (apply s e)) (apply s t)
     UnaryOp si o e t               -> UnaryOp si o (apply s e) (apply s t)
-    BinaryOp si o e1 e2 t          -> BinaryOp si o (apply s e1) (apply s e2) (apply s t)
     Application si f p t           -> Application si (apply s f) (apply s p) (apply s t)
     NoArgApplication si f t        -> NoArgApplication si (apply s f) (apply s t)
     ForeignFnApplication si f p t  -> ForeignFnApplication si (apply s f) (apply s p) (apply s t)
@@ -129,6 +128,8 @@ instance (Substitutable r, Substitutable m) => Substitutable (Expr r Type m) whe
     RecordInitializer si t fs      -> RecordInitializer si (apply s t) (apply s fs)
     MemberAccess si access t       -> MemberAccess si (apply s access) (apply s t)
     MethodReference si ref t       -> MethodReference si (apply s ref) (apply s t)
+    Foreign si f t                 -> Foreign si f (apply s t)
+
 
 instance Substitutable ProtocolMethod where
   apply s (ProtocolMethod si name scheme) =

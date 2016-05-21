@@ -20,18 +20,65 @@ import           Data.Set              hiding (map)
 predefined :: Metadata SourceInfo
 predefined = Metadata Predefined
 
+tvarA :: Type
+tvarA = TVar predefined (TV "a")
+
 typeInt, typeString, typeBool, typeUnit :: Type
 typeInt = TCon predefined (nameInUniverse "int")
 typeString = TCon predefined (nameInUniverse "string")
 typeBool = TCon predefined (nameInUniverse "bool")
 typeUnit = TCon predefined (nameInUniverse "unit")
 
+errorProtocol :: Protocol
+errorProtocol =
+  Protocol
+  predefined
+  (nameInUniverse "error")
+  (TVar predefined (TV "a"))
+  [ProtocolMethod
+   predefined
+   (Identifier "Error")
+   (Forall predefined [] empty (TFn predefined (TVar predefined (TV "a")) typeString))]
+
+additionProtocol :: Protocol
+additionProtocol =
+  Protocol
+  predefined
+  (nameInUniverse "Addition")
+  (TVar predefined (TV "a"))
+  [ProtocolMethod
+   predefined
+   (Identifier "Add")
+   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))]
+
+subtractionProtocol :: Protocol
+subtractionProtocol =
+  Protocol
+  predefined
+  (nameInUniverse "Subtraction")
+  (TVar predefined (TV "a"))
+  [ProtocolMethod
+   predefined
+   (Identifier "Subtract")
+   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))]
+
+equalityProtocol :: Protocol
+equalityProtocol =
+  Protocol
+  predefined
+  (nameInUniverse "Equality")
+  (TVar predefined (TV "a"))
+  [ProtocolMethod
+   predefined
+   (Identifier "Equals")
+   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA typeBool)))]
+
 protocols :: [(String, Protocol)]
-protocols = [
-  ("error",
-   Protocol predefined (nameInUniverse "error") (TVar predefined (TV "a")) [
-     ProtocolMethod predefined (Identifier "Error") (Forall predefined [] empty (TFn predefined (TVar predefined (TV "a")) typeString))
-   ])
+protocols =
+  [("error", errorProtocol)
+  ,("Addition", additionProtocol)
+  ,("Subtraction", subtractionProtocol)
+  ,("Equality", equalityProtocol)
   ]
 
 foreignFns :: [(Identifier, Scheme)]

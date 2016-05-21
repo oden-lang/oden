@@ -193,12 +193,6 @@ monomorph e = case e of
     me <- monomorph e1
     return (UnaryOp si o me mt)
 
-  BinaryOp si o e1 e2 _ -> do
-    mt <- getMonoType e
-    me1 <- monomorph e1
-    me2 <- monomorph e2
-    return (BinaryOp si o me1 me2 mt)
-
   Application si f p _ -> do
     mt <- getMonoType e
     mf <- monomorph f
@@ -298,6 +292,10 @@ monomorph e = case e of
         monoType <- toMonomorphic si methodType
         name <- instantiateMethod protocolName' methodName methodImpl monoType
         return (Symbol si name monoType)
+
+  Foreign si f t -> do
+    mt <- toMonomorphic si t
+    return (Foreign si f mt)
 
 -- Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.

@@ -4,7 +4,8 @@ import           Oden.Core.Typed        as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Operator
-import           Oden.Core.Untyped      hiding (Definition (..))
+import           Oden.Core.ProtocolImplementation
+import           Oden.Core.Untyped      hiding (Definition (..), MethodImplementation(..))
 import           Oden.Environment       hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.Environment
@@ -33,8 +34,11 @@ tvarB = TVar predefined tvB
 tvarC = TVar predefined tvC
 tvarD = TVar predefined tvD
 
-scheme:: Type -> Scheme
-scheme t = Forall predefined (map (TVarBinding missing) $ Set.toList (ftv t)) Set.empty t
+constrainedScheme :: Set.Set ProtocolConstraint -> Type -> Scheme
+constrainedScheme constraints t = Forall predefined (map (TVarBinding missing) $ Set.toList (ftv t)) constraints t
+
+scheme :: Type -> Scheme
+scheme t = constrainedScheme Set.empty t
 
 typeFn :: Type -> Type -> Type
 typeFn = TFn missing
@@ -73,7 +77,6 @@ untyped :: (Untyped -> UntypedExpr) -> UntypedExpr
 untyped = flip ($) Untyped
 
 tSymbol                 = Symbol missing
-tOp                     = BinaryOp missing
 tApplication            = Application missing
 tNoArgApplication       = NoArgApplication missing
 tForeignFnApplication   = ForeignFnApplication missing
@@ -92,6 +95,15 @@ tUnit   = Unit
 tInt    = Int
 tString = String
 tBool   = Bool
+
+intToInt :: Type
+intToInt = typeFn typeInt typeInt
+
+intToIntToInt :: Type
+intToIntToInt = typeFn typeInt (typeFn typeInt typeInt)
+
+intToIntToBool :: Type
+intToIntToBool = typeFn typeInt (typeFn typeInt typeBool)
 
 tDefinition = Definition missing
 tNameBinding = NameBinding missing
@@ -145,53 +157,90 @@ fooBarPkgEnv = predef `extend` (Identifier "foo",
 booleanOp :: Type
 booleanOp = typeFn typeBool (typeFn typeBool typeBool)
 
+
+
 countToZero :: UntypedExpr
 countToZero =
   Fn missing
   (NameBinding missing (Identifier "x"))
   (If missing
-   (BinaryOp missing
-    Equals
-    (Symbol missing (Identifier "x") Untyped)
+   (Application
+    missing
+    (Application
+     missing
+     (MethodReference missing (NamedMethodReference (Identifier "Equality") (Identifier "Equals")) Untyped)
+     (Symbol missing (Identifier "x") Untyped)
+     Untyped)
     (Literal missing (Int 0) Untyped)
     Untyped)
    (Literal missing (Int 0) Untyped)
    (Application missing
     (Symbol missing (Identifier "f") Untyped)
-     (BinaryOp missing
-      Subtract
-      (Symbol missing (Identifier "x") Untyped)
+     (Application
+      missing
+      (Application
+       missing
+       (MethodReference missing (NamedMethodReference (Identifier "Subtraction") (Identifier "Subtract")) Untyped)
+       (Symbol missing (Identifier "x") Untyped)
+       Untyped)
       (Literal missing (Int 1) Untyped)
       Untyped)
      Untyped)
    Untyped)
   Untyped
 
-intToInt :: Type
-intToInt = typeFn typeInt typeInt
+equalsImplInt :: MethodImplementation TypedExpr
+equalsImplInt =
+  MethodImplementation
+  missing
+  (Identifier "Equals")
+  (Foreign missing
+    (ForeignOperator Equals)
+    (typeFn typeInt (typeFn typeInt typeBool)))
 
-intToIntToInt :: Type
-intToIntToInt = typeFn typeInt (typeFn typeInt typeInt)
+subtractImplInt :: MethodImplementation TypedExpr
+subtractImplInt =
+  MethodImplementation
+  missing
+  (Identifier "Subtract")
+  (Foreign missing (ForeignOperator Subtract) intToIntToInt)
 
 countToZeroTyped :: Typed.TypedDefinition
 countToZeroTyped =
+  let equalityConstraint = ProtocolConstraint
+                           missing
+                           (nameInUniverse "Equality")
+                           typeInt
+      subtractionConstraint = ProtocolConstraint
+                              missing
+                              (nameInUniverse "Subtraction")
+                              typeInt
+  in
   tDefinition
    (Identifier "f")
-   (scheme (typeFn typeInt typeInt),
+   (constrainedScheme (Set.fromList []) (typeFn typeInt typeInt),
     tFn
     (tNameBinding (Identifier "x"))
     (tIf
-     (tOp
-      Equals
-      (tSymbol (Identifier "x") typeInt)
+     (tApplication
+      (tApplication
+       (MethodReference missing
+        (Unresolved (nameInUniverse "Equality") (Identifier "Equals") equalityConstraint)
+        (TConstrained (Set.singleton equalityConstraint) intToIntToBool))
+       (tSymbol (Identifier "x") typeInt)
+       (typeFn typeInt typeBool))
       (tLiteral (tInt 0) typeInt)
       typeBool)
      (tLiteral (tInt 0) typeInt)
      (tApplication
       (tSymbol (Identifier "f") intToInt)
-      (tOp
-       Subtract
-       (tSymbol (Identifier "x") typeInt)
+      (tApplication
+       (tApplication
+        (MethodReference missing
+         (Unresolved (nameInUniverse "Subtraction") (Identifier "Subtract") subtractionConstraint)
+         (TConstrained (Set.singleton subtractionConstraint) intToIntToInt))
+        (tSymbol (Identifier "x") typeInt)
+        intToInt)
        (tLiteral (tInt 1) typeInt)
        typeInt)
       typeInt)
@@ -216,17 +265,19 @@ twiceUntyped =
 
 twiceTyped :: Typed.TypedDefinition
 twiceTyped =
-  tDefinition (Identifier "twice") (scheme (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
-                           tFn
-                           (tNameBinding (Identifier "f"))
-                           (tFn
-                           (tNameBinding (Identifier "x"))
-                           (tApplication
-                             (tSymbol (Identifier "f") (typeFn tvarA tvarA))
-                             (tApplication
-                             (tSymbol (Identifier "f") (typeFn tvarA tvarA))
-                             (tSymbol (Identifier "x") tvarA)
-                             tvarA)
-                             tvarA)
-                           (typeFn tvarA tvarA))
-                           (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)))
+  tDefinition
+  (Identifier "twice")
+  (scheme (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
+    tFn
+    (tNameBinding (Identifier "f"))
+    (tFn
+     (tNameBinding (Identifier "x"))
+     (tApplication
+      (tSymbol (Identifier "f") (typeFn tvarA tvarA))
+      (tApplication
+       (tSymbol (Identifier "f") (typeFn tvarA tvarA))
+       (tSymbol (Identifier "x") tvarA)
+       tvarA)
+      tvarA)
+      (typeFn tvarA tvarA))
+    (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)))

@@ -97,6 +97,7 @@ data TypeError
   | NotAProtocol SourceInfo Identifier
   | NoSuchMethodInProtocol SourceInfo Protocol Identifier
   | InvalidForeignFnApplication SourceInfo
+  | InvalidForeignExpression SourceInfo
   | TypeAlreadyBound SourceInfo Identifier
   deriving (Show, Eq)
 
@@ -321,27 +322,6 @@ infer = \case
     uni (getSourceInfo te) (typeOf te) rt
     return (UnaryOp si o te rt)
 
-  BinaryOp si o e1 e2 Untyped -> do
-    (ot, rt) <- case o of
-                    Add               -> return (universeType si "int", universeType si "int")
-                    Subtract          -> return (universeType si "int", universeType si "int")
-                    Multiply          -> return (universeType si "int", universeType si "int")
-                    Divide            -> return (universeType si "int", universeType si "int")
-                    Equals            -> do tv <- fresh si
-                                            return (tv, universeType si "bool")
-                    Concat            -> return (universeType si "string", universeType si "string")
-                    LessThan          -> return (universeType si "int", universeType si "bool")
-                    GreaterThan       -> return (universeType si "int", universeType si "bool")
-                    LessThanEqual     -> return (universeType si "int", universeType si "bool")
-                    GreaterThanEqual  -> return (universeType si "int", universeType si "bool")
-                    And               -> return (universeType si "bool", universeType si "bool")
-                    Or                -> return (universeType si "bool", universeType si "bool")
-    te1 <- infer e1
-    te2 <- infer e2
-    uni (getSourceInfo te1) (typeOf te1) ot
-    uni (getSourceInfo te2) (typeOf te2) ot
-    return (BinaryOp si o te1 te2 rt)
-
   Symbol si x Untyped -> do
     t <- lookupValue si x
     wrapForeign si (Symbol si x t) t
@@ -436,6 +416,9 @@ infer = \case
     -- Untyped code is not allowed to use foreign function application
     -- directly, that is only used by the compiler after type inference.
     throwError (InvalidForeignFnApplication si)
+
+  Foreign (Metadata si) _ _ ->
+    throwError (InvalidForeignExpression si)
 
   where
   inferRecordFieldAccess si expr' label = do

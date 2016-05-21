@@ -1,8 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 module Oden.Assertions where
 
-import           Data.Algorithm.Diff
-import           Data.Algorithm.DiffOutput
 import           Text.PrettyPrint.Leijen hiding ((<$>))
 import           Text.Nicify
 
@@ -18,9 +16,11 @@ isRight _         = False
 
 failWithDiff :: Show a => a -> a -> Expectation
 failWithDiff expected actual =
-  expectationFailure (ppDiff (getGroupedDiff (showNice actual) (showNice expected)))
+  expectationFailure $
+    "expected:\n\n" ++
+    showNice expected ++ "\n\nbot got:\n\n" ++ showNice actual
   where
-  showNice = lines . nicify . show
+  showNice = nicify . show
 
 failWithShow :: Show a => String -> a -> Expectation
 failWithShow prefix = expectationFailure . (prefix ++) . nicify . show

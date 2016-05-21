@@ -7,7 +7,6 @@ import           Oden.Compiler.Validation.Typed
 import           Oden.Core.Typed      as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Operator
 import           Oden.Core.Package
 
 import           Oden.Identifier
@@ -51,7 +50,19 @@ fnExpr n body = Fn missing (NameBinding missing n) body (TFn missing typeString 
 block :: [TypedExpr] -> TypedExpr
 block exprs = Block missing exprs (typeOf (last exprs))
 
-divisionByZeroExpr = BinaryOp missing Divide (intExpr 1) (intExpr 0) typeInt
+divisionByZeroExpr =
+  Application
+  missing
+  (Application
+   missing
+   (MethodReference
+    missing
+    (Unresolved (nameInUniverse "Division") (Identifier "Divide") undefined)
+    (TFn missing typeInt (TFn missing typeInt typeInt)))
+   (intExpr 1)
+   (TFn missing typeInt typeInt))
+  (intExpr 0)
+  typeInt
 
 emptyPkg = TypedPackage (PackageDeclaration missing ["empty", "pkg"]) [] []
 

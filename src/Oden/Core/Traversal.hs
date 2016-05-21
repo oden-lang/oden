@@ -57,8 +57,6 @@ traverseExpr traversal@Traversal{ onExpr = onExpr'
       Subslice si <$> traverseExpr' slice <*> traverseRange range <*> onType' t
     UnaryOp si operator operand t ->
       UnaryOp si operator <$> traverseExpr' operand <*> onType' t
-    BinaryOp si op lhs rhs t ->
-      BinaryOp si op <$> traverseExpr' lhs <*> traverseExpr' rhs <*> onType' t
     Application si f arg t ->
       Application si <$> traverseExpr' f <*> traverseExpr' arg <*> onType' t
     NoArgApplication si f t ->
@@ -97,3 +95,5 @@ traverseExpr traversal@Traversal{ onExpr = onExpr'
     MethodReference si ref t -> do
       (si', ref', t') <- onMethodReference' si ref t
       return (MethodReference si' ref' t')
+    Foreign si foreign' t ->
+      Foreign si foreign' <$> onType' t

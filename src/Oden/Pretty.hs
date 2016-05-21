@@ -75,7 +75,6 @@ instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
   pretty (Subscript _ s i _) = pretty s <> text "[" <> pretty i <> text "]"
   pretty (Subslice _ s r _) = pretty s <> pretty r
   pretty (UnaryOp _ op e _) = pretty op <+> pretty e
-  pretty (BinaryOp _ op e1 e2 _) = parens (pretty e1 <+> pretty op <+> pretty e2)
   pretty (Application _ f a _) = pretty f <> text "(" <> pretty a <> text ")"
   pretty (NoArgApplication _ f _) = pretty f <> text "()"
   pretty (ForeignFnApplication _ f as _) = pretty f <> commaSepParens as
@@ -99,6 +98,8 @@ instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
     braces (hcat (punctuate (text ", ") (map pretty fields)))
   pretty (MemberAccess _ access _) = pretty access
   pretty (MethodReference _ ref _) = pretty ref
+  pretty (Foreign _ (ForeignOperator op) _) = parens (pretty op)
+  pretty (Foreign _ (ForeignSymbol s) _) = pretty s
 
 collectCurried :: Expr r t m -> ([NameBinding], Expr r t m)
 collectCurried (Fn _ param body _) =
