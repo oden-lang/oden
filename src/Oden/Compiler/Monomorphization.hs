@@ -81,10 +81,10 @@ addMonomorphed identifier def =
 
 instantiateMethod :: Poly.ProtocolName
                   -> Poly.MethodName
-                  -> MethodImplementation TypedExpr
+                  -> TypedExpr
                   -> Mono.Type
                   -> Monomorph Identifier
-instantiateMethod protocolName methodName (MethodImplementation _ _ expr) monoType = do
+instantiateMethod protocolName methodName expr monoType = do
   let identifier = Identifier (encodeMethodInstance protocolName methodName monoType)
   case instantiate expr monoType of
     Left err -> throwError (MonomorphInstantiateError err)
@@ -288,10 +288,15 @@ monomorph e = case e of
     case reference of
       Unresolved protocolName methodName constraint ->
         throwError (UnresolvedMethodReference (unwrap si) protocolName methodName constraint)
-      Resolved protocolName' methodName methodImpl -> do
+      Resolved protocolName' methodName (MethodImplementation _ _ expr) -> do
         monoType <- toMonomorphic si methodType
-        name <- instantiateMethod protocolName' methodName methodImpl monoType
-        return (Symbol si name monoType)
+        case expr of
+          Foreign{} ->
+            monomorph expr
+          _ -> do
+            name <- instantiateMethod protocolName' methodName expr monoType
+            return (Symbol si name monoType)
+        -- TODO: instantiate expr and line if it's a foreign expression
 
   Foreign si f t -> do
     mt <- toMonomorphic si t

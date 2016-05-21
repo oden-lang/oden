@@ -9,12 +9,14 @@ import           Oden.Compiler.Monomorphization
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Monomorphed
+import           Oden.Core.Operator
 import           Oden.Core.Typed
 import           Oden.Core.ProtocolImplementation
 
 import           Oden.Identifier
 import           Oden.QualifiedName
 import qualified Oden.Type.Polymorphic as Poly
+import qualified Oden.Type.Monomorphic as Mono
 
 import           Oden.Compiler.Monomorphization.Fixtures
 import           Oden.Assertions
@@ -57,11 +59,11 @@ intFooMethodInstance =
   (Identifier "Foo_method_foo_inst_int")
   (Literal missing (Int 1) monoInt)
 
-resolvedReference :: TypedDefinition
-resolvedReference =
+resolvedReferenceFooExpr :: TypedDefinition
+resolvedReferenceFooExpr =
   Definition
     missing
-    (Identifier "resolvedReference")
+    (Identifier "resolvedReferenceFooExpr")
     (Poly.Forall missing [] Set.empty typeInt,
      MethodReference
      missing
@@ -71,21 +73,55 @@ resolvedReference =
       fooMethodImplementation)
      typeInt)
 
-resolvedReferenceMonomorphed :: MonomorphedDefinition
-resolvedReferenceMonomorphed =
+resolvedReferenceFooMonomorphed :: MonomorphedDefinition
+resolvedReferenceFooMonomorphed =
   MonomorphedDefinition
     missing
-    (Identifier "resolvedReference")
+    (Identifier "resolvedReferenceFooExpr")
     monoInt
     (Symbol missing (Identifier "Foo_method_foo_inst_int") monoInt)
 
+resolvedReferenceAddExpr :: TypedDefinition
+resolvedReferenceAddExpr =
+  Definition
+    missing
+    (Identifier "resolvedReferenceAddExpr")
+    (Poly.Forall missing [] Set.empty (Poly.TFn missing typeInt typeInt),
+     MethodReference
+     missing
+     (Resolved
+      (nameInUniverse "Addition")
+      (Identifier "Add")
+      (MethodImplementation
+       missing
+       (Identifier "Add")
+       (Foreign missing (ForeignOperator Add) (Poly.TFn missing typeInt (Poly.TFn missing typeInt typeInt)))))
+      typeInt)
+
+resolvedReferenceAddMonomorphed :: MonomorphedDefinition
+resolvedReferenceAddMonomorphed =
+  MonomorphedDefinition
+  missing
+  (Identifier "resolvedReferenceAddExpr")
+  (Mono.TFn missing monoInt monoInt)
+  (Foreign missing (ForeignOperator Add) (Mono.TFn missing monoInt (Mono.TFn missing monoInt monoInt)))
+
 spec :: Spec
-spec = -- do
+spec = do
   it "monomorphs method implementation as a definition" $
-    monomorphPackage (TypedPackage myPkg [] [resolvedReference])
+    monomorphPackage (TypedPackage myPkg [] [resolvedReferenceFooExpr])
     `shouldSucceedWith`
     MonomorphedPackage
       myPkg
       []
       (Set.singleton intFooMethodInstance)
-      (Set.singleton resolvedReferenceMonomorphed)
+      (Set.singleton resolvedReferenceFooMonomorphed)
+
+  it "inlines monomorphed method implementation with foreign expr" $
+    monomorphPackage (TypedPackage myPkg [] [resolvedReferenceAddExpr])
+    `shouldSucceedWith`
+    MonomorphedPackage
+      myPkg
+      []
+      Set.empty
+      (Set.singleton resolvedReferenceAddMonomorphed)

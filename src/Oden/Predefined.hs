@@ -7,8 +7,11 @@ module Oden.Predefined (
 ) where
 
 import           Oden.Core.Definition
+import           Oden.Core.Expr
+import           Oden.Core.Operator
 import           Oden.Core.Package
 import           Oden.Core.Typed
+import           Oden.Core.ProtocolImplementation
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -81,6 +84,35 @@ protocols =
   ,("Equality", equalityProtocol)
   ]
 
+impls :: [ProtocolImplementation TypedExpr]
+impls =
+  [ProtocolImplementation
+   predefined
+   (nameInUniverse "Equality")
+   typeInt
+   [MethodImplementation
+    predefined
+    (Identifier "Equals")
+    (Foreign predefined
+     (ForeignOperator Equals)
+     (TFn predefined typeInt (TFn predefined typeInt typeBool)))]
+   ,ProtocolImplementation
+    predefined
+    (nameInUniverse "Addition")
+    typeInt
+    [MethodImplementation
+     predefined
+     (Identifier "Add")
+     (Foreign predefined (ForeignOperator Add) (TFn predefined typeInt (TFn predefined typeInt typeInt)))]
+  ,ProtocolImplementation
+    predefined
+    (nameInUniverse "Addition")
+    typeInt
+    [MethodImplementation
+     predefined
+     (Identifier "Add")
+     (Foreign predefined (ForeignOperator Add) (TFn predefined typeInt (TFn predefined typeInt typeInt)))]]
+
 foreignFns :: [(Identifier, Scheme)]
 foreignFns = [
   (Identifier "len", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
@@ -104,6 +136,7 @@ universe =
   (concat [ map toProtocolDef protocols
           , map toForeignDef foreignFns
           , map toTypeDef types
+          , map (Implementation predefined) impls
           ])
     where
     toProtocolDef (s, p) = ProtocolDefinition predefined (nameInUniverse s) p

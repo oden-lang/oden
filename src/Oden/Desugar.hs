@@ -39,8 +39,19 @@ desugarFieldInitializer (Syntax.FieldInitializer si label expr) =
 methodForBinaryOperator :: BinaryOperator -> NamedMethodReference
 methodForBinaryOperator =
   \case
-    Add -> NamedMethodReference (Identifier "Add") (Identifier "Add")
-    _   -> NamedMethodReference (Identifier "Foo") (Identifier "Add")
+    Add              -> NamedMethodReference (Identifier "Addition") (Identifier "Add")
+    Subtract         -> NamedMethodReference (Identifier "Subtraction") (Identifier "Subtract")
+    Multiply         -> NamedMethodReference (Identifier "Multiplication") (Identifier "Multiply")
+    Divide           -> NamedMethodReference (Identifier "Division") (Identifier "Divide")
+    Equals           -> NamedMethodReference (Identifier "Equality") (Identifier "Equals")
+    Concat           -> NamedMethodReference (Identifier "Concat") (Identifier "Concat")
+    LessThan         -> NamedMethodReference (Identifier "Ordered") (Identifier "LessThan")
+    LessThanEqual    -> NamedMethodReference (Identifier "Ordered") (Identifier "LessThanEqual")
+    GreaterThan      -> NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThan")
+    GreaterThanEqual -> NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThanEqual")
+    And              -> NamedMethodReference (Identifier "Logical") (Identifier "And")
+    Or               -> NamedMethodReference (Identifier "Logical") (Identifier "Or")
+
 
 untyped :: Either DesugarError Untyped
 untyped = pure Untyped

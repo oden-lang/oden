@@ -14,7 +14,7 @@ import           Oden.Core.Typed
 import           Oden.Core.Untyped                (UntypedPackage)
 
 import           Oden.Environment
-import           Oden.Explode
+import           Oden.Desugar
 import qualified Oden.Go.Importer                 as Go
 import           Oden.Imports
 import           Oden.Infer
@@ -54,7 +54,7 @@ inferFile :: SourceFile -> CLI (TypingEnvironment, TypedPackage)
 inferFile (OdenSourceFile fname _) = do
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
-  untypedPkg <- liftEither' (explodePackage syntaxPkg)
+  untypedPkg <- liftEither' (desugarPackage syntaxPkg)
   validateUntypedPkg untypedPkg
   (untypedPkgWithImports, warnings') <- liftIO (resolveImports Go.importer untypedPkg) >>= liftEither
   mapM_ logWarning warnings'
