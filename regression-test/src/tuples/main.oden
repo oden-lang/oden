@@ -8,6 +8,17 @@ stuff = (1, nothing, "yey")
 pair : forall a b. a -> b -> (a, b)
 pair(x, y) = (x, y)
 
+// Until we have proper equality for tuples:
+impl Equality((int, int, int)) {
+  EqualTo(t1, t2) = true
+  NotEqualTo(t1, t2) = false
+}
+impl Equality((int, string)) {
+  EqualTo(t1, t2) = true
+  NotEqualTo(t1, t2) = false
+}
+// Remove these impls ASAP!
+
 main : -> ()
 main() = {
   println(stuff)
