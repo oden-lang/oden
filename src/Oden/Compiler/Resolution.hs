@@ -67,7 +67,7 @@ findMethod :: ProtocolImplementation TypedExpr
 findMethod (ProtocolImplementation _ _ _ methods) name =
   case filter matchesName methods of
     [method] -> return method
-    _ -> error "whaaaat..."
+    _ -> error ("expected method to be present in implementation: " ++ show name)
   where
   matchesName (MethodImplementation _ methodName _) =
     methodName == name
