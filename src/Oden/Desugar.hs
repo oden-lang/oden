@@ -201,13 +201,13 @@ desugarTopLevel' pkg top = do
   iter (is, ts, defs) (Syntax.ProtocolDefinition si name varBinding methods) =
     let def = ProtocolDefinition (Metadata si) (FQN pkg name) varBinding methods
     in return (is, ts, defs ++ [def])
-  iter (is, ts, defs) (Syntax.Implementation si protocolName typeSignature methods) =
+  iter (is, ts, defs) (Syntax.Implementation si typeSignature methods) =
     case mapM desugarMethodImpls methods of
       Left err -> do
         tell [err]
         return (is, ts, defs)
       Right methodImpls ->
-        let impl = Implementation (Metadata si) protocolName typeSignature methodImpls
+        let impl = Implementation (Metadata si) typeSignature methodImpls
         in return (is, ts, defs ++ [impl])
     where
     desugarMethodImpls def = do

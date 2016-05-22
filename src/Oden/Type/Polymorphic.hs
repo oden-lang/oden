@@ -55,6 +55,8 @@ data Type
   | TTuple (Metadata SourceInfo) Type Type [Type]
   -- | A type constructor.
   | TCon (Metadata SourceInfo) QualifiedName
+  -- | Type application.
+  | TApp (Metadata SourceInfo) Type Type
   -- | Like a 'TFn' but with no argument, only a return type.
   | TNoArgFn (Metadata SourceInfo) Type
   -- | A curried function.

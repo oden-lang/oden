@@ -187,10 +187,18 @@ type' = do
   simple :: Parser SignatureExpr
   simple = slice'
         <|> noArgFn
-        <|> identified TSSymbol
+        <|> typeAppOrCon
+        <|> typeCon
         <|> unitExprOrTupleType
         <|> recordType
   noArgFn = TSNoArgFn <$> currentSourceInfo <*> (rArrow *> type')
+  typeCon = identified TSSymbol
+  typeAppOrCon = do
+    con <- typeCon
+    params <- parensList simple <|> return []
+    return $ if null params
+             then con
+             else foldl (\t acc -> TSApp (getSourceInfo acc) t acc) con params
   unitExprOrTupleType = do
     si <- currentSourceInfo
     ts <- parensList type'
@@ -270,7 +278,8 @@ table = [
       infixOp ">" GreaterThan Ex.AssocLeft,
       infixOp "<=" LessThanEqual Ex.AssocLeft,
       infixOp ">=" GreaterThanEqual Ex.AssocLeft,
-      infixOp "==" EqualTo Ex.AssocLeft
+      infixOp "==" EqualTo Ex.AssocLeft,
+      infixOp "/=" NotEqualTo Ex.AssocLeft
     ],
     [
       infixOp "&&" And Ex.AssocLeft,
@@ -289,12 +298,8 @@ pkgDecl = do
 tvarBinding :: Parser SignatureVarBinding
 tvarBinding = SignatureVarBinding <$> currentSourceInfo <*> identifier
 
-namedSignature :: (SourceInfo -> Identifier -> TypeSignature -> a) -> Parser a
-namedSignature f = do
-  si <- currentSourceInfo
-  i <- identifier
-  reservedOp ":"
-  f si i <$> signature
+signature :: Parser TypeSignature
+signature = try signatureWithForall <|> signatureWithoutForall
   where
   signatureWithForall = do
     si <- currentSourceInfo
@@ -302,10 +307,17 @@ namedSignature f = do
     bindings <- many1 tvarBinding
     reservedOp "."
     TypeSignature si bindings <$> type'
+
   signatureWithoutForall = do
     si <- currentSourceInfo
     TypeSignature si [] <$> type'
-  signature = try signatureWithForall <|> signatureWithoutForall
+
+namedSignature :: (SourceInfo -> Identifier -> TypeSignature -> a) -> Parser a
+namedSignature f = do
+  si <- currentSourceInfo
+  i <- identifier
+  reservedOp ":"
+  f si i <$> signature
 
 definition :: Parser Definition
 definition = do
@@ -349,8 +361,7 @@ topLevel =
   implementation =
     Implementation
       <$> currentSourceInfo
-      <*> (reserved "impl" *> identifier)
-      <*> parens type'
+      <*> (reserved "impl" *> signature)
       <*> braces (definition `sepBy` topSeparator)
 
 package :: Parser Package

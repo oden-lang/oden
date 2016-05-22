@@ -76,7 +76,7 @@ validatePackage (UntypedPackage _ _ definitions) =
           validateDefs defs
       TypeDefinition _ (FQN _ n) _ _ : defs ->
         withIdentifier n (validateDefs defs)
-      Implementation _ _protocolName _head methods : defs -> do
+      Implementation _ _ methods : defs -> do
         mapM_ validateMethod methods
         validateDefs defs
         where

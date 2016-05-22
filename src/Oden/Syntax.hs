@@ -122,7 +122,7 @@ data TopLevel
   -- TODO: Add support for type parameters
   | TypeDefinition SourceInfo Identifier SignatureExpr
   | ProtocolDefinition SourceInfo Identifier SignatureVarBinding [ProtocolMethodSignature]
-  | Implementation SourceInfo Identifier SignatureExpr [Definition]
+  | Implementation SourceInfo TypeSignature [Definition]
   deriving (Show, Eq, Ord)
 
 data Package = Package PackageDeclaration [TopLevel]

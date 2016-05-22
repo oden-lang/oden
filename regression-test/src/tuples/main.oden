@@ -9,11 +9,11 @@ pair : forall a b. a -> b -> (a, b)
 pair(x, y) = (x, y)
 
 // Until we have proper equality for tuples:
-impl Equality((int, int, int)) {
+impl forall a b. Equality((a, b)) {
   EqualTo(t1, t2) = true
   NotEqualTo(t1, t2) = false
 }
-impl Equality((int, string)) {
+impl forall a b c. Equality((a, b, c)) {
   EqualTo(t1, t2) = true
   NotEqualTo(t1, t2) = false
 }

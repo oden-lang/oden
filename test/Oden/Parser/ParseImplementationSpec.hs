@@ -21,8 +21,13 @@ spec = do
     `shouldSucceedWith`
     Implementation
     (src 1 1)
-    (Identifier "Empty")
-    (TSSymbol (src 1 12) (Identifier "int"))
+    (TypeSignature
+     (src 1 6)
+     []
+     (TSApp
+      (src 1 12)
+      (TSSymbol (src 1 6) (Identifier "Empty"))
+      (TSSymbol (src 1 12) (Identifier "int"))))
     []
 
   it "parses an implementation with one method" $
@@ -30,8 +35,13 @@ spec = do
     `shouldSucceedWith`
     Implementation
     (src 1 1)
-    (Identifier "Empty")
-    (TSSymbol (src 1 12) (Identifier "int"))
+    (TypeSignature
+     (src 1 6)
+     []
+     (TSApp
+      (src 1 12)
+      (TSSymbol (src 1 6) (Identifier "Empty"))
+      (TSSymbol (src 1 12) (Identifier "int"))))
     [FnDefinition
      (src 2 3)
      (Identifier "foo")
@@ -43,8 +53,13 @@ spec = do
     `shouldSucceedWith`
     Implementation
     (src 1 1)
-    (Identifier "Empty")
-    (TSSymbol (src 1 12) (Identifier "int"))
+    (TypeSignature
+     (src 1 6)
+     []
+     (TSApp
+      (src 1 12)
+      (TSSymbol (src 1 6) (Identifier "Empty"))
+      (TSSymbol (src 1 12) (Identifier "int"))))
     [ FnDefinition
       (src 2 3)
       (Identifier "foo")

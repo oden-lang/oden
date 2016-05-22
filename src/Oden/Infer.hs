@@ -99,6 +99,7 @@ data TypeError
   | InvalidForeignFnApplication SourceInfo
   | InvalidForeignExpression SourceInfo
   | TypeAlreadyBound SourceInfo Identifier
+  | InvalidImplementationHead SourceInfo TypeSignature
   deriving (Show, Eq)
 
 -- | Run the inference monad.
@@ -423,35 +424,50 @@ infer = \case
 
 -- | Tries to resolve a user-supplied type expression to an actual type.
 resolveType :: SignatureExpr -> Infer Type
-resolveType (TSUnit si) = return (universeType (Metadata si) "unit")
-resolveType (TSSymbol si i) = lookupType (Metadata si) i
-resolveType (TSApp _si _e1 _e2) = error "Type constructor application not implemented yet."
-resolveType (TSFn si de re) = TFn (Metadata si) <$> resolveType de <*> resolveType re
-resolveType (TSNoArgFn si e) = TNoArgFn (Metadata si) <$> resolveType e
-resolveType (TSTuple si fe se re) = TTuple (Metadata si) <$> resolveType fe
-                                                         <*> resolveType se
-                                                         <*> mapM resolveType re
-resolveType (TSSlice si e) = TSlice (Metadata si) <$> resolveType e
-resolveType (TSRowEmpty si) = return $ REmpty (Metadata si)
-resolveType (TSRowExtension si label type' row) =
-  RExtension (Metadata si) label <$> resolveType type'
-                                 <*> resolveType row
-resolveType (TSRecord si r) = TRecord (Metadata si) <$> resolveType r
+resolveType =
+  \case
+    TSUnit si ->
+      return (universeType (Metadata si) "unit")
+    TSSymbol si i ->
+      lookupType (Metadata si) i
+    TSApp si cons param ->
+      TApp (Metadata si) <$> resolveType cons <*> resolveType param
+    TSFn si de re ->
+      TFn (Metadata si) <$> resolveType de <*> resolveType re
+    TSNoArgFn si e ->
+      TNoArgFn (Metadata si) <$> resolveType e
+    TSTuple si fe se re ->
+      TTuple (Metadata si) <$> resolveType fe
+                           <*> resolveType se
+                           <*> mapM resolveType re
+    TSSlice si e ->
+      TSlice (Metadata si) <$> resolveType e
+    TSRowEmpty si ->
+      return (REmpty (Metadata si))
+    TSRowExtension si label type' row ->
+      RExtension (Metadata si) label <$> resolveType type'
+                                    <*> resolveType row
+    TSRecord si r ->
+      TRecord (Metadata si) <$> resolveType r
+
+extendEnvWithBindings :: [SignatureVarBinding] -> TypingEnvironment -> Infer TypingEnvironment
+extendEnvWithBindings bindings' env =
+  foldM extendWithBinding env bindings'
+  where
+  extendWithBinding env' (SignatureVarBinding si' v) = do
+    tv <- fresh (Metadata si')
+    return $ env' `extend` (v, QuantifiedType (Metadata si') v tv)
+
 
 -- | Tries to resolve a user-supplied type signature to an actual type scheme.
 resolveTypeSignature :: TypeSignature -> Infer (Scheme, TypingEnvironment)
 resolveTypeSignature (TypeSignature si bindings' expr) = do
-  env <- ask
-  envWithBindings <- foldM extendWithBinding env bindings'
-  t <- local (const envWithBindings) (resolveType expr)
+  env <- ask >>= extendEnvWithBindings bindings'
+  t <- local (const env) (resolveType expr)
   -- NOTE: Type constraints in signature not supported yet, always an empty
   -- list.
-  return (Forall (Metadata si) (map toVarBinding bindings') Set.empty t, envWithBindings)
+  return (Forall (Metadata si) (map toVarBinding bindings') Set.empty t, env)
   where
-  extendWithBinding env' (SignatureVarBinding si' v) = do
-    --return $ env' `extend` (v, QuantifiedType (Metadata si') v (TVar (Metadata si') (TV varName)))
-    tv <- fresh (Metadata si')
-    return $ env' `extend` (v, QuantifiedType (Metadata si') v tv)
   toVarBinding (SignatureVarBinding si' (Identifier v)) = TVarBinding (Metadata si') (TV v)
 
 resolveMethod :: ProtocolMethodSignature -> Infer ProtocolMethod
@@ -524,13 +540,17 @@ inferDef =
           Just QuantifiedType{}  -> throwError $ TypeAlreadyBound vsi identifier
           Nothing                -> return ()
 
-    Untyped.Implementation si protocolName' type' methods -> do
-      protocol <- lookupProtocol si protocolName'
-      resolvedType <- resolveType type'
-      uni (unwrap si) (protocolHead protocol) resolvedType
-      methodImplementations <- mapM (inferMethodImplementation protocol) methods
-      let impl = ProtocolImplementation si (protocolName protocol) resolvedType methodImplementations
-      return (Implementation si impl, False)
+    Untyped.Implementation si signature@(TypeSignature tsi qs headType) methods ->
+      case headType of
+        TSApp _ (TSSymbol _ protocolName') type' -> do
+          protocol <- lookupProtocol si protocolName'
+          env <- ask >>= extendEnvWithBindings qs
+          resolvedType <- local (const env) (resolveType type')
+          uni (unwrap si) (protocolHead protocol) resolvedType
+          methodImplementations <- local (const env) (mapM (inferMethodImplementation protocol) methods)
+          let impl = ProtocolImplementation si (protocolName protocol) resolvedType methodImplementations
+          return (Implementation si impl, False)
+        _ -> throwError (InvalidImplementationHead tsi signature)
 
 
 -- | Infer a top-level definitition, returning a typed version and the typing
