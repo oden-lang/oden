@@ -139,6 +139,8 @@ convertType :: G.Type -> Converter Poly.Type
 convertType (Basic (GI.Identifier "bool") False) = return typeBool
 convertType (Basic (GI.Identifier "int") False) = return typeInt
 convertType (Basic (GI.Identifier "rune") False) = return typeInt
+convertType (Basic (GI.Identifier "float64") False) = return typeFloat64
+convertType (Basic (GI.Identifier "float") True) = return typeFloat64
 convertType (Basic (GI.Identifier "string") False) = return typeString
 convertType (Basic (GI.Identifier "nil") False) = throwError "nil constants"
 convertType (Basic n False) = throwError ("Basic type: " ++ show n)
