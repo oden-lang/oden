@@ -1,10 +1,10 @@
 package main
 
-type Point = { x : int, y : int }
+type Point = { x : float64, y : float64 }
 
-current = { x = 12, y = 24 }
+current = { x = 12.0, y = 24.0 }
 
-delta = { x = 1, y = 1 }
+delta = { x = 1.5, y = 1.5 }
 
 // This can be polymorphic again when https://github.com/oden-lang/oden/issues/94
 // is resolved.

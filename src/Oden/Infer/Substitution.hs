@@ -48,6 +48,7 @@ instance (Substitutable a, Ord a) => Substitutable (Set.Set a) where
 instance Substitutable Type where
   apply s (TTuple si f s' r)            = TTuple si (apply s f) (apply s s') (apply s r)
   apply _ (TCon si n)                   = TCon si n
+  apply s (TApp si t1 t2)               = TApp si (apply s t1) (apply s t2)
   apply (Subst s) t@(TVar _ a)          = Map.findWithDefault t a s
   apply s (TNoArgFn si t)               = TNoArgFn si (apply s t)
   apply s (TFn si t1 t2)                = TFn si (apply s t1) (apply s t2)

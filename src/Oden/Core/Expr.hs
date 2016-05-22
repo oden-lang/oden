@@ -14,6 +14,7 @@ data FieldInitializer e =
 
 data Literal
   = Int Integer
+  | Float Double
   | Bool Bool
   | String String
   | Unit

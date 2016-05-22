@@ -25,7 +25,6 @@ import qualified Data.Set                        as Set
 import           Oden.Core.Typed                 as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Foreign
 import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Untyped               hiding (Definition(..), MethodImplementation(..))
@@ -278,6 +277,8 @@ infer = \case
     return (Literal si Unit (TCon si (nameInUniverse "unit")))
   Literal si (Int n) Untyped ->
     return (Literal si (Int n) (TCon si (nameInUniverse "int")))
+  Literal si (Float n) Untyped ->
+    return (Literal si (Float n) (TCon si (nameInUniverse "float64")))
   Literal si (Bool b) Untyped ->
     return (Literal si (Bool b) (TCon si (nameInUniverse "bool")))
   Literal si (String s) Untyped ->

@@ -82,6 +82,7 @@ instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
   pretty (Let _ n e b _) =
     text "let" <+> pretty n <+> equals <+> pretty e <+> text "in" <+> pretty b
   pretty (Literal _ (Int n) _) = integer n
+  pretty (Literal _ (Float n) _) = double n
   pretty (Literal _ (Bool True) _) = text "true"
   pretty (Literal _ (Bool False) _) = text "false"
   pretty (Literal _ (String s) _) = text (show s)

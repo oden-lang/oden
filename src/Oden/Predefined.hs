@@ -350,6 +350,7 @@ foreignFns = [
 types :: [(String, Type)]
 types = [
   ("int", typeInt),
+  ("float64", typeFloat64),
   ("string", typeString),
   ("bool", typeBool),
   ("unit", typeUnit)

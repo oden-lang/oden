@@ -77,7 +77,7 @@ instance Pretty StringLiteral where
 
 instance Pretty BasicLiteral where
   pretty (IntLiteral n) = integer n
-  pretty (FloatLiteral n) = float n
+  pretty (FloatLiteral n) = double n
   pretty (RuneLiteral c) = squotes (char c)
   pretty (StringLiteral s) = pretty s
 

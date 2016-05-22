@@ -90,7 +90,7 @@ resolvedReferenceAddExpr =
      MethodReference
      missing
      (Resolved
-      (nameInUniverse "Addition")
+      (nameInUniverse "Num")
       (Identifier "Add")
       (MethodImplementation
        missing

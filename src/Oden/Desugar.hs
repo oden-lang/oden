@@ -64,6 +64,16 @@ methodForBinaryOperator =
 untyped :: Either DesugarError Untyped
 untyped = pure Untyped
 
+desugarLiteral :: Syntax.Literal -> Literal
+desugarLiteral =
+  \case
+    Syntax.Bool b   -> Bool b
+    Syntax.Int i    -> Int i
+    Syntax.Float f  -> Float f
+    Syntax.String s -> String s
+    Syntax.Unit     -> Unit
+
+
 desugarExpr :: Syntax.Expr -> Either DesugarError UntypedExpr
 desugarExpr = \case
   Syntax.Subscript si es [Syntax.Singular e] ->
@@ -95,14 +105,8 @@ desugarExpr = \case
     <*> untyped
   Syntax.Symbol si i ->
     return $ Symbol (Metadata si) i Untyped
-  Syntax.Literal si (Syntax.Bool b) ->
-    return $ Literal (Metadata si) (Bool b) Untyped
-  Syntax.Literal si (Syntax.Int i) ->
-    return $ Literal (Metadata si) (Int i) Untyped
-  Syntax.Literal si (Syntax.String s) ->
-    return $ Literal (Metadata si) (String s) Untyped
-  Syntax.Literal si Syntax.Unit ->
-    return $ Literal (Metadata si) Unit Untyped
+  Syntax.Literal si literal ->
+    return $ Literal (Metadata si) (desugarLiteral literal) Untyped
   Syntax.Tuple si f s r ->
     Tuple (Metadata si) <$> desugarExpr f <*> desugarExpr s <*> mapM desugarExpr r <*> untyped
   Syntax.If si c t f ->
