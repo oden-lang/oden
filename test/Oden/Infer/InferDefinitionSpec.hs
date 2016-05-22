@@ -32,13 +32,13 @@ spec = describe "inferDefinition" $ do
                              missing
                              (Application
                               missing
-                              (MethodReference missing (NamedMethodReference (Identifier "Addition") (Identifier "Add")) Untyped)
+                              (MethodReference missing (NamedMethodReference (Identifier "Num") (Identifier "Add")) Untyped)
                               (Literal missing (Int 1) Untyped)
                               Untyped)
                              (Literal missing (Int 1) Untyped)
                              Untyped))
     `shouldSucceedWith`
-    let constraint = ProtocolConstraint missing (nameInUniverse "Addition") typeInt in
+    let constraint = ProtocolConstraint missing (nameInUniverse "Num") typeInt in
     tDefinition
     (Identifier "n")
     (scheme typeInt,
@@ -46,7 +46,7 @@ spec = describe "inferDefinition" $ do
      (tApplication
       (MethodReference
        missing
-       (Unresolved (nameInUniverse "Addition") (Identifier "Add") constraint)
+       (Unresolved (nameInUniverse "Num") (Identifier "Add") constraint)
        (TConstrained (Set.singleton constraint) (typeFn typeInt (typeFn typeInt typeInt))))
       (tLiteral (tInt 1) typeInt)
       (typeFn typeInt typeInt))

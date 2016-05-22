@@ -1,6 +1,7 @@
 module Oden.Predefined (
   universe,
   typeInt,
+  typeFloat64,
   typeString,
   typeBool,
   typeUnit
@@ -26,8 +27,9 @@ predefined = Metadata Predefined
 tvarA :: Type
 tvarA = TVar predefined (TV "a")
 
-typeInt, typeString, typeBool, typeUnit :: Type
+typeInt, typeFloat64, typeString, typeBool, typeUnit :: Type
 typeInt = TCon predefined (nameInUniverse "int")
+typeFloat64 = TCon predefined (nameInUniverse "float64")
 typeString = TCon predefined (nameInUniverse "string")
 typeBool = TCon predefined (nameInUniverse "bool")
 typeUnit = TCon predefined (nameInUniverse "unit")
@@ -42,50 +44,6 @@ errorProtocol =
    predefined
    (Identifier "Error")
    (Forall predefined [] empty (TFn predefined (TVar predefined (TV "a")) typeString))]
-
-additionProtocol :: Protocol
-additionProtocol =
-  Protocol
-  predefined
-  (nameInUniverse "Addition")
-  (TVar predefined (TV "a"))
-  [ProtocolMethod
-   predefined
-   (Identifier "Add")
-   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))]
-
-subtractionProtocol :: Protocol
-subtractionProtocol =
-  Protocol
-  predefined
-  (nameInUniverse "Subtraction")
-  (TVar predefined (TV "a"))
-  [ProtocolMethod
-   predefined
-   (Identifier "Subtract")
-   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))]
-
-multiplicationProtocol :: Protocol
-multiplicationProtocol =
-  Protocol
-  predefined
-  (nameInUniverse "Multiplication")
-  (TVar predefined (TV "a"))
-  [ProtocolMethod
-   predefined
-   (Identifier "Multiply")
-   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))]
-
-divisionProtocol :: Protocol
-divisionProtocol =
-  Protocol
-  predefined
-  (nameInUniverse "Division")
-  (TVar predefined (TV "a"))
-  [ProtocolMethod
-   predefined
-   (Identifier "Divide")
-   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))]
 
 equalityProtocol :: Protocol
 equalityProtocol =
@@ -168,25 +126,40 @@ numProtocol =
   (TVar predefined (TV "a"))
   [ProtocolMethod
    predefined
+   (Identifier "Add")
+   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))
+  ,ProtocolMethod
+   predefined
+   (Identifier "Subtract")
+   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))
+  ,ProtocolMethod
+   predefined
+   (Identifier "Multiply")
+   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))
+  ,ProtocolMethod
+   predefined
+   (Identifier "Divide")
+   (Forall predefined [] empty (TFn predefined tvarA (TFn predefined tvarA tvarA)))
+  ,ProtocolMethod
+   predefined
    (Identifier "Negate")
-   (Forall predefined [] empty (TFn predefined tvarA tvarA))]
+   (Forall predefined [] empty (TFn predefined tvarA tvarA))
+  ]
+
 
 protocols :: [(String, Protocol)]
 protocols =
   [("error", errorProtocol)
-  ,("Addition", additionProtocol)
-  ,("Subtraction", subtractionProtocol)
-  ,("Multiplication", multiplicationProtocol)
-  ,("Division", divisionProtocol)
+  ,("Num", numProtocol)
   ,("Equality", equalityProtocol)
   ,("Ordered", orderedProtocol)
   ,("Logical", logicalProtocol)
   ,("Monoid", monoidProtocol)
-  ,("Num", numProtocol)
   ]
 
 impls :: [ProtocolImplementation TypedExpr]
 impls =
+  -- Equality(int)
   [ProtocolImplementation
    predefined
    (nameInUniverse "Equality")
@@ -204,6 +177,25 @@ impls =
       (ForeignBinaryOperator Equals)
       (TFn predefined typeInt (TFn predefined typeInt typeBool)))]
 
+  -- Equality(float64)
+  ,ProtocolImplementation
+   predefined
+   (nameInUniverse "Equality")
+   typeFloat64
+   [MethodImplementation
+    predefined
+    (Identifier "EqualTo")
+    (Foreign predefined
+     (ForeignBinaryOperator Equals)
+     (TFn predefined typeInt (TFn predefined typeInt typeBool)))
+    ,MethodImplementation
+     predefined
+     (Identifier "NotEqualTo")
+     (Foreign predefined
+      (ForeignBinaryOperator Equals)
+      (TFn predefined typeInt (TFn predefined typeInt typeBool)))]
+
+  -- Ordered(int)
   ,ProtocolImplementation
    predefined
    (nameInUniverse "Ordered")
@@ -233,42 +225,89 @@ impls =
       (ForeignBinaryOperator GreaterThanEqual)
       (TFn predefined typeInt (TFn predefined typeInt typeBool)))]
 
-   ,ProtocolImplementation
-    predefined
-    (nameInUniverse "Addition")
-    typeInt
-    [MethodImplementation
-     predefined
-     (Identifier "Add")
-     (Foreign predefined (ForeignBinaryOperator Add) (TFn predefined typeInt (TFn predefined typeInt typeInt)))]
-
+  -- Ordered(float64)
   ,ProtocolImplementation
+   predefined
+   (nameInUniverse "Ordered")
+   typeFloat64
+   [MethodImplementation
     predefined
-    (nameInUniverse "Subtraction")
-    typeInt
-    [MethodImplementation
+    (Identifier "LessThan")
+    (Foreign predefined
+     (ForeignBinaryOperator LessThan)
+     (TFn predefined typeInt (TFn predefined typeInt typeBool)))
+    ,MethodImplementation
      predefined
-     (Identifier "Subtract")
-     (Foreign predefined (ForeignBinaryOperator Subtract) (TFn predefined typeInt (TFn predefined typeInt typeInt)))]
+     (Identifier "LessThanEqual")
+     (Foreign predefined
+      (ForeignBinaryOperator LessThanEqual)
+      (TFn predefined typeInt (TFn predefined typeInt typeBool)))
+    ,MethodImplementation
+     predefined
+     (Identifier "GreaterThan")
+     (Foreign predefined
+      (ForeignBinaryOperator GreaterThan)
+      (TFn predefined typeInt (TFn predefined typeInt typeBool)))
+    ,MethodImplementation
+     predefined
+     (Identifier "GreaterThanEqual")
+     (Foreign predefined
+      (ForeignBinaryOperator GreaterThanEqual)
+      (TFn predefined typeInt (TFn predefined typeInt typeBool)))]
 
+   -- Num(int)
   ,ProtocolImplementation
+   predefined
+   (nameInUniverse "Num")
+   typeInt
+   [MethodImplementation
     predefined
-    (nameInUniverse "Multiplication")
-    typeInt
-    [MethodImplementation
-     predefined
-     (Identifier "Multiply")
-     (Foreign predefined (ForeignBinaryOperator Multiply) (TFn predefined typeInt (TFn predefined typeInt typeInt)))]
+    (Identifier "Add")
+    (Foreign predefined (ForeignBinaryOperator Add) (TFn predefined typeInt (TFn predefined typeInt typeInt)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Subtract")
+    (Foreign predefined (ForeignBinaryOperator Subtract) (TFn predefined typeInt (TFn predefined typeInt typeInt)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Multiply")
+    (Foreign predefined (ForeignBinaryOperator Multiply) (TFn predefined typeInt (TFn predefined typeInt typeInt)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Divide")
+    (Foreign predefined (ForeignBinaryOperator Divide) (TFn predefined typeInt (TFn predefined typeInt typeInt)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Negate")
+    (Foreign predefined (ForeignUnaryOperator Negate) (TFn predefined typeInt (TFn predefined typeInt typeInt)))]
 
+   -- Num(float64)
   ,ProtocolImplementation
+   predefined
+   (nameInUniverse "Num")
+   typeFloat64
+   [MethodImplementation
     predefined
-    (nameInUniverse "Division")
-    typeInt
-    [MethodImplementation
-     predefined
-     (Identifier "Divide")
-     (Foreign predefined (ForeignBinaryOperator Divide) (TFn predefined typeInt (TFn predefined typeInt typeInt)))]
+    (Identifier "Add")
+    (Foreign predefined (ForeignBinaryOperator Add) (TFn predefined typeFloat64 (TFn predefined typeFloat64 typeFloat64)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Subtract")
+    (Foreign predefined (ForeignBinaryOperator Subtract) (TFn predefined typeFloat64 (TFn predefined typeFloat64 typeFloat64)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Multiply")
+    (Foreign predefined (ForeignBinaryOperator Multiply) (TFn predefined typeFloat64 (TFn predefined typeFloat64 typeFloat64)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Divide")
+    (Foreign predefined (ForeignBinaryOperator Divide) (TFn predefined typeFloat64 (TFn predefined typeFloat64 typeFloat64)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Negate")
+    (Foreign predefined (ForeignUnaryOperator Negate) (TFn predefined typeFloat64 (TFn predefined typeFloat64 typeFloat64)))]
 
+  -- Monoid(string)
   ,ProtocolImplementation
     predefined
     (nameInUniverse "Monoid")
@@ -282,31 +321,23 @@ impls =
      (Identifier "Identity")
      (Literal predefined (String "") typeString)]
 
-   ,ProtocolImplementation
-    predefined
-    (nameInUniverse "Logical")
-    typeBool
-    [MethodImplementation
-     predefined
-     (Identifier "Conjunction")
-     (Foreign predefined (ForeignBinaryOperator And) (TFn predefined typeBool (TFn predefined typeBool typeBool)))
-    ,MethodImplementation
-     predefined
-     (Identifier "Disjunction")
-     (Foreign predefined (ForeignBinaryOperator Or) (TFn predefined typeBool (TFn predefined typeBool typeBool)))
-    ,MethodImplementation
-     predefined
-     (Identifier "Not")
-     (Foreign predefined (ForeignUnaryOperator Not) (TFn predefined typeBool typeBool))]
-
+  -- Logical(bool)
   ,ProtocolImplementation
+   predefined
+   (nameInUniverse "Logical")
+   typeBool
+   [MethodImplementation
     predefined
-    (nameInUniverse "Num")
-    typeInt
-    [MethodImplementation
-     predefined
-     (Identifier "Negate")
-     (Foreign predefined (ForeignUnaryOperator Negate) (TFn predefined typeInt (TFn predefined typeInt typeInt)))]
+    (Identifier "Conjunction")
+    (Foreign predefined (ForeignBinaryOperator And) (TFn predefined typeBool (TFn predefined typeBool typeBool)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Disjunction")
+    (Foreign predefined (ForeignBinaryOperator Or) (TFn predefined typeBool (TFn predefined typeBool typeBool)))
+   ,MethodImplementation
+    predefined
+    (Identifier "Not")
+    (Foreign predefined (ForeignUnaryOperator Not) (TFn predefined typeBool typeBool))]
   ]
 
 foreignFns :: [(Identifier, Scheme)]

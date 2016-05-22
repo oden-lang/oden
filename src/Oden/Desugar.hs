@@ -46,10 +46,10 @@ methodForUnaryOperator =
 methodForBinaryOperator :: BinaryOperator -> NamedMethodReference
 methodForBinaryOperator =
   \case
-    Add              -> NamedMethodReference (Identifier "Addition") (Identifier "Add")
-    Subtract         -> NamedMethodReference (Identifier "Subtraction") (Identifier "Subtract")
-    Multiply         -> NamedMethodReference (Identifier "Multiplication") (Identifier "Multiply")
-    Divide           -> NamedMethodReference (Identifier "Division") (Identifier "Divide")
+    Add              -> NamedMethodReference (Identifier "Num") (Identifier "Add")
+    Subtract         -> NamedMethodReference (Identifier "Num") (Identifier "Subtract")
+    Multiply         -> NamedMethodReference (Identifier "Num") (Identifier "Multiply")
+    Divide           -> NamedMethodReference (Identifier "Num") (Identifier "Divide")
     EqualTo          -> NamedMethodReference (Identifier "Equality") (Identifier "EqualTo")
     NotEqualTo       -> NamedMethodReference (Identifier "Equality") (Identifier "NotEqualTo")
     MonoidApply      -> NamedMethodReference (Identifier "Monoid") (Identifier "Apply")

@@ -1,26 +1,23 @@
 package protocols/operators/main
 
-mean(x, y) = (x + y) / 2
-
 // The user can overload with custom implementations for data types.
 
 type Vector2D = { x: int, y: int }
 
-impl Addition(Vector2D) {
-  Add(p1, p2) = {
+impl Monoid(Vector2D) {
+  Apply(p1, p2) = {
     x = p1.x + p2.x,
     y = p1.y + p2.y
   }
+  Identity = { x = 0, y = 0 }
 }
 
 position = { x = 1, y = 3 }
 distance = { x = 5, y = 7 }
 
 target : Vector2D
-target = Addition::Add(position, distance)
+target = position ++ distance
 
 main() = {
-  // Addition
-  println(mean(10, 20))
   println(target)
 }

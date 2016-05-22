@@ -44,8 +44,8 @@ binaryMethodReference protocol method opType rangeType =
   (TFn missing opType (TFn missing opType rangeType))
 
 
-add = binaryMethodReference "Addition" "Add" typeInt typeInt
-divide = binaryMethodReference "Division" "Divide" typeInt typeInt
+add = binaryMethodReference "Num" "Add" typeInt typeInt
+divide = binaryMethodReference "Num" "Divide" typeInt typeInt
 or' = binaryMethodReference "Logical" "Or" typeBool typeBool
 and' = binaryMethodReference "Logical" "And" typeBool typeBool
 lessThan = binaryMethodReference "Ordered" "LessThan" typeInt typeBool

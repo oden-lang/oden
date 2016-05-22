@@ -181,7 +181,7 @@ countToZero =
       missing
       (Application
        missing
-       (MethodReference missing (NamedMethodReference (Identifier "Subtraction") (Identifier "Subtract")) Untyped)
+       (MethodReference missing (NamedMethodReference (Identifier "Num") (Identifier "Subtract")) Untyped)
        (Symbol missing (Identifier "x") Untyped)
        Untyped)
       (Literal missing (Int 1) Untyped)
@@ -214,7 +214,7 @@ countToZeroTyped =
                            typeInt
       subtractionConstraint = ProtocolConstraint
                               missing
-                              (nameInUniverse "Subtraction")
+                              (nameInUniverse "Num")
                               typeInt
   in
   tDefinition
@@ -238,7 +238,7 @@ countToZeroTyped =
       (tApplication
        (tApplication
         (MethodReference missing
-         (Unresolved (nameInUniverse "Subtraction") (Identifier "Subtract") subtractionConstraint)
+         (Unresolved (nameInUniverse "Num") (Identifier "Subtract") subtractionConstraint)
          (TConstrained (Set.singleton subtractionConstraint) intToIntToInt))
         (tSymbol (Identifier "x") typeInt)
         intToInt)
