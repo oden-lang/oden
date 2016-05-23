@@ -74,13 +74,7 @@ _canonicalize_file_path() {
 
 DIR="$(dirname "$(realpath "$0")")"
 
-if [[ `uname` == 'Darwin' ]]; then
-  DYLD_LIBRARY_PATH="$DIR"/../lib:"$DYLD_LIBRARY_PATH"
-  export DYLD_LIBRARY_PATH
-else
-  LD_LIBRARY_PATH="$DIR"/../lib:"$LD_LIBRARY_PATH"
-  export LD_LIBRARY_PATH
-fi
+export DYLD_LIBRARY_PATH="$DIR"/../lib:"$DYLD_LIBRARY_PATH"
+export LD_LIBRARY_PATH="$DIR"/../lib:"$LD_LIBRARY_PATH"
 
 exec "$0"-exe "$@"
-
