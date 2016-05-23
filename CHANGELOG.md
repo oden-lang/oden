@@ -1,5 +1,19 @@
 # Changelog
 
+* 0.3.1
+  * Overloaded operators through protocols
+  * New default type classes:
+    * Num
+    * Equality
+    * Ordered
+    * Logical
+    * Monoid
+  * Fixed bug causing duplicated implementations in scope
+* 0.3.0
+  * Protocols
+  * New syntax
+  * Records
+  * The new `oden` CLI with sub commands.
 * 0.2.1
   - Type signatures. The type of a value can be specified, and constrained, by
     a type signature. Implicit or explicit forall ([Function
