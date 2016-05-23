@@ -9,5 +9,5 @@ plus1 = plus(1)
 
 main() = {
   println(plus1(plus1(-10)))
-  println(9.8 / 10.5)
+  println(9.5 - 10.5)
 }
