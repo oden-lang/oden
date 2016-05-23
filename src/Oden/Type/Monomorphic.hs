@@ -9,6 +9,7 @@ import           Oden.SourceInfo
 data Type
   = TTuple (Metadata SourceInfo) Type Type [Type]
   | TCon (Metadata SourceInfo) QualifiedName
+  | TApp (Metadata SourceInfo) Type Type
   | TNoArgFn (Metadata SourceInfo) Type
   | TFn (Metadata SourceInfo) Type Type
   | TSlice (Metadata SourceInfo) Type
@@ -24,6 +25,7 @@ instance HasSourceInfo Type where
   getSourceInfo (TFn (Metadata si) _ _)           = si
   getSourceInfo (TNoArgFn (Metadata si) _)        = si
   getSourceInfo (TCon (Metadata si) _)            = si
+  getSourceInfo (TApp (Metadata si) _ _)          = si
   getSourceInfo (TForeignFn (Metadata si) _ _ _)  = si
   getSourceInfo (TSlice (Metadata si) _)          = si
   getSourceInfo (TRecord (Metadata si) _)         = si
@@ -35,6 +37,7 @@ instance HasSourceInfo Type where
   setSourceInfo si (TFn _ a r)           = TFn (Metadata si) a r
   setSourceInfo si (TNoArgFn _ r)        = TNoArgFn (Metadata si) r
   setSourceInfo si (TCon _ n)            = TCon (Metadata si) n
+  setSourceInfo si (TApp _ cons param)   = TApp (Metadata si) cons param
   setSourceInfo si (TForeignFn _ v p r)  = TForeignFn (Metadata si) v p r
   setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
   setSourceInfo si (TRecord _ fs)        = TRecord (Metadata si) fs

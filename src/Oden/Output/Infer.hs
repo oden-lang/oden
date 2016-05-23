@@ -10,6 +10,15 @@ import           Oden.Output.Unification ()
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
+invalidForeignExprText :: Doc
+invalidForeignExprText =
+  text $ unwords [
+      "Foreign expressions are used by the compiler only",
+      "and should not appear in the Untyped IR before type inference. If you",
+      "get this error it's probably because of a programming error in the",
+      "compiler itself, or a tool using the compiler."
+    ]
+
 instance OdenOutput TypeError where
   outputType _ = Error
 
@@ -28,7 +37,9 @@ instance OdenOutput TypeError where
       NotAProtocol{}                                       -> "Infer.NotAProtocol"
       NoSuchMethodInProtocol{}                             -> "Infer.NoSuchMethodInProtocol"
       InvalidForeignFnApplication{}                        -> "Infer.InvalidForeignFnApplication"
+      InvalidForeignExpression{}                           -> "Infer.InvalidForeignExpression"
       TypeAlreadyBound{}                                   -> "Infer.TypeAlreadyBound"
+      InvalidImplementationHead{}                          -> "Infer.InvalidImplementationHead"
 
   header (UnificationError e) s                             = header e s
   header (InvalidPackageReference _ p) s = text "Invalid reference to package" <+> code s (pretty p)
@@ -59,8 +70,12 @@ instance OdenOutput TypeError where
     <+> code s (pretty protocolName')
   header (InvalidForeignFnApplication _) _ =
     text "Invalid foreign function application"
+  header (InvalidForeignExpression _) _ =
+    text "Invalid foreign expressi"
   header (TypeAlreadyBound _ t) s =
     text "Type" <+> code s (pretty t) <+> text "is already bound"
+  header (InvalidImplementationHead _ ts) s =
+    text "Invalid implementation head:" <+> code s (pretty ts)
 
   details (UnificationError e) s = details e s
   details InvalidPackageReference{} _ = text "Packages cannot be referenced as values"
@@ -79,14 +94,12 @@ instance OdenOutput TypeError where
   details NotAnExpression{} _ = empty
   details NotAProtocol{} _ = empty
   details NoSuchMethodInProtocol{} _ = empty
-  details (InvalidForeignFnApplication _) _ =
-    text $ unwords [
-      "Foreign function application expressions are used by the compiler only",
-      "and should not appear in the Untyped IR before type inference. If you",
-      "get this error it's probably because of a programming error in the",
-      "compiler itself, or a tool using the compiler."
-    ]
+  details (InvalidForeignFnApplication _) _ = invalidForeignExprText
+  details (InvalidForeignExpression _) _ = invalidForeignExprText
   details TypeAlreadyBound{} _ = empty
+  details InvalidImplementationHead{} s =
+    text "The implementation head must be of the form:"
+    <+> code s (text "Protocol(type)")
 
   sourceInfo =
     \case
@@ -103,4 +116,6 @@ instance OdenOutput TypeError where
       (NotAProtocol si _)                                         -> Just si
       (NoSuchMethodInProtocol si _ _)                             -> Just si
       (InvalidForeignFnApplication si)                            -> Just si
+      (InvalidForeignExpression si)                               -> Just si
       (TypeAlreadyBound si _)                                     -> Just si
+      InvalidImplementationHead si _                              -> Just si

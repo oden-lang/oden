@@ -76,6 +76,8 @@ genType t@Mono.TCon{}
   | isUniverseTypeConstructor "bool" t = return $ GT.Basic (GI.Identifier "bool") False
   | isUniverseTypeConstructor "string" t = return $ GT.Basic (GI.Identifier "string") False
   | otherwise = throwError (UnexpectedError $ "Unsupported type constructor: " ++ show t)
+genType t@Mono.TApp{} =
+  throwError $ UnexpectedError $ "Type application not supported yet: " ++ show t
 genType (Mono.TTuple _ f s r) =
   GT.Struct <$> zipWithM genTupleField [0..] (f:s:r)
   where

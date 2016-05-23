@@ -411,6 +411,8 @@ infer = \case
     throwError (InvalidForeignFnApplication si)
 
   Foreign (Metadata si) _ _ ->
+    -- Untyped code is not allowed to use foreign expressions directly, that is
+    -- only used by the compiler after type inference.
     throwError (InvalidForeignExpression si)
 
   where

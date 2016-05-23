@@ -83,31 +83,37 @@ data Type
   deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Type where
-  getSourceInfo (TVar (Metadata si) _)           = si
-  getSourceInfo (TTuple (Metadata si) _ _ _)     = si
-  getSourceInfo (TFn (Metadata si) _ _)          = si
-  getSourceInfo (TNoArgFn (Metadata si) _)       = si
-  getSourceInfo (TCon (Metadata si) _)           = si
-  getSourceInfo (TSlice (Metadata si) _)         = si
-  getSourceInfo (TRecord (Metadata si) _)        = si
-  getSourceInfo (TNamed (Metadata si) _ _)       = si
-  getSourceInfo (TConstrained _ t)               = getSourceInfo t
-  getSourceInfo (REmpty (Metadata si))           = si
-  getSourceInfo (RExtension (Metadata si) _ _ _) = si
-  getSourceInfo (TForeignFn (Metadata si) _ _ _) = si
+  getSourceInfo =
+    \case
+      TVar (Metadata si) _           -> si
+      TTuple (Metadata si) _ _ _     -> si
+      TFn (Metadata si) _ _          -> si
+      TNoArgFn (Metadata si) _       -> si
+      TCon (Metadata si) _           -> si
+      TApp (Metadata si) _ _         -> si
+      TSlice (Metadata si) _         -> si
+      TRecord (Metadata si) _        -> si
+      TNamed (Metadata si) _ _       -> si
+      TConstrained _ t               -> getSourceInfo t
+      REmpty (Metadata si)           -> si
+      RExtension (Metadata si) _ _ _ -> si
+      TForeignFn (Metadata si) _ _ _ -> si
 
-  setSourceInfo si (TVar _ v)            = TVar (Metadata si) v
-  setSourceInfo si (TTuple _ f s r)      = TTuple (Metadata si) f s r
-  setSourceInfo si (TFn _ p r)           = TFn (Metadata si) p r
-  setSourceInfo si (TNoArgFn _ r)        = TNoArgFn (Metadata si) r
-  setSourceInfo si (TCon _ n)            = TCon (Metadata si) n
-  setSourceInfo si (TSlice _ t)          = TSlice (Metadata si) t
-  setSourceInfo si (TRecord _ fs)        = TRecord (Metadata si) fs
-  setSourceInfo si (TNamed _ n t)        = TNamed (Metadata si) n t
-  setSourceInfo si (TConstrained cs t)   = TConstrained cs (setSourceInfo si t)
-  setSourceInfo si REmpty{}              = REmpty (Metadata si)
-  setSourceInfo si (RExtension _ l t r)  = RExtension (Metadata si) l t r
-  setSourceInfo si (TForeignFn _ v p r)  = TForeignFn (Metadata si) v p r
+  setSourceInfo si =
+    \case
+      TVar _ v            -> TVar (Metadata si) v
+      TTuple _ f s r      -> TTuple (Metadata si) f s r
+      TFn _ p r           -> TFn (Metadata si) p r
+      TNoArgFn _ r        -> TNoArgFn (Metadata si) r
+      TCon _ n            -> TCon (Metadata si) n
+      TApp _ cons param   -> TApp (Metadata si) cons param
+      TSlice _ t          -> TSlice (Metadata si) t
+      TRecord _ fs        -> TRecord (Metadata si) fs
+      TNamed _ n t        -> TNamed (Metadata si) n t
+      TConstrained cs t   -> TConstrained cs (setSourceInfo si t)
+      REmpty{}            -> REmpty (Metadata si)
+      RExtension _ l t r  -> RExtension (Metadata si) l t r
+      TForeignFn _ v p r  -> TForeignFn (Metadata si) v p r
 
 -- | A type variable binding.
 data TVarBinding = TVarBinding (Metadata SourceInfo) TVar
@@ -152,25 +158,29 @@ getLeafRow e = e
 -- | Converts a polymorphic 'Type' to a monomorphic 'Mono.Type'
 -- and fails if there's any 'TVar' in the type.
 toMonomorphic :: Type -> Either String Mono.Type
-toMonomorphic (TTuple si f s r) =
-  Mono.TTuple si <$> toMonomorphic f
-                 <*> toMonomorphic s
-                 <*> mapM toMonomorphic r
-toMonomorphic (TVar _ _) = Left "Cannot convert TVar to a monomorphic type"
-toMonomorphic (TCon si n) = Right $ Mono.TCon si n
-toMonomorphic (TNoArgFn si t) = Mono.TNoArgFn si <$> toMonomorphic t
-toMonomorphic (TFn si tx ty) = Mono.TFn si <$> toMonomorphic tx
-                                           <*> toMonomorphic ty
-toMonomorphic (TForeignFn si variadic parameters returns) =
-  Mono.TForeignFn si variadic <$> mapM toMonomorphic parameters
-                              <*> mapM toMonomorphic returns
-toMonomorphic (TSlice si t) = Mono.TSlice si <$> toMonomorphic t
-toMonomorphic (TRecord si row) = Mono.TRecord si <$> toMonomorphic row
-toMonomorphic (TNamed si n t) = Mono.TNamed si n <$> toMonomorphic t
-toMonomorphic (TConstrained _ t) = toMonomorphic t
-toMonomorphic (REmpty si) = return (Mono.REmpty si)
-toMonomorphic (RExtension si label polyType row) =
-  Mono.RExtension si label <$> toMonomorphic polyType <*> toMonomorphic row
+toMonomorphic =
+  \case
+    TTuple si f s r ->
+      Mono.TTuple si <$> toMonomorphic f
+                    <*> toMonomorphic s
+                    <*> mapM toMonomorphic r
+    TVar _ _ -> Left "Cannot convert TVar to a monomorphic type"
+    TCon si n -> Right $ Mono.TCon si n
+    TApp si cons param -> Mono.TApp si <$> toMonomorphic cons 
+                                       <*> toMonomorphic param
+    TNoArgFn si t -> Mono.TNoArgFn si <$> toMonomorphic t
+    TFn si tx ty -> Mono.TFn si <$> toMonomorphic tx
+                                              <*> toMonomorphic ty
+    TForeignFn si variadic parameters returns ->
+      Mono.TForeignFn si variadic <$> mapM toMonomorphic parameters
+                                  <*> mapM toMonomorphic returns
+    TSlice si t -> Mono.TSlice si <$> toMonomorphic t
+    TRecord si row -> Mono.TRecord si <$> toMonomorphic row
+    TNamed si n t -> Mono.TNamed si n <$> toMonomorphic t
+    TConstrained _ t -> toMonomorphic t
+    REmpty si -> return (Mono.REmpty si)
+    RExtension si label polyType row ->
+      Mono.RExtension si label <$> toMonomorphic polyType <*> toMonomorphic row
 
 -- | Predicate returning if there's any 'TVar' in the 'Scheme'.
 isPolymorphic :: Scheme -> Bool
@@ -182,6 +192,7 @@ isPolymorphicType :: Type -> Bool
 isPolymorphicType (TTuple _ f s r) = any isPolymorphicType (f:s:r)
 isPolymorphicType (TVar _ _) = True
 isPolymorphicType TCon{} = False
+isPolymorphicType (TApp _ cons param) = isPolymorphicType cons || isPolymorphicType param
 isPolymorphicType (TNoArgFn _ a) = isPolymorphicType a
 isPolymorphicType (TFn _ p r) = isPolymorphicType p || isPolymorphicType r
 isPolymorphicType (TForeignFn _ _ p r) =
@@ -206,6 +217,7 @@ instance FTV Type where
   ftv (TTuple _ f s r)           = ftv (f:s:r)
   ftv TCon{}                     = Set.empty
   ftv (TVar _ a)                 = Set.singleton a
+  ftv (TApp _ cons app)          = ftv cons `Set.union` ftv app
   ftv (TFn _ t1 t2)              = ftv t1 `Set.union` ftv t2
   ftv (TNoArgFn _ t)             = ftv t
   ftv (TForeignFn _ _ ps rs)     = ftv (ps ++ rs)

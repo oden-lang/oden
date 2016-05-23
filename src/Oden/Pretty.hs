@@ -201,6 +201,7 @@ instance Pretty Poly.Type where
   pretty (Poly.TVar _ v) = pretty v
   pretty (Poly.TCon _ (FQN [] (Identifier "unit"))) = text "()"
   pretty (Poly.TCon _ n) = pretty n
+  pretty (Poly.TApp _ cons param) = pretty cons <> parens (pretty param)
   pretty (Poly.TNoArgFn _ t) = rArr <+> parensIfFunction t
   pretty (Poly.TFn _ tf ta) = parensIfFunction tf <+> rArr <+> pretty ta
   pretty (Poly.TForeignFn _ _ ps rs) =
@@ -258,6 +259,7 @@ instance Pretty Mono.Type where
     brackets (hcat (punctuate (text ", ") (map pretty (f:s:r))))
   pretty (Mono.TCon _ (FQN [] (Identifier "unit"))) = text "()"
   pretty (Mono.TCon _ n) = pretty n
+  pretty (Mono.TApp _ cons param) = pretty cons <> parens (pretty param)
   pretty (Mono.TNoArgFn _ t) = rArr <+> pretty t
   pretty (Mono.TFn _ tf ta) = pretty tf <+> rArr <+> pretty ta
   pretty (Mono.TForeignFn _ _ ps rs) = text "<foreign>" <+> hsep (intersperse (text "&") (map pretty ps)) <+> rArr <+> ppReturns rs
