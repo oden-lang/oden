@@ -1,5 +1,7 @@
 # Changelog
 
+* 0.3.2
+  * Fix wrapper script issue with Oden playground.
 * 0.3.1
   * Overloaded operators through protocols
   * New default type classes:
