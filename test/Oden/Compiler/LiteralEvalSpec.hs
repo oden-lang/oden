@@ -5,7 +5,6 @@ import           Test.Hspec
 import           Oden.Compiler.LiteralEval
 
 import           Oden.Core.Expr
-import           Oden.Core.Foreign
 import           Oden.Core.Typed
 
 import           Oden.Identifier
@@ -45,12 +44,14 @@ binaryMethodReference protocol method opType rangeType =
 
 
 add = binaryMethodReference "Num" "Add" typeInt typeInt
+subtract' = binaryMethodReference "Num" "Subtract" typeInt typeInt
+multiply = binaryMethodReference "Num" "Multiply" typeInt typeInt
 divide = binaryMethodReference "Num" "Divide" typeInt typeInt
-or' = binaryMethodReference "Logical" "Or" typeBool typeBool
-and' = binaryMethodReference "Logical" "And" typeBool typeBool
+or' = binaryMethodReference "Logical" "Disjunction" typeBool typeBool
+and' = binaryMethodReference "Logical" "Conjunction" typeBool typeBool
 lessThan = binaryMethodReference "Ordered" "LessThan" typeInt typeBool
 greaterThan = binaryMethodReference "Ordered" "GreaterThan" typeInt typeBool
-equals = binaryMethodReference "Equality" "Equals" typeInt typeInt
+equals = binaryMethodReference "Equality" "EqualTo" typeInt typeInt
 
 spec :: Spec
 spec =
@@ -66,9 +67,9 @@ spec =
       evaluate (binaryOp
                 add
                 (binaryOp
-                 add
+                 multiply
                  (binaryOp
-                  add
+                  subtract'
                   (int 3)
                   (int 2))
                  (int 4))
@@ -79,7 +80,7 @@ spec =
     it "evaluates boolean literals" $
       evaluate true `shouldBe` Just (Bool True)
 
-    it "evaluates boolean expression: (true or false) and true" $
+    it "evaluates boolean expression: (true || false) && true" $
       evaluate (binaryOp
                 and'
                 (binaryOp
@@ -90,7 +91,12 @@ spec =
       `shouldBe`
       Just (Bool True)
 
-    it "evaluates integer comparison: (3 < 2) and (10 > 8)" $
+    it "evaluates single integer comparison: (3 < 5)" $
+      evaluate (binaryOp lessThan (int 3) (int 5))
+      `shouldBe`
+      Just (Bool True)
+
+    it "evaluates integer comparison: (3 < 5) && (10 > 8)" $
       evaluate (binaryOp
                 and'
                  (binaryOp lessThan (int 3) (int 5))

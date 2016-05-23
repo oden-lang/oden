@@ -57,7 +57,7 @@ divisionByZeroExpr =
    missing
    (MethodReference
     missing
-    (Unresolved (nameInUniverse "Division") (Identifier "Divide") undefined)
+    (Unresolved (nameInUniverse "Num") (Identifier "Divide") (ProtocolConstraint missing (nameInUniverse "Num") typeInt))
     (TFn missing typeInt (TFn missing typeInt typeInt)))
    (intExpr 1)
    (TFn missing typeInt typeInt))

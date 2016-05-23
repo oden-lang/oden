@@ -22,8 +22,10 @@ import           Control.Monad.Except
 
 import qualified Data.Set                  as Set
 
+import Debug.Trace
+
 data ValidationError
-  =  ValueDiscarded TypedExpr
+  = ValueDiscarded TypedExpr
   | DivisionByZero TypedExpr
   | NegativeSliceIndex TypedExpr
   | InvalidSubslice SourceInfo TypedRange
@@ -84,9 +86,9 @@ validateExpr = void . traverseExpr identityTraversal { onExpr = onExpr'
     Subslice _ _ r _ -> do
       validateRange r
       return $ Just expr
-    Application _ (Application _ _ (MethodReference _ ref _) _) (Literal _ (Int 0) _) _
+    Application _ (Application _ (MethodReference _ ref _) _ _) (Literal _ (Int 0) _) _
       | isDivideRef ref -> throwError $ DivisionByZero expr
-      | otherwise -> return Nothing
+      | otherwise -> traceShow expr $ return Nothing
     Block _ exprs _ -> do
       mapM_ warnOnDiscarded (init exprs)
       return $ Just expr
@@ -102,7 +104,7 @@ validateExpr = void . traverseExpr identityTraversal { onExpr = onExpr'
     return p
   onMemberAccess' a = return a
 
-  divisionName = nameInUniverse "Division"
+  divisionName = nameInUniverse "Num"
   divideName = Identifier "Divide"
   isDivideRef =
     \case

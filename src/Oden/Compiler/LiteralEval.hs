@@ -1,33 +1,93 @@
+{-# LANGUAGE LambdaCase #-}
 module Oden.Compiler.LiteralEval where
 
 import           Oden.Core.Expr
+import           Oden.Core.Typed
 
-evaluate :: Expr r t a -> Maybe Literal
-evaluate Symbol{} = Nothing
+import           Oden.Type.Polymorphic
 
-evaluate Subscript{} = Nothing
-evaluate Subslice{} = Nothing
+import           Oden.Identifier
+import           Oden.QualifiedName
+import           Oden.Predefined
 
-evaluate Application{} = Nothing
-evaluate NoArgApplication{} = Nothing
-evaluate ForeignFnApplication{} = Nothing
+evaluateBinaryMethodApplication :: TypedMethodReference
+                                -> TypedExpr
+                                -> TypedExpr
+                                -> Type
+                                -> Maybe Literal
+evaluateBinaryMethodApplication  f e1 e2 t =
+  case f of 
+    Unresolved (FQN [] (Identifier "Num")) (Identifier method) _ | t == typeInt -> do
+      (Int n1) <- evaluate e1
+      (Int n2) <- evaluate e2
+      case method of
+        "Add"      -> return $ Int (n1 + n2)
+        "Subtract" -> return $ Int (n1 - n2)
+        "Multiply" -> return $ Int (n1 * n2)
+        "Divide"   -> return $ Int (n1 `div` n2)
+        _          -> Nothing
+    Unresolved (FQN [] (Identifier "Ordered")) (Identifier method) _ | typeOf e1 == typeInt -> do
+      (Int n1) <- evaluate e1
+      (Int n2) <- evaluate e2
+      case method of
+        "LessThan"         -> return $ Bool (n1 < n2)
+        "LessThanEqual"    -> return $ Bool (n1 <= n2)
+        "GreaterThan"      -> return $ Bool (n1 > n2)
+        "GreaterThanEqual" -> return $ Bool (n1 >= n2)
+        _                  -> Nothing
+    Unresolved (FQN [] (Identifier "Logical")) (Identifier method) _ | t == typeBool -> do
+      (Bool b1) <- evaluate e1
+      (Bool b2) <- evaluate e2
+      case method of
+        "Conjunction" -> return $ Bool (b1 && b2)
+        "Disjunction" -> return $ Bool (b1 || b2)
+        _             -> Nothing
+    Unresolved (FQN [] (Identifier "Equality")) (Identifier method) _ | typeOf e1 == typeInt -> do
+      (Int n1) <- evaluate e1
+      (Int n2) <- evaluate e2
+      case method of
+        "EqualTo"    -> return $ Bool (n1 == n2)
+        "NotEqualTo" -> return $ Bool (n1 /= n2)
+        _            -> Nothing
+    Unresolved (FQN [] (Identifier "Equality")) (Identifier method) _ | typeOf e1 == typeBool -> do
+      (Bool b1) <- evaluate e1
+      (Bool b2) <- evaluate e2
+      case method of
+        "EqualTo"    -> return $ Bool (b1 == b2)
+        "NotEqualTo" -> return $ Bool (b1 /= b2)
+        _            -> Nothing
+    _ -> Nothing
 
-evaluate Fn{} = Nothing
-evaluate NoArgFn{} = Nothing
-evaluate Let{} = Nothing
+evaluate :: TypedExpr -> Maybe Literal
+evaluate =
+  \case
+    Symbol{} -> Nothing
 
-evaluate RecordInitializer{} = Nothing
-evaluate MemberAccess{} = Nothing
-evaluate MethodReference{} = Nothing
+    Subscript{} -> Nothing
+    Subslice{} -> Nothing
 
-evaluate (Literal _ l _) = Just l
+    Application _ (Application _ (MethodReference _ ref _) e1 _) e2 t ->
+      evaluateBinaryMethodApplication ref e1 e2 t
+    Application{} -> Nothing
+    NoArgApplication{} -> Nothing
+    ForeignFnApplication{} -> Nothing
 
-evaluate (If _ p e1 e2 _) = do
-  (Bool b) <- evaluate p
-  if b then evaluate e1
-       else evaluate e2
+    Fn{} -> Nothing
+    NoArgFn{} -> Nothing
+    Let{} -> Nothing
 
-evaluate Slice{} = Nothing
-evaluate Tuple{} = Nothing
-evaluate Block{} = Nothing
-evaluate Foreign{} = Nothing
+    RecordInitializer{} -> Nothing
+    MemberAccess{} -> Nothing
+    MethodReference{} -> Nothing
+
+    (Literal _ l _) -> Just l
+
+    (If _ p e1 e2 _) -> do
+      (Bool b) <- evaluate p
+      if b then evaluate e1
+          else evaluate e2
+
+    Slice{} -> Nothing
+    Tuple{} -> Nothing
+    Block{} -> Nothing
+    Foreign{} -> Nothing
