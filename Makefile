@@ -71,6 +71,7 @@ $(GITBOOK):
 build/doc/user-guide: doc/user-guide/*.md $(GITBOOK)
 	$(GITBOOK) install doc/user-guide
 	$(GITBOOK) build doc/user-guide build/doc/user-guide
+	cp doc/user-guide/logo.png build/doc/user-guide/gitbook/images/favicon.ico
 
 .PHONY: doc
 doc: build/doc/user-guide
