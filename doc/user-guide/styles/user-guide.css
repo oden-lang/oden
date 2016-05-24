@@ -90,6 +90,7 @@ code,
   border-radius: 0;
   outline: none;
   cursor: pointer;
+  font-family: "Ubuntu Mono", monospace;
   font-size: 18px;
 }
 .playground-runnable .run:hover,
