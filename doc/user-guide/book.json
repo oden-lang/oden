@@ -1,0 +1,32 @@
+{
+    "title": "Oden User Guide",
+    "structure": {
+        "readme": "README.md"
+    },
+    "plugins": ["katex", "printlinks", "github", "addcssjs"],
+    "pluginsConfig": {
+        "github": {
+            "url": "https://github.com/oden-lang/oden"
+        },
+        "addcssjs": {
+          "js": [
+            "//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js",
+            "js/user-guide.js"
+          ],
+          "css": [
+            "https://fonts.googleapis.com/css?family=Crimson+Text:400,400italic,600,700",
+            "https://fonts.googleapis.com/css?family=Ubuntu+Mono:400,700,400italic"
+          ]
+        }
+    },
+    "styles": {
+      "website": "styles/user-guide.css"
+    },
+    "links": {
+        "sharing": {
+            "google": false,
+            "facebook": false,
+            "twitter": false
+        }
+    }
+}

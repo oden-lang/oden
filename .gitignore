@@ -6,3 +6,5 @@ build
 cabal.sandbox.config
 /node_modules
 target
+doc/user-guide/_book
+doc/user-guide/node_modules/

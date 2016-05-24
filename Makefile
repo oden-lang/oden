@@ -15,6 +15,7 @@ endif
 IMPORTER_SRC=$(shell find go/src/oden -name '*.go')
 
 NODEMON=node_modules/.bin/nodemon
+GITBOOK=node_modules/.bin/gitbook
 
 LIBRARY_PATH_VAR=LD_LIBRARY_PATH=build/lib:$(LD_LIBRARY_PATH)
 ifeq ($(OS),osx)
@@ -63,23 +64,21 @@ watch-test: $(NODEMON)
 $(NODEMON):
 	npm install nodemon
 
+$(GITBOOK):
+	npm install gitbook-cli
+
+# TODO: Change these file dependencies to be recursive.
+build/doc/user-guide: doc/user-guide/*.md $(GITBOOK)
+	$(GITBOOK) install doc/user-guide
+	$(GITBOOK) build doc/user-guide build/doc/user-guide
+
+.PHONY: doc
+doc: build/doc/user-guide
+
+
+.PHONY: watch-doc
+watch-doc: $(GITBOOK)
+	$(GITBOOK) serve doc/user-guide build/doc-watch
+
 $(DIST_ARCHIVE): build/oden
 	(cd build && tar -czf $(DIST_NAME).tar.gz oden)
-
-release: $(DIST_ARCHIVE)
-	@echo "\n\nDon't forget to set env variable GITHUB_TOKEN first!\n\n"
-	go get github.com/aktau/github-release
-	-git tag -a -m "Release $(VERSION)" $(VERSION) && git push origin +$(VERSION)
-	-github-release release \
-		--user oden-lang \
-		--repo oden \
-		--tag $(VERSION) \
-		--name $(VERSION) \
-		--pre-release
-	find build -name 'oden-$(VERSION)-*.tar.gz' -execdir \
-		github-release upload \
-			--user oden-lang \
-			--repo oden \
-			--tag $(VERSION) \
-			--name {} \
-			--file {} \;
