@@ -80,5 +80,11 @@ doc: build/doc/user-guide
 watch-doc: $(GITBOOK)
 	$(GITBOOK) serve doc/user-guide build/doc-watch
 
+deploy-docs:
+	aws s3 sync build/doc/user-guide s3://docs.oden-lang.org/$(VERSION)/ --acl=public-read
+
+deploy-latest-docs:
+	aws s3 sync build/doc/user-guide s3://docs.oden-lang.org/latest/ --acl=public-read
+
 $(DIST_ARCHIVE): build/oden
 	(cd build && tar -czf $(DIST_NAME).tar.gz oden)

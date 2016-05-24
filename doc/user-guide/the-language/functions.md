@@ -130,15 +130,14 @@ create function `personSays` that takes two strings. We apply the function
 with only one string and get a function back. Later we apply it with the
 other string to actually print something.
 
-```go
-package main
+<div class="playground-runnable">
+<pre><code class="lang-go">package main
 
 personSays(who, what) = println(who ++ " says: " ++ what)
 simonSays = personSays("Simon")
 
-main() = simonSays("write a program in Oden")
-// Simon says: write a program in Oden
-```
+main() = simonSays("write a program in Oden")</code></pre>
+</div>
 
 ### Go Functions
 

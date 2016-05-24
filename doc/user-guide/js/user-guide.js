@@ -102,4 +102,11 @@ function setupRunnables() {
 
 $(function () {
   setupRunnables();
+
+  require(["gitbook"], function(gitbook) {
+    gitbook.events.bind('page.change', function() {
+      setupRunnables();
+    });
+  });
+
 });
