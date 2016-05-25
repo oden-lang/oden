@@ -84,8 +84,8 @@ code,
   top: 0;
   right: 0;
   display: inline-block;
-  background: #eee;
-  padding: 5px 10px;
+  background: #ddd;
+  padding: 5px 15px;
   border: none;
   border-radius: 0;
   outline: none;
@@ -94,12 +94,13 @@ code,
   font-size: 18px;
 }
 .playground-runnable .run:hover,
-.playground-runnable .run:active,
+.playground-runnable .run:focus,
+.playground-runnable .run:active
 {
-  background: #ddd;
+  background: #ccc;
 }
 .book .book-body .page-wrapper .page-inner section.normal .playground-runnable .output {
-  background-color: #eee;
+  background-color: #ddd;
   margin-bottom: $spacing-unit;
   font-size: 18px;
 }
