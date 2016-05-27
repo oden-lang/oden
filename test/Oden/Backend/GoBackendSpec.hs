@@ -10,9 +10,11 @@ import           Oden.Backend.Go
 import           Oden.Core.Expr
 import           Oden.Core.Package
 import           Oden.Core.Monomorphed
+
 import qualified Oden.Go.Identifier as GI
 import qualified Oden.Go.AST as AST
 import qualified Oden.Go.Type as GT
+
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
@@ -75,7 +77,11 @@ spec =
       (AST.PackageClause (GI.Identifier "main"))
       [fmtImport]
       (prelude (GI.Identifier "fmt") ++ [
-        AST.FunctionDecl (GI.Identifier "main") (AST.FunctionSignature [] []) (AST.Block [])
+        AST.FunctionDecl
+        (Just (AST.CompilerDirective "line <missing>:0"))
+        (GI.Identifier "main") 
+        (AST.FunctionSignature [] []) 
+        (AST.Block [])
        ])
 
     it "returns an empty struct for an empty block in non-main functions" $
@@ -97,7 +103,39 @@ spec =
       [fmtImport]
       (prelude (GI.Identifier "fmt") ++ [
         AST.FunctionDecl
+        (Just (AST.CompilerDirective "line <missing>:0"))
         (GI.Identifier "foo")
         (AST.FunctionSignature [] [GT.Struct []])
-        (AST.Block [AST.ReturnStmt [emptyStructLiteral]])
+        (AST.Block [ AST.StmtComment (AST.CompilerDirective "line <missing>:0")
+                   , AST.ReturnStmt [emptyStructLiteral]])
+       ])
+
+    it "writes line compiler directives" $
+      gen (MonomorphedPackage
+           mainPkg
+           []
+           Set.empty
+           (Set.singleton (MonomorphedDefinition
+                           missing
+                           (Identifier "foo")
+                           (TNoArgFn missing typeUnit)
+                           (NoArgFn
+                            (Metadata $ SourceInfo $ Position "foo.oden" 10 15)
+                            (Literal
+                             (Metadata $ SourceInfo $ Position "foo.oden" 11 5)
+                             Unit
+                             typeUnit)
+                            (TNoArgFn missing typeUnit)))))
+      `shouldSucceedWith'`
+      AST.SourceFile
+      (AST.PackageClause (GI.Identifier "main"))
+      [fmtImport]
+      (prelude (GI.Identifier "fmt") ++ [
+        AST.FunctionDecl
+        (Just (AST.CompilerDirective "line foo.oden:10"))
+        (GI.Identifier "foo")
+        (AST.FunctionSignature [] [GT.Struct []])
+        (AST.Block [ AST.StmtComment (AST.CompilerDirective "line foo.oden:11")
+                   , AST.ReturnStmt [emptyStructLiteral]
+                   ])
        ])

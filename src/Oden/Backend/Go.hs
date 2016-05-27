@@ -33,6 +33,7 @@ import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo       hiding (fileName)
+import qualified Oden.SourceInfo       as SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 
 type Codegen = ReaderT MonomorphedPackage (Except CodegenError)
@@ -64,6 +65,23 @@ replaceIdentifierPart c = case c of
 
 safeName :: String -> GI.Identifier
 safeName = GI.Identifier . concatMap replaceIdentifierPart
+
+genSourceInfo :: SourceInfo -> Maybe AST.Comment
+genSourceInfo =
+  \case
+    Missing ->
+      Just (AST.CompilerDirective "line <missing>:0")
+    Predefined ->
+      Just (AST.CompilerDirective "line <predefined>:0")
+    SourceInfo pos ->
+      Just
+      (AST.CompilerDirective
+       ("line "
+        ++ SourceInfo.fileName pos
+        ++ ":" ++ show (line pos)))
+
+genSourceInfo' :: Metadata SourceInfo -> Maybe AST.Comment
+genSourceInfo' = genSourceInfo . unwrap
 
 genIdentifier :: Identifier -> Codegen GI.Identifier
 genIdentifier (Identifier s) = return $ safeName s
@@ -275,7 +293,7 @@ genExpr expr = case expr of
     throwError $ UnexpectedError $ "Invalid no-arg fn type: " ++ show t
 
   Let _ (NameBinding _ name) bindingExpr body letType -> do
-    varDecl <- (AST.DeclarationStmt . AST.VarDecl)
+    varDecl <- (AST.DeclarationStmt Nothing . AST.VarDecl)
                <$> (AST.VarDeclInitializer
                    <$> genIdentifier name
                    <*> genType (typeOf bindingExpr)
@@ -355,29 +373,33 @@ genExpr expr = case expr of
     error "cannot codegen foreign binary operator without a full binary application"
 
 genBlock :: MonoTypedExpr -> Codegen AST.Block
-genBlock expr = (AST.Block . (:[]) . AST.ReturnStmt . (:[])) <$> genExpr expr
+genBlock expr = do
+  returnStmt <- AST.ReturnStmt . (:[]) <$> genExpr expr
+  case genSourceInfo (getSourceInfo expr) of
+    Nothing -> return (AST.Block [returnStmt])
+    Just comment -> return (AST.Block [AST.StmtComment comment, returnStmt])
 
 genTopLevel :: Identifier -> Mono.Type -> MonoTypedExpr -> Codegen AST.TopLevelDeclaration
-genTopLevel (Identifier "main") (Mono.TNoArgFn _ t) (NoArgFn _ body _) | isUniverseTypeConstructor "unit" t = do
+genTopLevel (Identifier "main") (Mono.TNoArgFn _ t) (NoArgFn si body _) | isUniverseTypeConstructor "unit" t = do
   block <- case body of
     Block _ [] _ -> return (AST.Block [])
     _          -> AST.Block . (:[]) . AST.SimpleStmt . AST.ExpressionStmt <$> genExpr body
-  return (AST.FunctionDecl (GI.Identifier "main") (AST.FunctionSignature [] []) block)
-genTopLevel name _ (NoArgFn _ body (Mono.TNoArgFn _ returnType)) = do
+  return (AST.FunctionDecl (genSourceInfo' si) (GI.Identifier "main") (AST.FunctionSignature [] []) block)
+genTopLevel name _ (NoArgFn si body (Mono.TNoArgFn _ returnType)) = do
   name' <- genIdentifier name
   returnType' <- genType returnType
-  AST.FunctionDecl name' (AST.FunctionSignature [] [returnType']) <$> genBlock body
-genTopLevel name (Mono.TFn _ paramType returnType) (Fn _ (NameBinding _ paramName) body _) = do
+  AST.FunctionDecl (genSourceInfo' si) name' (AST.FunctionSignature [] [returnType']) <$> genBlock body
+genTopLevel name (Mono.TFn _ paramType returnType) (Fn si (NameBinding _ paramName) body _) = do
   name' <- genIdentifier name
   paramName' <- genIdentifier paramName
   paramType' <- genType paramType
   returnType' <- genType returnType
-  AST.FunctionDecl name' (AST.FunctionSignature [AST.FunctionParameter paramName' paramType'] [returnType']) <$> genBlock body
+  AST.FunctionDecl (genSourceInfo' si) name' (AST.FunctionSignature [AST.FunctionParameter paramName' paramType'] [returnType']) <$> genBlock body
 genTopLevel name type' expr = do
    var <- AST.VarDeclInitializer <$> genIdentifier name
                                  <*> genType type'
                                  <*> genExpr expr
-   return (AST.Decl (AST.VarDecl var))
+   return (AST.Decl (genSourceInfo (getSourceInfo expr)) (AST.VarDecl var))
 
 genInstance :: InstantiatedDefinition -> Codegen AST.TopLevelDeclaration
 genInstance = \case
@@ -414,9 +436,9 @@ prelude fmtAlias =
       xOperand = AST.Expression (AST.Operand (AST.OperandName (GI.Identifier "x")))
       fmtApplication name = AST.Expression (AST.Application (AST.Operand (AST.QualifiedOperandName fmtAlias name)) (map AST.Argument [xOperand]))
   in [
-    AST.FunctionDecl (GI.Identifier "print") printSignature (AST.Block [
+    AST.FunctionDecl (genSourceInfo Predefined) (GI.Identifier "print") printSignature (AST.Block [
         AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Print")))]),
-    AST.FunctionDecl (GI.Identifier "println") printSignature (AST.Block [
+    AST.FunctionDecl (genSourceInfo Predefined) (GI.Identifier "println") printSignature (AST.Block [
         AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Println")))])
   ]
 

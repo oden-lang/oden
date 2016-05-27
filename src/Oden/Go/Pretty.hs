@@ -1,9 +1,11 @@
-{-# LANGUAGE QuasiQuotes, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE QuasiQuotes       #-}
 module Oden.Go.Pretty where
 
-import           Oden.Go.AST        as AST
+import           Oden.Go.AST             as AST
 import           Oden.Go.Identifier
-import           Oden.Go.Type       as T
+import           Oden.Go.Type            as T
 
 import           Numeric
 
@@ -18,6 +20,14 @@ commaSep ps = hcat (punctuate (comma <> space) (map pretty ps))
 
 semiSep :: Pretty p => [p] -> Doc
 semiSep ps = hcat (punctuate semi (map pretty ps))
+
+prependComment :: Maybe Comment -> Doc -> Doc
+prependComment (Just comment) d = vcat [pretty comment, d]
+prependComment Nothing d = d
+
+instance Pretty Comment where
+  pretty (CompilerDirective s) = text "//" <> text s
+  pretty (Comment s) = vcat (map (text . ("// " ++)) $ lines s)
 
 instance Pretty Identifier where
   pretty (Identifier n) = text n
@@ -189,13 +199,14 @@ instance Pretty IfStmt where
     text "if" <+> pretty cond <+> pretty block <+> text "else" <+> pretty elseBranch
 
 instance Pretty Stmt where
-  pretty (DeclarationStmt decl) = pretty decl
+  pretty (DeclarationStmt comment decl) = prependComment comment (pretty decl)
   pretty (IfStmt ifStmt) = pretty ifStmt
   pretty (ReturnStmt []) = text "return"
   pretty (ReturnStmt exprs) = text "return" <+> commaSep exprs
   pretty (BlockStmt block) = pretty block
   pretty (SimpleStmt stmt) = pretty stmt
-  pretty _ = text "// todo"
+  pretty (GoStmt expr) = text "go" <+> pretty expr
+  pretty (StmtComment comment) = pretty comment
 
 instance Pretty Block where
   pretty (Block []) = braces empty
@@ -219,9 +230,12 @@ instance Pretty ImportDecl where
     text "import" <+> pretty name <+> pretty path
 
 instance Pretty TopLevelDeclaration where
-  pretty (Decl decl) = pretty decl
-  pretty (FunctionDecl name signature block) =
-    text "func" <+> pretty name <> pretty signature <+> pretty block
+  pretty =
+    \case
+      Decl comment decl ->
+        prependComment comment (pretty decl)
+      FunctionDecl comment name signature block ->
+        prependComment comment (text "func" <+> pretty name <> pretty signature <+> pretty block)
 
 instance Pretty PackageClause where
   pretty (PackageClause name) =

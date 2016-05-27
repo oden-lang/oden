@@ -5,6 +5,11 @@ module Oden.Go.AST where
 import Oden.Go.Identifier
 import Oden.Go.Type
 
+data Comment 
+  = CompilerDirective String
+  | Comment String 
+  deriving (Show, Eq)
+
 data StringLiteral = RawStringLiteral String
                    | InterpretedStringLiteral String
                    deriving (Show, Eq)
@@ -110,12 +115,13 @@ data IfStmt = If Expression Block
             | IfElse Expression Block ElseBranch
             deriving (Show, Eq)
 
-data Stmt = DeclarationStmt Declaration
+data Stmt = DeclarationStmt (Maybe Comment) Declaration
           | IfStmt IfStmt
           | ReturnStmt [Expression]
           | BlockStmt Block
           | GoStmt Expression
           | SimpleStmt SimpleStmt
+          | StmtComment Comment
           deriving (Show, Eq)
 
 data Block = Block [Stmt] deriving (Show, Eq)
@@ -129,8 +135,8 @@ data Declaration = TypeDecl Identifier Type
                  | VarDecl VarDeclaration
                  deriving (Show, Eq)
 
-data TopLevelDeclaration = Decl Declaration
-                         | FunctionDecl Identifier FunctionSignature Block
+data TopLevelDeclaration = Decl (Maybe Comment) Declaration
+                         | FunctionDecl (Maybe Comment) Identifier FunctionSignature Block
                          deriving (Show, Eq)
 
 data PackageClause = PackageClause Identifier
