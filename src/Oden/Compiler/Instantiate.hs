@@ -28,6 +28,7 @@ monoToPoly :: Mono.Type -> Poly.Type
 monoToPoly (Mono.TTuple si f s r) =
   Poly.TTuple si (monoToPoly f) (monoToPoly s) (map monoToPoly r)
 monoToPoly (Mono.TCon si n) = Poly.TCon si n
+monoToPoly (Mono.TApp si f p) = Poly.TApp si (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TNoArgFn si f) = Poly.TNoArgFn si (monoToPoly f)
 monoToPoly (Mono.TFn si f p) = Poly.TFn si (monoToPoly f) (monoToPoly p)
 monoToPoly (Mono.TForeignFn si variadic as r) =
@@ -99,6 +100,7 @@ replace (Poly.TVar (Metadata si) v) = do
     Just mono -> return (setSourceInfo si mono)
     Nothing -> throwError (SubstitutionFailed si v (Map.keys s))
 replace (Poly.TCon si n) = return (Poly.TCon si n)
+replace (Poly.TApp si ft pt) = Poly.TApp si <$> replace ft <*> replace pt
 replace (Poly.TNoArgFn si t) = Poly.TNoArgFn si <$> replace t
 replace (Poly.TFn si ft pt) = Poly.TFn si <$> replace ft <*> replace pt
 replace (Poly.TForeignFn si variadic ft pt) =

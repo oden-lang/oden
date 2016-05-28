@@ -44,6 +44,10 @@ writeType (Mono.TTuple _ f s r) = do
   foldl writeElement (return ()) (f:s:r)
   where
   writeElement a t = a >> withIncreasedLevel (writeType t) >> pad
+writeType (Mono.TApp _ tf tp) = do
+  withIncreasedLevel (writeType tf)
+  padded "of"
+  withIncreasedLevel (writeType tp)
 writeType (Mono.TNoArgFn _ t') = do
   tell "to"
   pad
