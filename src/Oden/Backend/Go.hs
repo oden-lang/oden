@@ -349,8 +349,13 @@ genExpr expr = case expr of
 
   Slice _ exprs t -> do
     sliceType <- genType t
-    elements <- AST.LiteralValueElements . map AST.UnkeyedElement <$> mapM genExpr exprs
+    elements <- AST.LiteralValueElements . concat <$> mapM genSliceValue exprs
     return (literalExpr (AST.CompositeLiteral sliceType elements))
+    where
+    genSliceValue e = do
+      value <- AST.UnkeyedElement <$> genExpr e
+      return [ AST.LiteralComment (genSourceInfo (getSourceInfo e))
+             , value ]
 
   (Block _ [] _) -> return emptyStructLiteral
 
