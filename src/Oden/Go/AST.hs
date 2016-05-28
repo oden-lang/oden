@@ -136,8 +136,9 @@ data Declaration = TypeDecl Identifier Type
                  | VarDecl VarDeclaration
                  deriving (Show, Eq)
 
-data TopLevelDeclaration = Decl (Maybe Comment) Declaration
-                         | FunctionDecl (Maybe Comment) Identifier FunctionSignature Block
+data TopLevelDeclaration = Decl Declaration
+                         | FunctionDecl Identifier FunctionSignature Block
+                         | TopLevelComment Comment
                          deriving (Show, Eq)
 
 data PackageClause = PackageClause Identifier

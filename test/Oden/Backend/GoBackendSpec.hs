@@ -76,12 +76,12 @@ spec =
       AST.SourceFile
       (AST.PackageClause (GI.Identifier "main"))
       [fmtImport]
-      (prelude (GI.Identifier "fmt") ++ [
-        AST.FunctionDecl
-        (Just (AST.CompilerDirective "line <missing>:0"))
-        (GI.Identifier "main") 
-        (AST.FunctionSignature [] []) 
-        (AST.Block [])
+      (prelude (GI.Identifier "fmt")
+       ++ [ AST.TopLevelComment (AST.CompilerDirective "line <missing>:0")
+          , AST.FunctionDecl
+            (GI.Identifier "main") 
+            (AST.FunctionSignature [] []) 
+            (AST.Block [])
        ])
 
     it "returns an empty struct for an empty block in non-main functions" $
@@ -101,13 +101,13 @@ spec =
       AST.SourceFile
       (AST.PackageClause (GI.Identifier "main"))
       [fmtImport]
-      (prelude (GI.Identifier "fmt") ++ [
-        AST.FunctionDecl
-        (Just (AST.CompilerDirective "line <missing>:0"))
-        (GI.Identifier "foo")
-        (AST.FunctionSignature [] [GT.Struct []])
-        (AST.Block [ AST.StmtComment (AST.CompilerDirective "line <missing>:0")
-                   , AST.ReturnStmt [emptyStructLiteral]])
+      (prelude (GI.Identifier "fmt")
+       ++ [ AST.TopLevelComment (AST.CompilerDirective "line <missing>:0")
+          , AST.FunctionDecl
+            (GI.Identifier "foo")
+            (AST.FunctionSignature [] [GT.Struct []])
+            (AST.Block [ AST.StmtComment (AST.CompilerDirective "line <missing>:0")
+                       , AST.ReturnStmt [emptyStructLiteral]])
        ])
 
     it "writes line compiler directives" $
@@ -130,12 +130,12 @@ spec =
       AST.SourceFile
       (AST.PackageClause (GI.Identifier "main"))
       [fmtImport]
-      (prelude (GI.Identifier "fmt") ++ [
-        AST.FunctionDecl
-        (Just (AST.CompilerDirective "line foo.oden:10"))
-        (GI.Identifier "foo")
-        (AST.FunctionSignature [] [GT.Struct []])
-        (AST.Block [ AST.StmtComment (AST.CompilerDirective "line foo.oden:11")
-                   , AST.ReturnStmt [emptyStructLiteral]
-                   ])
+      (prelude (GI.Identifier "fmt")
+       ++ [ AST.TopLevelComment (AST.CompilerDirective "line foo.oden:10")
+          , AST.FunctionDecl
+            (GI.Identifier "foo")
+            (AST.FunctionSignature [] [GT.Struct []])
+            (AST.Block [ AST.StmtComment (AST.CompilerDirective "line foo.oden:11")
+                       , AST.ReturnStmt [emptyStructLiteral]
+                       ])
        ])

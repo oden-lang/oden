@@ -188,7 +188,6 @@ spec =
 
       it "prints a function declaration" $
         FunctionDecl
-        Nothing
         (Identifier "identity")
         (FunctionSignature
          [FunctionParameter (Identifier "x") (Basic (Identifier "int") False)]
@@ -196,17 +195,6 @@ spec =
         (Block [ReturnStmt [identifierX]])
         `shouldPrintAs`
         "func identity(x int) int {\n    return x\n}"
-
-      it "prints a function declaration with comment" $
-        FunctionDecl
-        (Just (Comment "hello\nworld"))
-        (Identifier "identity")
-        (FunctionSignature
-         [FunctionParameter (Identifier "x") (Basic (Identifier "int") False)]
-         [Basic (Identifier "int") False])
-        (Block [ReturnStmt [identifierX]])
-        `shouldPrintAs`
-        "// hello\n// world\nfunc identity(x int) int {\n    return x\n}"
 
     describe "Block" $ do
       it "prints an empty block" $
@@ -265,7 +253,6 @@ spec =
         (PackageClause (Identifier "main"))
         []
         [FunctionDecl
-         Nothing
          (Identifier "main")
          (FunctionSignature [] [])
          (Block [])]
@@ -277,7 +264,6 @@ spec =
         (PackageClause (Identifier "main"))
         []
         [FunctionDecl
-         Nothing
          (Identifier "main")
          (FunctionSignature [] [])
          (Block [ReturnStmt []])]
@@ -289,9 +275,20 @@ spec =
         (PackageClause (Identifier "main"))
         [ImportDecl (Identifier "bar") (InterpretedStringLiteral "the/bar")]
         [FunctionDecl
-         Nothing
          (Identifier "main")
          (FunctionSignature [] [])
          (Block [])]
         `shouldPrintAs`
         "package main\n\nimport bar \"the/bar\"\n\nfunc main() {}\n"
+
+      it "prints a source file a comment and a function decl" $
+        SourceFile
+        (PackageClause (Identifier "main"))
+        []
+        [ TopLevelComment (Comment "yey")
+        , FunctionDecl
+          (Identifier "main")
+          (FunctionSignature [] [])
+          (Block [])]
+        `shouldPrintAs`
+        "package main\n\n// yey\nfunc main() {}\n"

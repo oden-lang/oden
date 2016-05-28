@@ -235,10 +235,10 @@ instance Pretty ImportDecl where
 instance Pretty TopLevelDeclaration where
   pretty =
     \case
-      Decl comment decl ->
-        prependComment comment (pretty decl)
-      FunctionDecl comment name signature block ->
-        prependComment comment (text "func" <+> pretty name <> pretty signature <+> pretty block)
+      Decl decl -> pretty decl
+      FunctionDecl name signature block ->
+        text "func" <+> pretty name <> pretty signature <+> pretty block
+      TopLevelComment comment -> pretty comment
 
 instance Pretty PackageClause where
   pretty (PackageClause name) =
@@ -246,5 +246,18 @@ instance Pretty PackageClause where
 
 instance Pretty SourceFile where
   pretty (SourceFile pkgClause imports declarations) =
-    vcat (punctuate line parts) <> line
-    where parts = pretty pkgClause : map pretty imports ++ map pretty declarations
+    pretty pkgClause <> importsSection <> declSection <> line
+    where
+    importsSection =
+      if null imports
+      then empty
+      else line <> line <> vcat (map pretty imports)
+    declSection =
+      if null declarations
+      then empty
+      else line <> line <> vcat (map prettyTopLevel declarations)
+    prettyTopLevel =
+      \case
+        TopLevelComment comment -> pretty comment
+        topLevel -> pretty topLevel
+
