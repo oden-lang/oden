@@ -3,7 +3,16 @@ function setupRunnables() {
     var $runnable = $(this);
     var $code = $runnable.find('pre code');
     var $output = $('<pre class="output hidden"><code></code></pre>').appendTo($runnable);
-    var $run = $('<button class="run">Run</button>').appendTo($runnable);
+
+    var $nav = $('<nav>').appendTo($runnable);
+
+    var $open = $('<form target="_blank" method="post" enctype="application/x-www-form-urlencoded" action="https://playground.oden-lang.org/p">' +
+                  '<input type="hidden" name="OdenSource" value="" />' +
+                  '<button type="submit">Edit</button>' +
+                  '</form>').appendTo($nav);
+    $open.find('input[name=OdenSource]').val($code.text());
+
+    var $run = $('<button class="run">Run</button>').appendTo($nav);
 
     function displayError(result) {
       $output
