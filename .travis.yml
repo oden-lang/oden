@@ -39,8 +39,8 @@ install:
 - travis_retry stack --no-terminal --install-ghc $STACK_ARGS test --only-dependencies
 script:
 - travis_retry stack build
-- export VERSION=branch-$TRAVIS_BRANCH-job-$TRAVIS_JOB_NUMBER
-- if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-$TRAVIS_PULL_REQUEST-job-$TRAVIS_JOB_NUMBER;
+- export VERSION=branch-job-$TRAVIS_JOB_NUMBER
+- if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-job-$TRAVIS_JOB_NUMBER;
   fi
 - if [[ "$TRAVIS_TAG" != "" ]]; then export VERSION=$TRAVIS_TAG; fi
 - travis_retry make dist ci-test
