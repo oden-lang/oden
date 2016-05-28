@@ -228,6 +228,7 @@ voidToUnitWrapper si expr =
       (AST.FunctionSignature [] [GT.Struct []])
       (AST.Block [ AST.StmtComment (genSourceInfo si)
                  , AST.SimpleStmt (AST.ExpressionStmt expr)
+                 , AST.StmtComment (genSourceInfo si)
                  , AST.ReturnStmt [emptyStructLiteral]]))))
    [])
 
@@ -280,7 +281,11 @@ genExpr expr = case expr of
     param <- AST.FunctionParameter <$> genIdentifier paramName <*> genType d
     returnType <- genType r
     returnStmt <- returnSingle <$> genExpr body
-    return (literalExpr (AST.FunctionLiteral (AST.FunctionSignature [param] [returnType]) (AST.Block [returnStmt])))
+    return (literalExpr
+            (AST.FunctionLiteral
+             (AST.FunctionSignature [param] [returnType])
+             (AST.Block [ AST.StmtComment (genSourceInfo (getSourceInfo body))
+                        , returnStmt])))
   Fn _ _ _ t ->
     throwError $ UnexpectedError $ "Invalid fn type: " ++ show t
 
@@ -424,7 +429,10 @@ genTopLevel :: Identifier -> Mono.Type -> MonoTypedExpr -> Codegen AST.TopLevelD
 genTopLevel (Identifier "main") (Mono.TNoArgFn _ t) (NoArgFn si body _) | isUniverseTypeConstructor "unit" t = do
   block <- case body of
     Block _ [] _ -> return (AST.Block [])
-    _          -> AST.Block . (:[]) . AST.SimpleStmt . AST.ExpressionStmt <$> genExpr body
+    _          -> do
+      bodyStmt <- AST.SimpleStmt . AST.ExpressionStmt <$> genExpr body
+      return (AST.Block [ AST.StmtComment (genSourceInfo (getSourceInfo body))
+                        , bodyStmt ])
   return (AST.FunctionDecl (Just $ genSourceInfo' si) (GI.Identifier "main") (AST.FunctionSignature [] []) block)
 genTopLevel name _ (NoArgFn si body (Mono.TNoArgFn _ returnType)) = do
   name' <- genIdentifier name
