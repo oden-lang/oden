@@ -33,6 +33,7 @@ import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName (QualifiedName(..))
 import           Oden.SourceInfo       hiding (fileName)
+import qualified Oden.SourceInfo       as SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 
 type Codegen = ReaderT MonomorphedPackage (Except CodegenError)
@@ -64,6 +65,22 @@ replaceIdentifierPart c = case c of
 
 safeName :: String -> GI.Identifier
 safeName = GI.Identifier . concatMap replaceIdentifierPart
+
+genSourceInfo :: SourceInfo -> AST.Comment
+genSourceInfo =
+  \case
+    Missing ->
+      AST.CompilerDirective "line <missing>:0"
+    Predefined ->
+      AST.CompilerDirective "line <predefined>:0"
+    SourceInfo pos ->
+      AST.CompilerDirective
+      ("line "
+       ++ SourceInfo.fileName pos
+       ++ ":" ++ show (line pos))
+
+genSourceInfo' :: Metadata SourceInfo -> AST.Comment
+genSourceInfo' = genSourceInfo . unwrap
 
 genIdentifier :: Identifier -> Codegen GI.Identifier
 genIdentifier (Identifier s) = return $ safeName s
@@ -129,7 +146,7 @@ genRange (Range e1 e2) = AST.ClosedSlice <$> genExpr e1 <*> genExpr e2
 genRange (RangeFrom e) = AST.LowerBoundSlice <$> genExpr e
 genRange (RangeTo e) = AST.UpperBoundSlice <$> genExpr e
 
--- | Generates a call to an foreign function.
+-- | Generates a call to a foreign function.
 genRawForeignFnApplication :: MonoTypedExpr -> [MonoTypedExpr] -> Codegen AST.PrimaryExpression
 genRawForeignFnApplication f args =
   case typeOf f of
@@ -201,16 +218,18 @@ emptyStructLiteral =
     (AST.LiteralValueElements []))
 
 -- | Wraps the provided code in a function that returns unit
-voidToUnitWrapper :: AST.Expression -> AST.Expression
-voidToUnitWrapper expr =
+voidToUnitWrapper :: SourceInfo -> AST.Expression -> AST.Expression
+voidToUnitWrapper si expr =
   AST.Expression
   (AST.Application
    (AST.Operand
     (AST.Literal
      (AST.FunctionLiteral
       (AST.FunctionSignature [] [GT.Struct []])
-      (AST.Block [AST.SimpleStmt (AST.ExpressionStmt expr),
-                  AST.ReturnStmt [emptyStructLiteral]]))))
+      (AST.Block [ AST.StmtComment (genSourceInfo si)
+                 , AST.SimpleStmt (AST.ExpressionStmt expr)
+                 , AST.StmtComment (genSourceInfo si)
+                 , AST.ReturnStmt [emptyStructLiteral]]))))
    [])
 
 asPrimaryExpression :: AST.Expression -> AST.PrimaryExpression
@@ -240,14 +259,14 @@ genExpr expr = case expr of
   Application _ f arg _ ->
     AST.Expression <$> (AST.Application <$> genPrimaryExpression f
                                         <*> (((:[]) . AST.Argument) <$> genExpr arg))
-  ForeignFnApplication _ f args _ ->
+  ForeignFnApplication (Metadata si) f args _ ->
     case typeOf f of
 
       -- Go functions that return unit are (almost always) void functions
       -- we wrap them to make the call to them return unit
       Mono.TForeignFn _ _ _ [t] | isUniverseTypeConstructor "unit" t -> do
         fnCall <- genRawForeignFnApplication f args
-        return $ voidToUnitWrapper (AST.Expression fnCall)
+        return $ voidToUnitWrapper si (AST.Expression fnCall)
 
       Mono.TForeignFn _ _ _ (t1:t2:tr) ->
         genTupleWrappedForeignFnApplication f args (t1, t2, tr)
@@ -262,7 +281,11 @@ genExpr expr = case expr of
     param <- AST.FunctionParameter <$> genIdentifier paramName <*> genType d
     returnType <- genType r
     returnStmt <- returnSingle <$> genExpr body
-    return (literalExpr (AST.FunctionLiteral (AST.FunctionSignature [param] [returnType]) (AST.Block [returnStmt])))
+    return (literalExpr
+            (AST.FunctionLiteral
+             (AST.FunctionSignature [param] [returnType])
+             (AST.Block [ AST.StmtComment (genSourceInfo (getSourceInfo body))
+                        , returnStmt])))
   Fn _ _ _ t ->
     throwError $ UnexpectedError $ "Invalid fn type: " ++ show t
 
@@ -274,15 +297,21 @@ genExpr expr = case expr of
   NoArgFn _ _ t ->
     throwError $ UnexpectedError $ "Invalid no-arg fn type: " ++ show t
 
-  Let _ (NameBinding _ name) bindingExpr body letType -> do
-    varDecl <- (AST.DeclarationStmt . AST.VarDecl)
+  Let _ (NameBinding (Metadata si) name) bindingExpr body letType -> do
+    varDecl <- (AST.DeclarationStmt Nothing . AST.VarDecl)
                <$> (AST.VarDeclInitializer
                    <$> genIdentifier name
                    <*> genType (typeOf bindingExpr)
                    <*> genExpr bindingExpr)
     returnStmt <- returnSingle <$> genExpr body
     letType' <- genType letType
-    let func = AST.Operand (AST.Literal (AST.FunctionLiteral (AST.FunctionSignature [] [letType']) (AST.Block [varDecl, returnStmt])))
+    let func = AST.Operand (AST.Literal
+                            (AST.FunctionLiteral
+                             (AST.FunctionSignature [] [letType'])
+                             (AST.Block [ AST.StmtComment (genSourceInfo si)
+                                        , varDecl
+                                        , AST.StmtComment (genSourceInfo (getSourceInfo body))
+                                        , returnStmt])))
     return (AST.Expression (AST.Application func []))
 
   Literal _ lit _ -> case lit of
@@ -293,43 +322,79 @@ genExpr expr = case expr of
     String s   -> return $ literalExpr $ AST.BasicLiteral $ AST.StringLiteral $ AST.InterpretedStringLiteral s
     Unit{}     -> return emptyStructLiteral
 
-  Tuple _ f s r t ->
-    literalExpr <$> (AST.CompositeLiteral
-                     <$> genType t
-                     <*> (AST.LiteralValueElements . map AST.UnkeyedElement <$> mapM genExpr (f:s:r)))
+  Tuple _ f s r t -> do
+    elements <- AST.LiteralValueElements . concat <$> mapM genTupleField (f:s:r)
+    literalExpr <$> (AST.CompositeLiteral <$> genType t <*> return elements)
+    where
+    genTupleField e = do
+      field <- AST.UnkeyedElement <$> genExpr e
+      return [ AST.LiteralComment (genSourceInfo (getSourceInfo e))
+             , field ]
 
   If _ condExpr thenExpr elseExpr exprType -> do
     condExpr' <- genExpr condExpr
-    thenBranch <- (AST.Block . (:[]) . returnSingle) <$> genExpr thenExpr
-    elseBranch <- (AST.ElseBlock . AST.Block . (:[]) . returnSingle) <$> genExpr elseExpr
+    thenExpr' <- genExpr thenExpr
+    let thenBranch = AST.Block
+                     [ AST.StmtComment (genSourceInfo (getSourceInfo thenExpr))
+                     , returnSingle thenExpr']
+    elseExpr' <- genExpr elseExpr
+    let elseBranch = AST.ElseBlock
+                     (AST.Block
+                      [ AST.StmtComment (genSourceInfo (getSourceInfo elseExpr))
+                      , returnSingle elseExpr'])
+
     exprType' <- genType exprType
 
     let ifStmt = AST.IfStmt (AST.IfElse condExpr' thenBranch elseBranch)
-    let func = AST.Operand (AST.Literal (AST.FunctionLiteral (AST.FunctionSignature [] [exprType']) (AST.Block [ifStmt])))
+    let func = AST.Operand (AST.Literal
+                            (AST.FunctionLiteral
+                             (AST.FunctionSignature [] [exprType'])
+                             (AST.Block [ifStmt])))
     return (AST.Expression (AST.Application func []))
 
   Slice _ exprs t -> do
     sliceType <- genType t
-    elements <- AST.LiteralValueElements . map AST.UnkeyedElement <$> mapM genExpr exprs
+    elements <- AST.LiteralValueElements . concat <$> mapM genSliceValue exprs
     return (literalExpr (AST.CompositeLiteral sliceType elements))
+    where
+    genSliceValue e = do
+      value <- AST.UnkeyedElement <$> genExpr e
+      return [ AST.LiteralComment (genSourceInfo (getSourceInfo e))
+             , value ]
 
   (Block _ [] _) -> return emptyStructLiteral
 
   (Block _ exprs t) -> do
     blockType <- genType t
-    initStmts <- map (AST.SimpleStmt . AST.ExpressionStmt) <$> mapM genExpr (init exprs)
-    returnStmt <- returnSingle <$> genExpr (last exprs)
-    let func = AST.Operand (AST.Literal (AST.FunctionLiteral (AST.FunctionSignature [] [blockType]) (AST.Block $ initStmts ++ [returnStmt])))
+    initStmts <- concat <$> mapM genWithSourceInfo (init exprs)
+    let lastExpr = last exprs
+    returnStmt <- returnSingle <$> genExpr lastExpr
+    let stmts = initStmts ++ [ AST.StmtComment (genSourceInfo (getSourceInfo lastExpr))
+                             , returnStmt
+                             ]
+    let func = AST.Operand
+               (AST.Literal
+                (AST.FunctionLiteral
+                 (AST.FunctionSignature [] [blockType])
+                 (AST.Block stmts)))
     return (AST.Expression (AST.Application func []))
+    where
+    genWithSourceInfo e = do
+      exprStmt <- (AST.SimpleStmt . AST.ExpressionStmt) <$> genExpr e
+      return [ AST.StmtComment (genSourceInfo (getSourceInfo e))
+             , exprStmt
+             ]
 
   RecordInitializer _ values recordType -> do
-    elements <- AST.LiteralValueElements <$> mapM genField values
+    elements <- (AST.LiteralValueElements . concat) <$> mapM genField values
     structType <- genType recordType
     return (literalExpr (AST.CompositeLiteral structType elements))
     where
-    genField (FieldInitializer _ label initializerExpr) =
-      AST.KeyedElement <$> (AST.LiteralKeyName <$> genIdentifier label)
-                       <*> genExpr initializerExpr
+    genField (FieldInitializer (Metadata si) label initializerExpr) = do
+      keyed <- AST.KeyedElement <$> (AST.LiteralKeyName <$> genIdentifier label)
+                                <*> genExpr initializerExpr
+      return [ AST.LiteralComment (genSourceInfo si)
+             , keyed ]
 
   MemberAccess _ access _ ->
     case access of
@@ -355,38 +420,56 @@ genExpr expr = case expr of
     error "cannot codegen foreign binary operator without a full binary application"
 
 genBlock :: MonoTypedExpr -> Codegen AST.Block
-genBlock expr = (AST.Block . (:[]) . AST.ReturnStmt . (:[])) <$> genExpr expr
+genBlock expr = do
+  returnStmt <- AST.ReturnStmt . (:[]) <$> genExpr expr
+  let comment = AST.StmtComment (genSourceInfo (getSourceInfo expr))
+  return (AST.Block [comment, returnStmt])
 
-genTopLevel :: Identifier -> Mono.Type -> MonoTypedExpr -> Codegen AST.TopLevelDeclaration
-genTopLevel (Identifier "main") (Mono.TNoArgFn _ t) (NoArgFn _ body _) | isUniverseTypeConstructor "unit" t = do
+genTopLevel :: Identifier
+            -> Mono.Type
+            -> MonoTypedExpr
+            -> Codegen [AST.TopLevelDeclaration]
+genTopLevel (Identifier "main") (Mono.TNoArgFn _ t) (NoArgFn si body _) | isUniverseTypeConstructor "unit" t = do
   block <- case body of
     Block _ [] _ -> return (AST.Block [])
-    _          -> AST.Block . (:[]) . AST.SimpleStmt . AST.ExpressionStmt <$> genExpr body
-  return (AST.FunctionDecl (GI.Identifier "main") (AST.FunctionSignature [] []) block)
-genTopLevel name _ (NoArgFn _ body (Mono.TNoArgFn _ returnType)) = do
+    _          -> do
+      bodyStmt <- AST.SimpleStmt . AST.ExpressionStmt <$> genExpr body
+      return (AST.Block [ AST.StmtComment (genSourceInfo (getSourceInfo body))
+                        , bodyStmt ])
+  return [ AST.TopLevelComment (genSourceInfo' si)
+         , AST.FunctionDecl (GI.Identifier "main") (AST.FunctionSignature [] []) block]
+genTopLevel name _ (NoArgFn si body (Mono.TNoArgFn _ returnType)) = do
   name' <- genIdentifier name
   returnType' <- genType returnType
-  AST.FunctionDecl name' (AST.FunctionSignature [] [returnType']) <$> genBlock body
-genTopLevel name (Mono.TFn _ paramType returnType) (Fn _ (NameBinding _ paramName) body _) = do
+  function <- AST.FunctionDecl name' (AST.FunctionSignature [] [returnType']) <$> genBlock body
+  return [ AST.TopLevelComment (genSourceInfo' si)
+         , function
+         ]
+genTopLevel name (Mono.TFn _ paramType returnType) (Fn si (NameBinding _ paramName) body _) = do
   name' <- genIdentifier name
   paramName' <- genIdentifier paramName
   paramType' <- genType paramType
   returnType' <- genType returnType
-  AST.FunctionDecl name' (AST.FunctionSignature [AST.FunctionParameter paramName' paramType'] [returnType']) <$> genBlock body
+  function <- AST.FunctionDecl name' (AST.FunctionSignature [AST.FunctionParameter paramName' paramType'] [returnType']) <$> genBlock body
+  return [ AST.TopLevelComment (genSourceInfo' si)
+         , function
+         ]
 genTopLevel name type' expr = do
-   var <- AST.VarDeclInitializer <$> genIdentifier name
-                                 <*> genType type'
-                                 <*> genExpr expr
-   return (AST.Decl (AST.VarDecl var))
+  var <- AST.VarDeclInitializer <$> genIdentifier name
+                                <*> genType type'
+                                <*> genExpr expr
+  return [ AST.TopLevelComment (genSourceInfo (getSourceInfo expr))
+         , AST.Decl (AST.VarDecl var)
+         ]
 
-genInstance :: InstantiatedDefinition -> Codegen AST.TopLevelDeclaration
+genInstance :: InstantiatedDefinition -> Codegen [AST.TopLevelDeclaration]
 genInstance = \case
   InstantiatedDefinition (Identifier _defName) _si name expr ->
     genTopLevel name (typeOf expr) expr
   InstantiatedMethod  _si name expr ->
     genTopLevel name (typeOf expr) expr
 
-genMonomorphed :: MonomorphedDefinition -> Codegen AST.TopLevelDeclaration
+genMonomorphed :: MonomorphedDefinition -> Codegen [AST.TopLevelDeclaration]
 genMonomorphed (MonomorphedDefinition _ name mt expr) =
   genTopLevel name mt expr
 
@@ -413,11 +496,16 @@ prelude fmtAlias =
   let printSignature = AST.FunctionSignature [AST.FunctionParameter (GI.Identifier "x") (GT.Interface [])] []
       xOperand = AST.Expression (AST.Operand (AST.OperandName (GI.Identifier "x")))
       fmtApplication name = AST.Expression (AST.Application (AST.Operand (AST.QualifiedOperandName fmtAlias name)) (map AST.Argument [xOperand]))
-  in [
-    AST.FunctionDecl (GI.Identifier "print") printSignature (AST.Block [
-        AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Print")))]),
-    AST.FunctionDecl (GI.Identifier "println") printSignature (AST.Block [
-        AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Println")))])
+  in [ AST.TopLevelComment (genSourceInfo Predefined)
+     , AST.FunctionDecl
+       (GI.Identifier "print")
+       printSignature
+       (AST.Block [AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Print")))])
+     , AST.TopLevelComment (genSourceInfo Predefined)
+     , AST.FunctionDecl
+       (GI.Identifier "println")
+       printSignature
+       (AST.Block [AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Println")))])
   ]
 
 genPackage :: MonomorphedPackage -> Codegen AST.SourceFile
@@ -427,8 +515,8 @@ genPackage (MonomorphedPackage (PackageDeclaration _ name) imports is ms) = do
   let (fmtAlias, fmtImport) = getFmtImport imports
       allImports = imports' ++ maybeToList fmtImport
 
-  is' <- mapM genInstance (Set.toList is)
-  ms' <- mapM genMonomorphed (Set.toList ms)
+  is' <- concat <$> mapM genInstance (Set.toList is)
+  ms' <- concat <$> mapM genMonomorphed (Set.toList ms)
 
   let allTopLevel = prelude fmtAlias ++ is' ++ ms'
 

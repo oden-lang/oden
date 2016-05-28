@@ -16,6 +16,8 @@ traverseType onType' type' = do
       onType' t
     TTuple si f s r ->
       TTuple si <$> recurse f <*> recurse s <*> mapM recurse r >>= onType'
+    TApp si f p ->
+      TApp si <$> recurse f <*> recurse p >>= onType'
     TFn si p r ->
       TFn si <$> recurse p <*> recurse r >>= onType'
     TNoArgFn si r ->

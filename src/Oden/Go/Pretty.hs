@@ -1,9 +1,11 @@
-{-# LANGUAGE QuasiQuotes, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE QuasiQuotes       #-}
 module Oden.Go.Pretty where
 
-import           Oden.Go.AST        as AST
+import           Oden.Go.AST             as AST
 import           Oden.Go.Identifier
-import           Oden.Go.Type       as T
+import           Oden.Go.Type            as T
 
 import           Numeric
 
@@ -18,6 +20,14 @@ commaSep ps = hcat (punctuate (comma <> space) (map pretty ps))
 
 semiSep :: Pretty p => [p] -> Doc
 semiSep ps = hcat (punctuate semi (map pretty ps))
+
+prependComment :: Maybe Comment -> Doc -> Doc
+prependComment (Just comment) d = vcat [pretty comment, d]
+prependComment Nothing d = d
+
+instance Pretty Comment where
+  pretty (CompilerDirective s) = text "//" <> text s
+  pretty (Comment s) = vcat (map (text . ("// " ++)) $ lines s)
 
 instance Pretty Identifier where
   pretty (Identifier n) = text n
@@ -87,11 +97,14 @@ instance Pretty LiteralKey where
   pretty (LiteralKeyValue elements) = pretty elements
 
 instance Pretty LiteralElement where
-  pretty (UnkeyedElement expr) = pretty expr
-  pretty (KeyedElement key expr) = pretty key <> colon <+> pretty expr
+  pretty (UnkeyedElement expr) = pretty expr <> comma
+  pretty (KeyedElement key expr) = pretty key <> colon <+> pretty expr <> comma
+  pretty (LiteralComment comment) = pretty comment
 
 instance Pretty LiteralValueElements where
-  pretty (LiteralValueElements elements) = braces (commaSep elements)
+  pretty (LiteralValueElements []) = text "{}"
+  pretty (LiteralValueElements elements) =
+    indentedInBraces (vcat (map pretty elements))
 
 instance Pretty FunctionParameter where
   pretty (FunctionParameter name type') = pretty name <+> pretty type'
@@ -189,13 +202,14 @@ instance Pretty IfStmt where
     text "if" <+> pretty cond <+> pretty block <+> text "else" <+> pretty elseBranch
 
 instance Pretty Stmt where
-  pretty (DeclarationStmt decl) = pretty decl
+  pretty (DeclarationStmt comment decl) = prependComment comment (pretty decl)
   pretty (IfStmt ifStmt) = pretty ifStmt
   pretty (ReturnStmt []) = text "return"
   pretty (ReturnStmt exprs) = text "return" <+> commaSep exprs
   pretty (BlockStmt block) = pretty block
   pretty (SimpleStmt stmt) = pretty stmt
-  pretty _ = text "// todo"
+  pretty (GoStmt expr) = text "go" <+> pretty expr
+  pretty (StmtComment comment) = pretty comment
 
 instance Pretty Block where
   pretty (Block []) = braces empty
@@ -219,9 +233,12 @@ instance Pretty ImportDecl where
     text "import" <+> pretty name <+> pretty path
 
 instance Pretty TopLevelDeclaration where
-  pretty (Decl decl) = pretty decl
-  pretty (FunctionDecl name signature block) =
-    text "func" <+> pretty name <> pretty signature <+> pretty block
+  pretty =
+    \case
+      Decl decl -> pretty decl
+      FunctionDecl name signature block ->
+        text "func" <+> pretty name <> pretty signature <+> pretty block
+      TopLevelComment comment -> pretty comment
 
 instance Pretty PackageClause where
   pretty (PackageClause name) =
@@ -229,5 +246,18 @@ instance Pretty PackageClause where
 
 instance Pretty SourceFile where
   pretty (SourceFile pkgClause imports declarations) =
-    vcat (punctuate line parts) <> line
-    where parts = pretty pkgClause : map pretty imports ++ map pretty declarations
+    pretty pkgClause <> importsSection <> declSection <> line
+    where
+    importsSection =
+      if null imports
+      then empty
+      else line <> line <> vcat (map pretty imports)
+    declSection =
+      if null declarations
+      then empty
+      else line <> line <> vcat (map prettyTopLevel declarations)
+    prettyTopLevel =
+      \case
+        TopLevelComment comment -> pretty comment
+        topLevel -> pretty topLevel
+
