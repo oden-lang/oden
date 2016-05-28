@@ -27,6 +27,7 @@ data LiteralKey = LiteralKeyName Identifier
 
 data LiteralElement = UnkeyedElement Expression
                     | KeyedElement LiteralKey Expression
+                    | LiteralComment Comment
                     deriving (Show, Eq)
 
 data LiteralValueElements = LiteralValueElements [LiteralElement]

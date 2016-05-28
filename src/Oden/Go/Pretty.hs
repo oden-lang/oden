@@ -97,11 +97,14 @@ instance Pretty LiteralKey where
   pretty (LiteralKeyValue elements) = pretty elements
 
 instance Pretty LiteralElement where
-  pretty (UnkeyedElement expr) = pretty expr
-  pretty (KeyedElement key expr) = pretty key <> colon <+> pretty expr
+  pretty (UnkeyedElement expr) = pretty expr <> comma
+  pretty (KeyedElement key expr) = pretty key <> colon <+> pretty expr <> comma
+  pretty (LiteralComment comment) = pretty comment
 
 instance Pretty LiteralValueElements where
-  pretty (LiteralValueElements elements) = braces (commaSep elements)
+  pretty (LiteralValueElements []) = text "{}"
+  pretty (LiteralValueElements elements) =
+    indentedInBraces (vcat (map pretty elements))
 
 instance Pretty FunctionParameter where
   pretty (FunctionParameter name type') = pretty name <+> pretty type'

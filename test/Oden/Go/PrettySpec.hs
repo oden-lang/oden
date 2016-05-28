@@ -103,6 +103,41 @@ spec =
         `shouldPrintAs`
         "func (_ ...int) {}"
 
+      it "prints an empty struct literal" $
+        CompositeLiteral
+        (Struct [])
+        (LiteralValueElements [])
+        `shouldPrintAs`
+        "struct{}{}"
+
+      it "prints a struct literal with a field" $
+        CompositeLiteral
+        (Struct [StructField (Identifier "foo") (Basic (Identifier "int") False)])
+        (LiteralValueElements [KeyedElement
+                               (LiteralKeyName (Identifier "foo"))
+                               (Expression
+                                (Operand
+                                 (Literal
+                                  (BasicLiteral
+                                   (IntLiteral 3)))))])
+        `shouldPrintAs`
+        "struct {\n    foo int\n}{\n    foo: 3,\n}"
+
+      it "prints a struct literal with a field and a comment" $
+        CompositeLiteral
+        (Struct [StructField (Identifier "foo") (Basic (Identifier "int") False)])
+        (LiteralValueElements [ KeyedElement
+                                (LiteralKeyName (Identifier "foo"))
+                                (Expression
+                                 (Operand
+                                  (Literal
+                                   (BasicLiteral
+                                    (IntLiteral 3)))))
+                              , LiteralComment (Comment "Hello")
+                              ])
+        `shouldPrintAs`
+        "struct {\n    foo int\n}{\n    foo: 3,\n    // Hello\n}"
+
     describe "Declaration" $ do
 
       it "prints a type declaration" $

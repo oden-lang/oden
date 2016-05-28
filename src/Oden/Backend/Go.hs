@@ -317,10 +317,14 @@ genExpr expr = case expr of
     String s   -> return $ literalExpr $ AST.BasicLiteral $ AST.StringLiteral $ AST.InterpretedStringLiteral s
     Unit{}     -> return emptyStructLiteral
 
-  Tuple _ f s r t ->
-    literalExpr <$> (AST.CompositeLiteral
-                     <$> genType t
-                     <*> (AST.LiteralValueElements . map AST.UnkeyedElement <$> mapM genExpr (f:s:r)))
+  Tuple _ f s r t -> do
+    elements <- AST.LiteralValueElements . concat <$> mapM genTupleField (f:s:r)
+    literalExpr <$> (AST.CompositeLiteral <$> genType t <*> return elements)
+    where
+    genTupleField e = do
+      field <- AST.UnkeyedElement <$> genExpr e
+      return [ AST.LiteralComment (genSourceInfo (getSourceInfo e))
+             , field ]
 
   If _ condExpr thenExpr elseExpr exprType -> do
     condExpr' <- genExpr condExpr
@@ -372,13 +376,15 @@ genExpr expr = case expr of
              ]
 
   RecordInitializer _ values recordType -> do
-    elements <- AST.LiteralValueElements <$> mapM genField values
+    elements <- (AST.LiteralValueElements . concat) <$> mapM genField values
     structType <- genType recordType
     return (literalExpr (AST.CompositeLiteral structType elements))
     where
-    genField (FieldInitializer _ label initializerExpr) =
-      AST.KeyedElement <$> (AST.LiteralKeyName <$> genIdentifier label)
-                       <*> genExpr initializerExpr
+    genField (FieldInitializer (Metadata si) label initializerExpr) = do
+      keyed <- AST.KeyedElement <$> (AST.LiteralKeyName <$> genIdentifier label)
+                                <*> genExpr initializerExpr
+      return [ AST.LiteralComment (genSourceInfo si)
+             , keyed ]
 
   MemberAccess _ access _ ->
     case access of
