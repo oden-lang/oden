@@ -66,21 +66,20 @@ replaceIdentifierPart c = case c of
 safeName :: String -> GI.Identifier
 safeName = GI.Identifier . concatMap replaceIdentifierPart
 
-genSourceInfo :: SourceInfo -> Maybe AST.Comment
+genSourceInfo :: SourceInfo -> AST.Comment
 genSourceInfo =
   \case
     Missing ->
-      Just (AST.CompilerDirective "line <missing>:0")
+      AST.CompilerDirective "line <missing>:0"
     Predefined ->
-      Just (AST.CompilerDirective "line <predefined>:0")
+      AST.CompilerDirective "line <predefined>:0"
     SourceInfo pos ->
-      Just
-      (AST.CompilerDirective
-       ("line "
-        ++ SourceInfo.fileName pos
-        ++ ":" ++ show (line pos)))
+      AST.CompilerDirective
+      ("line "
+       ++ SourceInfo.fileName pos
+       ++ ":" ++ show (line pos))
 
-genSourceInfo' :: Metadata SourceInfo -> Maybe AST.Comment
+genSourceInfo' :: Metadata SourceInfo -> AST.Comment
 genSourceInfo' = genSourceInfo . unwrap
 
 genIdentifier :: Identifier -> Codegen GI.Identifier
@@ -375,31 +374,30 @@ genExpr expr = case expr of
 genBlock :: MonoTypedExpr -> Codegen AST.Block
 genBlock expr = do
   returnStmt <- AST.ReturnStmt . (:[]) <$> genExpr expr
-  case genSourceInfo (getSourceInfo expr) of
-    Nothing -> return (AST.Block [returnStmt])
-    Just comment -> return (AST.Block [AST.StmtComment comment, returnStmt])
+  let comment = AST.StmtComment (genSourceInfo (getSourceInfo expr))
+  return (AST.Block [comment, returnStmt])
 
 genTopLevel :: Identifier -> Mono.Type -> MonoTypedExpr -> Codegen AST.TopLevelDeclaration
 genTopLevel (Identifier "main") (Mono.TNoArgFn _ t) (NoArgFn si body _) | isUniverseTypeConstructor "unit" t = do
   block <- case body of
     Block _ [] _ -> return (AST.Block [])
     _          -> AST.Block . (:[]) . AST.SimpleStmt . AST.ExpressionStmt <$> genExpr body
-  return (AST.FunctionDecl (genSourceInfo' si) (GI.Identifier "main") (AST.FunctionSignature [] []) block)
+  return (AST.FunctionDecl (Just $ genSourceInfo' si) (GI.Identifier "main") (AST.FunctionSignature [] []) block)
 genTopLevel name _ (NoArgFn si body (Mono.TNoArgFn _ returnType)) = do
   name' <- genIdentifier name
   returnType' <- genType returnType
-  AST.FunctionDecl (genSourceInfo' si) name' (AST.FunctionSignature [] [returnType']) <$> genBlock body
+  AST.FunctionDecl (Just $ genSourceInfo' si) name' (AST.FunctionSignature [] [returnType']) <$> genBlock body
 genTopLevel name (Mono.TFn _ paramType returnType) (Fn si (NameBinding _ paramName) body _) = do
   name' <- genIdentifier name
   paramName' <- genIdentifier paramName
   paramType' <- genType paramType
   returnType' <- genType returnType
-  AST.FunctionDecl (genSourceInfo' si) name' (AST.FunctionSignature [AST.FunctionParameter paramName' paramType'] [returnType']) <$> genBlock body
+  AST.FunctionDecl (Just $ genSourceInfo' si) name' (AST.FunctionSignature [AST.FunctionParameter paramName' paramType'] [returnType']) <$> genBlock body
 genTopLevel name type' expr = do
    var <- AST.VarDeclInitializer <$> genIdentifier name
                                  <*> genType type'
                                  <*> genExpr expr
-   return (AST.Decl (genSourceInfo (getSourceInfo expr)) (AST.VarDecl var))
+   return (AST.Decl (Just $ genSourceInfo (getSourceInfo expr)) (AST.VarDecl var))
 
 genInstance :: InstantiatedDefinition -> Codegen AST.TopLevelDeclaration
 genInstance = \case
@@ -436,9 +434,9 @@ prelude fmtAlias =
       xOperand = AST.Expression (AST.Operand (AST.OperandName (GI.Identifier "x")))
       fmtApplication name = AST.Expression (AST.Application (AST.Operand (AST.QualifiedOperandName fmtAlias name)) (map AST.Argument [xOperand]))
   in [
-    AST.FunctionDecl (genSourceInfo Predefined) (GI.Identifier "print") printSignature (AST.Block [
+    AST.FunctionDecl (Just $ genSourceInfo Predefined) (GI.Identifier "print") printSignature (AST.Block [
         AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Print")))]),
-    AST.FunctionDecl (genSourceInfo Predefined) (GI.Identifier "println") printSignature (AST.Block [
+    AST.FunctionDecl (Just $ genSourceInfo Predefined) (GI.Identifier "println") printSignature (AST.Block [
         AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Println")))])
   ]
 
