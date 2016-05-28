@@ -146,7 +146,7 @@ genRange (Range e1 e2) = AST.ClosedSlice <$> genExpr e1 <*> genExpr e2
 genRange (RangeFrom e) = AST.LowerBoundSlice <$> genExpr e
 genRange (RangeTo e) = AST.UpperBoundSlice <$> genExpr e
 
--- | Generates a call to an foreign function.
+-- | Generates a call to a foreign function.
 genRawForeignFnApplication :: MonoTypedExpr -> [MonoTypedExpr] -> Codegen AST.PrimaryExpression
 genRawForeignFnApplication f args =
   case typeOf f of
@@ -218,16 +218,17 @@ emptyStructLiteral =
     (AST.LiteralValueElements []))
 
 -- | Wraps the provided code in a function that returns unit
-voidToUnitWrapper :: AST.Expression -> AST.Expression
-voidToUnitWrapper expr =
+voidToUnitWrapper :: SourceInfo -> AST.Expression -> AST.Expression
+voidToUnitWrapper si expr =
   AST.Expression
   (AST.Application
    (AST.Operand
     (AST.Literal
      (AST.FunctionLiteral
       (AST.FunctionSignature [] [GT.Struct []])
-      (AST.Block [AST.SimpleStmt (AST.ExpressionStmt expr),
-                  AST.ReturnStmt [emptyStructLiteral]]))))
+      (AST.Block [ AST.StmtComment (genSourceInfo si)
+                 , AST.SimpleStmt (AST.ExpressionStmt expr)
+                 , AST.ReturnStmt [emptyStructLiteral]]))))
    [])
 
 asPrimaryExpression :: AST.Expression -> AST.PrimaryExpression
@@ -257,14 +258,14 @@ genExpr expr = case expr of
   Application _ f arg _ ->
     AST.Expression <$> (AST.Application <$> genPrimaryExpression f
                                         <*> (((:[]) . AST.Argument) <$> genExpr arg))
-  ForeignFnApplication _ f args _ ->
+  ForeignFnApplication (Metadata si) f args _ ->
     case typeOf f of
 
       -- Go functions that return unit are (almost always) void functions
       -- we wrap them to make the call to them return unit
       Mono.TForeignFn _ _ _ [t] | isUniverseTypeConstructor "unit" t -> do
         fnCall <- genRawForeignFnApplication f args
-        return $ voidToUnitWrapper (AST.Expression fnCall)
+        return $ voidToUnitWrapper si (AST.Expression fnCall)
 
       Mono.TForeignFn _ _ _ (t1:t2:tr) ->
         genTupleWrappedForeignFnApplication f args (t1, t2, tr)
@@ -291,7 +292,7 @@ genExpr expr = case expr of
   NoArgFn _ _ t ->
     throwError $ UnexpectedError $ "Invalid no-arg fn type: " ++ show t
 
-  Let _ (NameBinding _ name) bindingExpr body letType -> do
+  Let _ (NameBinding (Metadata si) name) bindingExpr body letType -> do
     varDecl <- (AST.DeclarationStmt Nothing . AST.VarDecl)
                <$> (AST.VarDeclInitializer
                    <$> genIdentifier name
@@ -299,7 +300,13 @@ genExpr expr = case expr of
                    <*> genExpr bindingExpr)
     returnStmt <- returnSingle <$> genExpr body
     letType' <- genType letType
-    let func = AST.Operand (AST.Literal (AST.FunctionLiteral (AST.FunctionSignature [] [letType']) (AST.Block [varDecl, returnStmt])))
+    let func = AST.Operand (AST.Literal
+                            (AST.FunctionLiteral
+                             (AST.FunctionSignature [] [letType'])
+                             (AST.Block [ AST.StmtComment (genSourceInfo si)
+                                        , varDecl
+                                        , AST.StmtComment (genSourceInfo (getSourceInfo body))
+                                        , returnStmt])))
     return (AST.Expression (AST.Application func []))
 
   Literal _ lit _ -> case lit of
@@ -317,12 +324,23 @@ genExpr expr = case expr of
 
   If _ condExpr thenExpr elseExpr exprType -> do
     condExpr' <- genExpr condExpr
-    thenBranch <- (AST.Block . (:[]) . returnSingle) <$> genExpr thenExpr
-    elseBranch <- (AST.ElseBlock . AST.Block . (:[]) . returnSingle) <$> genExpr elseExpr
+    thenExpr' <- genExpr thenExpr
+    let thenBranch = AST.Block
+                     [ AST.StmtComment (genSourceInfo (getSourceInfo thenExpr))
+                     , returnSingle thenExpr']
+    elseExpr' <- genExpr elseExpr
+    let elseBranch = AST.ElseBlock
+                     (AST.Block
+                      [ AST.StmtComment (genSourceInfo (getSourceInfo elseExpr))
+                      , returnSingle elseExpr'])
+
     exprType' <- genType exprType
 
     let ifStmt = AST.IfStmt (AST.IfElse condExpr' thenBranch elseBranch)
-    let func = AST.Operand (AST.Literal (AST.FunctionLiteral (AST.FunctionSignature [] [exprType']) (AST.Block [ifStmt])))
+    let func = AST.Operand (AST.Literal
+                            (AST.FunctionLiteral
+                             (AST.FunctionSignature [] [exprType'])
+                             (AST.Block [ifStmt])))
     return (AST.Expression (AST.Application func []))
 
   Slice _ exprs t -> do
@@ -334,10 +352,24 @@ genExpr expr = case expr of
 
   (Block _ exprs t) -> do
     blockType <- genType t
-    initStmts <- map (AST.SimpleStmt . AST.ExpressionStmt) <$> mapM genExpr (init exprs)
-    returnStmt <- returnSingle <$> genExpr (last exprs)
-    let func = AST.Operand (AST.Literal (AST.FunctionLiteral (AST.FunctionSignature [] [blockType]) (AST.Block $ initStmts ++ [returnStmt])))
+    initStmts <- concat <$> mapM genWithSourceInfo (init exprs)
+    let lastExpr = last exprs
+    returnStmt <- returnSingle <$> genExpr lastExpr
+    let stmts = initStmts ++ [ AST.StmtComment (genSourceInfo (getSourceInfo lastExpr))
+                             , returnStmt
+                             ]
+    let func = AST.Operand
+               (AST.Literal
+                (AST.FunctionLiteral
+                 (AST.FunctionSignature [] [blockType])
+                 (AST.Block stmts)))
     return (AST.Expression (AST.Application func []))
+    where
+    genWithSourceInfo e = do
+      exprStmt <- (AST.SimpleStmt . AST.ExpressionStmt) <$> genExpr e
+      return [ AST.StmtComment (genSourceInfo (getSourceInfo e))
+             , exprStmt
+             ]
 
   RecordInitializer _ values recordType -> do
     elements <- AST.LiteralValueElements <$> mapM genField values
