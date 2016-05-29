@@ -134,3 +134,12 @@ code,
   animation-delay: 500ms
 }
 
+[data-filepath="README.md"] h1,
+[data-filepath="README.md"] .logo {
+  text-align: center;
+}
+
+[data-filepath="README.md"] .book-body .page-wrapper .page-inner section.normal h1 {
+  font-size: 250%;
+  margin: .5em;
+}

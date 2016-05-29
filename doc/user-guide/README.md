@@ -1,3 +1,7 @@
+<div class="logo">
+  <img src="logo.png" alt="Oden Logo">
+</div>
+
 # The Oden User Guide
 
 Welcome to the Oden User Guide. Here you can learn about *The Oden
