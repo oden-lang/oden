@@ -22,8 +22,6 @@ import           Control.Monad.Except
 
 import qualified Data.Set                  as Set
 
-import Debug.Trace
-
 data ValidationError
   = ValueDiscarded TypedExpr
   | DivisionByZero TypedExpr
@@ -88,7 +86,7 @@ validateExpr = void . traverseExpr identityTraversal { onExpr = onExpr'
       return $ Just expr
     Application _ (Application _ (MethodReference _ ref _) _ _) (Literal _ (Int 0) _) _
       | isDivideRef ref -> throwError $ DivisionByZero expr
-      | otherwise -> traceShow expr $ return Nothing
+      | otherwise -> return Nothing
     Block _ exprs _ -> do
       mapM_ warnOnDiscarded (init exprs)
       return $ Just expr
