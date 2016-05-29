@@ -1,7 +1,10 @@
 # Summary
 
 * [Installation](installation.md)
-* [Compiling](compiling.md)
+* Workflow
+  * [Writing Oden Code](workflow/writing-oden-code.md)
+  * [Compiling](workflow/compiling.md)
+  * [Running Programs Directly](workflow/running.md)
 * [The Language](the-language/index.md)
   * [Basic Literals](the-language/basic-literals.md)
   * [Unit](the-language/unit.md)
@@ -15,5 +18,4 @@
   * [Slices](the-language/slices.md)
   * [Records](the-language/records.md)
   * [Protocols](the-language/protocols.md)
-* [Writing Oden Code](writing-oden-code.md)
 * [The Oden Playground](the-oden-playground.md)
