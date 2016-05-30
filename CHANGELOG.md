@@ -4,6 +4,8 @@
   * Oden source info (file name and line number) passed to Go compiler through
     compiler directive comment. This will cause stack traces to use the Oden
     source files names.
+  * User guide added to this repository and published on tags and master branch
+    build
 * 0.3.2
   * Fix wrapper script issue with Oden playground.
 * 0.3.1
