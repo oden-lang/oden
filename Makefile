@@ -27,7 +27,7 @@ dist: $(DIST_ARCHIVE)
 $(STACK_ODEN_EXE):
 	stack build
 
-build/oden: $(STACK_ODEN_EXE)
+build/oden: $(STACK_ODEN_EXE) doc
 	@mkdir -p build/oden/bin
 	cp README.md build/oden/README.txt
 	cp LICENSE.md build/oden/LICENSE.txt
@@ -37,6 +37,7 @@ build/oden: $(STACK_ODEN_EXE)
 	cp distribution/oden.sh build/oden/bin/oden
 	rm -f build/lib/libimporter.h
 	cp -r build/lib build/oden/lib
+	cp -r build/doc build/oden/doc
 ifeq ($(OS),osx)
 		./tools/change_osx_install_names.sh
 endif
@@ -65,17 +66,16 @@ $(NODEMON):
 	npm install nodemon
 
 $(GITBOOK):
-	npm install gitbook-cli
+	npm install gitbook-cli@2.2.0
 
-# TODO: Change these file dependencies to be recursive.
-build/doc/user-guide: doc/user-guide/*.md $(GITBOOK)
+.PHONY: doc-dependencies
+doc-dependencies: $(GITBOOK)
 	$(GITBOOK) install doc/user-guide
-	$(GITBOOK) build doc/user-guide build/doc/user-guide
-	cp doc/user-guide/logo.png build/doc/user-guide/gitbook/images/favicon.ico
 
 .PHONY: doc
-doc: build/doc/user-guide
-
+doc: $(GITBOOK)
+	$(GITBOOK) build doc/user-guide build/doc/user-guide
+	cp doc/user-guide/logo.png build/doc/user-guide/gitbook/images/favicon.ico
 
 .PHONY: watch-doc
 watch-doc: $(GITBOOK)

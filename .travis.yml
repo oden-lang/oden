@@ -1,10 +1,20 @@
 language: go
 go: 1.5
 sudo: false
+
 os:
 - linux
 - osx
-env: STACK_ARGS=""
+
+env:
+  global:
+    - STACK_ARGS=""
+    # AWS keys
+    -
+      secure: "I6mzKIPHRli8/O/ABi7gT7Pun13OY14EVeo7fmw8+b+AUcRvEB0vB0pl1iWTTv3Lp2gfWBnC8lTktfKrrBFh0AjisEBEuZjP57iDenFp+aj2kGCnOvfNQYofKSdEtoOF4WJ4pAqV9LXYMhiqLbnroQ7H0plZb9ZywZr5LyMPHWaFtvpnK/F2vjW7mzuE/dUWsd+p9RDmJJnvfQ9hXtSP8pGAvZjFfgEreM/AoAVWbz7s7PxQdvAVdnS3mDud286rglzW2BX6KjzvdAZ0CGQ93aPDLJ8Z6qv5v8emi3uqpiOMgBm0/Zc0GHnjY/m4SEqyI3SW4gI93BzblYhZMM4fLShlXW4ukiuWpuo+2eiOMT167q9wQpZ8skefC3Q4KZjaA4r1Csj7mNcVhDVF6dAsThzwYiJYslVQxDK0qwecYH/gMoZHomfRt/qJpoirT/rcvwLVLOE5c1EJ2J3lZ6mQYaJEgu2DuyInt4kATH+LCj7tTk1AQ7/J/pyndYZg2gAruRsDG3hd3xwl98cEgGQN3DW9PhmHdBwDLfesd6hhm8P4fJhQekJNinXS/SSZV8y70foB0EKw1binfs5iT9oIZzu7dL2xs5FFWFia44gYVQmQDH5vlb9kHOq1xbVvZ9XO7HRwQIqq9y2WRA0DcIHecVXlvt3Yp5+VOhUYwFAN45M="
+    -
+      secure: "irj/QXrgmoB6N5SrsAJGfry4EPjnNv1ELglnJNRanHS+ihGuN/7TRl9PO8mJRVwHYq8eTMuvZ/VRYCIOAogwjDIpTOwnVxSnlWqcHzqRQB1LLdJ9roMXZZYEetulVduosy8f1oCtqYmNBlabhfouU05Hblk+s6qEbua3PqRJS5U7J7IKqlkR77moSqHHuL1BpoEE/R4mVpS8ON67R+1h4UhNpowvHlgdh/2Ir3+2HSwzd5OCmAyqferZI55XdCTcjJq/7e3CQA1RsZ3offtOjN3o1P6z4E1rideDtAw8VJbcMyBaRI3TtVCMiyXt0T7+0VmcI9RMb2sR0vSC8dysHlfnS2USZfQAnzRTJS6ksEXqZiUAgJ8w93JUswmXCezNqwaDLixmx15u7Pfhv9OhUEp/ZwLvFCC8ENtptGc21FLuQV/fwhORw7NGnkf3l8My5SW83jyJFWX0udFyD/maINOyYfPERHo/ibUml5Cr651AoigGqBmdufgtQ0UYLXCajvedozTuz5fN+LgBmoe66WcJbMf7RW7EzEthQKuF4td/ad35Z7LY2cOJS4T+578vwFTDT4jENRJ2f+GKjBVmOynN9XKpbhDpuF+TG8n9+1DWczke92dy//H/mChFuZQQvPOeyNSRqqIX/K/BaVNK/ppEg22YlT+EXu2v5lA0ljM="
+
 addons:
   apt:
     sources:
@@ -14,6 +24,7 @@ addons:
     - ghc-7.10.1
     - alex-3.1.4
     - happy-1.19.5
+    - nodejs-legacy
 before_install:
 - export PATH=/opt/ghc/7.10.1/bin:/opt/cabal/1.22/bin:$PATH
 - export PATH=/opt/alex/3.1.4/bin:$PATH
@@ -43,7 +54,7 @@ script:
 - if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-job-$TRAVIS_JOB_NUMBER;
   fi
 - if [[ "$TRAVIS_TAG" != "" ]]; then export VERSION=$TRAVIS_TAG; fi
-- travis_retry make dist ci-test
+- travis_retry make doc-dependencies dist ci-test
 cache:
   apt: true
   directories:
@@ -51,14 +62,54 @@ cache:
   - $HOME/.cabal
   - $HOME/.stack
 deploy:
-  provider: releases
-  api_key:
-    secure: f8vgUN0ng9BWeBO/WcNzIS11BDDyNF/qFHqs0WsxHnausDAC91O1VPEayDpNE5MUHIgLDgLGVl7NE34lHvVTnTVkC2drM8pXVVSSaS+ZSkaCajeMZ82nK30OK36MwUXpOu6FJ/zkRX+8hiQbysRemTvh+w4xXNTb7eBBMs+50wFmxB6oon3zLcd9uR1N8QQ9Vxor8Mb7W5KIkjFnUHPrxfw1KByUw+6rgug+OYoDRSLSCmxiULzPRWeHbKdtGvd9kNhXQQc9KCc8UGfkG0C/TPBdtXqRDoQ/4Szevy6zK8wNK/FyMuKAw1JtX7qy7IBtsQgkavqDKEz61+CxppBN92q+aWcS6QxuJ0nHhtJ82dWNRiM5/xoEC96/tHOgXU/VDNtfZttT68AwWurU4dgZxBwUPzcps2x+R076CVnyQZ+84m1KTTzFr0xCyI+rglmHca1REfqYdZ3/th6WRXUMjHROO6mM9ZNK4EgAAGRVJVYBsdIneMSjklaD32fgfmZnMqxKhOqWe2cOzK7yhrOy8BdUnIG8D7ihM2wyS3n/VG7FWI2LwZrZ7doV1v32wgLeCN0Eqqu5Gbx26BBCOD7k30ik7iGAd0VnDQ10vE6ccLNY9ACZYXdXMLLOBjuZ9UWFc3Udm5M5Z1vjCq0D0AGcTohHeSA4VA/LaaiDDM/pCEU=
-  file: build/oden-$TRAVIS_TAG-$TRAVIS_OS_NAME.tar.gz
-  skip_cleanup: true
-  on:
-    tags: true
-    repo: oden-lang/oden
+  - provider: releases
+    api_key:
+      secure: f8vgUN0ng9BWeBO/WcNzIS11BDDyNF/qFHqs0WsxHnausDAC91O1VPEayDpNE5MUHIgLDgLGVl7NE34lHvVTnTVkC2drM8pXVVSSaS+ZSkaCajeMZ82nK30OK36MwUXpOu6FJ/zkRX+8hiQbysRemTvh+w4xXNTb7eBBMs+50wFmxB6oon3zLcd9uR1N8QQ9Vxor8Mb7W5KIkjFnUHPrxfw1KByUw+6rgug+OYoDRSLSCmxiULzPRWeHbKdtGvd9kNhXQQc9KCc8UGfkG0C/TPBdtXqRDoQ/4Szevy6zK8wNK/FyMuKAw1JtX7qy7IBtsQgkavqDKEz61+CxppBN92q+aWcS6QxuJ0nHhtJ82dWNRiM5/xoEC96/tHOgXU/VDNtfZttT68AwWurU4dgZxBwUPzcps2x+R076CVnyQZ+84m1KTTzFr0xCyI+rglmHca1REfqYdZ3/th6WRXUMjHROO6mM9ZNK4EgAAGRVJVYBsdIneMSjklaD32fgfmZnMqxKhOqWe2cOzK7yhrOy8BdUnIG8D7ihM2wyS3n/VG7FWI2LwZrZ7doV1v32wgLeCN0Eqqu5Gbx26BBCOD7k30ik7iGAd0VnDQ10vE6ccLNY9ACZYXdXMLLOBjuZ9UWFc3Udm5M5Z1vjCq0D0AGcTohHeSA4VA/LaaiDDM/pCEU=
+    file: build/oden-$TRAVIS_TAG-$TRAVIS_OS_NAME.tar.gz
+    skip_cleanup: true
+    on:
+      tags: true
+      repo: oden-lang/oden
+  # one for the specific version
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY_ID
+    secret_access_key: $AWS_ACCESS_KEY_SECRET
+    local_dir: build/doc/user-guide
+    bucket: "docs.oden-lang.org"
+    upload-dir: $VERSION
+    region: "eu-west-1"
+    acl: public_read
+    skip_cleanup: true
+    on:
+      tags: true
+      repo: oden-lang/oden
+  # and one for the "latest" version
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY_ID
+    secret_access_key: $AWS_ACCESS_KEY_SECRET
+    local_dir: build/doc/user-guide
+    bucket: "docs.oden-lang.org"
+    upload-dir: "latest"
+    region: "eu-west-1"
+    acl: public_read
+    skip_cleanup: true
+    on:
+      tags: true
+      repo: oden-lang/oden
+  # and one for the current "master" version
+  - provider: s3
+    access_key_id: $AWS_ACCESS_KEY_ID
+    secret_access_key: $AWS_ACCESS_KEY_SECRET
+    local_dir: build/doc/user-guide
+    bucket: "docs.oden-lang.org"
+    upload-dir: "master"
+    region: "eu-west-1"
+    acl: public_read
+    skip_cleanup: true
+    on:
+      branch: master
+      repo: oden-lang/oden
+
 notifications:
   slack:
     secure: CzIDDPphI227LamRZdSmjyDZijMyJVBvtSpMKRh/S7C19T9HbwbD7DUh8Aiif5V4L4VFbd/Pp21/D7WPY4bf9+Iv7wVD9NAUwPaZ/elkk310bcqEuShSsGY8YhUwaz68CU89APLs318qSntE8X3YQ+xWp9NRJBw+eJXAosrKFWn8a29sJdbfGlhKU8pZ6OnUDIlXaX254zcr/OcQZl9dnrN20XsCuMN693gI1gKgA1fQyKC29wfUy7RICmOajq3pHKG9YDMdNnYJRddsw9Yh8h8xiICoTLE9Bb54GzZMTzm15/BSqhHTQ/wHQbDkKmjN0CQyuoexnaMX++oCHGg6Uz8pUNIMcIow8pAklqTKodqfB4r0rhMPrx7CC+ASLZp5bXp/AxocP7fINq/4XqP4ny4ufl8cuTJPt/1MgtOqisHIQhBk//duspAfcqGBT7sIN77Cd5FmbbTl7VpliZnvIhPVInZPpatBksQaQ7MOXkayjmBiQgzwS1SH3kX277WAI1boaV2LHlnRy2aACrMP7uBdp7EJjzsQVWLqUS4YM0UzBV8a/vlrisrAm+lMkzTt7QaJVOJEhTpK83o9qBx7OG5FIBovIl0q/4bcpsmL271H9jBvARFbF1/Ng9znvbvmYd8tEh6uZb5XfC+r9jURGnGFDKf2kP5SRHMEHN4wC/I=

@@ -1,0 +1,25 @@
+.pdf-header {
+    margin-top: 30px;
+    padding: 0;
+    border: none;
+    color: inherit;
+    font-style: italic;
+}
+
+.pdf-footer {
+    margin-top: 20px;
+    padding: 0;
+    border: none;
+    color: inherit;
+    font-style: italic;
+}
+
+pre,
+code {
+  font-family: 'Ubuntu Mono' !important;
+}
+
+pre {
+  background: none !important;
+}
+

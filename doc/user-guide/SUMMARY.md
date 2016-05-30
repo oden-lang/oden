@@ -5,7 +5,8 @@
   * [Writing Oden Code](workflow/writing-oden-code.md)
   * [Compiling](workflow/compiling.md)
   * [Running Programs Directly](workflow/running.md)
-* [The Language](the-language/index.md)
+  * [Playground](workflow/playground.md)
+* The Language
   * [Basic Literals](the-language/basic-literals.md)
   * [Unit](the-language/unit.md)
   * [Operators](the-language/operators.md)
@@ -18,4 +19,3 @@
   * [Slices](the-language/slices.md)
   * [Records](the-language/records.md)
   * [Protocols](the-language/protocols.md)
-* [The Oden Playground](the-oden-playground.md)

@@ -70,6 +70,11 @@ code,
   font-size: inherit;
 }
 
+.font-settings {
+  display: none;
+
+}
+
 .markdown-section sup {
   font-size: 75%;
 }
@@ -134,12 +139,21 @@ code,
   animation-delay: 500ms
 }
 
-[data-filepath="README.md"] h1,
-[data-filepath="README.md"] .logo {
+h1#introduction {
   text-align: center;
 }
+h1#introduction:before {
+  display: block;
+  content: '';
+  background-image: url('../logo.png');
+  background-position: center center;
+  background-repeat: no-repeat;
+  width: 300px;
+  height: 300px;
+  margin: 0 auto;
+}
 
-[data-filepath="README.md"] .book-body .page-wrapper .page-inner section.normal h1 {
+h1#introduction {
   font-size: 250%;
   margin: .5em;
 }

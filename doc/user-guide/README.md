@@ -1,8 +1,4 @@
-<div class="logo">
-  <img src="logo.png" alt="Oden Logo">
-</div>
-
-# The Oden User Guide
+# Introduction
 
 Welcome to the Oden User Guide. Here you can learn about *The Oden
 Programming Language* - an experimental, statically typed, functional
