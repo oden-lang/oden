@@ -1,5 +1,7 @@
 # Changelog
 
+* 0.3.4
+  * New User Guide documentation build using Pandoc
 * 0.3.3
   * Oden source info (file name and line number) passed to Go compiler through
     compiler directive comment. This will cause stack traces to use the Oden
