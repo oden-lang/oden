@@ -1,10 +1,11 @@
 function setupRunnables() {
   $('.playground-runnable').each(function () {
     var $runnable = $(this);
-    var $code = $runnable.find('pre code');
-    var $output = $('<pre class="output hidden"><code></code></pre>').appendTo($runnable);
+    var $code = $runnable.find('code');
 
-    var $nav = $('<nav>').appendTo($runnable);
+    var $controls = $('<div class="controls"></div>').insertAfter($runnable);
+
+    var $nav = $('<nav>').appendTo($controls);
 
     var $open = $('<form target="_blank" method="post" enctype="application/x-www-form-urlencoded" action="https://playground.oden-lang.org/p">' +
                   '<input type="hidden" name="OdenSource" value="" />' +
@@ -13,6 +14,8 @@ function setupRunnables() {
     $open.find('input[name=OdenSource]').val($code.text());
 
     var $run = $('<button class="run">Run</button>').appendTo($nav);
+
+    var $output = $('<pre class="output hidden"><code></code></pre>').appendTo($controls);
 
     function displayError(result) {
       $output

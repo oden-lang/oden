@@ -16,7 +16,7 @@ In Oden the following rules apply:
 * The `main` function must be a function taking no argument and returning
 `()`, i.e. have the type `(-> ())`.
 
-```{.oden language=oden caption=Package\ with\ imports\ and\ definitions}
+```{.oden .playground-runnable language=oden caption=Package\ with\ imports\ and\ definitions}
 package main
 
 import strconv
@@ -27,7 +27,7 @@ shout : string -> string
 shout(s) = s ++ "!"
 
 // value definition without signature
-result = shout(strconv.Atoi(9000))
+result = shout(strconv.Itoa(9000))
 
 main() = println(result)
 ```

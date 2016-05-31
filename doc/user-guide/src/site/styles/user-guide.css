@@ -24,7 +24,8 @@ pre {
   overflow: auto;
 }
 pre,
-code {
+code,
+.controls .output {
   font-size: 16px;
   font-family: "Ubuntu Mono", monospace;
 }
@@ -33,7 +34,7 @@ code {
   body {
     font-size: 16px;
   }
-  pre, code {
+  pre, code, .controls .output {
     font-size: 14px;
   }
 }
@@ -106,22 +107,22 @@ footer {
   font-style: italic;
 }
 
-.playground-runnable {
-  position: relative;
-}
-.playground-runnable nav {
-  position: absolute;
-  bottom: 0;
-  right: 0;
+.controls nav {
   display: block;
+  float: right;
+}
+.controls:after {
+  display: block;
+  content: '';
+  clear: both;
 }
 
-.playground-runnable nav form {
+.controls nav form {
   display: inline-block;
 }
 
-.playground-runnable nav button,
-.playground-runnable nav input {
+.controls nav button,
+.controls nav input {
   display: inline-block;
   padding: 5px;
   margin-left: 5px;
@@ -134,21 +135,20 @@ footer {
   font-style: italic;
   color: #2a7ae2;
 }
-.playground-runnable .run:hover,
-.playground-runnable .run:focus,
-.playground-runnable .run:active
+.controls .run:hover,
+.controls .run:focus,
+.controls .run:active
 {
   color: #1756a9;
 }
-.playground-runnable .output {
-  background-color: #ddd;
+.controls .output {
   margin-bottom: $spacing-unit;
-  font-size: 18px;
+  color: #888;
 }
-.playground-runnable .output.hidden {
+.controls .output.hidden {
   display: none;
 }
-.playground-runnable .output.error {
+.controls .output.error {
   font-size: 16px;
   color: #dd1144;
   background-color: #FBE2E8;

@@ -465,7 +465,7 @@ one will be used in the compiled program. The dispatch is done at compile time.
 Let's demonstrate Protocols with an animal example that I think everyone loves!
 OK, maybe not everyone...
 
-```{.oden language=oden caption=Ad\ hoc\ polmorphism\ with\ protocols}
+```{.oden .playground-runnable language=oden caption=Ad\ hoc\ polmorphism\ with\ protocols}
 package main
 
 protocol Animal(a) {
@@ -495,8 +495,6 @@ main() = {
 }
 ```
 
-What do you think the output of this program will be?
-
 #### Work In Progress
 
 As Oden only has transparent type aliases right now it's not super clear in
@@ -519,7 +517,7 @@ data type.
 In the following example we implement the *Monoid* protocol for our *Point2D*
 data type, which enables us to use the `++` operator to add vector values.
 
-```{.oden language=oden caption=Overloading\ the\ ++\ operator}
+```{.oden .playground-runnable language=oden caption=Overloading\ the\ ++\ operator}
 package main
 
 // A point in 2D space.
