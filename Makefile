@@ -27,7 +27,7 @@ dist: $(DIST_ARCHIVE)
 $(STACK_ODEN_EXE):
 	stack build
 
-build/oden: $(STACK_ODEN_EXE) doc
+build/oden: $(STACK_ODEN_EXE)
 	@mkdir -p build/oden/bin
 	cp README.md build/oden/README.txt
 	cp LICENSE.md build/oden/LICENSE.txt
@@ -37,7 +37,7 @@ build/oden: $(STACK_ODEN_EXE) doc
 	cp distribution/oden.sh build/oden/bin/oden
 	rm -f build/lib/libimporter.h
 	cp -r build/lib build/oden/lib
-	cp -r build/doc build/oden/doc
+	cp -r build/doc build/oden/doc || echo "No docs found, will be excluded from distribution!"
 ifeq ($(OS),osx)
 		./tools/change_osx_install_names.sh
 endif
@@ -68,18 +68,16 @@ $(NODEMON):
 $(GITBOOK):
 	npm install gitbook-cli@2.2.0
 
-.PHONY: doc-dependencies
-doc-dependencies: $(GITBOOK)
-	$(GITBOOK) install doc/user-guide
-
 .PHONY: doc
-doc: $(GITBOOK)
-	$(GITBOOK) build doc/user-guide build/doc/user-guide
-	cp doc/user-guide/logo.png build/doc/user-guide/gitbook/images/favicon.ico
+doc:
+	BUILD_DOC_PDF=$(BUILD_DOC_PDF) \
+			$(MAKE) -C doc/user-guide all
+	mkdir -p build/doc
+	rm -rf build/doc/user-guide
+	cp -r doc/user-guide/target build/doc/user-guide
 
-.PHONY: watch-doc
-watch-doc: $(GITBOOK)
-	$(GITBOOK) serve doc/user-guide build/doc-watch
+.PHONY: clean-doc
+	$(MAKE) -C doc/user-guide clean
 
 deploy-docs:
 	aws s3 sync build/doc/user-guide s3://docs.oden-lang.org/$(VERSION)/ --acl=public-read

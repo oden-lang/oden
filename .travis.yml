@@ -25,6 +25,14 @@ addons:
     - alex-3.1.4
     - happy-1.19.5
     - nodejs-legacy
+    - texlive
+    - texlive-fonts-recommended
+    - texlive-latex-extra
+    - texlive-fonts-extra
+    - dvipng
+    - texlive-latex-recommended
+    - latex-xcolor
+    - lmodern
 before_install:
 - export PATH=/opt/ghc/7.10.1/bin:/opt/cabal/1.22/bin:$PATH
 - export PATH=/opt/alex/3.1.4/bin:$PATH
@@ -45,6 +53,8 @@ before_install:
   else
     curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
   fi
+# Install Pandoc
+- travis_retry stack --no-terminal install pandoc pandoc-citeproc
 
 install:
 - travis_retry stack --no-terminal --install-ghc $STACK_ARGS test --only-dependencies
@@ -54,7 +64,9 @@ script:
 - if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-job-$TRAVIS_JOB_NUMBER;
   fi
 - if [[ "$TRAVIS_TAG" != "" ]]; then export VERSION=$TRAVIS_TAG; fi
-- travis_retry make doc-dependencies dist ci-test
+# Dont build PDF docs in OSX.
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export BUILD_DOC_PDF=1; fi
+- travis_retry make doc dist ci-test
 cache:
   apt: true
   directories:
