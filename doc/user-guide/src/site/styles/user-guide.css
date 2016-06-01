@@ -171,7 +171,7 @@ footer {
   cursor: pointer;
   background: none;
   font-family: "Crimson Text", "Baskerville", serif;
-  font-size: 18px;
+  font-size: inherit;
   font-style: italic;
   color: #2a7ae2;
 }

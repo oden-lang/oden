@@ -130,8 +130,21 @@ higher-order function.
 
 ## Functions
 
-A *function expression* is created using an argument list followed by an arrow
-and a function body. The argument list can contain zero or more arguments,
+Functions are the bread and butter of any functional programming language.
+Functions map input values to output values and are used to structure a program
+and to create reusable abstractions. If you know what the function
+*uppercase* does, there's no need for you to know *how* it does it. You can use
+it to get your strings uppercased without worrying about the implementation.
+
+In Oden functions are first-class entities. You can create them on the fly
+and pass them around as values. A *function expression* is written using an
+argument list followed by an arrow and a function body.
+
+```{.oden language=oden}
+(arg1, arg2, ..., argN) -> expr
+```
+
+The argument list can contain zero or more arguments,
 separated by commas and enclosed in parenthesis. The function body is a single
 expression that gets evaluated when the function is applied.
 
@@ -159,22 +172,22 @@ Functions can be defined at the top level just like any other value. We write
 the name, an equals sign and the function expression.
 
 ```
-identity = (x) -> x
+increment = (x) -> x + 1
 ```
 
-However, as defining functions is such a common task, the *function definition
-shorthand* can be used. With it you write the function name, the argument list,
-an equals sign and the function body.
+However, as defining functions is such a common task, Oden provides a *function
+definition shorthand*. Using the shorthand you write the function name, the
+argument list, an equals sign and the function body.
 
 ```
-identity(x) = x
+increment(x) = x + 1
 ```
 
-The two definitions of `identity` are equivalent.
+The two definitions of `increment` are equivalent.
 
 #### Function Application
 
-Functions are applied using parenthesis containg the parameters separated by
+Functions are applied using parenthesis, contaning the parameters separated by
 commas.
 
 ```
@@ -210,17 +223,16 @@ factorial(n) = if n < 2 then 1 else n * factorial(n - 1)
 
 ### Function Types
 
-The type of a function from type _a_ to type _b_ is written `a -> b`.
+The type of a function from type _A_ to type _B_ is written `A -> B`.
 
 When defining a value or a function it is recommended to add an explicit type
 signature. Type signatures must be written before the definition.
 
-In the following code we specify `identity` to have type `a -> a` where `a` is
-a type variable.
+In the following code we specify `increment` to have type `int -> int`.
 
 ```oden
-identity : forall a. a -> a
-identity(x) = x
+increment : int -> int
+increment(x) = x + 1
 ```
 
 Types of functions that take no argument are written in a similar way -- you
@@ -296,20 +308,23 @@ partially apply it just like you can with Oden functions.
 
 ## Type Variables
 
-Polymorphic types can contain *type variables*. These are like placeholders for
-the specific types to be used later. A type variables is introduced to the
-scope of the type signature by using the `forall` keyword, followed by one or
-more type variable names and a terminating dot. This is called *universal
-quantification*.
+Functions that can take values of an unknown type are called *polymorphic
+functions* and have *polymorphic types*. A polymorphic type contains one or
+more *type variables*. These are like placeholders for the specific types to be
+used later.
+
+A type variables is introduced into the scope of the type signature by using
+the `forall` keyword, followed by one or more type variable names and a
+terminating dot.  This is called *universal quantification*.
 
 ```{.oden language=oden caption=A\ signature\ with\ a\ type\ variable}
 identity : forall a. a -> a
 ```
 
 When applying a function to a value the function type is *instantiated* to
-match the type of the value. If we apply the identity function to an int
-literal that the instantiated type of `identity` will be `int -> int`. In
-other words, all occurences of `a` are substituted for `int`. These
+match the type of the value. If we apply the `identity` function to a value of
+type `int`, the instantiated type of `identity` will be `int -> int`. In other
+words, all occurences of the type variable `a` are substituted for `int`. These
 substitutions must match. `a -> a` cannot be instantiated to `int -> string`,
 for example.
 
