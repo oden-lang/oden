@@ -72,11 +72,22 @@ func sayHi(name string) {
 
 ## Operators
 
-There are unary and binary operators in Oden.
+There are two types of operators in Oden -- *unary* and *binary*.
 
-```{.oden language=oden}
-+y
--(1 - 2)
+Unary operators take one value and are written before the value expression.
+This is called *prefix notation*. Here's some examples of unary operators:
+
+```{.oden language=oden }
+-1
+!x
+!(!true)
+```
+
+Binary operators take two values and are written in between the value
+expressions. This is called *infix notation*. Let's look at some binary
+operators:
+
+```{.oden language=oden }
 1 + 2
 1 - 2
 2 * 2
@@ -86,8 +97,30 @@ There are unary and binary operators in Oden.
 1 == 2
 1 != 2
 "Foo" ++ "Bar"
-!x && (true || (1 == 2))
+false && (true || (1 == 2))
 ```
+
+During compilation operators are expanded in to predefined [*protocol method
+applications*](#protocols). The following table shows what they expand to.
+
+Operator  Protocol  Method
+--------  --------  ------
+`-`       Num       Negate
+`!`       Logical   Not
+`+`       Num       Add
+`-`       Num       Subtract
+`*`       Num       Multiply
+`/`       Num       Divide
+`&&`      Logical   Conjunction
+`||`      Logical   Disjunction
+`++`      Monoid    Apply
+
+: Operators to protocol method expansions
+
+The neat property about this expansion is that we can *overload* the operators
+(see [Protocols](#overloading-operators)).
+
+### Using Operators As Function Values
 
 Currently it is not possible to use these operators as first-class values,
 passing them to functions or using them in a let, e.g. `map(+, numbers)`. One

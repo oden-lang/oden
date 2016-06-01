@@ -29,13 +29,23 @@ code,
   font-size: 16px;
   font-family: "Ubuntu Mono", monospace;
 }
+
 pre:before {
   display: block;
   content: attr(caption);
+}
+
+pre:before,
+table caption {
   font-family: "Crimson Text", "Baskerville", serif;
   font-style: italic;
+  font-size: 16px;
   text-align: center;
-  margin-bottom: 1em;
+  line-height: 2;
+}
+
+body > table {
+  width: 100%;
 }
 
 @media screen and (max-width: 700px) {
@@ -43,6 +53,10 @@ pre:before {
     font-size: 16px;
   }
   pre, code, .controls .output {
+    font-size: 14px;
+  }
+  pre:before,
+  table caption {
     font-size: 14px;
   }
 }
