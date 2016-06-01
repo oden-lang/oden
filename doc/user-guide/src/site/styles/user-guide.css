@@ -17,6 +17,11 @@ body {
   -o-font-feature-settings: "kern" 1;
   font-feature-settings: "kern" 1;
   font-kerning: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+p, pre, table, ul, ol {
+  margin: 1em 0;
 }
 
 pre {
@@ -27,7 +32,6 @@ pre {
 pre,
 code,
 .controls .output {
-  font-size: 17px;
   font-family: "Ubuntu Mono", monospace;
 }
 
@@ -47,25 +51,31 @@ pre:before,
 table caption {
   font-family: "Crimson Text", "Baskerville", serif;
   font-style: italic;
-  font-size: 17px;
+  font-size: 16px;
   text-align: center;
-  line-height: 2;
+}
+table caption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
 }
 
 body > table {
+  position: relative;
   width: 100%;
+  padding: 2em;
 }
 
 @media screen and (max-width: 700px) {
   body {
-    font-size: 17px;
+    font-size: 16px;
   }
   pre, code, .controls .output {
-    font-size: 15px;;
   }
   pre:before,
   table caption {
-    font-size: 15px;;
+    font-size: 14px;
   }
 }
 
