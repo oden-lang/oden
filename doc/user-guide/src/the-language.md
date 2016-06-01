@@ -36,7 +36,7 @@ Both the unit type and the unit value literal are written with an empty set of
 parenthesis; `()`. Here's how you define a function that returns unit and use
 that function to perform a side effect.
 
-```{.oden language=oden caption="Returning unit in a function"}
+```{.oden language=oden caption=Returning\ unit\ in\ a\ function }
 brewCoffee : Amount -> ()
 brewCoffee(amount) = {
   // do the actual coffee brewing here
@@ -52,7 +52,7 @@ In the following program we use our `brewCoffee` function and then print to the
 console. We can return unit by ending with the application of the `println`
 function, as it returns unit.
 
-```{.oden language=oden caption="Chaining functions that return unit"}
+```{.oden language=oden caption=Chaining\ functions\ that\ return\ unit }
 coffeeBreak : -> ()
 coffeeBreak() = {
   brewCoffee(twoCups)
@@ -64,7 +64,7 @@ Functions from Go, that has no return value, return unit when imported in Oden.
 For example, the following Go function would have the type `string -> ()` in
 Oden.
 
-```{.go language=go caption="A function in Go with no return value"}
+```{.go caption=A\ function\ in\ Go\ with\ no\ return\ value }
 func sayHi(name string) {
   fmt.Println("Hi", name)
 }
