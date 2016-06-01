@@ -85,6 +85,9 @@ body > table {
   table caption {
     font-size: 14px;
   }
+  pre {
+    padding: 1.5em 0;
+  }
 }
 
 a {
