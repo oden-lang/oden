@@ -79,6 +79,10 @@ doc:
 .PHONY: clean-doc
 	$(MAKE) -C doc/user-guide clean
 
+.PHONY: watch-doc
+watch-doc: $(NODEMON)
+	$(NODEMON) --watch doc/user-guide/src -e md,tex,css,js,html,png,svg --exec 'make doc || exit 1'
+
 deploy-docs:
 	aws s3 sync build/doc/user-guide s3://docs.oden-lang.org/$(VERSION)/ --acl=public-read
 

@@ -28,14 +28,47 @@ String literals are enclosed in double quotes.
 
 ## Unit
 
-*Unit*, written `()`, is a built-in type that has only one value. It is mostly
-used for functions that causes side effects and have no useful return value.
+*Unit* is a built-in type that is inhabited by a single value, the *unit
+value*, which carries no information. Unit is returned by functions that cause
+side effects and have no useful return value to give.
 
-Unit is also used for interoperability with functions in Go that has no
-return value at all. For example, the Go expression `func (s string) {
-fmt.Println(s) }` would have the type `string -> ()` in Oden.
+Both the unit type and the unit value literal are written with an empty set of
+parenthesis; `()`. Here's how you define a function that returns unit and use
+that function to perform a side effect.
 
-The literal `()` has the type `()` and is the only value for that type.
+```{.oden language=oden caption="Returning unit in a function"}
+brewCoffee : Amount -> ()
+brewCoffee(amount) = {
+  // do the actual coffee brewing here
+
+  // then return unit
+  ()
+}
+```
+
+Often the side effects functions you want to use already return unit, which
+means you don't need to explicitly return unit like in the previous example.
+In the following program we use our `brewCoffee` function and then print to the
+console. We can return unit by ending with the application of the `println`
+function, as it returns unit.
+
+```{.oden language=oden caption="Chaining functions that return unit"}
+coffeeBreak : -> ()
+coffeeBreak() = {
+  brewCoffee(twoCups)
+  println("All right, ready to code again!")
+}
+```
+
+Functions from Go, that has no return value, return unit when imported in Oden.
+For example, the following Go function would have the type `string -> ()` in
+Oden.
+
+```{.go language=go caption="A function in Go with no return value"}
+func sayHi(name string) {
+  fmt.Println("Hi", name)
+}
+```
 
 ## Operators
 
