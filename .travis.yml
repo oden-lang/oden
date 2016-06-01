@@ -93,6 +93,7 @@ deploy:
     acl: public_read
     skip_cleanup: true
     on:
+      condition: $TRAVIS_OS_NAME = linux
       tags: true
       repo: oden-lang/oden
   # and one for the "latest" version
@@ -106,6 +107,7 @@ deploy:
     acl: public_read
     skip_cleanup: true
     on:
+      condition: $TRAVIS_OS_NAME = linux
       tags: true
       repo: oden-lang/oden
   # and one for the current "master" version
@@ -119,6 +121,7 @@ deploy:
     acl: public_read
     skip_cleanup: true
     on:
+      condition: $TRAVIS_OS_NAME = linux
       branch: master
       repo: oden-lang/oden
 
