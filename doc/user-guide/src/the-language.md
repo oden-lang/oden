@@ -117,8 +117,9 @@ Operator  Protocol  Method
 
 : Operators to protocol method expansions
 
-The neat property about this expansion is that we can *overload* the operators
-(see [Protocols](#overloading-operators)).
+Because of this expansion we can *overload* all operators with our own types --
+they are just aliases for protcols methods. For more information on overloading
+see ["Overloading Operators"](#overloading-operators).
 
 ### Using Operators As Function Values
 
