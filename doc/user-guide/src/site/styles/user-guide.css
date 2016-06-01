@@ -8,7 +8,7 @@ body {
   margin: 0 auto;
   padding: 1em;
 
-  line-height: 1.3;
+  line-height: 1.4;
   color: #333;
   font-size: 18px;
   -webkit-text-size-adjust: 100%;
@@ -40,6 +40,7 @@ pre,
 code,
 .controls .output {
   font-family: "Ubuntu Mono", monospace;
+  line-height: 1.2;
 }
 
 pre:before {
@@ -139,7 +140,8 @@ header {
 }
 footer {
   text-align: center;
-  margin: 1em 0;
+  margin: 3em 0 1em 0;
+  font-size: 90%;
 }
 
 .title {
@@ -190,13 +192,14 @@ footer {
 }
 .controls .output {
   margin-bottom: $spacing-unit;
-  color: #888;
+  font-style: italic;
 }
 .controls .output.hidden {
   display: none;
 }
 .controls .output.error {
   font-size: 17px;
+  font-style: normal;
   color: #dd1144;
   background-color: #FBE2E8;
 }

@@ -12,6 +12,9 @@ The type inferencer is partly adapted from [Write You a Haskell](
 https://github.com/sdiehl/write-you-a-haskell/tree/master/chapter7/poly_constraints)
 under the MIT license.
 
+Code highlighting in the HTML format User Guide uses the [HighlightJS](
+https://github.com/isagalaev/highlight.js) library under a BSD license.
+
 ### PCRE
 
 Regular expression support is provided by the PCRE library package, which is

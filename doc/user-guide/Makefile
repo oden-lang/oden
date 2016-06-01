@@ -32,7 +32,6 @@ html:
 		--bibliography src/bibliography.bib \
 		-t html5 \
 		-c styles/user-guide.css \
-		-c styles/source-code.css \
 		-H src/site/head.html \
 		$(BEFORE_BODY_FLAGS) \
 		-A src/site/footer.html \

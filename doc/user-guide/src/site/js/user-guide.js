@@ -112,13 +112,23 @@ function setupRunnables() {
 
 }
 
+function setupCodeHighlighting() {
+  hljs.configure({
+    tabReplace: '    ',
+  })
+  $('pre.oden code').each(function(i, block) {
+    $(this).addClass('go');
+  });
+  $('pre.go code').each(function(i, block) {
+    $(this).addClass('go');
+  });
+  $('pre.bash code').each(function(i, block) {
+    $(this).addClass('bash');
+  });
+  hljs.initHighlightingOnLoad();
+}
+
 $(function () {
   setupRunnables();
-
-  //require(["gitbook"], function(gitbook) {
-    //gitbook.events.bind('page.change', function() {
-      //setupRunnables();
-    //});
-  //});
-
+  setupCodeHighlighting();
 });
