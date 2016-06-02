@@ -127,6 +127,10 @@ h6 {
   font-size: 100%;
 }
 
+.hidden {
+  display: none;
+}
+
 .pdf-links {
   text-align: center;
 }

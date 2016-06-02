@@ -118,14 +118,12 @@ function setupCodeHighlighting() {
   })
   $('pre.oden code').each(function(i, block) {
     $(this).addClass('go');
+    hljs.highlightBlock(block);
   });
   $('pre.go code').each(function(i, block) {
     $(this).addClass('go');
+    hljs.highlightBlock(block);
   });
-  $('pre.bash code').each(function(i, block) {
-    $(this).addClass('bash');
-  });
-  hljs.initHighlightingOnLoad();
 }
 
 $(function () {

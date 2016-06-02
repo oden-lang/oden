@@ -178,14 +178,15 @@ $endfor$
   columns=fullflexible,
   basicstyle=\ttfamily,
   commentstyle=\color{gray}\textit,
-  %keywordstyle=\color{olive},
+  keywordstyle=\ttfamily,
   stringstyle=\color{purple},
   %numberstyle=\color{teal},
   showstringspaces=false,
   xleftmargin=2em,
   xrightmargin=2em,
   aboveskip=1em,
-  belowskip=1em
+  belowskip=1em,
+  escapechar=\@
 }
 \usepackage[font=bf,skip=\baselineskip]{caption}
 \captionsetup[lstlisting]{font={small,it}}
@@ -215,11 +216,28 @@ $if(toc)$
 }
 $endif$
 
+% START CUSTOM PREFACE %
+
 \chapter{Preface}
 
-Welcome to the User Guide. Here you can learn about \textit{The Oden
+Welcome to the Oden User Guide. Here you can learn about \textit{The Oden
 Programming Language} -- an experimental, statically typed, functional
 programming language, built for the Go ecosystem.
+
+\section{Conventions Used In This Guide}
+
+\begin{itemize}
+\item \textit{Italic} text is used for emphasis and new term introduced for the
+  first time.
+\item \texttt{Constant Width} text is used for file names, references to code
+  elements, program listings and shell commands and program output.
+\item \texttt{\textbf{Constant Width Bold}} text is used to mark user input in
+  shell command listings.
+\item The \texttt{\textdollar} character marks the shell prompt in a shell command
+  listing.
+\end{itemize}
+
+% END CUSTOM %
 
 $if(lot)$
 \listoftables

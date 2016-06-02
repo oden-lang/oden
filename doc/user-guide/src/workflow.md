@@ -51,19 +51,24 @@ is a search path of semicolon-separated paths from which the Oden compiler
 tries to find packages. Each path should have `src` directory inside of it.
 The Oden path is very similar to the `GOPATH` from Go.
 
-```bash
-oden build --out-path=./out
+```{.hidden}
+$ @\textbf{oden build -\--out-path=./out}@
 ```
+
+<pre><code>$ <strong>oden build --out-path=./out</strong></code></pre>
 
 As we specified the output directory with `--out-path` we now have Go sources
-there. Extending the `GOPATH` with our out directory we can now compile the
+there. By extending the `GOPATH` with our output directory we can compile the
 executable program using a standard Go build command.
 
-```bash
-GOPATH=$PWD/out go build -o hello hello/main
-./hello
+```{.hidden}
+$ @\textbf{GOPATH=\$PWD/out go build -o hello hello/main}@
+$ @\textbf{./hello}@
 Hello, world!
 ```
+<pre><code>$ <strong>GOPATH=$PWD/out go build -o hello hello/main</strong>
+$ <strong>./hello</strong>
+Hello, world!</code></pre>
 
 ## Running Programs Directly
 
@@ -73,10 +78,12 @@ of compiling separately, you can use the `run` subcommand.
 Remember our *Hello World* program from before? If we save it in a file called
 `hello.oden` we can run it directly like this:
 
-```{.bash language=bash}
-oden run hello.oden
+```{.hidden}
+$ @\textbf{oden run hello.oden}@
 Hello, world!
 ```
+<pre><code>$ <strong>oden run hello.oden</strong>
+Hello, world!</code></pre>
 
 ### Playground
 
