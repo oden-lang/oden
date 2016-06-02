@@ -185,7 +185,7 @@ increment(x) = x + 1
 
 The two definitions of `increment` are equivalent.
 
-#### Function Application
+### Function Application
 
 Functions are applied using parenthesis, contaning the parameters separated by
 commas.
@@ -211,7 +211,7 @@ makeNum() = 3
 result = makeNum() * makeNum()
 ```
 
-#### Recursion
+### Recursion
 
 Top-level functions can apply themselves recursively. There is currently no
 [*tail call optimization*](https://en.wikipedia.org/wiki/Tail_call) being done
