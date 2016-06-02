@@ -5,10 +5,10 @@ Programming Language* - an experimental, statically typed, functional
 programming language, built for the Go ecosystem.
 
 This guide assumes that you as a reader have a basic knowledge of at least one
-mainstream programming languages, be it functional, procedural, object-oriented,
-or something else. You do not have to know anything about functional
-programming to read this book, nor do you have to know the Go programming
-language.
+mainstream programming languages, be it functional, procedural,
+object-oriented, or something else. You do not have to know anything about
+functional programming to read this book, nor do you have to know the Go
+programming language.
 
 ## Conventions Used In This Guide
 
