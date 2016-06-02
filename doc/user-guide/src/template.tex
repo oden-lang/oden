@@ -216,6 +216,10 @@ $if(toc)$
 }
 $endif$
 
+\newcommand\fnurl[2]{%
+\href{#2}{#1}\footnote{\url{#2}}%
+}
+
 % START CUSTOM PREFACE %
 
 \chapter{Preface}
@@ -236,6 +240,11 @@ programming language, built for the Go ecosystem.
 \item The \texttt{\textdollar} character marks the shell prompt in a shell command
   listing.
 \end{itemize}
+
+\section{License}
+
+This User Guide is licensed under the same license as the Oden source code --
+the \href{https://github.com/oden-lang/oden/blob/master/LICENSE.md}{MIT License}.
 
 % END CUSTOM %
 

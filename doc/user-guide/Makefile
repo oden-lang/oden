@@ -36,6 +36,8 @@ html:
 		$(BEFORE_BODY_FLAGS) \
 		-A src/site/footer.html \
 		-o target/index.html \
+		--base-header-level=2 \
+		--template=src/template.html \
 		src/preface.md $(MD_SOURCES)
 
 pdf:
