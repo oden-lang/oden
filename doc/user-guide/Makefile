@@ -25,7 +25,7 @@ html:
 		--toc \
 		--no-highlight \
 		--chapters \
-		"--metadata=subtitle:Version $(VERSION)" \
+		"--metadata=subtitle:$(VERSION)" \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
 		-t html5 \
@@ -51,26 +51,8 @@ pdf:
 		-V links-as-notes \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
-		"--metadata=subtitle:Version $(VERSION)" \
+		"--metadata=subtitle:$(VERSION)" \
 		-o target/user-guide.pdf \
-		--template=src/template.tex \
-		$(MD_SOURCES)
-
-latex:
-	@mkdir -p target
-	pandoc \
-		--latex-engine=xelatex \
-		-S \
-		--standalone \
-		--toc \
-		--listings \
-		--chapters \
-		--variable base=$(BASE) \
-		-V links-as-notes \
-		--filter pandoc-citeproc \
-		--bibliography src/bibliography.bib \
-		"--metadata=subtitle:Version $(VERSION)" \
-		-o target/user-guide.tex \
 		--template=src/template.tex \
 		$(MD_SOURCES)
 
@@ -89,7 +71,7 @@ pdf-ebook:
 		-V links-as-notes \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
-		"--metadata=subtitle:Version $(VERSION)" \
+		"--metadata=subtitle:$(VERSION)" \
 		-o target/user-guide.ebook.pdf \
 		--template=src/template.tex \
 		$(MD_SOURCES)

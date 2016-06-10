@@ -96,10 +96,11 @@ deploy-latest-docs:
 	aws s3 sync build/doc/user-guide s3://docs.oden-lang.org/latest/ --acl=public-read
 
 deploy-pdfs:
-	aws s3 sync build/doc/user-guide/*.pdf s3://docs.oden-lang.org/$(VERSION)/ --acl=public-read
+	aws s3 cp build/doc/user-guide/user-guide.pdf s3://docs.oden-lang.org/$(VERSION)/ --acl=public-read
+	aws s3 cp build/doc/user-guide/user-guide.ebook.pdf s3://docs.oden-lang.org/$(VERSION)/ --acl=public-read
 
 deploy-latest-pdfs:
-	aws s3 sync build/doc/user-guide/*.pdf s3://docs.oden-lang.org/latest/ --acl=public-read
+	aws s3 cp build/doc/user-guide/*.pdf s3://docs.oden-lang.org/latest/ --acl=public-read
 
 $(DIST_ARCHIVE): build/oden
 	(cd build && tar -czf $(DIST_NAME).tar.gz oden)
