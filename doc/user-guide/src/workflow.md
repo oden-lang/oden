@@ -16,7 +16,7 @@ In Oden the following rules apply:
 * The `main` function must be a function taking no argument and returning
 `()`, i.e. have the type `(-> ())`.
 
-```{.oden .playground-runnable language=oden caption=Package\ with\ imports\ and\ definitions}
+```{.oden .playground-runnable language=oden}
 package main
 
 import strconv
@@ -40,7 +40,7 @@ compile sources. It compiles Oden source files to single file Go packages.
 Here's a small Oden source that we can compile. It should to be located in
 `src/hello.oden`.
 
-```{.oden language=oden caption=\"Hello\ world\"\ in\ Oden}
+```{.oden language=oden}
 package hello/main
 
 main() = println("Hello, world!")

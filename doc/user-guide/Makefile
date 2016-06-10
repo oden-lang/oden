@@ -43,6 +43,7 @@ html:
 pdf:
 	@mkdir -p target
 	pandoc \
+		--latex-engine=xelatex \
 		-S \
 		--standalone \
 		--toc \
@@ -56,9 +57,27 @@ pdf:
 		--template=src/template.tex \
 		$(MD_SOURCES)
 
+latex:
+	@mkdir -p target
+	pandoc \
+		--latex-engine=xelatex \
+		-S \
+		--standalone \
+		--toc \
+		--listings \
+		--chapters \
+		-V links-as-notes \
+		--filter pandoc-citeproc \
+		--bibliography src/bibliography.bib \
+		"--metadata=subtitle:Version $(VERSION)" \
+		-o target/user-guide.tex \
+		--template=src/template.tex \
+		$(MD_SOURCES)
+
 pdf-ebook:
 	@mkdir -p target
 	pandoc \
+		--latex-engine=xelatex \
 		-S \
 		--standalone \
 		--toc \
