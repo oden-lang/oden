@@ -23,6 +23,33 @@ $endif$
   \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
   \newcommand{\euro}{€}
 
+  \fontspec [
+    Path = $base$/src/fonts/crimson/,
+    Extension = .ttf,
+    UprightFont = *-Regular,
+    ItalicFont = *-Italic,
+    BoldItalicFont = *-BoldItalic,
+    BoldFont = *-Bold
+  ]
+  {CrimsonText}
+
+  \fontspec [
+    Path = $base$/src/fonts/montserrat/,
+    Extension = .otf,
+    UprightFont = *-Regular,
+    BoldFont = *-Bold
+  ]
+  {Montserrat}
+
+  \fontspec [
+    Path = $base$/src/fonts/ubuntu-mono/,
+    UprightFont = *-Regular,
+    ItalicFont = *-Italic,
+    BoldItalicFont = *-BoldItalic,
+    BoldFont = *-Bold
+  ]
+  {UbuntuMono}
+
   \usepackage{xltxtra,xunicode}
   \defaultfontfeatures{Scale=MatchLowercase}
   \setromanfont{Crimson}

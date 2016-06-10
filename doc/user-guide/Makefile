@@ -49,6 +49,7 @@ pdf:
 		--toc \
 		--listings \
 		--chapters \
+		--variable base=$(PWD) \
 		-V links-as-notes \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
