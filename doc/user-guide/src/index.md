@@ -1,4 +1,4 @@
 ---
 title: Oden User Guide
-author: Oskar Wickström
+author: Copyright © 2015 Oskar Wickström
 ---

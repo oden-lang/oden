@@ -25,14 +25,6 @@ addons:
     - alex-3.1.4
     - happy-1.19.5
     - nodejs-legacy
-    - texlive
-    - texlive-fonts-recommended
-    - texlive-latex-extra
-    - texlive-fonts-extra
-    - dvipng
-    - texlive-latex-recommended
-    - latex-xcolor
-    - lmodern
 before_install:
 - export PATH=/opt/ghc/7.10.1/bin:/opt/cabal/1.22/bin:$PATH
 - export PATH=/opt/alex/3.1.4/bin:$PATH
@@ -64,8 +56,9 @@ script:
 - if [[ "$TRAVIS_PULL_REQUEST" != "false" ]]; then export VERSION=pull-request-job-$TRAVIS_JOB_NUMBER;
   fi
 - if [[ "$TRAVIS_TAG" != "" ]]; then export VERSION=$TRAVIS_TAG; fi
-# Dont build PDF docs in OSX.
-- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export BUILD_DOC_PDF=1; fi
+  # Add PDF links when this is a release build.
+- if [[ "$TRAVIS_TAG" != "" ]]; then export INCLUDE_PDF_LINKS=1; fi
+  # Build
 - travis_retry make doc dist ci-test
 cache:
   apt: true

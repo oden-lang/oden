@@ -2,13 +2,13 @@ html, body {
   height: 100%;
 }
 body {
-  font-family: "Crimson Text", "Baskerville", serif;
+  font-family: "Crimson", serif;
 
   max-width: 700px;
   margin: 0 auto;
   padding: 1em;
 
-  line-height: 1.4;
+  line-height: 22px;
   color: #333;
   font-size: 18px;
   -webkit-text-size-adjust: 100%;
@@ -40,7 +40,7 @@ pre,
 code,
 .controls .output {
   font-family: "Ubuntu Mono", monospace;
-  line-height: 1.2;
+  line-height: inherit;
 }
 
 pre:before {
@@ -67,6 +67,10 @@ table caption {
   top: 0;
   left: 0;
   right: 0;
+}
+table th {
+  font-family: "Montserrat", sans-serif;
+  letter-spacing: 0.05em;
 }
 
 body > table {
@@ -102,31 +106,46 @@ a:hover {
   text-decoration: underline;
 }
 
+p {
+  text-align: justify;
+}
+
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-  font-weight: 600;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 400;
   margin: 1em 0 .5em 0;
 }
 
 h2 {
-  font-size: 200%;
-  margin: 3em 0 1em;
-  border-bottom: 2px solid #ccc;
-  padding-bottom: .25em;
+  text-align: center;
+  font-size: 24px;
+  line-height: 44px;
+  margin: 88px 0 44px;
+}
+
+h3, h4, h5, h6 {
+  margin: 22px 0;
+  line-height: inherit;
 }
 h3 {
-  font-size: 150%;
+  font-size: 100%;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 h4 {
-  font-size: 125%;
+  font-size: 100%;
 }
 h5,
 h6 {
-  font-size: 110%;
+  font-size: 90%;
+  font-style: italic;
 }
 
 .hidden {
@@ -142,7 +161,10 @@ h6 {
 }
 header {
   text-align: center;
-  margin: 3em 0 3em 0;
+  margin: 3em 0 6em 0;
+}
+header p {
+  text-align: center;
 }
 footer {
   text-align: center;
@@ -150,17 +172,27 @@ footer {
   font-size: 90%;
 }
 
+.title,
+.version,
+h2 {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
 .title {
-  font-size: 250%;
+  font-size: 200%;
 }
 .version {
-  font-size: 150%;
-  font-weight: 400;
+  font-size: 100%;
 }
-.author, .date {
-  font-size: 125%;
+.author {
+  display: block;
+  font-size: 100%;
   font-weight: 400;
   font-style: italic;
+  margin-top: 3em;
 }
 
 .controls nav {

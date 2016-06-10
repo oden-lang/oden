@@ -1,9 +1,8 @@
 \documentclass[11pt,letterpaper]{book}
-$if(fontfamily)$
-\usepackage{$fontfamily$}
-$else$
-\usepackage{lmodern}
-$endif$
+\usepackage{setspace}[2pt]
+
+\newcommand{\spaced}{\addfontfeatures{LetterSpace=10}}
+
 $if(linestretch)$
 \usepackage{setspace}
 \setstretch{$linestretch$}
@@ -20,27 +19,33 @@ $if(euro)$
   \usepackage{eurosym}
 $endif$
 \else % if luatex or xelatex
-  \ifxetex
-    \usepackage{mathspec}
-    \usepackage{xltxtra,xunicode}
-  \else
-    \usepackage{fontspec}
-  \fi
+  \usepackage{fontspec}
   \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
   \newcommand{\euro}{€}
-$if(mainfont)$
-    \setmainfont{$mainfont$}
-$endif$
-$if(sansfont)$
-    \setsansfont{$sansfont$}
-$endif$
-$if(monofont)$
-    \setmonofont[Mapping=tex-ansi]{$monofont$}
-$endif$
-$if(mathfont)$
-    \setmathfont(Digits,Latin,Greek){$mathfont$}
-$endif$
-\fi
+  \setromanfont{Crimson}[
+    Path = $base$/src/fonts/crimson/,
+    ExternalLocation = $base$/src/fonts/crimson/,
+    Extension = .ttf,
+    UprightFont = CrimsonText-Regular,
+    ItalicFont = CrimsonText-Italic,
+    BoldItalicFont = CrimsonText-BoldItalic,
+    BoldFont = CrimsonText-Bold ]
+  \setsansfont{Montserrat}[
+    Path = $base$/src/fonts/montserrat/,
+    ExternalLocation = $base$/src/fonts/montserrat/,
+    Extension = .otf,
+    UprightFont = *-Regular,
+    BoldFont = *-Bold ]
+  \setmonofont{Ubuntu Mono}[
+    Path = $base$/src/fonts/ubuntu-mono/,
+    ExternalLocation = $base$/src/fonts/ubuntu-mono/,
+    UprightFont = UbuntuMono-Regular,
+    ItalicFont = UbuntuMono-Italic,
+    BoldItalicFont = UbuntuMono-BoldItalic,
+    BoldFont = UbuntuMono-Bold ]
+  \usepackage{xltxtra,xunicode}
+  \defaultfontfeatures{Scale=MatchLowercase}
+
 % use upquote if available, for straight quotes in verbatim environments
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
 % use microtype if available
@@ -114,13 +119,9 @@ $if(strikeout)$
 \pdfstringdefDisableCommands{\renewcommand{\sout}{}}
 $endif$
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{6pt plus 2pt minus 1pt}
+\setlength{\parskip}{13pt}
 \setlength{\emergencystretch}{3em}  % prevent overfull lines
-$if(numbersections)$
 \setcounter{secnumdepth}{5}
-$else$
-\setcounter{secnumdepth}{0}
-$endif$
 $if(verbatim-in-note)$
 \VerbatimFootnotes % allows verbatim text in footnotes
 $endif$
@@ -133,11 +134,67 @@ $if(lang)$
 \fi
 $endif$
 
+\usepackage{fancyhdr}
+
+\fancypagestyle{plain}{%
+  \renewcommand{\headrulewidth}{0pt}%
+  \fancyhf{}%
+  \fancyfoot[C]{\textsf{\thepage}}
+}
+
+\renewcommand*{\chaptermark}[1]{%
+  \markboth{%
+    \ifnum\value{secnumdepth}>-1 %
+      %
+    \fi
+    #1%
+  }{}%
+}%
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[CO]{\textsf{\spaced{\leftmark}}}
+\fancyhead[CE]{\textsf{\spaced{\MakeUppercase{$title-meta$}}}}
+\fancyfoot[C]{\textsf{\thepage}}
+\renewcommand{\footrulewidth}{0pt}
+\renewcommand{\headrulewidth}{0pt}
+
+\usepackage[explicit]{titlesec}
+
+\renewcommand{\thechapter}{\arabic{chapter}}
+\renewcommand{\thesection}{\arabic{section}}
+
+\titleformat{\section}[block]
+  {}{\thechapter.\thesection}{13pt}{\addfontfeatures{LetterSpace=8}{\MakeUppercase{#1}}}
+
+\titleformat{\subsection}[block]
+  {}{\thechapter.\thesubsection}{13pt}{\textit{#1}}
+
+\titleformat{\subsubsection}[block]
+  {}{\thechapter.\thesubsubsection}{13pt}{\textit{#1}}
+
+\titleformat{\chapter}[display]
+  {\sffamily\centering}
+  {\spaced{\MakeUppercase{\chaptertitlename\ \thechapter}}}
+  {0pt}
+  {\spaced{\Huge\MakeUppercase{#1}}}
+
+\titlespacing*{\chapter}
+  {0em}{0em}{130pt}
+
+\titlespacing\section{0pt}{0pt plus 0pt minus 0pt}{0pt plus 0pt minus 0pt}
+\titlespacing\subsection{0pt}{0pt plus 0pt minus 0pt}{0pt plus 0pt minus 0pt}
+\titlespacing\subsubsection{0pt}{0pt plus 0pt minus 0pt}{0pt plus 0pt minus 0pt}
+
+\usepackage{enumitem}
+\setlist[itemize]{noitemsep, topsep=0pt}
+
+
 $if(title)$
-\title{\huge{\textbf{$title$}}$if(subtitle)$\\\vspace{0.5em}{\large $subtitle$}$endif$}
+\title{\sffamily{\spaced{\Huge{\MakeUppercase{$title$}}$if(subtitle)$\\\vspace{0pt}{\large $subtitle$}$endif$}}}
 $endif$
 $if(author)$
-\author{$for(author)$$author$$sep$ \and $endfor$}
+\author{\textit{$for(author)$$author$$sep$ \and $endfor$}}
 $endif$
 \date{$date$}
 $for(header-includes)$
@@ -145,7 +202,6 @@ $header-includes$
 $endfor$
 
 % ---------- Custom Stuff ---------- %
-\usepackage{fancyhdr}
 
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
@@ -177,19 +233,21 @@ $endfor$
 \lstset{
   columns=fullflexible,
   basicstyle=\ttfamily,
-  commentstyle=\color{gray}\textit,
+  commentstyle=\ttfamily,%\color{gray}\textit,
   keywordstyle=\ttfamily,
-  stringstyle=\color{purple},
+  stringstyle=\ttfamily,%\color{purple},
   %numberstyle=\color{teal},
   showstringspaces=false,
-  xleftmargin=2em,
-  xrightmargin=2em,
-  aboveskip=1em,
-  belowskip=1em,
+  xleftmargin=26pt,
+  xrightmargin=26pt,
+  aboveskip=13pt,
+  belowskip=13pt,
+  lineskip=0pt,
   escapechar=\@
 }
-\usepackage[font=bf,skip=\baselineskip]{caption}
-\captionsetup[lstlisting]{font={small,it}}
+
+%\usepackage[textfont={it},labelfont={sc},skip=0pt]{caption}
+
 % ---------- END Custom Stuff ---------- %
 
 \begin{document}

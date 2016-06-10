@@ -1,3 +1,4 @@
+BASE=$(shell pwd)
 MD_SOURCES=\
 				src/index.md \
 				src/installation.md \
@@ -5,17 +6,14 @@ MD_SOURCES=\
 				src/the-language.md \
 				src/references.md
 
-DOC_TARGETS=html
 BEFORE_BODY_FLAGS=-B src/site/logo.html
 
-ifneq ($(strip $(BUILD_DOC_PDF)),)
-	DOC_TARGETS=html pdf pdf-ebook
-
+ifneq ($(strip $(INCLUDE_PDF_LINKS)),)
 	BEFORE_BODY_FLAGS= -B src/site/pdf-links.html \
 										 -B src/site/logo.html
 endif
 
-all: $(DOC_TARGETS)
+all: html pdf pdf-ebook
 
 html:
 	@mkdir -p target
@@ -27,7 +25,7 @@ html:
 		--toc \
 		--no-highlight \
 		--chapters \
-		"--metadata=subtitle:Version $(VERSION)" \
+		"--metadata=subtitle:$(VERSION)" \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
 		-t html5 \
@@ -43,15 +41,17 @@ html:
 pdf:
 	@mkdir -p target
 	pandoc \
+		--latex-engine=xelatex \
 		-S \
 		--standalone \
 		--toc \
 		--listings \
 		--chapters \
+		--variable base=$(BASE) \
 		-V links-as-notes \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
-		"--metadata=subtitle:Version $(VERSION)" \
+		"--metadata=subtitle:$(VERSION)" \
 		-o target/user-guide.pdf \
 		--template=src/template.tex \
 		$(MD_SOURCES)
@@ -59,17 +59,19 @@ pdf:
 pdf-ebook:
 	@mkdir -p target
 	pandoc \
+		--latex-engine=xelatex \
 		-S \
 		--standalone \
 		--toc \
 		--listings \
 		--chapters \
+		--variable base=$(BASE) \
 		-V "geometry:papersize={4.5in,6in}" \
 		-V "geometry:margin={.25in,.75in}" \
 		-V links-as-notes \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
-		"--metadata=subtitle:Version $(VERSION)" \
+		"--metadata=subtitle:$(VERSION)" \
 		-o target/user-guide.ebook.pdf \
 		--template=src/template.tex \
 		$(MD_SOURCES)

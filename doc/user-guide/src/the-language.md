@@ -36,7 +36,7 @@ Both the unit type and the unit value literal are written with an empty set of
 parenthesis; `()`. Here's how you define a function that returns unit and use
 that function to perform a side effect.
 
-```{.oden language=oden caption=Returning\ unit\ in\ a\ function }
+```{.oden language=oden}
 brewCoffee : Amount -> ()
 brewCoffee(amount) = {
   // do the actual coffee brewing here
@@ -52,7 +52,7 @@ In the following program we use our `brewCoffee` function and then print to the
 console. We can return unit by ending with the application of the `println`
 function, as it returns unit.
 
-```{.oden language=oden caption=Chaining\ functions\ that\ return\ unit }
+```{.oden language=oden}
 coffeeBreak : -> ()
 coffeeBreak() = {
   brewCoffee(twoCups)
@@ -64,7 +64,7 @@ Functions from Go, that has no return value, return unit when imported in Oden.
 For example, the following Go function would have the type `string -> ()` in
 Oden.
 
-```{.go caption=A\ function\ in\ Go\ with\ no\ return\ value }
+```{.go}
 func sayHi(name string) {
   fmt.Println("Hi", name)
 }
@@ -114,8 +114,6 @@ Operator  Protocol  Method
 `&&`      Logical   Conjunction
 `||`      Logical   Disjunction
 `++`      Monoid    Apply
-
-: Operators to protocol method expansions
 
 Because of this expansion we can *overload* all operators with our own types --
 they are just aliases for protcols methods. For more information on overloading
@@ -290,7 +288,7 @@ In the following code we create function `personSays` that takes two strings.
 We apply the function with only one string and get a function back. Later we
 apply it with the other string to actually print something.
 
-```{.oden .playground-runnable language=oden caption=Applying\ a\ curried\ function}
+```{.oden .playground-runnable language=oden}
 package main
 
 personSays(who, what) =
@@ -317,7 +315,7 @@ A type variables is introduced into the scope of the type signature by using
 the `forall` keyword, followed by one or more type variable names and a
 terminating dot.  This is called *universal quantification*.
 
-```{.oden language=oden caption=A\ signature\ with\ a\ type\ variable}
+```{.oden language=oden}
 identity : forall a. a -> a
 ```
 
@@ -547,7 +545,7 @@ one will be used in the compiled program. The dispatch is done at compile time.
 Let's demonstrate Protocols with an animal example that I think everyone loves!
 OK, maybe not everyone...
 
-```{.oden .playground-runnable language=oden caption=Ad\ hoc\ polmorphism\ with\ protocols}
+```{.oden .playground-runnable language=oden}
 package main
 
 protocol Animal(a) {
@@ -599,7 +597,7 @@ data type.
 In the following example we implement the *Monoid* protocol for our *Point2D*
 data type, which enables us to use the `++` operator to add vector values.
 
-```{.oden .playground-runnable language=oden caption=Overloading\ the\ ++\ operator}
+```{.oden .playground-runnable language=oden}
 package main
 
 // A point in 2D space.
