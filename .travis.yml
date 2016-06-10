@@ -48,11 +48,17 @@ before_install:
 - |
   if [[ "$TRAVIS_OS_NAME" == "linux" ]]
   then
-    pushd /tmp
-    wget https://github.com/skosch/Crimson/archive/master.zip \
-    unzip master.zip
     mkdir ~/.fonts
+    pushd /tmp
+    wget https://github.com/skosch/Crimson/archive/master.zip
+    unzip master.zip
     cp Crimson-master/Desktop\ Fonts/TTF/Crimson-*.ttf ~/.fonts/
+    wget https://www.fontsquirrel.com/fonts/download/montserrat -O montserrat.zip
+    unzip montserrat.zip
+    cp Montserrat-*.otf ~/.fonts/
+    wget http://font.ubuntu.com/download/ubuntu-font-family-0.83.zip
+    unzip ubuntu-font-family-0.83.zip
+    cp ubuntu-font-family-0.83.zip/*.ttf ~/.fonts/
     fc-cache -f -v
     popd
   fi
