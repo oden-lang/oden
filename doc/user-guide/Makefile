@@ -1,8 +1,7 @@
 BASE=$(shell pwd)
 MD_SOURCES=\
 				src/index.md \
-				src/installation.md \
-				src/workflow.md \
+				src/getting-started.md \
 				src/the-language.md \
 				src/references.md
 

@@ -1,5 +1,54 @@
 # The Language
 
+## Packages
+
+A *package* in Oden is the top level in which you write Oden source code.
+Every `.oden` source file corresponds to a single package; a package cannot be
+be spread over multiple source files. Every package must begin with a
+*package declaration*. The `package` keyword is followed by a *fully
+qualified package name*.
+
+```{.hidden}
+package @\textit{fully-qualified-name}@
+```
+<pre><code>package <em>fully-qualified-name</em></code></pre>
+
+The fully qualified name consists of one or more *segments* separated by
+by slashes.
+
+```{.hidden}
+@$\text{\textit{name}}_{\text{\textit{1}}}$@/@$\text{\textit{name}}_{\text{\textit{2}}}$@/.../@$\text{\textit{name}}_{\text{\textit{n}}}$@
+```
+<pre><code>package <em>name<sub>1</sub></em>/<em>name<sub>2</sub></em>/.../<em>name<sub>n</sub></em></code></pre>
+
+After the package declaration follows zero or more *import declarations*.
+
+```{.hidden}
+import @\textit{fully-qualified-name}@
+```
+<pre><code>import <em>fully-qualified-name</em></code></pre>
+
+After the package and import declarations follows the part where we do the
+actual work, called *value definitions*. These can be basic values like numbers
+or strings, but also functions.
+
+The following program imports the `strconv` package from Go, defines a
+function `shout` and a value `result`, and defines the *main* function, the
+entry point of the program. The main function must be a function taking
+no argument and returning `()`, i.e. have the type `(-> ())`.
+
+```{.oden .playground-runnable language=oden}
+package main
+
+import strconv
+
+shout(s) = s ++ "!"
+
+result = shout(strconv.Itoa(9000))
+
+main() = println(result)
+```
+
 ## Basic Literals
 
 There are two types of number literals supported; `int` and `float64` literals.
@@ -33,7 +82,7 @@ value*, which carries no information. Unit is returned by functions that cause
 side effects and have no useful return value to give.
 
 Both the unit type and the unit value literal are written with an empty set of
-parenthesis; `()`. Here's how you define a function that returns unit and use
+parenthesis. Here's how you define a function that returns unit and use
 that function to perform a side effect.
 
 ```{.oden language=oden}
@@ -46,10 +95,10 @@ brewCoffee(amount) = {
 }
 ```
 
-Often the side effects functions you want to use already return unit, which
-means you don't need to explicitly return unit like in the previous example.
-In the following program we use our `brewCoffee` function and then print to the
-console. We can return unit by ending with the application of the `println`
+Often the side effect functions you use already return unit, which means
+you don't need to explicitly return unit like in the previous example.  In
+the following example we use our `brewCoffee` function and then print to
+the console. We return unit by ending with the application of the `println`
 function, as it returns unit.
 
 ```{.oden language=oden}
@@ -74,18 +123,18 @@ func sayHi(name string) {
 
 There are two types of operators in Oden -- *unary* and *binary*.
 
-Unary operators take one value and are written before the value expression.
-This is called *prefix notation*. Here's some examples of unary operators:
+Unary operators take one value as argument and are written before the value
+expression. This is called *prefix notation*. Oden has only two unary
+operators; negation and logical not.
 
 ```{.oden language=oden }
 -1
 !x
-!(!true)
 ```
 
-Binary operators take two values and are written in between the value
-expressions. This is called *infix notation*. Let's look at some binary
-operators:
+Binary operators take two values as arguments and are written in between
+the value expressions. This is called *infix notation*. Let's look at some
+binary operators:
 
 ```{.oden language=oden }
 1 + 2
