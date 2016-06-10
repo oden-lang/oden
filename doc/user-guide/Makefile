@@ -67,6 +67,7 @@ latex:
 		--toc \
 		--listings \
 		--chapters \
+		--variable base=$(PWD) \
 		-V links-as-notes \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
@@ -84,6 +85,7 @@ pdf-ebook:
 		--toc \
 		--listings \
 		--chapters \
+		--variable base=$(PWD) \
 		-V "geometry:papersize={4.5in,6in}" \
 		-V "geometry:margin={.25in,.75in}" \
 		-V links-as-notes \
