@@ -6,17 +6,14 @@ MD_SOURCES=\
 				src/the-language.md \
 				src/references.md
 
-DOC_TARGETS=html
 BEFORE_BODY_FLAGS=-B src/site/logo.html
 
-ifneq ($(strip $(BUILD_DOC_PDF)),)
-	DOC_TARGETS=html pdf pdf-ebook
-
+ifneq ($(strip $(INCLUDE_PDF_LINKS)),)
 	BEFORE_BODY_FLAGS= -B src/site/pdf-links.html \
 										 -B src/site/logo.html
 endif
 
-all: $(DOC_TARGETS)
+all: html pdf pdf-ebook
 
 html:
 	@mkdir -p target

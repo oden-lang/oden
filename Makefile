@@ -70,11 +70,17 @@ $(GITBOOK):
 
 .PHONY: doc
 doc:
-	BUILD_DOC_PDF=$(BUILD_DOC_PDF) \
-			$(MAKE) -C doc/user-guide all
+	INCLUDE_PDF_LINKS=$(INCLUDE_PDF_LINKS) \
+			$(MAKE) -C doc/user-guide html
 	mkdir -p build/doc
 	rm -rf build/doc/user-guide
 	cp -r doc/user-guide/target build/doc/user-guide
+
+.PHONY: doc-pdf
+doc-pdf:
+	$(MAKE) -C doc/user-guide pdf pdf-ebook
+	mkdir -p build/doc/user-guide
+	cp -r doc/user-guide/target/*.pdf build/doc/user-guide/
 
 .PHONY: clean-doc
 	$(MAKE) -C doc/user-guide clean
@@ -88,6 +94,12 @@ deploy-docs:
 
 deploy-latest-docs:
 	aws s3 sync build/doc/user-guide s3://docs.oden-lang.org/latest/ --acl=public-read
+
+deploy-pdfs:
+	aws s3 sync build/doc/user-guide/*.pdf s3://docs.oden-lang.org/$(VERSION)/ --acl=public-read
+
+deploy-latest-pdfs:
+	aws s3 sync build/doc/user-guide/*.pdf s3://docs.oden-lang.org/latest/ --acl=public-read
 
 $(DIST_ARCHIVE): build/oden
 	(cd build && tar -czf $(DIST_NAME).tar.gz oden)
