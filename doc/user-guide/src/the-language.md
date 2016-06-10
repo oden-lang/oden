@@ -164,15 +164,15 @@ Operator  Protocol  Method
 `||`      Logical   Disjunction
 `++`      Monoid    Apply
 
-Because of this expansion we can *overload* all operators with our own types --
-they are just aliases for protcols methods. For more information on overloading
-see ["Overloading Operators"](#overloading-operators).
+With operator expansion we can *overload* all operators with our own
+types, as they are aliases for protocol methods. For more information on
+overloading see ["Overloading Operators"](#overloading-operators).
 
 ### Using Operators As Function Values
 
 Currently it is not possible to use these operators as first-class values,
-passing them to functions or using them in a let, e.g. `map(+, numbers)`. One
-could however wrap them in a standard function and pass that to a
+passing them to functions or using them in a let, e.g. `map(+, numbers)`. You
+can however wrap them in a standard function and pass that to a
 higher-order function.
 
 ## Functions
@@ -187,36 +187,26 @@ In Oden functions are first-class entities. You can create them on the fly
 and pass them around as values. A *function expression* is written using an
 argument list followed by an arrow and a function body.
 
-```{.oden language=oden}
-(arg1, arg2, ..., argN) -> expr
+```{.hidden}
+@($\text{\textit{argument}}_{\text{\textit{1}}}$@, @$\text{\textit{argument}}_{\text{\textit{2}}}$@, ..., @$\text{\textit{argument}}_{\text{\textit{n}}}$) -> \textit{body}@
 ```
+<pre><code>(<em>argument<sub>1</sub></em>, <em>argument<sub>2</sub></em>, ..., <em>argument<sub>n</sub></em>) -> <em>body</em></code></pre>
 
 The argument list can contain zero or more arguments,
 separated by commas and enclosed in parenthesis. The function body is a single
 expression that gets evaluated when the function is applied.
 
-Here's a function that takes an argument `x` and applies the `+` operator to
+The following function takes an argument `x` and applies the `+` operator to
 `x` and the literal `1`, effectively incrementing the number.
 
 ```{.oden language=oden}
 (x) -> x + 1
 ```
 
-But what if you need to do more than one thing in the function? Like printing
-something to the console or saving a record in the database, before returning
-a value? In that case you can use a [block expression](#blocks).
-
-```{.oden language=oden}
-(x) -> {
-  println("Let's increment!")
-  x + 1
-}
-```
-
 ### Defining Functions
 
 Functions can be defined at the top level just like any other value. We write
-the name, an equals sign and the function expression.
+the name, an equals sign, and the function expression.
 
 ```
 increment = (x) -> x + 1
@@ -237,25 +227,25 @@ The two definitions of `increment` are equivalent.
 Functions are applied using parenthesis, contaning the parameters separated by
 commas.
 
+```{.hidden}
+@\textit{function}($\text{\textit{parameter}}_{\text{\textit{1}}}$@, @$\text{\textit{parameter}}_{\text{\textit{2}}}$@, ..., @$\text{\textit{parameter}}_{\text{\textit{n}}}$)@
 ```
-f(x, y, z, ...)
-```
+<pre><code><em>function</em>(<em>parameter<sub>1</sub></em>, <em>parameter<sub>2</sub></em>, ..., <em>parameter<sub>n</sub></em>)</code></pre>
 
 Here we first define a function `square` and then we apply the function to
 the literal `4`.
 
 ```{.oden language=oden}
-square(x) = x * 2
+square(x) = x * x
 squareOfFour = square(4)
 ```
 
-We can also define functions that takes no arguments. Here the function
-`makeNum` is applied with no argument to give us some number. This is useful
-for deferring a computation until it's needed.
+We can also define functions that take no arguments. In the following
+expression the function `makeNum` is applied with no argument to give us
+some number. This is useful for deferring a computation until it's needed.
 
 ```{.oden language=oden}
-makeNum() = 3
-result = makeNum() * makeNum()
+makeNum() * makeNum()
 ```
 
 ### Recursion
@@ -265,12 +255,21 @@ Top-level functions can apply themselves recursively. There is currently no
 in Oden, so be careful with these.
 
 ```{.oden language=oden}
-factorial(n) = if n < 2 then 1 else n * factorial(n - 1)
+factorial(n) =
+  if n < 2
+    then 1
+    else n * factorial(n - 1)
 ```
 
 ### Function Types
 
-The type of a function from type _A_ to type _B_ is written `A -> B`.
+Functions, being values, have types. A function type denotes the argument type
+(the *domain*) and the return value type (the *range*), separated by an arrow.
+
+```{.hidden}
+@\textit{domain} -> \textit{range}@
+```
+<pre><code><em>domain</em> -> <em>range</em></code></pre>
 
 When defining a value or a function it is recommended to add an explicit type
 signature. Type signatures must be written before the definition.
@@ -304,34 +303,44 @@ anotherFunction : forall a b. a -> b -> a
 Oden functions are [*curried*](https://en.wikipedia.org/wiki/Currying). The
 type of a function that takes values of types `a` and `b`, returning a `c` can
 be written `a -> b -> c`. But it can also be written as `a -> (b -> c)`, which
-is how the compiler really sees it.
+is how the compiler sees it.
 
-The parenthesis indicate that the function really has one argument of type `a`
-and return another function from `b` to `c`. But how can we write functions
-that take multiple arguments then? The answer is that we can't, but the
-compiler performs this tiny trick to make it look like we can.
+The parenthesis indicate that the function has one argument of type `a` and
+return another function from `b` to `c`. But how can we write functions that
+take multiple arguments? The answer is that we can't! The compiler performs a
+trick to make it look like we can.
 
-Oden lets you write a function expression like this:
+Oden lets you write function expressions with multiple arguments:
 
 ```{.oden language=oden}
 (x, y, z) -> x
 ```
 
-But that gets expanded to:
+Function expression with multiple arguments gets expanded to nested functions,
+each having only one argument.
 
 ```{.oden language=oden}
 (x) -> (y) -> (z) -> x
 ```
 
-And the inferred type of the function expression becomes:
+The type of such a function expression is:
+
+```{.oden language=oden}
+forall a b c. a -> (b -> (c -> a))
+```
+
+As curried functions are central in Oden their types can be written without
+paranthesis, with arrows between each nesting.
 
 ```{.oden language=oden}
 forall a b c. a -> b -> c -> a
 ```
 
+In other words, `a -> (b -> c)` and `a -> b -> c` are equivalent.
+
 #### Using Currying
 
-With currying you can apply only the first value of a function, get another
+With currying you can apply a function to its first argument, get another
 function back, and use that function later -- similar to *partial application*.
 In the following code we create function `personSays` that takes two strings.
 We apply the function with only one string and get a function back. Later we
@@ -350,8 +359,9 @@ main() = simonSays("write a program in Oden")
 
 #### Go Functions
 
-When calling a function imported from Go the function gets curried, so you can
-partially apply it just like you can with Oden functions.
+When applying a function imported from Go the function gets curried
+automatically, so you can partially apply it just like you can with Oden
+functions.
 
 ## Type Variables
 
