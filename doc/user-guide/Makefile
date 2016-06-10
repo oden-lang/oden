@@ -1,3 +1,4 @@
+BASE=$(shell pwd)
 MD_SOURCES=\
 				src/index.md \
 				src/installation.md \
@@ -49,7 +50,7 @@ pdf:
 		--toc \
 		--listings \
 		--chapters \
-		--variable base=$(PWD) \
+		--variable base=$(BASE) \
 		-V links-as-notes \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
@@ -67,7 +68,7 @@ latex:
 		--toc \
 		--listings \
 		--chapters \
-		--variable base=$(PWD) \
+		--variable base=$(BASE) \
 		-V links-as-notes \
 		--filter pandoc-citeproc \
 		--bibliography src/bibliography.bib \
@@ -85,7 +86,7 @@ pdf-ebook:
 		--toc \
 		--listings \
 		--chapters \
-		--variable base=$(PWD) \
+		--variable base=$(BASE) \
 		-V "geometry:papersize={4.5in,6in}" \
 		-V "geometry:margin={.25in,.75in}" \
 		-V links-as-notes \
