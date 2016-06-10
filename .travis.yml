@@ -29,6 +29,7 @@ addons:
     - texlive-fonts-recommended
     - texlive-latex-extra
     - texlive-fonts-extra
+    - texlive-xetex
     - dvipng
     - texlive-latex-recommended
     - latex-xcolor
@@ -42,6 +43,19 @@ before_install:
 # Install OSX dependencies.
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then travis_retry brew update; fi
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then travis_retry brew install ghc cabal-install pcre; fi
+
+# Install Fonts
+- |
+  if [[ "$TRAVIS_OS_NAME" == "linux" ]]
+  then
+    pushd /tmp
+    wget https://github.com/skosch/Crimson/archive/master.zip \
+    unzip master.zip
+    mkdir ~/.fonts
+    cp Crimson-master/Desktop\ Fonts/TTF/Crimson-*.ttf ~/.fonts/
+    fc-cache -f -v
+    popd
+  fi
 
 # Download and unpack the stack executable
 - export PATH=/opt/ghc/7.10.1/bin:$HOME/.local/bin:$PATH
