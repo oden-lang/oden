@@ -8,35 +8,27 @@ be spread over multiple source files. Every package must begin with a
 *package declaration*. The `package` keyword is followed by a *fully
 qualified package name*.
 
-```{.hidden}
-package @\textit{fully-qualified-name}@
+```{include=src/listings/syntax-package-declaration.html formatted=true}
 ```
-<pre><code>package <em>fully-qualified-name</em></code></pre>
 
 The fully qualified name consists of one or more *segments* separated by
 by slashes.
 
-```{.hidden}
-@$\text{\textit{name}}_{\text{\textit{1}}}$@/@$\text{\textit{name}}_{\text{\textit{2}}}$@/.../@$\text{\textit{name}}_{\text{\textit{n}}}$@
+```{include=src/listings/syntax-fully-qualified-name.html formatted=true}
 ```
-<pre><code><em>name<sub>1</sub></em>/<em>name<sub>2</sub></em>/.../<em>name<sub>n</sub></em></code></pre>
 
 After the package declaration follows zero or more *import declarations*.
 
-```{.hidden}
-import @\textit{fully-qualified-name}@
+```{include=src/listings/syntax-import-declaration.html formatted=true}
 ```
-<pre><code>import <em>fully-qualified-name</em></code></pre>
 
 After the package and import declarations follows the most interesting part,
 called *value definitions*. These can be basic values like numbers or strings,
 but also functions. A value definition is denoted by a name, an equals sign,
 and the expression to bind the name to.
 
-```{.hidden}
-@$\text{\textit{name}}$@ = @$\text{\textit{expression}}$@
+```{include=src/listings/syntax-value-definition.html formatted=true}
 ```
-<pre><code><em>name</em> = <em>expression</em></code></pre>
 
 The following program imports the `strconv` package from Go, defines a
 function `shout` and a value `result`, and defines the *main* function, the

@@ -1,14 +1,15 @@
-{-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE QuasiQuotes      #-}
 module Main where
 
-import qualified Data.Map as Map
+import qualified Data.Map              as Map
 
-import System.FilePath
-import System.Environment
-import System.Process
+import           System.Environment
+import           System.FilePath
+import           System.Process
 
-import Text.Pandoc.JSON
-import Text.Regex.PCRE.Heavy
+import           Text.Pandoc.JSON
+import           Text.Regex.PCRE.Heavy
 
 type IsEscaped = Bool
 
@@ -29,18 +30,18 @@ replaceDashWithLatex isEscaped = gsub ([re|(\--)|]) toLatex
   toLatex [] = ""
 
 replaceTagWithLatex :: IsEscaped -> String -> String
-replaceTagWithLatex isEscaped = gsub ([re|<(\w+?)>(.*?)</(\w+?)>|]) toLatex
+replaceTagWithLatex isEscaped s = foldl replaceWith s replacements
   where
-  toLatex (start:contents:end:_) | start == end =
+  replacements = [ ([re|<strong>(.*?)</strong>|], "\\texttt{\\textbf{", "}}")
+                 , ([re|<em>(.*?)</em>|], "\\texttt{\\textit{", "}}")
+                 , ([re|<sub>(.*?)</sub>|], "\\textsubscript{", "}")
+                 ]
+  replaceWith s (r, pre, post) = gsub r (toLatex pre post) s
+  toLatex pre post (contents:_) =
     let replacedContents = replaceWithLatex True contents
-        command = case start of
-                    "strong" -> "\\texttt{\\textbf{" ++ replacedContents ++ "}}"
-                    "em" -> "\\texttt{\\textit{" ++ replacedContents ++ "}}"
-                    "sub" -> "\\textsubscript{" ++ replacedContents ++ "}"
-                    tag -> error "Unsupported HTML tag: " ++ tag
+        command = pre ++ replacedContents ++ post
     in encloseInListingEscape isEscaped command
-  toLatex (m:_) = m
-  toLatex [] = ""
+  toLatex _ _ [] = ""
 
 replaceWithLatex isEscaped =
   replaceDashWithLatex isEscaped . replaceTagWithLatex isEscaped . escapeForLatex isEscaped
