@@ -1,9 +1,27 @@
 BASE=$(shell pwd)
+
 MD_SOURCES=\
 				src/index.md \
 				src/getting-started.md \
 				src/the-language.md \
 				src/references.md
+
+SHARED_PANDOC_OPTIONS=--standalone \
+											-S \
+											--toc \
+											--chapters \
+											"--metadata=subtitle:$(VERSION)" \
+											-V base=$(BASE) \
+											--filter pandoc-citeproc \
+											--bibliography src/bibliography.bib
+
+PDF_PANDOC_OPTIONS=$(SHARED_PANDOC_OPTIONS) \
+									 --latex-engine=xelatex \
+									 --listings \
+									 -V links-as-notes \
+									 --filter src/filters/include-code-latex.sh \
+									 --template=src/template.tex
+
 
 BEFORE_BODY_FLAGS=-B src/site/logo.html
 
@@ -18,16 +36,9 @@ html:
 	@mkdir -p target
 	@rm -rf target
 	cp -r src/site target
-	pandoc \
-		--standalone \
-		-S \
-		--toc \
-		--no-highlight \
-		--chapters \
-		"--metadata=subtitle:$(VERSION)" \
-		--filter pandoc-citeproc \
-		--bibliography src/bibliography.bib \
+	pandoc $(SHARED_PANDOC_OPTIONS) \
 		-t html5 \
+		--filter src/filters/include-code-html.sh \
 		-c styles/user-guide.css \
 		-H src/site/head.html \
 		$(BEFORE_BODY_FLAGS) \
@@ -39,40 +50,14 @@ html:
 
 pdf:
 	@mkdir -p target
-	pandoc \
-		--latex-engine=xelatex \
-		-S \
-		--standalone \
-		--toc \
-		--listings \
-		--chapters \
-		--variable base=$(BASE) \
-		-V links-as-notes \
-		--filter pandoc-citeproc \
-		--bibliography src/bibliography.bib \
-		"--metadata=subtitle:$(VERSION)" \
-		-o target/user-guide.pdf \
-		--template=src/template.tex \
-		$(MD_SOURCES)
+	pandoc $(PDF_PANDOC_OPTIONS) -o target/user-guide.pdf $(MD_SOURCES)
 
 pdf-ebook:
 	@mkdir -p target
-	pandoc \
-		--latex-engine=xelatex \
-		-S \
-		--standalone \
-		--toc \
-		--listings \
-		--chapters \
-		--variable base=$(BASE) \
+	pandoc $(PDF_PANDOC_OPTIONS) \
 		-V "geometry:papersize={4.5in,6in}" \
 		-V "geometry:margin={.25in,.75in}" \
-		-V links-as-notes \
-		--filter pandoc-citeproc \
-		--bibliography src/bibliography.bib \
-		"--metadata=subtitle:$(VERSION)" \
 		-o target/user-guide.ebook.pdf \
-		--template=src/template.tex \
 		$(MD_SOURCES)
 
 clean:

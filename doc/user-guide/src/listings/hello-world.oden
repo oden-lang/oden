@@ -1,0 +1,3 @@
+package hello/main
+
+main() = println("Hello, world!")

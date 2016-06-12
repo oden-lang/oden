@@ -42,7 +42,8 @@ $endif$
     UprightFont = UbuntuMono-Regular,
     ItalicFont = UbuntuMono-Italic,
     BoldItalicFont = UbuntuMono-BoldItalic,
-    BoldFont = UbuntuMono-Bold ]
+    BoldFont = UbuntuMono-Bold,
+    Mapping=tex-ansi]
   \usepackage{xltxtra,xunicode}
   \defaultfontfeatures{Scale=MatchLowercase}
 
@@ -68,6 +69,7 @@ $endif$
 $endif$
 $if(listings)$
 \usepackage{listings}
+\usepackage{textcomp}
 $endif$
 $if(lhs)$
 \lstnewenvironment{code}{\lstset{language=Haskell,basicstyle=\small\ttfamily}}{}
@@ -206,6 +208,7 @@ $endfor$
 \providecommand{\tightlist}{%
   \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 
+$if(listings)$
 \lstdefinelanguage{oden}
 {
   % list of keywords
@@ -230,14 +233,17 @@ $endfor$
   morecomment=[s]{/*}{*/}, % s is for start and end delimiter
   morestring=[b]" % defines that strings are enclosed in double quotes
 }
+\usepackage{upquote}
 \lstset{
-  columns=fullflexible,
+  columns=fixed,
+  basewidth=.5em,
   basicstyle=\ttfamily,
   commentstyle=\ttfamily,%\color{gray}\textit,
   keywordstyle=\ttfamily,
   stringstyle=\ttfamily,%\color{purple},
   %numberstyle=\color{teal},
   showstringspaces=false,
+  upquote=true,
   xleftmargin=26pt,
   xrightmargin=26pt,
   aboveskip=13pt,
@@ -245,6 +251,7 @@ $endfor$
   lineskip=0pt,
   escapechar=\@
 }
+$endif$
 
 %\usepackage[textfont={it},labelfont={sc},skip=0pt]{caption}
 
