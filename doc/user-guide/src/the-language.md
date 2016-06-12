@@ -12,7 +12,7 @@ qualified package name*.
 ```
 
 The fully qualified name consists of one or more *segments* separated by
-by slashes.
+slashes.
 
 ```{include=src/listings/syntax-fully-qualified-name.html formatted=true}
 ```
@@ -22,10 +22,9 @@ After the package declaration follows zero or more *import declarations*.
 ```{include=src/listings/syntax-import-declaration.html formatted=true}
 ```
 
-After the package and import declarations follows the most interesting part,
-called *value definitions*. These can be basic values like numbers or strings,
-but also functions. A value definition is denoted by a name, an equals sign,
-and the expression to bind the name to.
+After the package and import declarations comes *value definitions*. These can
+be basic values like numbers or strings, but also functions. A value definition
+is denoted by a name, an equals sign, and the expression to bind the name to.
 
 ```{include=src/listings/syntax-value-definition.html formatted=true}
 ```
