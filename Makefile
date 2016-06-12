@@ -74,13 +74,13 @@ doc:
 			$(MAKE) -C doc/user-guide html
 	mkdir -p build/doc
 	rm -rf build/doc/user-guide
-	cp -r doc/user-guide/target build/doc/user-guide
+	cp -r doc/user-guide/target/site build/doc/user-guide
 
 .PHONY: doc-pdf
 doc-pdf:
 	$(MAKE) -C doc/user-guide pdf pdf-ebook
 	mkdir -p build/doc/user-guide
-	cp -r doc/user-guide/target/*.pdf build/doc/user-guide/
+	cp -r doc/user-guide/target/site/*.pdf build/doc/user-guide/
 
 .PHONY: clean-doc
 	$(MAKE) -C doc/user-guide clean
