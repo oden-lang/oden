@@ -176,10 +176,8 @@ In Oden functions are first-class entities. You can create them on the fly
 and pass them around as values. A *function expression* is written using an
 argument list followed by an arrow and a function body.
 
-```{.hidden}
-@($\text{\textit{argument}}_{\text{\textit{1}}}$@, @$\text{\textit{argument}}_{\text{\textit{2}}}$@, ..., @$\text{\textit{argument}}_{\text{\textit{n}}}$) -> \textit{body}@
+```{include=src/listings/syntax-function-expression.html formatted=true}
 ```
-<pre><code>(<em>argument<sub>1</sub></em>, <em>argument<sub>2</sub></em>, ..., <em>argument<sub>n</sub></em>) -> <em>body</em></code></pre>
 
 The argument list can contain zero or more arguments,
 separated by commas and enclosed in parenthesis. The function body is a single
@@ -216,10 +214,8 @@ The two definitions of `increment` are equivalent.
 Functions are applied using parenthesis, contaning the parameters separated by
 commas.
 
-```{.hidden}
-@\textit{function-expression}($\text{\textit{parameter}}_{\text{\textit{1}}}$@, @$\text{\textit{parameter}}_{\text{\textit{2}}}$@, ..., @$\text{\textit{parameter}}_{\text{\textit{n}}}$)@
+```{include=src/listings/syntax-function-application.html formatted=true}
 ```
-<pre><code><em>function-expression</em>(<em>parameter<sub>1</sub></em>, <em>parameter<sub>2</sub></em>, ..., <em>parameter<sub>n</sub></em>)</code></pre>
 
 Here we first define a function `square` and then we apply the function to
 the literal `4`.
