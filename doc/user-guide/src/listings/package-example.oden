@@ -1,0 +1,9 @@
+package main
+
+import strconv
+
+shout(s) = s ++ "!"
+
+result = shout(strconv.Itoa(9000))
+
+main() = println(result)

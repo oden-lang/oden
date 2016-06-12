@@ -23,3 +23,6 @@
 *.synctex.gz
 *.pdf
 /target
+src/filters/*.dyn*
+src/filters/*.hi
+src/filters/*.o

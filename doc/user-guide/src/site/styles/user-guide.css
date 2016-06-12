@@ -218,9 +218,8 @@ h2 {
   border-radius: 0;
   cursor: pointer;
   background: none;
-  font-family: "Crimson Text", "Baskerville", serif;
-  font-size: inherit;
-  font-style: italic;
+  font-family: "Montserrat", sans-serif;
+  font-size: 16px;
   color: #2a7ae2;
 }
 .controls .run:hover,

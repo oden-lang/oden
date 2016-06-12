@@ -19,7 +19,7 @@ by slashes.
 ```{.hidden}
 @$\text{\textit{name}}_{\text{\textit{1}}}$@/@$\text{\textit{name}}_{\text{\textit{2}}}$@/.../@$\text{\textit{name}}_{\text{\textit{n}}}$@
 ```
-<pre><code>package <em>name<sub>1</sub></em>/<em>name<sub>2</sub></em>/.../<em>name<sub>n</sub></em></code></pre>
+<pre><code><em>name<sub>1</sub></em>/<em>name<sub>2</sub></em>/.../<em>name<sub>n</sub></em></code></pre>
 
 After the package declaration follows zero or more *import declarations*.
 
@@ -28,25 +28,22 @@ import @\textit{fully-qualified-name}@
 ```
 <pre><code>import <em>fully-qualified-name</em></code></pre>
 
-After the package and import declarations follows the part where we do the
-actual work, called *value definitions*. These can be basic values like numbers
-or strings, but also functions.
+After the package and import declarations follows the most interesting part,
+called *value definitions*. These can be basic values like numbers or strings,
+but also functions. A value definition is denoted by a name, an equals sign,
+and the expression to bind the name to.
+
+```{.hidden}
+@$\text{\textit{name}}$@ = @$\text{\textit{expression}}$@
+```
+<pre><code><em>name</em> = <em>expression</em></code></pre>
 
 The following program imports the `strconv` package from Go, defines a
 function `shout` and a value `result`, and defines the *main* function, the
 entry point of the program. The main function must be a function taking
 no argument and returning `()`, i.e. have the type `(-> ())`.
 
-```{.oden .playground-runnable language=oden}
-package main
-
-import strconv
-
-shout(s) = s ++ "!"
-
-result = shout(strconv.Itoa(9000))
-
-main() = println(result)
+```{.oden .playground-runnable language=oden include=src/listings/package-example.oden}
 ```
 
 ## Basic Literals
@@ -228,9 +225,9 @@ Functions are applied using parenthesis, contaning the parameters separated by
 commas.
 
 ```{.hidden}
-@\textit{function}($\text{\textit{parameter}}_{\text{\textit{1}}}$@, @$\text{\textit{parameter}}_{\text{\textit{2}}}$@, ..., @$\text{\textit{parameter}}_{\text{\textit{n}}}$)@
+@\textit{function-expression}($\text{\textit{parameter}}_{\text{\textit{1}}}$@, @$\text{\textit{parameter}}_{\text{\textit{2}}}$@, ..., @$\text{\textit{parameter}}_{\text{\textit{n}}}$)@
 ```
-<pre><code><em>function</em>(<em>parameter<sub>1</sub></em>, <em>parameter<sub>2</sub></em>, ..., <em>parameter<sub>n</sub></em>)</code></pre>
+<pre><code><em>function-expression</em>(<em>parameter<sub>1</sub></em>, <em>parameter<sub>2</sub></em>, ..., <em>parameter<sub>n</sub></em>)</code></pre>
 
 Here we first define a function `square` and then we apply the function to
 the literal `4`.

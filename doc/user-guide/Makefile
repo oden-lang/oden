@@ -19,7 +19,7 @@ PDF_PANDOC_OPTIONS=$(SHARED_PANDOC_OPTIONS) \
 									 --latex-engine=xelatex \
 									 --listings \
 									 -V links-as-notes \
-									 --filter src/filters/include-code-latex.sh \
+									 --filter target/bin/include-code \
 									 --template=src/template.tex
 
 
@@ -32,33 +32,37 @@ endif
 
 all: html pdf pdf-ebook
 
-html:
+html: target/bin/include-code
 	@mkdir -p target
-	@rm -rf target
-	cp -r src/site target
+	@rm -rf target/site
+	cp -r src/site target/site
 	pandoc $(SHARED_PANDOC_OPTIONS) \
 		-t html5 \
-		--filter src/filters/include-code-html.sh \
+		--filter target/bin/include-code \
 		-c styles/user-guide.css \
 		-H src/site/head.html \
 		$(BEFORE_BODY_FLAGS) \
 		-A src/site/footer.html \
-		-o target/index.html \
+		-o target/site/index.html \
 		--base-header-level=2 \
 		--template=src/template.html \
 		src/preface.md $(MD_SOURCES)
 
-pdf:
-	@mkdir -p target
-	pandoc $(PDF_PANDOC_OPTIONS) -o target/user-guide.pdf $(MD_SOURCES)
+pdf: target/bin/include-code
+	@mkdir -p target/site
+	pandoc $(PDF_PANDOC_OPTIONS) -o target/site/user-guide.pdf $(MD_SOURCES)
 
-pdf-ebook:
-	@mkdir -p target
+pdf-ebook: target/bin/include-code
+	@mkdir -p target/site
 	pandoc $(PDF_PANDOC_OPTIONS) \
 		-V "geometry:papersize={4.5in,6in}" \
 		-V "geometry:margin={.25in,.75in}" \
-		-o target/user-guide.ebook.pdf \
+		-o target/site/user-guide.ebook.pdf \
 		$(MD_SOURCES)
+
+target/bin/include-code: src/filters/IncludeCode.hs
+	mkdir -p target/bin
+	stack ghc -- $< -o $@
 
 clean:
 	rm -r target

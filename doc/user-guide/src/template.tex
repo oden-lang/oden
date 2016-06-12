@@ -234,6 +234,7 @@ $if(listings)$
   morestring=[b]" % defines that strings are enclosed in double quotes
 }
 \usepackage{upquote}
+\def\postbreak{\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookrightarrow\space}}}
 \lstset{
   columns=fixed,
   basewidth=.5em,
@@ -243,13 +244,19 @@ $if(listings)$
   stringstyle=\ttfamily,%\color{purple},
   %numberstyle=\color{teal},
   showstringspaces=false,
+  breaklines=true,
+  breakatwhitespace=true,
+  postbreak=\postbreak,
+  breakindent=0pt,
   upquote=true,
   xleftmargin=26pt,
   xrightmargin=26pt,
   aboveskip=13pt,
   belowskip=13pt,
   lineskip=0pt,
-  escapechar=\@
+  literate={\$$}{{\$$}}1,
+  mathescape=false,
+  escapechar=@
 }
 $endif$
 

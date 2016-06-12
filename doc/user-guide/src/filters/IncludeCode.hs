@@ -10,14 +10,17 @@ import System.Process
 import Text.Pandoc.JSON
 import Text.Regex.PCRE.Heavy
 
-import Debug.Trace
-
-type OutputFormat = String
 type IsEscaped = Bool
 
 encloseInListingEscape :: IsEscaped -> String -> String
 encloseInListingEscape True s = s
 encloseInListingEscape False s = "@" ++ s ++ "@"
+
+escapeForLatex :: IsEscaped -> String -> String
+escapeForLatex isEscaped = concatMap escape
+  where
+  escape '$' = if isEscaped then "\\$" else "$"
+  escape c = [c]
 
 replaceDashWithLatex :: IsEscaped -> String -> String
 replaceDashWithLatex isEscaped = gsub ([re|(\--)|]) toLatex
@@ -26,26 +29,29 @@ replaceDashWithLatex isEscaped = gsub ([re|(\--)|]) toLatex
   toLatex [] = ""
 
 replaceTagWithLatex :: IsEscaped -> String -> String
-replaceTagWithLatex isEscaped = gsub ([re|<(\w+?)>(.*)</(\w+?)>|]) toLatex
+replaceTagWithLatex isEscaped = gsub ([re|<(\w+?)>(.*?)</(\w+?)>|]) toLatex
   where
   toLatex (start:contents:end:_) | start == end =
     let replacedContents = replaceWithLatex True contents
         command = case start of
                     "strong" -> "\\texttt{\\textbf{" ++ replacedContents ++ "}}"
                     "em" -> "\\texttt{\\textit{" ++ replacedContents ++ "}}"
+                    "sub" -> "\\textsubscript{" ++ replacedContents ++ "}"
+                    tag -> error "Unsupported HTML tag: " ++ tag
     in encloseInListingEscape isEscaped command
   toLatex (m:_) = m
   toLatex [] = ""
 
-replaceWithLatex isEscaped = replaceDashWithLatex isEscaped . replaceTagWithLatex isEscaped
+replaceWithLatex isEscaped =
+  replaceDashWithLatex isEscaped . replaceTagWithLatex isEscaped . escapeForLatex isEscaped
 
-postProcess :: OutputFormat -> String -> String
+postProcess :: Format -> String -> String
 postProcess fmt contents
-  | fmt == "latex" = unlines $ map (replaceWithLatex False) $ lines contents
+  | fmt == Format "latex" = unlines $ map (replaceWithLatex False) $ lines contents
   | otherwise = contents
 
-includeCode :: OutputFormat -> Block -> IO Block
-includeCode fmt cb@(CodeBlock (id, classes, attrs) contents) = do
+includeCode :: Maybe Format -> Block -> IO Block
+includeCode (Just fmt) cb@(CodeBlock (id, classes, attrs) contents) = do
   let attrs' = Map.fromList attrs
   case Map.lookup "include" attrs' of
     Just f -> do
@@ -53,15 +59,12 @@ includeCode fmt cb@(CodeBlock (id, classes, attrs) contents) = do
                         then postProcess fmt <$> readFile f
                         else readFile f
       let filteredAttrs = Map.delete "include" $ Map.delete "formatted" attrs'
+          classes' = unwords classes
       case fmt of
-        "html" -> return (RawBlock (Format "html") ("<pre><code>" ++ fileContents ++ "</code></pre>"))
-        _ -> return (CodeBlock (id, classes, Map.toList filteredAttrs) fileContents)
+        (Format "html5") -> return (RawBlock (Format "html") ("<pre class=" ++ classes' ++ "><code>" ++ fileContents ++ "</code></pre>"))
+        _               -> return (CodeBlock (id, classes, Map.toList filteredAttrs) fileContents)
     Nothing -> return cb
 includeCode _ x = return x
 
 main :: IO ()
-main = do
-  args <- getArgs
-  case args of
-    [fmt] -> toJSONFilter (includeCode fmt)
-    _ -> error "You must specify an code output format!"
+main = toJSONFilter includeCode

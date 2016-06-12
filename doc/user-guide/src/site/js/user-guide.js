@@ -1,5 +1,5 @@
 function setupRunnables() {
-  $('.playground-runnable').each(function () {
+  $('.playground-runnable, pre[playground-runnable]').each(function () {
     var $runnable = $(this);
     var $code = $runnable.find('code');
 
