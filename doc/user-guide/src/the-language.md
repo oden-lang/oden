@@ -250,15 +250,12 @@ factorial(n) =
 Functions, being values, have types. A function type denotes the argument type
 (the *domain*) and the return value type (the *range*), separated by an arrow.
 
-```{.hidden}
-@\textit{domain} -> \textit{range}@
+```{include=src/listings/syntax-function-type.html formatted=true}
 ```
-<pre><code><em>domain</em> -> <em>range</em></code></pre>
 
 When defining a value or a function it is recommended to add an explicit type
-signature. Type signatures must be written before the definition.
-
-In the following code we specify `increment` to have type `int -> int`.
+signature. Type signatures must be written before the definition. In the
+following code we specify `increment` to have type `int -> int`.
 
 ```oden
 increment : int -> int
@@ -289,10 +286,10 @@ type of a function that takes values of types `a` and `b`, returning a `c` can
 be written `a -> b -> c`. But it can also be written as `a -> (b -> c)`, which
 is how the compiler sees it.
 
-The parenthesis indicate that the function has one argument of type `a` and
-return another function from `b` to `c`. But how can we write functions that
-take multiple arguments? The answer is that we can't! The compiler performs a
-trick to make it look like we can.
+The parenthesis indicate that the function has just one argument, of type `a`,
+and return another function from `b` to `c`. But how can we write functions
+that take multiple arguments? The answer is that we can't! The compiler
+performs a trick to make it look like we can.
 
 Oden lets you write function expressions with multiple arguments:
 
