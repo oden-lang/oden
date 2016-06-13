@@ -37,7 +37,7 @@ We use the `build` subcommand to compile all sources in the *Oden path*.
 For the following example we use the classic Hello World program written in
 Oden. It should be located in `src/hello.oden`.
 
-```{include=src/listings/hello-world.oden}
+```{.oden include=src/listings/hello-world.oden language=oden}
 ```
 
 The Oden path is a search path of semicolon-separated paths from,
