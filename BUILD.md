@@ -1,6 +1,17 @@
 # Build
 
-Oden is built using Stack. A regular build requires nothing special.
+Oden is built using Stack.
+
+**Dependencies:**
+
+* PCRE
+  - Ubuntu 16.04: `sudo apt install libpcre3-dev`
+  - OSX (Homebrew): `brew install pcre`
+* Go 1.5+
+  - Ubuntu 16.04: `sudo apt install golang-1.6 golang-go`
+  - OSX (Homebrew): `brew install go`
+
+When you have installed the dependencies, run:
 
 ```bash
 stack setup
