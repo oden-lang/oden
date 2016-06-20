@@ -2,6 +2,11 @@ language: go
 go: 1.5
 sudo: false
 
+branches:
+  except:
+    # feature branches (in the format <ISSUE-ID>-<NAME>) are not built
+    - /^\d+-.*/
+
 os:
 - linux
 - osx
