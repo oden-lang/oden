@@ -25,7 +25,7 @@ module Oden.Type.Polymorphic (
   ftv,
   getBindingVar,
   underlying,
-  dropConstraint
+  dropConstraints
 ) where
 
 import           Oden.Identifier
@@ -264,13 +264,19 @@ instance FTV Protocol where
   ftv (Protocol _ _ param methods) =
     ftv param `Set.union` ftv methods
 
-dropConstraint :: ProtocolConstraint -> Type -> Type
-dropConstraint constraint =
-  \case
-    TConstrained constraints innerType ->
-      let remaining = Set.filter (/= constraint) constraints
-      in if Set.null remaining
-         then innerType
-         else TConstrained remaining innerType
-    t -> t
+class Constrained t where
+  dropConstraints :: t -> Set.Set ProtocolConstraint -> t
 
+instance Constrained Type where
+  dropConstraints t toDrop =
+    case t of
+      TConstrained constraints innerType ->
+        let remaining = Set.difference constraints toDrop
+        in if Set.null remaining
+          then innerType
+          else TConstrained remaining innerType
+      _ -> t
+
+instance Constrained Scheme where
+  dropConstraints (Forall meta qs constraints type') toDrop =
+    Forall meta qs (Set.difference constraints toDrop) (dropConstraints type' toDrop)

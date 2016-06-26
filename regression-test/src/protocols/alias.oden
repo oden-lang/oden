@@ -1,0 +1,18 @@
+package main
+
+protocol Foo(f) {
+  Bar : f -> int
+}
+
+//alias = Foo::Bar
+alias(x) = Foo::Bar(x)
+
+impl Foo(int) {
+  Bar(n) = n + 1
+}
+
+foo(x) = x
+
+main() = {
+  println(alias(1))
+}

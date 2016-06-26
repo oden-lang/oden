@@ -1,28 +1,32 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE TupleSections    #-}
 -- | Resolves protocol method usage to implementation if there's a single
 -- possible resolution that matches. Note that we only make local protocol
 -- implementations available for now.
-module Oden.Compiler.Resolution where
+module Oden.Compiler.Resolution (
+  ResolutionEnvironment,
+  ResolutionError(..),
+  resolveInPackage
+  ) where
 
-import Oden.Core.Typed
-import Oden.Core.Definition
-import Oden.Core.ProtocolImplementation
-import Oden.Core.Traversal
+import           Oden.Core.Definition
+import           Oden.Core.Expr                   (mapType)
+import           Oden.Core.ProtocolImplementation
+import           Oden.Core.Traversal
+import           Oden.Core.Typed
 
-import Oden.Infer.Unification
+import           Oden.Infer.Unification
 
-import Oden.Metadata
-import Oden.SourceInfo
-import Oden.Type.Polymorphic
+import           Oden.Metadata
+import           Oden.SourceInfo
+import           Oden.Type.Polymorphic
 
-import Control.Monad.Except
-import Control.Monad.State
+import           Control.Monad.Except
+import           Control.Monad.Trans.RWS
 
-import           Data.Maybe (isJust)
-import qualified Data.Set as Set
-import           Data.Set (Set)
+import           Data.Set                         (Set)
+import qualified Data.Set                         as Set
 
 data ResolutionError
   = NoMatchingImplementationInScope SourceInfo ProtocolName Type [ProtocolImplementation TypedExpr]
@@ -31,7 +35,11 @@ data ResolutionError
 
 type ResolutionEnvironment = Set (ProtocolImplementation TypedExpr)
 
-type Resolve = StateT ResolutionEnvironment (Except ResolutionError)
+type Resolve = RWST
+               ()
+               (Set ProtocolConstraint)
+               ResolutionEnvironment
+               (Except ResolutionError)
 
 
 resolveImplementation :: ProtocolConstraint -> Resolve (Maybe (ProtocolImplementation TypedExpr))
@@ -81,11 +89,11 @@ resolveInExpr' = traverseExpr traversal
                         , onMemberAccess = onMemberAccess'
                         , onNameBinding = return
                         , onMethodReference = onMethodReference' }
-  onType' t@(TConstrained constraints _) = do
-    resolvedConstraints <- filterM isResolvable (Set.toList constraints)
-    return (foldl (flip dropConstraint) t resolvedConstraints)
-    where
-    isResolvable constraint = isJust <$> resolveImplementation constraint
+  onType' t@(TConstrained _constraints _) = --do
+    -- resolvedConstraints <- filterM isResolvable (Set.toList constraints)
+    return t -- (dropConstraints t (Set.toList resolvedConstraints))
+    --where
+    --isResolvable constraint = isJust <$> resolveImplementation constraint
   onType' t = return t
   onMethodReference' si reference methodType =
     case reference of
@@ -94,10 +102,13 @@ resolveInExpr' = traverseExpr traversal
         case impl of
           Just impl' -> do
             method <- findMethod impl' methodName
+            let constraints = Set.singleton constraint
+            tell constraints
             -- As we have resolved an implementation for this constraint, we
             -- can remove it the from type.
-            let withoutConstraint = dropConstraint constraint methodType
-            return (si, Resolved protocolName' methodName method, withoutConstraint)
+            return (si,
+                    Resolved protocolName' methodName method,
+                    dropConstraints methodType constraints)
           Nothing ->
             return (si, reference, methodType)
       Resolved{} ->
@@ -109,12 +120,16 @@ resolveInExpr' = traverseExpr traversal
       return (PackageMemberAccess pkg member)
 
 
-resolveInDefinition' :: TypedDefinition -> Resolve TypedDefinition
-resolveInDefinition' =
+resolveInDefinition :: TypedDefinition -> Resolve TypedDefinition
+resolveInDefinition =
   \case
     Definition si name (scheme, expr) -> do
-      expr' <- resolveInExpr' expr
-      return (Definition si name (scheme, expr'))
+      (resolvedExpr, resolvedConstraints) <- listen (resolveInExpr' expr)
+      return (Definition
+              si
+              name
+              (dropConstraints scheme resolvedConstraints,
+               mapType (`dropConstraints` resolvedConstraints) resolvedExpr))
     ForeignDefinition si name scheme ->
       return (ForeignDefinition si name scheme)
     TypeDefinition si name bindings type' ->
@@ -128,25 +143,13 @@ resolveInDefinition' =
 
 
 runResolve :: ResolutionEnvironment -> Resolve a -> Either ResolutionError a
-runResolve env = runExcept . flip evalStateT env
-
-
-resolveInExpr :: ResolutionEnvironment
-              -> TypedExpr
-              -> Either ResolutionError TypedExpr
-resolveInExpr env expr = runResolve env (resolveInExpr' expr)
-
-
-resolveInDefinition :: ResolutionEnvironment
-                    -> TypedDefinition
-                    -> Either ResolutionError TypedDefinition
-resolveInDefinition env def = runResolve env (resolveInDefinition' def)
+runResolve env r = runExcept (fst <$> evalRWST r () env)
 
 
 resolveInDefinitions :: ResolutionEnvironment
                      -> [TypedDefinition]
                      -> Either ResolutionError [TypedDefinition]
-resolveInDefinitions env defs = runResolve env (mapM resolveInDefinition' defs)
+resolveInDefinitions env defs = runResolve env (mapM resolveInDefinition defs)
 
 
 resolveInPackage :: ResolutionEnvironment

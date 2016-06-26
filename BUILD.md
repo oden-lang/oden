@@ -42,7 +42,7 @@ your path do something like `export PATH=$PATH:<PATH-TO-ODEN-DISTRIBUTION>/bin`.
 ```bash
 $ make test
 # or...
-$ make watch-tests
+$ make watch-test
 # or run only tests matching a string
 $ TEST_PATTERN="Oden.Type.Polymorphic" make watch-test
 ```
