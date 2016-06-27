@@ -2,12 +2,17 @@ module Oden.Compiler.Monomorphization.Fixtures where
 
 import           Oden.Core.Package
 
-import           Oden.QualifiedName
 import           Oden.Metadata
+import           Oden.QualifiedName
 import           Oden.SourceInfo
+
+import           Oden.Compiler
+import           Oden.Compiler.Monomorphization as Monomorphization
 
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
+
+monomorphPackage pkg = Monomorphization.monomorphPackage (environmentFromPackage pkg) pkg
 
 missing :: Metadata SourceInfo
 missing = Metadata Missing

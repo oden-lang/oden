@@ -1,6 +1,7 @@
 module Oden.Type.Kind where
 
-import Oden.Type.Polymorphic
+
+import           Oden.Type.Polymorphic
 
 data Kind = Star
           | Row

@@ -1,6 +1,6 @@
-{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE TupleSections     #-}
 -- | This module contains values representing polymorphic types, i.e. types
 -- that can be instantiated into other polymorphic types and purely monomorphic
 -- types.
@@ -25,7 +25,7 @@ module Oden.Type.Polymorphic (
   ftv,
   getBindingVar,
   underlying,
-  dropConstraint
+  dropConstraints
 ) where
 
 import           Oden.Identifier
@@ -130,7 +130,11 @@ instance HasSourceInfo TVarBinding where
   setSourceInfo si (TVarBinding _ v) = TVarBinding (Metadata si) v
 
 -- | A polymorphic type and its quantified type variable bindings.
-data Scheme = Forall (Metadata SourceInfo) [TVarBinding] (Set.Set ProtocolConstraint) Type
+data Scheme = Forall { schemeMeta :: Metadata SourceInfo
+                     , schemeQuantifiers :: [TVarBinding]
+                     , schemeConstraints :: Set.Set ProtocolConstraint
+                     , schemeType :: Type
+                     }
             deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Scheme where
@@ -166,7 +170,7 @@ toMonomorphic =
                     <*> mapM toMonomorphic r
     TVar _ _ -> Left "Cannot convert TVar to a monomorphic type"
     TCon si n -> Right $ Mono.TCon si n
-    TApp si cons param -> Mono.TApp si <$> toMonomorphic cons 
+    TApp si cons param -> Mono.TApp si <$> toMonomorphic cons
                                        <*> toMonomorphic param
     TNoArgFn si t -> Mono.TNoArgFn si <$> toMonomorphic t
     TFn si tx ty -> Mono.TFn si <$> toMonomorphic tx
@@ -242,14 +246,14 @@ type ProtocolName = QualifiedName
 type MethodName = Identifier
 
 data Protocol = Protocol { protocolSourceInfo :: Metadata SourceInfo
-                         , protocolName :: ProtocolName
-                         , protocolHead :: Type
-                         , protocolMethods :: [ProtocolMethod]
+                         , protocolName       :: ProtocolName
+                         , protocolHead       :: Type
+                         , protocolMethods    :: [ProtocolMethod]
                          } deriving (Show, Eq, Ord)
 
 data ProtocolMethod = ProtocolMethod { protocolMethodSourceInfo :: Metadata SourceInfo
-                                     , protocolMethodName :: MethodName
-                                     , protocolMethodType :: Scheme
+                                     , protocolMethodName       :: MethodName
+                                     , protocolMethodType       :: Scheme
                                      } deriving (Show, Eq, Ord)
 
 instance HasSourceInfo Protocol where
@@ -264,13 +268,19 @@ instance FTV Protocol where
   ftv (Protocol _ _ param methods) =
     ftv param `Set.union` ftv methods
 
-dropConstraint :: ProtocolConstraint -> Type -> Type
-dropConstraint constraint =
-  \case
-    TConstrained constraints innerType ->
-      let remaining = Set.filter (/= constraint) constraints
-      in if Set.null remaining
-         then innerType
-         else TConstrained remaining innerType
-    t -> t
+class Constrained t where
+  dropConstraints :: t -> Set.Set ProtocolConstraint -> t
 
+instance Constrained Type where
+  dropConstraints t toDrop =
+    case t of
+      TConstrained constraints innerType ->
+        let remaining = Set.difference constraints toDrop
+        in if Set.null remaining
+          then innerType
+          else TConstrained remaining innerType
+      _ -> t
+
+instance Constrained Scheme where
+  dropConstraints (Forall meta qs constraints type') toDrop =
+    Forall meta qs (Set.difference constraints toDrop) (dropConstraints type' toDrop)

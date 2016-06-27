@@ -1,5 +1,5 @@
-{-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase           #-}
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
@@ -14,34 +14,36 @@ module Oden.Infer (
   constraintsExpr
 ) where
 
-import           Control.Arrow                   (left)
+import           Control.Arrow                    (left)
 import           Control.Monad.Except
-import           Control.Monad.RWS               hiding ((<>))
+import           Control.Monad.RWS                hiding ((<>))
 
 import           Data.Foldable
-import qualified Data.Map                        as Map
-import qualified Data.Set                        as Set
+import qualified Data.Map                         as Map
+import qualified Data.Set                         as Set
 
-import           Oden.Core.Typed                 as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
-import           Oden.Core.Untyped               hiding (Definition(..), MethodImplementation(..))
-import qualified Oden.Core.Untyped               as Untyped
+import           Oden.Core.Typed                  as Typed
+import           Oden.Core.Untyped                hiding (Definition (..),
+                                                   MethodImplementation (..))
+import qualified Oden.Core.Untyped                as Untyped
 
-import           Oden.Environment                as Environment hiding (map)
+import           Oden.Environment                 as Environment hiding (map)
 import           Oden.Identifier
-import           Oden.Infer.ConstraintCollection
-import           Oden.Infer.Environment
-import           Oden.Infer.Substitution         as Substitution
-import           Oden.Infer.Subsumption
-import           Oden.Infer.Unification
+import           Oden.Substitution          as Substitution
 import           Oden.Metadata
 import           Oden.Predefined
-import           Oden.QualifiedName              (QualifiedName (..),
-                                                  nameInUniverse)
+import           Oden.QualifiedName               (QualifiedName (..), nameInUniverse)
 import           Oden.SourceInfo
+
+import           Oden.Infer.ConstraintCollection
+import           Oden.Infer.Environment
+import           Oden.Infer.Subsumption
+import           Oden.Infer.Unification
+
 import           Oden.Type.Polymorphic
 import           Oden.Type.Signature
 
@@ -586,7 +588,7 @@ inferDefinition env def = do
     Implementation si impl -> do
       subst <- left UnificationError $ runSolve cs
       let substImpl = apply subst impl
-      return (env `addImplementation` substImpl, Implementation si substImpl)
+      return (substImpl `addImplementation` env, Implementation si substImpl)
 
     ForeignDefinition _ name _ ->
       error ("unexpected foreign definition: " ++ asString name)

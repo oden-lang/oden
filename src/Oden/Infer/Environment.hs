@@ -12,10 +12,10 @@ import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Typed
 
-import           Oden.Environment      hiding (map)
+import           Oden.Environment                 hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName    (QualifiedName (..))
+import           Oden.QualifiedName               (QualifiedName (..))
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 

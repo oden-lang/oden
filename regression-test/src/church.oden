@@ -13,8 +13,6 @@ F(x, y) = y
 to-bool : (bool -> bool -> bool) -> bool
 to-bool(b) = b(true, false)
 
-to-int(n) = n((i) -> i + 1, 0)
-
 // Numerals
 zero : forall a. (a -> a) -> (a -> a)
 zero(f, x) = x
@@ -30,6 +28,8 @@ zero?(n) = n(const(F), T)
 plus(m, n, f, x) = n(f, m(f, x))
 
 mult(m, n, f) = m(n(f))
+
+to-int(n) = n((i) -> i + 1, 0)
 
 main() = {
   print("zero?(zero) = ")

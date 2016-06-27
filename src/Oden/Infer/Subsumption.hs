@@ -5,9 +5,9 @@ module Oden.Infer.Subsumption (
   collectSubstitutions
 ) where
 
-import           Oden.Core.Typed               as Typed
 import           Oden.Core.Expr          (typeOf)
-import           Oden.Infer.Substitution
+import           Oden.Core.Typed         as Typed
+import           Oden.Substitution
 import           Oden.Metadata
 import           Oden.SourceInfo
 import           Oden.Type.Kind

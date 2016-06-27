@@ -8,6 +8,7 @@ import           Oden.Compiler.Resolution
 import           Oden.Core.ProtocolImplementation
 import           Oden.Metadata
 import           Oden.Output
+import           Oden.Output.Instantiate          ()
 import           Oden.Pretty                      ()
 
 instance OdenOutput ResolutionError where
@@ -15,21 +16,31 @@ instance OdenOutput ResolutionError where
 
   name =
     \case
+      NotInScope{} ->
+        "Compiler.Resolution.NotInScope"
       NoMatchingImplementationInScope{} ->
         "Compiler.Resolution.NoMatchingImplementationInScope"
       MultipleMatchingImplementationsInScope{} ->
         "Compiler.Resolution.MultipleMatchingImplementationsInScope"
+      ResolutionInstantiateError e ->
+        name e
 
-  header e _ =
+  header e settings =
     case e of
+      NotInScope ident ->
+        text "Not in scope:" <+> pretty ident
       NoMatchingImplementationInScope _ protocol type' _ ->
         text "No matching implementation in scope for"
         <+> pretty protocol <+> parens (pretty type')
       MultipleMatchingImplementationsInScope{} ->
         text "Multiple matching implementations in scope"
+      ResolutionInstantiateError err ->
+        header err settings
 
-  details e _s =
+  details e settings =
     case e of
+      NotInScope _ ->
+        empty
       NoMatchingImplementationInScope _ _ _ allImpls ->
         vcat (text "The following implementations are in scope:" : map pretty allImpls)
       MultipleMatchingImplementationsInScope _ impls ->
@@ -41,9 +52,12 @@ instance OdenOutput ResolutionError where
           , text "defined at" <+> pretty si
           , empty
           ]
-
+      ResolutionInstantiateError err ->
+        details err settings
 
   sourceInfo =
     \case
+      NotInScope _                                -> Nothing
       NoMatchingImplementationInScope si _ _ _    -> Just si
       MultipleMatchingImplementationsInScope si _ -> Just si
+      ResolutionInstantiateError err              -> sourceInfo err

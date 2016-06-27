@@ -35,8 +35,8 @@ build/oden: $(STACK_ODEN_EXE)
 	cp CHANGELOG.md build/oden/CHANGELOG.txt
 	cp $(STACK_ODEN_EXE) build/oden/bin/oden-exe
 	cp distribution/oden.sh build/oden/bin/oden
-	rm -f build/lib/libimporter.h
-	cp -r build/lib build/oden/lib
+	mkdir -p build/oden/lib
+	cp -r libimporter.* build/oden/lib/
 	cp -r build/doc build/oden/doc || echo "No docs found, will be excluded from distribution!"
 ifeq ($(OS),osx)
 		./tools/change_osx_install_names.sh
@@ -60,7 +60,7 @@ ci-test: test regression-test
 
 .PHONY: watch-test
 watch-test: $(NODEMON)
-	$(NODEMON) --watch src --watch test -e hs --exec 'make test || exit 1'
+	$(LIBRARY_PATH_VAR) stack build --test --test-arguments '$(TEST_FLAG)' --file-watch
 
 $(NODEMON):
 	npm install nodemon

@@ -1,0 +1,22 @@
+package main
+
+protocol Foo(f) {
+  Bar : f -> int
+}
+
+a = Foo::Bar
+b = a
+c(x) = b(x)
+d = c
+
+impl Foo(int) {
+  Bar(n) = n + 1
+}
+impl Foo(string) {
+  Bar(s) = 0
+}
+
+main() = {
+  println(d(1))
+  println(d("foo"))
+}

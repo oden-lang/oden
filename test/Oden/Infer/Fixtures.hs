@@ -1,13 +1,14 @@
 module Oden.Infer.Fixtures where
 
-import           Oden.Core.Typed        as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Foreign
 import           Oden.Core.ProtocolImplementation
-import           Oden.Core.Untyped      hiding (Definition (..), MethodImplementation(..))
+import           Oden.Core.Typed                  as Typed
+import           Oden.Core.Untyped                hiding (Definition (..),
+                                                   MethodImplementation (..))
 
-import           Oden.Environment       hiding (map)
+import           Oden.Environment                 hiding (map)
 import           Oden.Identifier
 import           Oden.Infer.Environment
 import           Oden.Metadata
@@ -17,7 +18,7 @@ import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 import           Oden.Type.Signature
 
-import qualified Data.Set as Set
+import qualified Data.Set                         as Set
 
 missing :: Metadata SourceInfo
 missing = Metadata Missing

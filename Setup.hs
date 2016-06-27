@@ -18,13 +18,12 @@ main = defaultMainWithHooks simpleUserHooks { confHook = odenConfHook
 addLibDirsToBuildInfo :: BuildInfo -> IO BuildInfo
 addLibDirsToBuildInfo buildInfo = do
   wd <- getCurrentDirectory
-  let libDir = wd </> "build" </> "lib"
   return $ buildInfo {
-    extraLibDirs = libDir : extraLibDirs buildInfo
+    extraLibDirs = wd : extraLibDirs buildInfo
   }
 
 addLibDirsToOdenExe :: [Executable] -> IO [Executable]
-addLibDirsToOdenExe exes = mapM addIfOden exes
+addLibDirsToOdenExe = mapM addIfOden
   where
   addIfOden exe
     | exeName exe == "oden-exe" = do
@@ -33,7 +32,7 @@ addLibDirsToOdenExe exes = mapM addIfOden exes
     | otherwise = return exe
 
 addLibDirsToTests :: [TestSuite] -> IO [TestSuite]
-addLibDirsToTests suites = mapM addLibDirs suites
+addLibDirsToTests = mapM addLibDirs
   where
   addLibDirs suite = do
     withLibDirs <- addLibDirsToBuildInfo (testBuildInfo suite)
@@ -72,7 +71,7 @@ odenPostConf _ _ _ _ = do
   wd <- getCurrentDirectory
   setEnv "GOPATH" (wd </> "go")
 
-  let dynamicPath = wd </> "build" </> "lib" </> ("libimporter" ++ ext)
+  let dynamicPath = wd </> ("libimporter" ++ ext)
       buildDynamic = shell ("go build -buildmode=c-shared -o " ++ dynamicPath ++ " oden/cmd/importer")
 
   putStrLn $ "Compiling Go dynamic library to " ++ dynamicPath

@@ -6,9 +6,9 @@ import           Oden.Core.Typed
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.SourceInfo
-import qualified Oden.Type.Monomorphic     as Mono
+import qualified Oden.Type.Monomorphic as Mono
 
-import           Data.Set                  as Set hiding (map)
+import           Data.Set              as Set hiding (map)
 
 data MonoTypedMemberAccess
   = RecordFieldAccess MonoTypedExpr Identifier

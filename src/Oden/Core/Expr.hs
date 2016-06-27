@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Oden.Core.Expr where
 
 import           Oden.Core.Foreign
@@ -67,6 +68,28 @@ typeOf expr = case expr of
   MemberAccess _ _ t              -> t
   MethodReference _ _ t           -> t
   Foreign _ _ t                   -> t
+
+-- | Applies a mapping function to the type of an expression.
+mapType :: (t -> t) -> Expr r t m -> Expr r t m
+mapType f = \case
+  Symbol meta i t                    -> Symbol meta i (f t)
+  Subscript meta s i t               -> Subscript meta s i (f t)
+  Subslice meta s r t                -> Subslice meta s r (f t)
+  Application meta func a t          -> Application meta func a (f t)
+  NoArgApplication meta func t       -> NoArgApplication meta func (f t)
+  ForeignFnApplication meta func a t -> ForeignFnApplication meta func a (f t)
+  Fn meta n b t                      -> Fn meta n b (f t)
+  NoArgFn meta b t                   -> NoArgFn meta b (f t)
+  Let meta n v b t                   -> Let meta n v b (f t)
+  Literal meta l t                   -> Literal meta l (f t)
+  If meta c t e t'                   -> If meta c t e (f t')
+  Slice meta e t                     -> Slice meta e (f t)
+  Tuple meta f' s r t                -> Tuple meta f' s r (f t)
+  Block meta e t                     -> Block meta e (f t)
+  RecordInitializer meta vs t        -> RecordInitializer meta vs (f t)
+  MemberAccess meta member t         -> MemberAccess meta member (f t)
+  MethodReference meta ref t         -> MethodReference meta ref (f t)
+  Foreign meta foreign' t            -> Foreign meta foreign' (f t)
 
 instance HasSourceInfo (Expr r t m) where
   getSourceInfo expr = case expr of

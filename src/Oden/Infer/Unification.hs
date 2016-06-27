@@ -17,7 +17,7 @@ import qualified Data.Map                as Map
 import qualified Data.Set                as Set
 
 import           Oden.Identifier
-import           Oden.Infer.Substitution
+import           Oden.Substitution
 import           Oden.Metadata
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic

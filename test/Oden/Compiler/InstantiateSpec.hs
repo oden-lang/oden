@@ -11,7 +11,6 @@ import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
 import           Oden.SourceInfo
-import qualified Oden.Type.Monomorphic     as Mono
 import qualified Oden.Type.Polymorphic     as Poly
 
 import           Oden.Assertions
@@ -35,10 +34,6 @@ typeInt = Poly.TCon missing (nameInUniverse "int")
 typeBool = Poly.TCon missing (nameInUniverse "bool")
 typeString = Poly.TCon missing (nameInUniverse "string")
 
-monoInt = Mono.TCon missing (nameInUniverse "int")
-monoBool = Mono.TCon missing (nameInUniverse "bool")
-monoString = Mono.TCon missing (nameInUniverse "string")
-
 identityPoly :: TypedExpr
 identityPoly =
   Fn
@@ -47,8 +42,8 @@ identityPoly =
   (Symbol missing (Identifier "x") tvarA)
   (Poly.TFn missing tvarA tvarA)
 
-identityIntType :: Mono.Type
-identityIntType = Mono.TFn missing monoInt monoInt
+identityIntType :: Poly.Type
+identityIntType = Poly.TFn missing typeInt typeInt
 
 identityInt :: TypedExpr
 identityInt =
@@ -63,9 +58,6 @@ lenType = Poly.TForeignFn missing False [Poly.TSlice missing tvarA] [typeInt]
 
 lenPoly :: TypedExpr
 lenPoly = Symbol missing (Identifier "len") lenType
-
-lenIntType :: Mono.Type
-lenIntType = Mono.TForeignFn missing False [Mono.TSlice missing monoInt] [monoInt]
 
 lenInt :: TypedExpr
 lenInt =
@@ -84,8 +76,8 @@ pairPoly =
   (Poly.TTuple missing tvarA (Poly.TVar missing (Poly.TV "b")) [])
 
 
-pairIntStringType :: Mono.Type
-pairIntStringType = Mono.TTuple missing monoInt monoString []
+pairIntStringType :: Poly.Type
+pairIntStringType = Poly.TTuple missing typeInt typeString []
 
 pairIntString :: TypedExpr
 pairIntString =
@@ -105,11 +97,11 @@ recordPoly =
    missing
    (Poly.RExtension missing (Identifier "foo") tvarA (Poly.REmpty missing)))
 
-recordIntType :: Mono.Type
+recordIntType :: Poly.Type
 recordIntType =
-  Mono.TRecord
+  Poly.TRecord
   missing
-  (Mono.RExtension missing (Identifier "foo") monoInt (Mono.REmpty missing))
+  (Poly.RExtension missing (Identifier "foo") typeInt (Poly.REmpty missing))
 
 recordInt :: TypedExpr
 recordInt =
@@ -170,58 +162,58 @@ fieldAccessPoly recordType =
    recordType
    typeInt)
 
-fieldAccessOnlyIntType :: Mono.Type
+fieldAccessOnlyIntType :: Poly.Type
 fieldAccessOnlyIntType =
-  Mono.TFn
+  Poly.TFn
   missing
-  (Mono.TRecord missing (Mono.RExtension missing (Identifier "a") monoInt (Mono.REmpty missing)))
-  monoInt
+  (Poly.TRecord missing (Poly.RExtension missing (Identifier "a") typeInt (Poly.REmpty missing)))
+  typeInt
 
-monoRecordEmpty :: Mono.Type
-monoRecordEmpty = Mono.TRecord missing (Mono.REmpty missing)
+typeRecordEmpty :: Poly.Type
+typeRecordEmpty = Poly.TRecord missing (Poly.REmpty missing)
 
-monoRecordInt :: Mono.Type
-monoRecordInt =
-  Mono.TRecord
+typeRecordInt :: Poly.Type
+typeRecordInt =
+  Poly.TRecord
   missing
-  (Mono.RExtension
+  (Poly.RExtension
    missing
    (Identifier "a")
-   monoInt
-   (Mono.REmpty missing))
+   typeInt
+   (Poly.REmpty missing))
 
-monoRecordIntAndString :: Mono.Type
-monoRecordIntAndString =
-  Mono.TRecord
+typeRecordIntAndString :: Poly.Type
+typeRecordIntAndString =
+  Poly.TRecord
   missing
-  (Mono.RExtension
+  (Poly.RExtension
    missing
    (Identifier "a")
-   monoInt
-   (Mono.RExtension
+   typeInt
+   (Poly.RExtension
     missing
     (Identifier "b")
-    monoString
-    (Mono.REmpty missing)))
+    typeString
+    (Poly.REmpty missing)))
 
-monoFieldAccess r = Mono.TFn missing r monoInt
+typeFieldAccess r = Poly.TFn missing r typeInt
 
-fieldAccessWrongLabelType :: Mono.Type
+fieldAccessWrongLabelType :: Poly.Type
 fieldAccessWrongLabelType =
-  Mono.TFn
+  Poly.TFn
   missing
-  (Mono.TRecord missing (Mono.RExtension missing (Identifier "b") monoInt (Mono.REmpty missing)))
-  monoInt
+  (Poly.TRecord missing (Poly.RExtension missing (Identifier "b") typeInt (Poly.REmpty missing)))
+  typeInt
 
 spec :: Spec
 spec =
   describe "instantiate" $ do
-    it "does not change monomorphic function" $
+    it "does not change typemorphic function" $
       instantiate identityInt identityIntType `shouldSucceedWith` identityInt
     it "instantiates identity function with int" $
       instantiate identityPoly identityIntType `shouldSucceedWith` identityInt
     it "instantiates len func" $
-      instantiate lenPoly lenIntType `shouldSucceedWith` lenInt
+      instantiate lenPoly (typeOf lenInt) `shouldSucceedWith` lenInt
     it "instantiates polymorphic tuple" $
       instantiate pairPoly pairIntStringType `shouldSucceedWith` pairIntString
     it "instantiates record initializer with int field" $
@@ -229,13 +221,13 @@ spec =
     it "instantiates record field access with only an int field" $
       instantiate
       (fieldAccessPoly polyRecordIntAndRowVariable)
-      (monoFieldAccess monoRecordInt)
+      (typeFieldAccess typeRecordInt)
       `shouldSucceedWith`
       fieldAccessPoly polyRecordInt
     it "instantiates record field access with both int and string field" $
       instantiate
       (fieldAccessPoly polyRecordIntAndRowVariable)
-      (monoFieldAccess monoRecordIntAndString)
+      (typeFieldAccess typeRecordIntAndString)
       `shouldSucceedWith`
       fieldAccessPoly polyRecordIntAndString
     it "fails on mismatching row labels" $
