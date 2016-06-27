@@ -23,9 +23,6 @@ $if(highlighting-css)$
 $highlighting-css$
   </style>
 $endif$
-$for(css)$
-  <link rel="stylesheet" href="$css$">
-$endfor$
 $if(math)$
   $math$
 $endif$
@@ -34,6 +31,9 @@ $endif$
   <![endif]-->
 $for(header-includes)$
   $header-includes$
+$endfor$
+$for(css)$
+  <link rel="stylesheet" href="$css$">
 $endfor$
 </head>
 <body itemscope itemtype="http://schema.org/TechArticle">

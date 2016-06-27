@@ -322,10 +322,11 @@ In other words, `a -> (b -> c)` and `a -> b -> c` are equivalent.
 #### Using Currying
 
 With currying you can apply a function to its first argument, get another
-function back, and use that function later -- similar to *partial application*.
-In the following code we create function `personSays` that takes two strings.
-We apply the function with only one string and get a function back. Later we
-apply it with the other string to actually print something.
+function back, and use that function later -- similar to [partial application](
+https://en.wikipedia.org/wiki/Partial_application).  In the following code we
+create function `personSays` that takes two strings.  We apply the function
+with only one string and get a function back. Later we apply it with the other
+string to actually print something.
 
 ```{.oden .playground-runnable language=oden}
 package main
@@ -346,25 +347,32 @@ functions.
 
 ## Type Variables
 
-Functions that can take values of an unknown type are called *polymorphic
-functions* and have *polymorphic types*. A polymorphic type contains one or
-more *type variables*. These are like placeholders for the specific types to be
-used later.
+Functions that take values of unknown types are called *polymorphic functions*,
+and have *polymorphic types*. A polymorphic type contains one or more *type
+variables*. These are like placeholders for the specific types to be used
+later.
 
-A type variables is introduced into the scope of the type signature by using
-the `forall` keyword, followed by one or more type variable names and a
-terminating dot.  This is called *universal quantification*.
+Type variables are introduced into the scope of a type signature by using the
+`forall` keyword, followed by one or more type variable names, and a
+terminating dot. This is called *universal quantification*.
 
 ```{.oden language=oden}
 identity : forall a. a -> a
+```
+
+Multiple type variable names are separated by spaces.
+
+```{.oden language=oden}
+compose : forall a b c. (b -> c) -> (a -> b) -> (a -> c)
 ```
 
 When applying a function to a value the function type is *instantiated* to
 match the type of the value. If we apply the `identity` function to a value of
 type `int`, the instantiated type of `identity` will be `int -> int`. In other
 words, all occurences of the type variable `a` are substituted for `int`. These
-substitutions must match. `a -> a` cannot be instantiated to `int -> string`,
-for example.
+substitutions must match. The type `a -> a` cannot be instantiated to `int ->
+string`, as the type variable `a` cannot be unified with both `int` and
+`string`.
 
 ## Control Flow
 
@@ -375,7 +383,7 @@ if 10 + 20 == 30 then 1 else 0
 ```
 
 If the clauses get big you should consider using [blocks](#blocks) around
-expressions, even if you have only a single expression in each clause.
+expressions, even if you have only a single expression in each block.
 
 ```{.oden language=oden}
 if 10 + 20 == 30 then {
@@ -385,11 +393,15 @@ if 10 + 20 == 30 then {
 }
 ```
 
-The `if` expression can be seen as having the type:
+The `if` expression can be seen as having the following type.
 
 ```{.oden language=oden}
 forall a. bool -> a -> a -> a
 ```
+
+It takes a condition of type `bool`, a *then* value, an *else* value,
+and evaluate to some of those two branch values. Therefore, the branch
+values and the if expression itself must have the same type.
 
 #### Other Constructs
 
@@ -424,76 +436,135 @@ x = {
 
 ## Let Bindings
 
-The let expression binds identifiers for a set of expressions, used
-in the body expression.
+The *let expression* binds identifiers to values, exposing the bindings in the
+body expression.
+
+```{include=src/listings/syntax-let.html formatted=true}
+```
+
+The following example binds the identifier `x` to the value `1` and uses the
+binding in its body expression `x + 2`.
 
 ```{.oden language=oden}
 let x = 1 in x + 2
 ```
 
-Let supports sequential binding, which means that expressions can
-use the identifiers of previous bindings.
+Let supports sequential binding, which means that binding expressions can use
+the identifiers of previous bindings.
 
 ```{.oden language=oden}
 let x = 1
     y = 1 + x
-    in y / 2
+in y / 2
 ```
 
-Shadowing names are not allowed and will result in a compile error.
+Shadowing names is forbidden, and will result in a compile error.
 
 ```{.oden language=oden}
 let x = 1
     x = x * 2 // not ok as x is already defined
-    in x * 2
+in x * 2
 ```
 
 ## Tuples
 
-A tuple is an immutable finite ordered collection of values. Unlike slices, the
-values in a tuple can have different types.
+A *tuple* is an immutable finite ordered collection of values. The values in a
+tuple can have different types. Tuples are useful for grouping related data
+without having to name the values.
 
-In the following program we create some tuple values representing people
-by storing the name and age as pairs. As these tuples have the same type
-we can store them in a slice that get's the type `[]{(string, int)}`.
+Tuple value literals are denoted using two or more expressions separated by
+commas, enclosed in parenthesis.
+
+```{include=src/listings/syntax-tuple-literal.html formatted=true}
+```
+
+In the following example we create some tuple values representing people
+by storing the name and age as pairs.
 
 ```{.oden language=oden}
 jessica = ("Jessica", 31)
 frank = ("Frank", 26)
-
-people = []{jessica, frank, ("Maxime", 25)}
 ```
+
+Tuple types are written in a similar way to tuple value literals. The types of
+the tuple elements are separated by commas, and enclosed in parenthesis.
+
+```{include=src/listings/syntax-tuple-type.html formatted=true}
+```
+
+Thus, the type of the values `jessica` and `frank`, from the previous example,
+is written `(string, int)`.
+
+### Go Functions With Multiple Return Values
+
+Functions in Go can have multiple return values. When importing such a
+function, Oden automatically converts it to return a single tuple value, with
+the Go return values as elements. Thus, there is no special case of multiple
+return values; all functions return one value.
 
 ## Slices
 
-A slice is a collection of values typed only by the element type, not the
-length of the collection.
+A *slice* is a collection of values typed only by the element type, not the
+length of the collection. All values in a slice must have the same type.
+
+Slice value literals are denoted using a left and a right square bracket, an
+opening curly bracket, zero or more expressions separated by commas, and a
+closing curly bracket.
+
+```{include=src/listings/syntax-slice-literal.html formatted=true}
+```
+
+The following examples creates a slice of `string` values, called `names`, and
+a slice of `int` values, called `numbers`.
 
 ```
 names = []{"Sarah", "Joe", "Maxime"}
 
-numbers : []{int}
 numbers = []{1, 2, 3, 4, 5}
 ```
 
-Slice elements can be accessed with square brackets:
+To access the elements of a slice, we use the *subscript operator*. It is
+denoted in suffix position using an index expression enclosed in square
+brackets. The index expression must have type `int`.
+
+```{include=src/listings/syntax-subscript.html formatted=true}
+```
+
+Slices indexes are *zero-based*, meaning the first element has index 0, the
+second element has index 1, and so on.
+
+The following example greets the first person in the slice of names.
 
 ```
 greeting = "Hello, " ++ names[0]
+```
 
+Slices can be multi-dimensional. To access the inner elements, simply apply the
+subscript operator multiple times. The following example creates a
+multi-dimensional slice and access an inner element.
+
+```
 twoLevelSlice = []{[]{1, 2, 3}, []{4, 5, 6}}
 isSix = twoLevelSlice[1][2] == 6
 ```
 
 ## Records
 
-Records are used to group related data into a composite structure. They are
-quite similar to objects in Javascript, but are statically typed by their
-fields. The order of fields in a record is not significant -- two records are
-considered equal if they have the same set of fields with the same types.
+*Records* group related data into a composite structure using named elements,
+called *fields*. They are similar to objects in Javascript, but are statically
+typed by their fields. The order of fields in a record is not significant --
+two records are considered equal if they have the same set of fields with the
+same types.
 
 To create a record you use curly brackets enclosing a comma-separated list of
-field names and values to initialize the record value with.
+field names and values to initialize the record value with. Each field name
+and value is separated by an equals sign.
+
+```{include=src/listings/syntax-record-literal.html formatted=true}
+```
+
+The following example creates a record value representing a player in a video
+game. Note that the field `attack` is itself of a record type.
 
 ```{.oden language=oden}
 player = {
@@ -522,6 +593,12 @@ The type of the value `player` is:
 ### Record Fields
 
 Fields of records can be accessed using the dot operator.
+
+```{include=src/listings/syntax-record-field-access.html formatted=true}
+```
+
+The following example shows a function taking a record value and accessing its
+field `attack`, and the nested `damage` and `cooldown` fields.
 
 ```{.oden language=oden}
 damagePerMinute(p) =

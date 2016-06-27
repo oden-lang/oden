@@ -45,13 +45,17 @@ pre {
   position: relative;
   padding: 1em 2em;
   overflow: auto;
-  font-size: 17px;
+  font-size: 18px;
 }
 pre,
 code,
 .controls .output {
   font-family: "Ubuntu Mono", monospace;
   line-height: inherit;
+}
+
+pre, .hljs, .hljs-subst {
+    color: #111;
 }
 
 pre:before {
@@ -73,15 +77,25 @@ table caption {
   font-size: 16px;
   text-align: center;
 }
+table {
+  border-spacing: 0;
+  border-collapse: separate;
+}
 table caption {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
 }
+table th,
+table td {
+  padding: 4px;
+}
 table th {
-  font-family: "Montserrat", sans-serif;
-  letter-spacing: 0.05em;
+  padding: 6px 4px 4px;
+  border-top: 1px solid #111;
+  border-bottom: 1px solid #111;
+  font-weight: 400;
 }
 
 body > table {
@@ -96,7 +110,7 @@ body > table {
   }
   pre {
     padding: 1.5em 0;
-    font-size: 15px;
+    font-size: 16px;
   }
   pre:before,
   table caption {
