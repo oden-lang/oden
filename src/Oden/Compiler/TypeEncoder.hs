@@ -8,8 +8,8 @@ import           Control.Monad.Writer
 import           Data.List             (intercalate, intersperse, sortOn)
 
 import           Oden.Identifier
-import           Oden.QualifiedName    (QualifiedName(..))
-import qualified Oden.Type.Monomorphic as Mono
+import           Oden.QualifiedName    (QualifiedName (..))
+import           Oden.Type.Polymorphic
 
 type Level = Int
 type TypeEncoder t = StateT Level (Writer String) t
@@ -36,27 +36,28 @@ writeQualified (FQN pkgs name) = do
   let parts = (pkgs ++ [asString name]) :: [String]
   tell (intercalate "_" parts)
 
-writeType :: Mono.Type -> TypeEncoder ()
-writeType (Mono.TCon _ n) = writeQualified n
-writeType (Mono.TTuple _ f s r) = do
+writeType :: Type -> TypeEncoder ()
+writeType (TVar _ (TV name)) = tell name
+writeType (TCon _ n) = writeQualified n
+writeType (TTuple _ f s r) = do
   tell "tupleof"
   pad
   foldl writeElement (return ()) (f:s:r)
   where
   writeElement a t = a >> withIncreasedLevel (writeType t) >> pad
-writeType (Mono.TApp _ tf tp) = do
+writeType (TApp _ tf tp) = do
   withIncreasedLevel (writeType tf)
   padded "of"
   withIncreasedLevel (writeType tp)
-writeType (Mono.TNoArgFn _ t') = do
+writeType (TNoArgFn _ t') = do
   tell "to"
   pad
   withIncreasedLevel (writeType t')
-writeType (Mono.TFn _ tl tr) = do
+writeType (TFn _ tl tr) = do
   withIncreasedLevel (writeType tl)
   paddedTo
   withIncreasedLevel (writeType tr)
-writeType (Mono.TForeignFn si variadic ps rs) = do
+writeType (TForeignFn si variadic ps rs) = do
   sequence_ (intersperse paddedTo (map (withIncreasedLevel . writeType) ps))
   when variadic $ do
     pad
@@ -65,23 +66,23 @@ writeType (Mono.TForeignFn si variadic ps rs) = do
   case rs of
     [] -> undefined
     [r] -> withIncreasedLevel (writeType r)
-    (r1:r2:rt) -> withIncreasedLevel $ writeType (Mono.TTuple si r1 r2 rt)
-writeType (Mono.TSlice _ t) = do
+    (r1:r2:rt) -> withIncreasedLevel $ writeType (TTuple si r1 r2 rt)
+writeType (TSlice _ t) = do
   tell "sliceof"
   pad
   withIncreasedLevel (writeType t)
-writeType (Mono.TRecord _ row) = do
+writeType (TRecord _ row) = do
   tell "record"
   pad
   writeType row
-writeType (Mono.TNamed _ n t) = do
+writeType (TNamed _ n t) = do
   writeQualified n
   withIncreasedLevel (writeType t)
-writeType Mono.REmpty{} = tell "emptyrow"
-writeType row@Mono.RExtension{} = do
+writeType REmpty{} = tell "emptyrow"
+writeType row@RExtension{} = do
   tell "row"
   pad
-  foldl writeField (return ()) (sortOn fst (Mono.rowToList row))
+  foldl writeField (return ()) (sortOn fst (rowToList row))
   where
   writeField a (identifier, t) = do
     _ <- a
@@ -90,17 +91,18 @@ writeType row@Mono.RExtension{} = do
       pad
       writeType t
     pad
+writeType (TConstrained _ t) = writeType t
 
-encodeType :: Mono.Type -> String
+encodeType :: Type -> String
 encodeType t = snd (runWriter (runStateT (writeType t) 1))
 
-encodeTypeInstance :: Identifier -> Mono.Type -> String
+encodeTypeInstance :: Identifier -> Type -> String
 encodeTypeInstance identifier type' =
   asString identifier ++ "_inst_" ++ encodeType type'
 
 encodeMethodInstance :: QualifiedName
                      -> Identifier
-                     -> Mono.Type
+                     -> Type
                      -> String
-encodeMethodInstance (FQN _ protocolName) methodName type' =
-  asString protocolName ++ "_method_" ++ asString methodName ++ "_inst_" ++ encodeType type'
+encodeMethodInstance (FQN _ protocolName') methodName type' =
+  asString protocolName' ++ "_method_" ++ asString methodName ++ "_inst_" ++ encodeType type'

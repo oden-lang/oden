@@ -8,7 +8,7 @@ import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
-import qualified Data.Set as Set
+import qualified Data.Set                        as Set
 
 import           Test.Hspec
 

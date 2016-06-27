@@ -3,17 +3,19 @@
 -- imports, top-level definitions and local bindings.
 module Oden.Environment where
 
-import qualified Data.Map              as Map
+import qualified Data.Map        as Map
 import           Data.Maybe
-import qualified Data.Set              as Set
-import           Data.Set              (Set)
+import           Data.Set        (Set)
+import qualified Data.Set        as Set
 
-import           Prelude               hiding (lookup)
+import           Prelude         hiding (lookup)
 
 import           Oden.Identifier
 
 data Environment b i
-  = Environment (Map.Map Identifier b) (Set i)
+  = Environment { environmentBindings :: Map.Map Identifier b
+                , environmentImplementations :: Set i
+                }
   deriving (Show, Eq)
 
 empty :: Environment b i
@@ -42,18 +44,22 @@ extend :: Environment b i -> (Identifier, b) -> Environment b i
 extend (Environment m impls) (identifier, binding) =
   Environment (Map.insert identifier binding m) impls
 
-addImplementation :: Ord i => Environment b i -> i -> Environment b i
-addImplementation (Environment bindings' impls) impl =
+addImplementation :: Ord i => i -> Environment b i -> Environment b i
+addImplementation impl (Environment bindings' impls) =
   Environment bindings' (impl `Set.insert` impls)
+
+removeImplementation :: Ord i => i -> Environment b i -> Environment b i
+removeImplementation impl (Environment bindings' impls) =
+  Environment bindings' (impl `Set.delete` impls)
 
 merge :: Ord i => Environment b i -> Environment b i -> Environment b i
 merge (Environment m1 i1) (Environment m2 i2) = Environment (m1 `Map.union` m2) (i1 `Set.union` i2)
 
-fromList :: [(Identifier, b)] -> Environment b i
-fromList = flip fromLists Set.empty
+fromList :: Ord i => [(Identifier, b)] -> Environment b i
+fromList = flip fromLists []
 
-fromLists :: [(Identifier, b)] -> Set i -> Environment b i
-fromLists = Environment . Map.fromList
+fromLists :: Ord i => [(Identifier, b)] -> [i] -> Environment b i
+fromLists bindings' impls = Environment (Map.fromList bindings') (Set.fromList impls)
 
 singleton :: Identifier -> b -> Environment b i
 singleton i binding = Environment (Map.singleton i binding) Set.empty

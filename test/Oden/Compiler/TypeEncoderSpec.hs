@@ -7,7 +7,7 @@ import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
 import           Oden.SourceInfo
-import           Oden.Type.Monomorphic
+import           Oden.Type.Polymorphic
 
 missing :: Metadata SourceInfo
 missing = Metadata Missing

@@ -4,15 +4,19 @@ protocol Foo(f) {
   Bar : f -> int
 }
 
-//alias = Foo::Bar
-alias(x) = Foo::Bar(x)
+a = Foo::Bar
+b = a
+c(x) = b(x)
+d = c
 
 impl Foo(int) {
   Bar(n) = n + 1
 }
-
-foo(x) = x
+impl Foo(string) {
+  Bar(s) = 0
+}
 
 main() = {
-  println(alias(1))
+  println(d(1))
+  println(d("foo"))
 }

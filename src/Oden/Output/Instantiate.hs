@@ -1,10 +1,10 @@
 module Oden.Output.Instantiate where
 
-import Text.PrettyPrint.Leijen
+import           Text.PrettyPrint.Leijen
 
-import Oden.Compiler.Instantiate
-import Oden.Output
-import Oden.Pretty ()
+import           Oden.Compiler.Instantiate
+import           Oden.Output
+import           Oden.Pretty               ()
 
 instance OdenOutput InstantiateError where
   outputType _ = Error

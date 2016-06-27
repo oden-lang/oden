@@ -1,5 +1,5 @@
-{-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase       #-}
 module Oden.Compiler.Validation.Untyped where
 
 import           Oden.Core.Expr
@@ -9,13 +9,13 @@ import           Oden.Core.Untyped
 
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName        (QualifiedName (..))
+import           Oden.QualifiedName   (QualifiedName (..))
 import           Oden.SourceInfo
 
-import           Control.Monad.RWS
 import           Control.Monad.Except
+import           Control.Monad.RWS
 
-import qualified Data.Set                  as Set
+import qualified Data.Set             as Set
 
 data ValidationError
   = Redefinition SourceInfo Identifier

@@ -4,6 +4,7 @@ import           Oden.Backend
 import           Oden.Backend.Go
 
 import           Oden.Compiler
+import           Oden.Compiler.Environment
 import           Oden.Compiler.Resolution
 import           Oden.Compiler.Validation.Typed   as TypedValidation
 import           Oden.Compiler.Validation.Untyped as UntypedValidation
@@ -13,7 +14,6 @@ import           Oden.Core.Package                (ImportReference)
 import           Oden.Core.Typed
 import           Oden.Core.Untyped                (UntypedPackage)
 
-import           Oden.Environment
 import           Oden.Desugar
 import qualified Oden.Go.Importer                 as Go
 import           Oden.Imports
@@ -60,16 +60,22 @@ inferFile (OdenSourceFile fname _) = do
   mapM_ logWarning warnings'
   liftEither (inferPackage untypedPkgWithImports)
 
-resolvePkg :: TypingEnvironment -> TypedPackage -> CLI TypedPackage
-resolvePkg typingEnv pkg' =
-  liftEither (resolveInPackage (implementations typingEnv) pkg')
+resolvePkg :: CompileEnvironment -> TypedPackage -> CLI TypedPackage
+resolvePkg compileEnv pkg' =
+  liftEither (resolveInPackage compileEnv pkg')
+
+resolveImplsInFile :: SourceFile -> CLI (CompileEnvironment, TypedPackage)
+resolveImplsInFile sourceFile = do
+  inferredPkg <- snd <$> inferFile sourceFile
+  validateTypedPkg inferredPkg
+  let compileEnv = environmentFromPackage inferredPkg
+  resolvedPkg <- resolvePkg compileEnv inferredPkg
+  return (compileEnv, resolvedPkg)
 
 compileFile :: SourceFile -> CLI MonomorphedPackage
 compileFile sourceFile = do
-  (typingEnv, inferredPkg) <- inferFile sourceFile
-  validateTypedPkg inferredPkg
-  resolvedPkg <- resolvePkg typingEnv inferredPkg
-  liftEither (compile resolvedPkg)
+  (compileEnv, resolvedPkg) <- resolveImplsInFile sourceFile
+  liftEither (compile compileEnv resolvedPkg)
 
 codegenPkg :: MonomorphedPackage -> CLI [CompiledFile]
 codegenPkg compiledPkg = do

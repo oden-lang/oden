@@ -2,15 +2,18 @@ module Oden.Infer.UnificationSpec where
 
 import           Test.Hspec
 
-import           Oden.SourceInfo
 import           Oden.Identifier
-import           Oden.Infer.Substitution hiding (fromList)
-import           Oden.Infer.Unification
+import           Oden.Substitution hiding (fromList, singleton)
 import           Oden.Predefined
+import           Oden.SourceInfo
+
+import           Oden.Infer.Unification
+
 import           Oden.Type.Polymorphic
 
+
 import           Data.Map
-import qualified Data.Set as Set
+import qualified Data.Set                as Set
 
 import           Oden.Assertions
 import           Oden.Infer.Fixtures

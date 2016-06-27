@@ -1,17 +1,17 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE LambdaCase                 #-}
-module Oden.Infer.Substitution where
+{-# LANGUAGE TypeSynonymInstances       #-}
+module Oden.Substitution where
 
-import           Oden.Core.Typed
 import           Oden.Core.Expr
 import           Oden.Core.ProtocolImplementation
+import           Oden.Core.Typed
 
-import           Oden.Type.Polymorphic as Poly
+import           Oden.Type.Polymorphic            as Poly
 
-import qualified Data.Map              as Map
-import qualified Data.Set              as Set
+import qualified Data.Map                         as Map
+import qualified Data.Set                         as Set
 
 newtype Subst = Subst (Map.Map TVar Type)
   deriving (Eq, Ord, Show, Monoid)
@@ -35,6 +35,10 @@ union :: Subst -> Subst -> Subst
 -- | Create a substitution from a list of vars and types.
 fromList :: [(TVar, Type)] -> Subst
 fromList = Subst . Map.fromList
+
+-- | Create a singleton substitution.
+singleton :: TVar -> Type -> Subst
+singleton var type' = Subst $ Map.singleton var type'
 
 class FTV a => Substitutable a where
   apply :: Subst -> a -> a

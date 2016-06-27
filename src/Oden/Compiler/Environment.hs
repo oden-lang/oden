@@ -6,7 +6,7 @@ import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Typed
 
-import           Oden.Environment hiding (map)
+import           Oden.Environment                 hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.SourceInfo
@@ -31,7 +31,7 @@ fromPackage (TypedPackage _ _ defs) =
       -- compilation phase so we can safely ignore these.
       TypeDefinition{}        -> empty
       ProtocolDefinition{}    -> empty
-      Implementation{}        -> empty
+      Implementation _ impl   -> singletonImplementation impl
 fromPackages :: [ImportedPackage TypedPackage] -> CompileEnvironment
 fromPackages =
   foldl iter empty

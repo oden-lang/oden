@@ -4,8 +4,6 @@ import           Data.Set              as Set
 
 import           Test.Hspec
 
-import           Oden.Compiler.Monomorphization
-
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Monomorphed
@@ -17,6 +15,7 @@ import qualified Oden.Type.Polymorphic as Poly
 
 import           Oden.Compiler.Monomorphization.Fixtures
 import           Oden.Assertions
+
 
 identityDef :: TypedDefinition
 identityDef =

@@ -1,6 +1,6 @@
 module Oden.CLI.PrintPackage where
 
-import           Oden.Pretty ()
+import           Oden.Pretty             ()
 import           Oden.Scanner
 
 import           Oden.CLI
@@ -11,7 +11,7 @@ import           Oden.Core.Typed
 
 import           Control.Monad.Reader
 
-import           Text.PrettyPrint.Leijen
+import           Text.PrettyPrint.Leijen hiding ((<$>))
 
 render :: Doc -> String
 render doc = displayS (renderPretty 0.4 120 doc) ""
@@ -31,8 +31,13 @@ printTypes path = do
 
 printEnv :: FilePath -> CLI ()
 printEnv path = do
-  (env, _) <- inferFile (OdenSourceFile path ["main"])
+  env <- fst <$> inferFile (OdenSourceFile path ["main"])
   liftIO $ putStrLn $ render $ pretty env
+
+printResolved :: FilePath -> CLI ()
+printResolved path = do
+  pkg <- snd <$> resolveImplsInFile (OdenSourceFile path ["main"])
+  liftIO $ putStrLn $ render $ pretty pkg
 
 printCompiled :: FilePath -> CLI ()
 printCompiled path = do

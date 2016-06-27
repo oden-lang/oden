@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Oden.Compiler.ResolutionSpec where
 
+import           Oden.Compiler.Environment
 import           Oden.Compiler.Resolution
 
 import           Oden.Core.Definition
@@ -11,6 +12,7 @@ import           Oden.Core.Typed
 
 import           Oden.Infer.ConstraintCollection
 
+import qualified Oden.Environment                 as Environment
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.Predefined
@@ -99,6 +101,18 @@ implementationsAsSet = \case
 
 testPkg = PackageDeclaration missing ["test"]
 
+exprAsDefinition :: String
+                 -> TypedExpr
+                 -> Definition TypedExpr
+exprAsDefinition name expr =
+  Definition
+   missing
+   (Identifier name)
+   (Forall missing quantifiers constraints (typeOf expr), expr)
+  where
+  quantifiers = map (TVarBinding missing) (Set.toList $ ftv expr)
+  constraints = collectConstraints expr
+
 packageWithExpr :: String
                 -> TypedExpr
                 -> TypedPackage
@@ -106,13 +120,7 @@ packageWithExpr name expr =
   TypedPackage
   testPkg
   []
-  [Definition
-   missing
-   (Identifier name)
-   (Forall missing quantifiers constraints (typeOf expr), expr)]
-  where
-  quantifiers = map (TVarBinding missing) (Set.toList $ ftv expr)
-  constraints = collectConstraints expr
+  [exprAsDefinition name expr]
 
 spec :: Spec
 spec =
@@ -121,7 +129,7 @@ spec =
     it "throws error if there's no matching implementation" $
       shouldFail
       (resolveInPackage
-       Set.empty
+       Environment.empty
        (packageWithExpr
         "foo"
         (unresolved
@@ -137,11 +145,13 @@ spec =
                  aToBool
                  tvarA
           pkg = packageWithExpr "foo" expr in
-      resolveInPackage Set.empty pkg `shouldSucceedWith` pkg
+      resolveInPackage Environment.empty pkg
+      `shouldSucceedWith`
+      TypedPackage testPkg [] []
 
     it "resolves a single matching implementation" $
       resolveInPackage
-      (Set.singleton (testableImplementation "foo" typeBool))
+      (Environment.singletonImplementation (testableImplementation "foo" typeBool))
       (packageWithExpr
        "foo"
        (unresolved
@@ -160,7 +170,7 @@ spec =
 
     it "resolves a single matching implementation for a record type" $
       resolveInPackage
-      (Set.singleton (testableImplementation "foo" rowWithResultField))
+      (Environment.singletonImplementation (testableImplementation "foo" rowWithResultField))
       (packageWithExpr
        "foo"
        (Application
@@ -184,11 +194,11 @@ spec =
         (TFn missing rowWithResultField typeBool))
        (symbol "recordValue" rowWithResultField)
        typeBool)
-      
+
     it "resolves the correct matching implementation for a record type" $
       resolveInPackage
-      (Set.fromList [ testableImplementation "foo" rowWithResultField
-                    , testableImplementation "bar" rowWithResultAndMessageField ])
+      (Environment.fromLists [] [ testableImplementation "foo" rowWithResultField
+                                , testableImplementation "bar" rowWithResultAndMessageField ])
       (packageWithExpr
        "foo"
        (Application
@@ -216,9 +226,9 @@ spec =
     it "throws error if there's multiple matching implementations" $
       implementationsAsSet
       (resolveInPackage
-       (Set.fromList [ testableImplementation "foo" typeBool
-                     , testableImplementation "bar" typeBool
-                     ])
+       (Environment.fromLists [] [ testableImplementation "foo" typeBool
+                                 , testableImplementation "bar" typeBool
+                                 ])
        (packageWithExpr
         "foo"
         (unresolved
@@ -231,24 +241,51 @@ spec =
                    , testableImplementation "foo" typeBool
                    ]
 
-    it "does not try to resolve implementation for constrained definition" $
-      let constraint = ProtocolConstraint missing testableProtocolName tvarA
-          definition = Definition
-                       missing
-                       (Identifier "")
-                       (Forall
+    it "instantiates referenced polymorphic definitions with constraints" $
+      let alias = exprAsDefinition
+                  "alias"
+                  (unresolved
+                   testableProtocolName
+                   testableMethodName
+                   (TFn missing tvarA typeBool)
+                   tvarA)
+          constraint = ProtocolConstraint missing testableProtocolName typeInt
+          referencing = exprAsDefinition
+                        "referencing"
+                        (Application
                          missing
-                         []
-                         (Set.singleton constraint)
-                         (TFn missing tvarA typeBool),
-                         unresolved
-                         testableProtocolName
-                         testableMethodName
-                         (TFn missing tvarA typeBool)
-                         tvarA) in
+                         (Symbol missing (Identifier "alias") (TConstrained
+                                                               (Set.singleton constraint)
+                                                               (TFn missing typeInt typeBool)))
+                         (Literal missing (Int 0) typeInt)
+                         typeBool)
+      in
       resolveInPackage
-      (Set.fromList [ testableImplementation "foo" rowWithResultField
-                    , testableImplementation "bar" rowWithResultAndMessageField ])
-      (TypedPackage testPkg [] [definition])
+      (Environment.fromLists
+       [ (Identifier "alias", DefinitionBinding alias)
+       , (Identifier "referencing", DefinitionBinding referencing)
+       ]
+       [testableImplementation "foo" typeInt])
+      (TypedPackage
+       testPkg
+       []
+       [alias, referencing])
       `shouldSucceedWith`
-      TypedPackage testPkg [] []
+      TypedPackage
+      testPkg
+      []
+      [ exprAsDefinition
+        "alias_inst_int_to_bool"
+        (resolved
+         testableProtocolName
+         testableMethodName
+         (testableMethodImplementation "foo" typeInt)
+         (TFn missing typeInt typeBool))
+      , exprAsDefinition
+        "referencing"
+        (Application
+         missing
+         (Symbol missing (Identifier "alias_inst_int_to_bool") (TFn missing typeInt typeBool))
+         (Literal missing (Int 0) typeInt)
+         typeBool)
+      ]

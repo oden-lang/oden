@@ -3,17 +3,17 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-import Oden.CLI
-import Oden.CLI.Build
-import Oden.CLI.Run
-import Oden.CLI.Lint
-import Oden.CLI.PrintPackage
+import           Oden.CLI
+import           Oden.CLI.Build
+import           Oden.CLI.Lint
+import           Oden.CLI.PrintPackage
+import           Oden.CLI.Run
 
-import           Control.Monad.Reader
 import           Control.Monad.Except
+import           Control.Monad.Reader
 
 -- versioning stuff
-import qualified Data.Version                    as Version
+import qualified Data.Version          as Version
 import           Paths_oden
 
 exec :: Options -> CLI () -> IO ()
@@ -34,6 +34,7 @@ main = do
     Right (opts, ["run", path]) -> exec opts (run path)
     Right (opts, ["lint", path]) -> exec opts (lint path)
     Right (opts, ["print-inferred", path]) -> exec opts (printInferred path)
+    Right (opts, ["print-resolved", path]) -> exec opts (printResolved path)
     Right (opts, ["print-compiled", path]) -> exec opts (printCompiled path)
     Right (opts, ["print-env", path]) -> exec opts (printEnv path)
     Right (opts, ["print-types", path]) -> exec opts (printTypes path)

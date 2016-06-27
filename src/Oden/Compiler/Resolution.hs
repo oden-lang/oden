@@ -5,19 +5,25 @@
 -- possible resolution that matches. Note that we only make local protocol
 -- implementations available for now.
 module Oden.Compiler.Resolution (
-  ResolutionEnvironment,
   ResolutionError(..),
   resolveInPackage
   ) where
 
 import           Oden.Core.Definition
-import           Oden.Core.Expr                   (mapType)
+import           Oden.Core.Expr                   (Expr (..), NameBinding (..),
+                                                   mapType, typeOf)
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Traversal
 import           Oden.Core.Typed
 
+import           Oden.Compiler.Environment
+import           Oden.Compiler.Instantiate
+import           Oden.Compiler.TypeEncoder
+
 import           Oden.Infer.Unification
 
+import           Oden.Environment                 as Environment
+import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
@@ -25,20 +31,34 @@ import           Oden.Type.Polymorphic
 import           Control.Monad.Except
 import           Control.Monad.Trans.RWS
 
+import           Data.Map                         (Map)
+import qualified Data.Map                         as Map
 import           Data.Set                         (Set)
 import qualified Data.Set                         as Set
 
+
 data ResolutionError
-  = NoMatchingImplementationInScope SourceInfo ProtocolName Type [ProtocolImplementation TypedExpr]
+  = NotInScope Identifier
+  | NoMatchingImplementationInScope SourceInfo ProtocolName Type [ProtocolImplementation TypedExpr]
   | MultipleMatchingImplementationsInScope SourceInfo [ProtocolImplementation TypedExpr]
+  | ResolutionInstantiateError InstantiateError
   deriving (Show, Eq, Ord)
 
-type ResolutionEnvironment = Set (ProtocolImplementation TypedExpr)
+type ResolveLog = Set ProtocolConstraint
+
+data ResolveState = ResolveState { instanceNames :: Map (Identifier, Type) Identifier
+                                 , instances     :: Map (Identifier, Type) TypedDefinition }
+
+
+initialState :: ResolveState
+initialState = ResolveState { instanceNames = Map.empty
+                            , instances = Map.empty
+                            }
 
 type Resolve = RWST
-               ()
-               (Set ProtocolConstraint)
-               ResolutionEnvironment
+               CompileEnvironment
+               ResolveLog
+               ResolveState
                (Except ResolutionError)
 
 
@@ -47,7 +67,7 @@ resolveImplementation =
   \case
     ProtocolConstraint _ _ TVar{} -> return Nothing
     ProtocolConstraint (Metadata si) protocolName' type' -> do
-      allImpls <- gets Set.toList
+      allImpls <- asks (Set.toList . implementations)
       case filter implements allImpls of
         []     -> throwError (NoMatchingImplementationInScope si protocolName' type' allImpls)
         [impl] -> return (Just impl)
@@ -81,20 +101,102 @@ findMethod (ProtocolImplementation _ _ _ methods) name =
     methodName == name
 
 
+lookupIn :: CompileEnvironment -> Identifier -> Resolve Binding
+lookupIn env identifier =
+  case Environment.lookup identifier env of
+      Nothing      -> throwError $ NotInScope identifier
+      Just binding -> return binding
+
+
+addInstanceName :: (Identifier, Type) -> Identifier -> Resolve ()
+addInstanceName key name =
+  modify (\s -> s { instanceNames = Map.insert key name (instanceNames s) })
+
+addInstance :: (Identifier, Type)
+            -> TypedDefinition
+            -> Resolve ()
+addInstance key def =
+  modify (\s -> s { instances = Map.insert key def (instances s) })
+
+getResolvedIn :: CompileEnvironment
+              -> Identifier
+              -> Set ProtocolConstraint
+              -> Type
+              -> Resolve Identifier
+getResolvedIn env ident constraints t = do
+  binding <- lookupIn env ident
+  case binding of
+    PackageBinding{} -> throwError $ NotInScope ident
+    DefinitionBinding definition ->
+      case definition of
+        ForeignDefinition{} -> return ident
+        Definition _ _ (sc, pe) | isPolymorphic sc -> do
+          let key = (ident, t)
+          is <- gets instanceNames
+          case Map.lookup key is of
+            Just name -> return name
+            Nothing -> instantiateDefinition key constraints pe
+        Definition _ pn _ -> return pn
+        -- Types cannot be referred to at this stage.
+        TypeDefinition{} -> throwError $ NotInScope ident
+        -- Protocols cannot be referred to at this stage.
+        ProtocolDefinition{} -> throwError $ NotInScope ident
+        -- Implementations cannot be referred to at this stage.
+        Implementation{} -> throwError $ NotInScope ident
+
+    LetBinding (NameBinding _ _boundIdentifier) _expr ->
+      error "oh oh, let binding"
+      -- getMonomorphicLetBinding boundIdentifier t (typeOf expr)
+    FunctionArgument (NameBinding _ boundIdentifier) ->
+      return boundIdentifier
+
+
+instantiateDefinition :: (Identifier, Type)
+                      -> Set ProtocolConstraint
+                      -> TypedExpr
+                      -> Resolve Identifier
+instantiateDefinition key@(name, type') constraints expr = do
+  let identifier = Identifier (encodeTypeInstance name type')
+      exprWithoutConstraints = mapType (`dropConstraints` constraints) expr
+  case instantiate exprWithoutConstraints type' of
+    Left err -> throwError (ResolutionInstantiateError err)
+    Right expr' -> do
+      -- First add the name to the state to avoid endless loops for polymorphic
+      -- recursive functions that would monomorph themselves.
+      addInstanceName key identifier
+      resolvedExpr <- resolveInExpr' expr'
+      -- ... then add the actual instance.
+      let originalType = typeOf expr'
+          def = Definition
+                (Metadata $ getSourceInfo expr')
+                identifier
+                (Forall
+                 (Metadata $ getSourceInfo originalType)
+                 []
+                 Set.empty
+                 (typeOf resolvedExpr),
+                 resolvedExpr)
+      addInstance key def
+
+      return identifier
+
+
+
 resolveInExpr' :: TypedExpr -> Resolve TypedExpr
 resolveInExpr' = traverseExpr traversal
   where
-  traversal = Traversal { onExpr = const (return Nothing)
-                        , onType = onType'
+  traversal = Traversal { onExpr = onExpr'
+                        , onType = return
                         , onMemberAccess = onMemberAccess'
                         , onNameBinding = return
                         , onMethodReference = onMethodReference' }
-  onType' t@(TConstrained _constraints _) = --do
-    -- resolvedConstraints <- filterM isResolvable (Set.toList constraints)
-    return t -- (dropConstraints t (Set.toList resolvedConstraints))
-    --where
-    --isResolvable constraint = isJust <$> resolveImplementation constraint
-  onType' t = return t
+  onExpr' =
+    \case
+      Symbol meta name (TConstrained constraints underlying') -> do
+        env <- ask
+        resolvedName <- getResolvedIn env name constraints underlying'
+        return (Just (Symbol meta resolvedName underlying'))
+      _ -> return Nothing
   onMethodReference' si reference methodType =
     case reference of
       Unresolved protocolName' methodName constraint -> do
@@ -119,41 +221,49 @@ resolveInExpr' = traverseExpr traversal
     PackageMemberAccess pkg member ->
       return (PackageMemberAccess pkg member)
 
+shouldTryToResolve :: Scheme -> Bool
+shouldTryToResolve (Forall _ _ constraints _) =
+  null constraints || any shouldResolve constraints
+  where
+    shouldResolve (ProtocolConstraint _ _ TVar{}) = False
+    shouldResolve ProtocolConstraint{} = True
 
-resolveInDefinition :: TypedDefinition -> Resolve TypedDefinition
-resolveInDefinition =
-  \case
-    Definition si name (scheme, expr) -> do
+resolveInDefinitions :: [TypedDefinition] -> Resolve [TypedDefinition]
+resolveInDefinitions [] = return []
+resolveInDefinitions (def:defs) =
+  case def of
+    Definition si name (scheme, expr) | shouldTryToResolve scheme -> do
       (resolvedExpr, resolvedConstraints) <- listen (resolveInExpr' expr)
-      return (Definition
-              si
-              name
-              (dropConstraints scheme resolvedConstraints,
-               mapType (`dropConstraints` resolvedConstraints) resolvedExpr))
-    ForeignDefinition si name scheme ->
-      return (ForeignDefinition si name scheme)
-    TypeDefinition si name bindings type' ->
-      return (TypeDefinition si name bindings type')
-    ProtocolDefinition si name protocol ->
-      return (ProtocolDefinition si name protocol)
+      let scheme' = dropConstraints scheme resolvedConstraints
+          unconstrainedExpr = mapType (`dropConstraints` resolvedConstraints) resolvedExpr
+          unconstrainedDef =
+            Definition si name (scheme', unconstrainedExpr)
+      (:) unconstrainedDef <$> resolveInDefinitions defs
+    Definition{} ->
+      resolveInDefinitions defs
+    ForeignDefinition{} ->
+      (:) def <$> resolveInDefinitions defs
+    TypeDefinition{} ->
+      (:) def <$> resolveInDefinitions defs
+    ProtocolDefinition{} ->
+      (:) def <$> resolveInDefinitions defs
     Implementation si implementation -> do
       resolved <- resolveInImplementation implementation
-      modify (Set.insert resolved . Set.delete implementation)
-      return (Implementation si resolved)
+      let updateEnv :: CompileEnvironment -> CompileEnvironment
+          updateEnv = Environment.addImplementation resolved . Environment.removeImplementation implementation
+      (:) (Implementation si resolved) <$> local updateEnv (resolveInDefinitions defs)
 
 
-runResolve :: ResolutionEnvironment -> Resolve a -> Either ResolutionError a
-runResolve env r = runExcept (fst <$> evalRWST r () env)
+runResolve :: CompileEnvironment
+           -> Resolve a
+           -> Either ResolutionError (a, ResolveState, ResolveLog)
+runResolve env action = runExcept (runRWST action env initialState)
 
 
-resolveInDefinitions :: ResolutionEnvironment
-                     -> [TypedDefinition]
-                     -> Either ResolutionError [TypedDefinition]
-resolveInDefinitions env defs = runResolve env (mapM resolveInDefinition defs)
-
-
-resolveInPackage :: ResolutionEnvironment
+resolveInPackage :: CompileEnvironment
                  -> TypedPackage
                  -> Either ResolutionError TypedPackage
-resolveInPackage env (TypedPackage decl imports defs) =
-  TypedPackage decl imports <$> resolveInDefinitions env defs
+resolveInPackage env (TypedPackage decl imports defs) = do
+  (resolvedDefs, state', _) <- runResolve env (resolveInDefinitions defs)
+  let allDefs = Map.elems (instances state') ++ resolvedDefs
+  return (TypedPackage decl imports allDefs)

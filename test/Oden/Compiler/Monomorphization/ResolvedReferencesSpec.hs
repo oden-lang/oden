@@ -1,25 +1,23 @@
 module Oden.Compiler.Monomorphization.ResolvedReferencesSpec where
 
-import           Data.Set              as Set
+import           Data.Set                                as Set
 
 import           Test.Hspec
 
-import           Oden.Compiler.Monomorphization
-
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Monomorphed
 import           Oden.Core.Foreign
-import           Oden.Core.Typed
+import           Oden.Core.Monomorphed
 import           Oden.Core.ProtocolImplementation
+import           Oden.Core.Typed
 
 import           Oden.Identifier
 import           Oden.QualifiedName
-import qualified Oden.Type.Polymorphic as Poly
-import qualified Oden.Type.Monomorphic as Mono
+import qualified Oden.Type.Monomorphic                   as Mono
+import qualified Oden.Type.Polymorphic                   as Poly
 
-import           Oden.Compiler.Monomorphization.Fixtures
 import           Oden.Assertions
+import           Oden.Compiler.Monomorphization.Fixtures
 
 fooProtocolName = FQN [] (Identifier "Foo")
 fooMethodName = Identifier "foo"
