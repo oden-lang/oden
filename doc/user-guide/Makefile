@@ -16,7 +16,7 @@ SHARED_PANDOC_OPTIONS=--standalone \
 											--bibliography src/bibliography.bib
 
 PDF_PANDOC_OPTIONS=$(SHARED_PANDOC_OPTIONS) \
-									 --latex-engine=xelatex \
+									 --latex-engine=pdflatex \
 									 --listings \
 									 -V links-as-notes \
 									 --filter target/bin/include-code \

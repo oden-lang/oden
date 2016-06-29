@@ -45,13 +45,13 @@ pre {
   position: relative;
   padding: 1em 2em;
   overflow: auto;
-  font-size: 18px;
 }
 pre,
 code,
 .controls .output {
-  font-family: "Ubuntu Mono", monospace;
+  font-family: "Fira Mono", monospace;
   line-height: inherit;
+  font-size: 17px;
 }
 
 pre, .hljs, .hljs-subst {
@@ -110,7 +110,9 @@ body > table {
   }
   pre {
     padding: 1.5em 0;
-    font-size: 16px;
+  }
+  code, pre {
+    font-size: 14px;
   }
   pre:before,
   table caption {
@@ -140,8 +142,8 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Montserrat", sans-serif;
-  font-weight: 400;
+  font-family: "Fira Sans", sans-serif;
+  font-weight: 800;
   margin: 1em 0 .5em 0;
 }
 
@@ -155,12 +157,12 @@ h2 {
 h3, h4, h5, h6 {
   margin: 22px 0;
   line-height: inherit;
+  font-weight: 600;
 }
 h3 {
   font-size: 100%;
-  font-family: "Montserrat", sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-family: "Fira Sans", sans-serif;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 h4 {
@@ -199,9 +201,9 @@ footer {
 .title,
 .version,
 h2 {
-  font-family: "Montserrat", sans-serif;
-  font-weight: 600;
-  letter-spacing: .05em;
+  font-family: "Fira Sans", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
@@ -242,8 +244,9 @@ h2 {
   border-radius: 0;
   cursor: pointer;
   background: none;
-  font-family: "Montserrat", sans-serif;
+  font-family: "Fira Sans", sans-serif;
   font-size: 16px;
+  text-transform: uppercase;
   color: #2a7ae2;
 }
 .controls .run:hover,

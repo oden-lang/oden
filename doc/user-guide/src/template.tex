@@ -1,7 +1,7 @@
 \documentclass[11pt,letterpaper]{book}
 \usepackage{setspace}[2pt]
 
-\newcommand{\spaced}{\addfontfeatures{LetterSpace=10}}
+\newcommand{\spaced}{}
 
 $if(linestretch)$
 \usepackage{setspace}
@@ -12,41 +12,13 @@ $endif$
 \usepackage{amssymb,amsmath}
 \usepackage{ifxetex,ifluatex}
 \usepackage{fixltx2e} % provides \textsubscript
-\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
-  \usepackage[T1]{fontenc}
-  \usepackage[utf8]{inputenc}
-$if(euro)$
-  \usepackage{eurosym}
-$endif$
-\else % if luatex or xelatex
-  \usepackage{fontspec}
-  \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
-  \newcommand{\euro}{€}
-  \setromanfont{Crimson}[
-    Path = $base$/src/fonts/crimson/,
-    ExternalLocation = $base$/src/fonts/crimson/,
-    Extension = .ttf,
-    UprightFont = CrimsonText-Regular,
-    ItalicFont = CrimsonText-Italic,
-    BoldItalicFont = CrimsonText-BoldItalic,
-    BoldFont = CrimsonText-Bold ]
-  \setsansfont{Montserrat}[
-    Path = $base$/src/fonts/montserrat/,
-    ExternalLocation = $base$/src/fonts/montserrat/,
-    Extension = .otf,
-    UprightFont = *-Regular,
-    BoldFont = *-Bold ]
-  \setmonofont{Ubuntu Mono}[
-    Path = $base$/src/fonts/ubuntu-mono/,
-    ExternalLocation = $base$/src/fonts/ubuntu-mono/,
-    UprightFont = UbuntuMono-Regular,
-    ItalicFont = UbuntuMono-Italic,
-    BoldItalicFont = UbuntuMono-BoldItalic,
-    BoldFont = UbuntuMono-Bold,
-    Mapping=tex-ansi]
-  \usepackage{xltxtra,xunicode}
-  \defaultfontfeatures{Scale=MatchLowercase}
-
+%
+\usepackage[T1]{fontenc}
+\usepackage[scale=1.1]{ebgaramond}
+\usepackage{inconsolata}
+\usepackage{FiraSans}
+\usepackage[utf8]{inputenc}
+%
 % use upquote if available, for straight quotes in verbatim environments
 \IfFileExists{upquote.sty}{\usepackage{upquote}}{}
 % use microtype if available
@@ -155,8 +127,8 @@ $endif$
 
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[CO]{\textsf{\spaced{\leftmark}}}
-\fancyhead[CE]{\textsf{\spaced{\MakeUppercase{$title-meta$}}}}
+\fancyhead[CO]{\textsf{\itshape{\leftmark}}}
+\fancyhead[CE]{\textsf{\itshape{\MakeUppercase{$title-meta$}}}}
 \fancyfoot[C]{\textsf{\thepage}}
 \renewcommand{\footrulewidth}{0pt}
 \renewcommand{\headrulewidth}{0pt}
@@ -167,7 +139,17 @@ $endif$
 \renewcommand{\thesection}{\arabic{section}}
 
 \titleformat{\section}[block]
-  {}{\thechapter.\thesection}{13pt}{\addfontfeatures{LetterSpace=8}{\MakeUppercase{#1}}}
+  {}{%
+    \ifnum\thechapter>0 %
+      \thechapter.\thesection%
+    \fi
+  }{%
+    \ifnum\thechapter>0 %
+      13pt
+    \else
+      0pt
+    \fi
+    }{\scshape{#1}}
 
 \titleformat{\subsection}[block]
   {}{\thechapter.\thesubsection}{13pt}{\textit{#1}}
@@ -177,9 +159,9 @@ $endif$
 
 \titleformat{\chapter}[display]
   {\sffamily\centering}
-  {\spaced{\MakeUppercase{\chaptertitlename\ \thechapter}}}
+  {\spaced{\bfseries\MakeUppercase{\chaptertitlename\ \thechapter}}}
   {0pt}
-  {\spaced{\Huge\MakeUppercase{#1}}}
+  {\spaced{\bfseries\Huge\MakeUppercase{#1}}}
 
 \titlespacing*{\chapter}
   {0em}{0em}{130pt}
@@ -193,7 +175,7 @@ $endif$
 
 
 $if(title)$
-\title{\sffamily{\spaced{\Huge{\MakeUppercase{$title$}}$if(subtitle)$\\\vspace{0pt}{\large $subtitle$}$endif$}}}
+\title{\sffamily{\bfseries{\Huge{\MakeUppercase{$title$}}$if(subtitle)$\\\vspace{0pt}{\large $subtitle$}$endif$}}}
 $endif$
 $if(author)$
 \author{\textit{$for(author)$$author$$sep$ \and $endfor$}}
@@ -300,21 +282,21 @@ This guide assumes that you as a reader have a basic knowledge of at least one
 mainstream programming language, be it functional, procedural,
 object-oriented, or something else. You do not have to be an expert in
 functional programming to read this guide, nor do you have to know the Go
-programming language. However, some advanced concepts that are not specific to
-Oden might not be explained in full detail. If you want to dig deeper and
-understand those as well, there are references listed at the end of the guide.
+programming language. Some advanced concepts, not specific to Oden,
+are only touched upon briefly. You are encouraged to follow the references
+in the end of the guide to learn more.
 
 \section{Conventions Used In This Guide}
 
 \begin{itemize}
-\item \textit{Italic} text is used for emphasis and new term introduced for the
-  first time.
+\item \textit{Italic} text is used for emphasis and for new terms.
 \item \texttt{Constant Width} text is used for file names, references to code
   elements, program listings and shell commands and program output.
 \item \texttt{\textbf{Constant Width Bold}} text is used to mark user input in
   shell command listings.
 \item The \texttt{\textdollar} character marks the shell prompt in a shell command
   listing.
+\item The \texttt{\postbreak} arrow marks line breaks in code listings.
 \end{itemize}
 
 \section{License}

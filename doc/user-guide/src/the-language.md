@@ -577,7 +577,14 @@ player = {
 }
 ```
 
-The type of the value `player` is:
+A record type is denoted by a set of field name and type pairs, with colons in
+between the names and types. The fields are separated by commas and enclosed in
+curly brackets.
+
+```{include=src/listings/syntax-record-type.html formatted=true}
+```
+
+The type of the value `player` from the previous example is:
 
 ```{.oden language=oden}
 {
@@ -597,16 +604,17 @@ Fields of records can be accessed using the dot operator.
 ```{include=src/listings/syntax-record-field-access.html formatted=true}
 ```
 
-The following example shows a function taking a record value and accessing its
-field `attack`, and the nested `damage` and `cooldown` fields.
+Continuing with our game theme, here's a function taking a player record
+value and accessing its field `attack`, and the nested `damage` and
+`cooldown` fields.
 
 ```{.oden language=oden}
 damagePerMinute(p) =
   p.attack.damage * 60 / p.attack.cooldown
 ```
 
-A function definition like `damagePerMinute` gets inferred to take a value `p`
-of the following type.
+The type of `damagePerMinute` is inferred to take an argument `p` of the
+following type.
 
 ```{.oden language=oden}
 {
@@ -620,21 +628,28 @@ of the following type.
 ```
 
 Here `a` and `b` are *row variables*. But what is a row variable? And what
-does the pipe character mean in a record type? Read on and we'll learn more
+does the pipe character mean in a record type? Read on and you will learn more
 about them in the next section.
 
 
 ### Polymorphic Records and Row Variables
 
-A record type can be polymorphic, i.e. it can allow extra unknown fields. This
-is useful when you want to write a function that accepts some record value that
-has a certain field, but you don't care if has extra fields or not. This can be
-expressed in the type system using a *row varible*. The concept of *rows* is
-the underlying construct on which records are built upon.
+A record type can be polymorphic, i.e. it can contain an unknown set of
+fields. This is useful when you want to write a function taking record
+values having certain fields, but you don't care they have extra fields or not.
+This can be expressed in the type system using a *row varible*. The row
+variable captures any extra fields when the type is instantiated.
+
+To denote a polymorphic record type, write a pipe character and the row
+variable after the set of fields.
+
+```{include=src/listings/syntax-record-type-extension.html formatted=true}
+```
 
 The following type signature says that `getName` takes any record with at least
 the field `name` with type `string`. When instantiated with a concrete record
-type the row variable `r` will be bound to a row contain all other fields.
+type the row variable `r` will be bound to a row all fields of the record
+except `name`.
 
 ```
 getName : forall r. { name : string | r } -> string
@@ -646,21 +661,34 @@ For more information on these concepts, see @gaster1996polymorphic and
 ## Protocols
 
 In Oden, and in funtional programming in general, you can go a long way with
-just data and functions.  But sometimes it's nice to be able to create a
-function that can take any data type as long as it follows a certain contract.
-In Oden this is called a *Protocol* and a protocol contains a set of *methods*.
-Given a defined protocol you can *implement* the protocol for a specific type.
-The idea of protocols is not new, in fact it's very similar to [_type
-classes_](https://www.haskell.org/tutorial/classes.html) in Haskell and
-[_traits_](https://doc.rust-lang.org/book/traits.html) in Rust.
+data and functions. Sometimes, however, it is useful to be able to create
+functions taking arbitrary data types as arguments, as long as they follow
+certain contracts. In Oden we use *protocols* to encode such contracts.
 
-When the compiler encounters a use of a Protocol method together with a data
-type it checks to see if there's an implementation in scope that it can use. If
-not, you will get a compile error. If there is *a single implementation* that
-one will be used in the compiled program. The dispatch is done at compile time.
+A protocol has a name contains a set of zero or more *methods*. A *protocol
+definition* is denoted using the `protocol` keyword, the protocol name, and the
+set of methods, enclosed in curly braces. Methods are names and type
+signatures, similar to top-level type annotations.
 
-Let's demonstrate Protocols with an animal example that I think everyone loves!
-OK, maybe not everyone...
+```{include=src/listings/syntax-protocol-definition.html formatted=true}
+```
+
+Given a defined protocol you can *implement* the protocol for a specific
+type. The implementation is denoted using the `impl` keyword, the protocol name
+followed, by the implementation type enclosed in parenthesis. Inside the curly
+braces the methods are implemented using the same syntax as top-level
+definitions.
+
+```{include=src/listings/syntax-protocol-implementation.html formatted=true}
+```
+
+When the compiler encounters the use of a protocol method together with a data
+type it checks if there's an implementation in scope that it can use. If
+not, you will get a compile error. If there is *a single implementation*,
+that one will be used in the compiled program. The dispatch is done at
+compile time.
+
+Let's use protocols to make some animal sounds.
 
 ```{.oden .playground-runnable language=oden}
 package main
@@ -694,25 +722,24 @@ main() = {
 
 #### Work In Progress
 
-As Oden only has transparent type aliases right now it's not super clear in
-this code that we create a Dog value and a Chicken value. Have patience, more
-type constructs will arrive!
+As Oden has only transparent type aliases right now, it is unclear in this
+code that we create a `Dog` value and a `Chicken` value. Have patience; more
+type constructs will arrive.
 
-Also, as you might have noticed, methods have to be fully qualified with the
-Protocol::Method syntax. This restriction will probably be lifted in the
-future, enabling you to write only the method name if it can be unambigously
+As you might have noticed, methods have to be fully qualified with the
+`Protocol::Method` syntax. This restriction might be lifted in the future,
+enabling you to write only the method name, if it can be unambigously
 resolved.
 
 ### Overloading Operators
 
-Protocols are used in Oden to provide *overloaded operators*. These are
-built-in infix operators that are simple aliases for standard Protocols like
-*Num*, *Equality* etc. As you can define implementations for a data type and
-a Protocol, you can effectively overload any built-in operator for a custom
-data type.
+Protocols are used in Oden to provide *overloaded operators*. The built-in
+operators are aliases for standard protocols methods, such as `Num`,
+`Equality`, and `Monoid`. As you can implementation a protocol for a data
+type, you can effectively overload any built-in operator for that data type.
 
-In the following example we implement the *Monoid* protocol for our *Point2D*
-data type, which enables us to use the `++` operator to add vector values.
+In the following example we implement the `Monoid` protocol for our `Point2D`
+data type, which enables us to use the `++` operator to add `Point2D` values.
 
 ```{.oden .playground-runnable language=oden}
 package main
@@ -747,5 +774,10 @@ main() = {
 
 ### Compatibility with Go
 
-The Protocols construct is not compatible with Go *interfaces* right now, but
-that kind of support is planned.
+Protocols are not compatible with Go interfaces yet.
+
+### Influences
+
+The concept of protocols is not new, in fact it is very similar to [_type
+classes_](https://www.haskell.org/tutorial/classes.html) in Haskell and
+[_traits_](https://doc.rust-lang.org/book/traits.html) in Rust.
