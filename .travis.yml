@@ -50,6 +50,7 @@ before_install:
   else
     curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
   fi
+- travis_retry stack setup
 # Install Pandoc
 - travis_retry stack --no-terminal install pandoc pandoc-citeproc
 
