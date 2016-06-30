@@ -1,5 +1,9 @@
 # Changelog
 
+* 0.3.5
+  * A lot of improvements to User Guide
+  * Stack build now works without setting LD/DYLD paths
+  * Polymorphic functions can have protocol constraints
 * 0.3.4
   * New User Guide documentation build using Pandoc
 * 0.3.3
