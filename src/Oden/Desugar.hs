@@ -180,59 +180,76 @@ desugarTopLevel' pkg top = do
     us -> mapM_ (tell . (:[]) . typeSigNoValErr) us
   return (is, defs)
   where
-  iter :: ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
-       -> Syntax.TopLevel
-       -> Writer [DesugarError] ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
-  iter (is, ts, defs) (Syntax.TopLevelDefinition topLevelDef) =
-    case desugarFnShortHand topLevelDef of
-      Left err -> do
-        tell [err]
-        return (is, ts, defs)
-      Right (si, name, expr) ->
-        let def = Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) expr
-        in return (is, assignValue name si ts, defs ++ [def])
-  iter (is, ts, defs) (Syntax.TypeSignatureDeclaration tsi name signature) = do
-    case Map.lookup name ts of
-      Just existing -> tell [typeSigReDefErr (name, existing) tsi] -- type already defined
-      Nothing -> return ()
-    return (is, newTypeSig name tsi (Just signature) ts, defs)
-  iter (is, ts, defs) (Syntax.ImportDeclaration si name) =
-    return (is ++ [ImportReference (Metadata si) name], ts, defs)
-  iter (is, ts, defs) (Syntax.TypeDefinition si name typeSig) =
-    -- TODO: Add support for type parameters
-    let def = TypeDefinition (Metadata si) (FQN pkg name) [] typeSig
-    in return (is, ts, defs ++ [def])
-  iter (is, ts, defs) (Syntax.ProtocolDefinition si name varBinding methods) =
-    let def = ProtocolDefinition (Metadata si) (FQN pkg name) varBinding methods
-    in return (is, ts, defs ++ [def])
-  iter (is, ts, defs) (Syntax.Implementation si typeSignature methods) =
-    case mapM desugarMethodImpls methods of
-      Left err -> do
-        tell [err]
-        return (is, ts, defs)
-      Right methodImpls ->
-        let impl = Implementation (Metadata si) typeSignature methodImpls
-        in return (is, ts, defs ++ [impl])
-    where
+    iter :: ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
+         -> Syntax.TopLevel
+         -> Writer [DesugarError] ([ImportReference], Map.Map Identifier TempTopLevel, [Definition])
+
+    iter (is, ts, defs) =
+      \case
+        Syntax.TopLevelDefinition topLevelDef ->
+          case desugarFnShortHand topLevelDef of
+            Left err -> do
+              tell [err]
+              return (is, ts, defs)
+            Right (si, name, expr) ->
+              let def = Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) expr
+              in return (is, assignValue name si ts, defs ++ [def])
+
+        Syntax.TypeSignatureDeclaration tsi name signature -> do
+          case Map.lookup name ts of
+            Just existing -> tell [typeSigReDefErr (name, existing) tsi] -- type already defined
+            Nothing -> return ()
+          return (is, newTypeSig name tsi (Just signature) ts, defs)
+
+        Syntax.ImportDeclaration si name ->
+          return (is ++ [ImportReference (Metadata si) name], ts, defs)
+
+        Syntax.ImportForeignDeclaration si pkgName ->
+          return (is ++ [ImportForeignReference (Metadata si) pkgName], ts, defs)
+
+        Syntax.TypeDefinition si name typeSig ->
+          -- TODO: Add support for type parameters
+          let def = TypeDefinition (Metadata si) (FQN pkg name) [] typeSig
+          in return (is, ts, defs ++ [def])
+
+        Syntax.ProtocolDefinition si name varBinding methods ->
+          let def = ProtocolDefinition (Metadata si) (FQN pkg name) varBinding methods
+          in return (is, ts, defs ++ [def])
+
+        Syntax.Implementation si typeSignature methods ->
+          case mapM desugarMethodImpls methods of
+            Left err -> do
+              tell [err]
+              return (is, ts, defs)
+            Right methodImpls ->
+              let impl = Implementation (Metadata si) typeSignature methodImpls
+              in return (is, ts, defs ++ [impl])
+
     desugarMethodImpls def = do
       (si', name, expr) <- desugarFnShortHand def
       return (MethodImplementation (Metadata si') name expr)
-  newTypeSig name tsi msc =
-    Map.insertWith (\_ old -> old) name (TempTop (tsi, msc) False)
-  assignValue name si =
-    -- if there's type signature, keep its location
-    Map.insertWith (\_ (TempTop (_, sc') _) -> (TempTop (si, sc') True))
-                     name (TempTop (si, Nothing) True)
-  -- type signature doesn't have an assigned term
-  typeSigNoValErr :: (Identifier, TempTopLevel) -> DesugarError
-  typeSigNoValErr (n, TempTop (si, sc) _)
-      = case sc of
-          Just j_sc -> TypeSignatureWithoutDefinition si n j_sc
-          -- if this happens, it's a bug in the compiler, rather than source code
-          Nothing  -> error "Panic: type signature definition present without actual signature"
-  -- type signature already defined
-  typeSigReDefErr :: (Identifier, TempTopLevel) -> SourceInfo -> DesugarError
-  typeSigReDefErr (n, TempTop (_, sc) _) si' = TypeSignatureRedefinition si' n sc
+
+    newTypeSig name tsi msc =
+      Map.insertWith (\_ old -> old) name (TempTop (tsi, msc) False)
+
+    assignValue name si =
+      -- if there's type signature, keep its location
+      Map.insertWith
+      (\_ (TempTop (_, sc') _) -> (TempTop (si, sc') True))
+      name (TempTop (si, Nothing) True)
+
+    -- type signature doesn't have an assigned term
+    typeSigNoValErr :: (Identifier, TempTopLevel) -> DesugarError
+    typeSigNoValErr (n, TempTop (si, sc) _) =
+      case sc of
+        Just j_sc -> TypeSignatureWithoutDefinition si n j_sc
+        -- if this happens, it's a bug in the compiler, rather than source code
+        Nothing  -> error "Panic: type signature definition present without actual signature"
+
+    -- type signature already defined
+    typeSigReDefErr :: (Identifier, TempTopLevel) -> SourceInfo -> DesugarError
+    typeSigReDefErr (n, TempTop (_, sc) _) si' =
+      TypeSignatureRedefinition si' n sc
 
 toEither :: (Eq v, Show v, Show e) => Writer [e] v -> Either [e] v
 toEither w =

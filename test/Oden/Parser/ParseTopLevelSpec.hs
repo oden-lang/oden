@@ -168,4 +168,3 @@ spec = describe "parseTopLevel" $ do
      , NameBinding (src 1 9) (Identifier "z")
      ]
      (Symbol (src 1 14) (Identifier "x")))
-

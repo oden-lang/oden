@@ -1,4 +1,12 @@
-module Oden.Imports where
+{-# LANGUAGE LambdaCase #-}
+module Oden.Imports
+  ( UnsupportedMessage
+  , UnsupportedTypesWarning(..)
+  , PackageImportError(..)
+  , ForeignImporter
+  , NativeImporter
+  , resolveImports
+  ) where
 
 import           Oden.Core.Package
 import           Oden.Core.Untyped
@@ -12,33 +20,56 @@ data UnsupportedTypesWarning = UnsupportedTypesWarning { pkg      :: PackageName
                                                        , messages :: [UnsupportedMessage]
                                                        } deriving (Show, Eq)
 
-data PackageImportError = PackageImportError PackageName String deriving (Show, Eq)
+data PackageImportError
+  = NativePackageNotFound PackageName
+  | ForeignPackageImportError String String deriving (Show, Eq)
 
 
 type Imports = ExceptT PackageImportError IO
 
-type Importer =
-  PackageName -> IO (Either PackageImportError
-                            (TypedPackage, [UnsupportedMessage]))
 
-resolveImports' :: Importer
+type ForeignImporter =
+  String -> IO (Either PackageImportError (TypedPackage, [UnsupportedMessage]))
+
+
+type NativeImporter =
+  PackageName -> IO (Either PackageImportError TypedPackage)
+
+
+liftEither :: Either PackageImportError b -> Imports b
+liftEither = either throwError return
+
+resolveImports' :: ForeignImporter
+                -> NativeImporter
                 -> UntypedPackage ImportReference
                 -> Imports (UntypedPackage (ImportedPackage TypedPackage), [UnsupportedTypesWarning])
-resolveImports' importer (UntypedPackage pkgDecl@(PackageDeclaration _ _) imports defs) = do
+resolveImports' foreignImporter nativeImporter (UntypedPackage pkgDecl imports defs) = do
   (importedPackages, warnings) <- foldM resolveImport ([], []) imports
   return (UntypedPackage pkgDecl importedPackages defs, warnings)
   where
   resolveImport :: ([ImportedPackage TypedPackage], [UnsupportedTypesWarning])
                 -> ImportReference
                 -> Imports ([ImportedPackage TypedPackage], [UnsupportedTypesWarning])
-  resolveImport (pkgs, warnings) (ImportReference sourceInfo importedPkgName) = do
-    result <- liftIO $ importer importedPkgName
-    (pkg', unsupported) <- either throwError return result
-    let warnings' = if null unsupported then warnings else UnsupportedTypesWarning importedPkgName unsupported : warnings
-    return (ImportedPackage sourceInfo (Identifier (last importedPkgName)) pkg' : pkgs, warnings')
+  resolveImport (pkgs, warnings) =
+    \case
+      ImportForeignReference sourceInfo pkgString -> do
+        res <- liftIO $ foreignImporter pkgString
+        (pkg'@(TypedPackage (PackageDeclaration _ pkgName) _ _), unsupported) <- liftEither res
+        let warnings' =
+              if null unsupported
+              then warnings
+              else UnsupportedTypesWarning pkgName unsupported : warnings
+        return (ImportedPackage sourceInfo (Identifier (last pkgName)) pkg' : pkgs, warnings')
+      ImportReference sourceInfo importedPkgName -> do
+        res <- liftIO $ nativeImporter importedPkgName
+        pkg'@(TypedPackage (PackageDeclaration _ pkgName) _ _) <- liftEither res
+        return (ImportedPackage sourceInfo (Identifier (last pkgName)) pkg' : pkgs, warnings)
 
-resolveImports :: Importer
+
+resolveImports :: ForeignImporter
+               -> NativeImporter
                -> UntypedPackage ImportReference
                -> IO (Either PackageImportError (UntypedPackage (ImportedPackage TypedPackage),
-                                                 [UnsupportedTypesWarning]))
-resolveImports importer pkg' = runExceptT (resolveImports' importer pkg')
+                                                [UnsupportedTypesWarning]))
+resolveImports foreignImporter nativeImporter pkg' =
+  runExceptT (resolveImports' foreignImporter nativeImporter pkg')

@@ -118,6 +118,7 @@ data Definition
 
 data TopLevel
   = ImportDeclaration SourceInfo PackageName
+  | ImportForeignDeclaration SourceInfo String
   | TypeSignatureDeclaration SourceInfo Identifier TypeSignature
   | TopLevelDefinition Definition
   -- TODO: Add support for type parameters

@@ -39,3 +39,4 @@ data Definition
   deriving (Show, Eq, Ord)
 
 data UntypedPackage i = UntypedPackage PackageDeclaration [i] [Definition]
+  deriving (Show, Eq, Ord)

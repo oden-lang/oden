@@ -50,13 +50,19 @@ logCompiledFiles :: [CompiledFile] -> CLI ()
 logCompiledFiles [_] = liftIO $ putStrLn "Compiled 1 Go source file."
 logCompiledFiles files = liftIO $ putStrLn $ "Compiled " ++ show (length files) ++ " Go source files."
 
+nativeImporter :: NativeImporter
+nativeImporter = undefined
+
 inferFile :: SourceFile -> CLI (TypingEnvironment, TypedPackage)
 inferFile (OdenSourceFile fname _) = do
   -- TODO: Check package name
   syntaxPkg <- readPackage fname
   untypedPkg <- liftEither' (desugarPackage syntaxPkg)
   validateUntypedPkg untypedPkg
-  (untypedPkgWithImports, warnings') <- liftIO (resolveImports Go.importer untypedPkg) >>= liftEither
+  (untypedPkgWithImports, warnings') <- liftIO (resolveImports
+                                               Go.importer
+                                               nativeImporter
+                                               untypedPkg) >>= liftEither
   mapM_ logWarning warnings'
   liftEither (inferPackage untypedPkgWithImports)
 

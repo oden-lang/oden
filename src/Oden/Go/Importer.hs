@@ -36,7 +36,6 @@ import           Data.Aeson
 import           Data.Aeson.Types
 import           Data.ByteString.Lazy.Char8 (pack)
 import qualified Data.HashMap.Strict        as HM
-import           Data.List                  (intercalate)
 import qualified Data.Set                   as Set
 import qualified Data.Text                  as T
 
@@ -116,8 +115,8 @@ instance FromJSON PackageObjectsResponse where
                        <|> ObjectsResponse <$> o .: "objects"
   parseJSON v = fail $ "Expected JSON object for PackageObjectsResponse but got: " ++ show v
 
-decodeResponse :: PackageName -> String -> Either PackageImportError [PackageObject]
-decodeResponse pkgName s = either (Left . PackageImportError pkgName) Right $ do
+decodeResponse :: String -> String -> Either PackageImportError [PackageObject]
+decodeResponse pkgPath s = either (Left . ForeignPackageImportError pkgPath) Right $ do
   value <- eitherDecode (pack s)
   case value of
     ErrorResponse err -> Left err
@@ -170,11 +169,11 @@ convertType (Struct fields) = do
     Poly.RExtension missing (Identifier name) <$> convertType goType <*> return row
 convertType (Unsupported n) = throwError n
 
-objectsToPackage :: PackageName
+objectsToPackage :: String
                  -> [PackageObject]
                  -> (TypedPackage, [UnsupportedMessage])
-objectsToPackage pkgName objs =
-  (TypedPackage (PackageDeclaration missing pkgName) [] allDefs, allMessages)
+objectsToPackage pkgPath objs =
+  (TypedPackage (PackageDeclaration missing [pkgPath]) [] allDefs, allMessages)
   where
   (allDefs, allMessages) = foldl addObject ([], []) objs
   addObject (defs, msgs) (NamedType name goType) =
@@ -182,7 +181,7 @@ objectsToPackage pkgName objs =
     case runExcept (runStateT (convertType goType) 0) of
          Left u -> (defs, (identifier, u) : msgs)
          Right (type', _) ->
-           (TypeDefinition missing (FQN pkgName identifier) [] type' : defs, msgs)
+           (TypeDefinition missing (FQN [pkgPath] identifier) [] type' : defs, msgs)
   addObject (defs, msgs) obj =
     let n = Identifier (nameOf obj)
     in case runExcept (runStateT (convertType $ typeOf obj) 0) of
@@ -191,8 +190,8 @@ objectsToPackage pkgName objs =
            let sc = Poly.Forall missing [] Set.empty ct
            in (ForeignDefinition missing n sc : defs, msgs)
 
-importer :: Importer
-importer pkgName = do
-  cs <- newCString (intercalate "/" pkgName)
-  objs <- decodeResponse pkgName <$> (c_GetPackageObjects cs >>= peekCString)
-  return (objectsToPackage pkgName <$> objs)
+importer :: ForeignImporter
+importer pkgPath = do
+  cs <- newCString pkgPath
+  objs <- decodeResponse pkgPath <$> (c_GetPackageObjects cs >>= peekCString)
+  return (objectsToPackage pkgPath <$> objs)
