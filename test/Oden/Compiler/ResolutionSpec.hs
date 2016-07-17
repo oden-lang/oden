@@ -62,7 +62,7 @@ unresolved protocol method type' constraintType =
 resolved protocol method impl =
   MethodReference missing (Resolved protocol method impl)
 
-testableProtocolName = FQN [] (Identifier "Testable")
+testableProtocolName = nameInUniverse "Testable"
 testableMethodName = Identifier "test"
 
 testableProtocol =
@@ -99,7 +99,7 @@ implementationsAsSet = \case
   Left (MultipleMatchingImplementationsInScope _ impls) -> Set.fromList impls
   _ -> Set.empty
 
-testPkg = PackageDeclaration missing ["test"]
+testPkg = PackageDeclaration missing (NativePackageName ["test"])
 
 exprAsDefinition :: String
                  -> TypedExpr

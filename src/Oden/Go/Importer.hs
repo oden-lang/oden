@@ -23,7 +23,7 @@ import           Oden.Identifier
 import           Oden.Imports
 import           Oden.Metadata
 import           Oden.Predefined
-import           Oden.QualifiedName         (QualifiedName(..))
+import           Oden.QualifiedName         (PackageName(..), QualifiedName(..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
 
@@ -40,7 +40,7 @@ import qualified Data.Set                   as Set
 import qualified Data.Text                  as T
 
 import           Foreign.C.String
-foreign import ccall "GetPackageObjects" c_GetPackageObjects :: CString -> IO CString
+foreign import ccall "GetPackage" c_GetPackage :: CString -> IO CString
 
 optOrNull :: FromJSON a => HM.HashMap T.Text Value -> T.Text -> Parser (Maybe a)
 o `optOrNull` k = case HM.lookup k o of
@@ -107,20 +107,30 @@ instance FromJSON PackageObject where
       _ -> fail ("Unknown object type: " ++ t)
   parseJSON v = fail $ "Expected JSON object for PackageObject but got: " ++ show v
 
-data PackageObjectsResponse = ErrorResponse String | ObjectsResponse [PackageObject]
-                            deriving (Show, Eq)
+data GoPackage
+  = GoPackage String [PackageObject]
+  deriving (Show, Eq)
 
-instance FromJSON PackageObjectsResponse where
+instance FromJSON GoPackage where
+  parseJSON (Object o) =
+    GoPackage <$> o .: "name" <*> o .: "objects"
+  parseJSON v = fail $ "Expected JSON object for GoPackage but got: " ++ show v
+
+data PackageResponse
+  = ErrorResponse String | PackageResponse GoPackage
+  deriving (Show, Eq)
+
+instance FromJSON PackageResponse where
   parseJSON (Object o) = ErrorResponse <$> o .: "error"
-                       <|> ObjectsResponse <$> o .: "objects"
-  parseJSON v = fail $ "Expected JSON object for PackageObjectsResponse but got: " ++ show v
+                       <|> PackageResponse <$> o .: "package"
+  parseJSON v = fail $ "Expected JSON object for PackageResponse but got: " ++ show v
 
-decodeResponse :: String -> String -> Either PackageImportError [PackageObject]
+decodeResponse :: String -> String -> Either PackageImportError GoPackage
 decodeResponse pkgPath s = either (Left . ForeignPackageImportError pkgPath) Right $ do
   value <- eitherDecode (pack s)
   case value of
     ErrorResponse err -> Left err
-    ObjectsResponse objs -> Right objs
+    PackageResponse pkg' -> Right pkg'
 
 missing :: Metadata SourceInfo
 missing = Metadata Missing
@@ -159,7 +169,7 @@ convertType (Signature Nothing (Parameters params isVariadic) (Returns ret)) = d
   wrapReturns ps [] = Poly.TForeignFn missing isVariadic ps [typeUnit] -- no return type
   wrapReturns ps rs = Poly.TForeignFn missing isVariadic ps rs
 convertType (Named pkgName (GI.Identifier n) t@Struct{}) =
-  Poly.TNamed missing (FQN pkgName (Identifier n)) <$> convertType t
+  Poly.TNamed missing (FQN (ForeignPackageName pkgName) (Identifier n)) <$> convertType t
 convertType (Named _ _ t) = convertType t
 convertType (Struct fields) = do
   fields' <- foldM convertField (Poly.REmpty (Metadata Missing)) fields
@@ -169,11 +179,9 @@ convertType (Struct fields) = do
     Poly.RExtension missing (Identifier name) <$> convertType goType <*> return row
 convertType (Unsupported n) = throwError n
 
-objectsToPackage :: String
-                 -> [PackageObject]
-                 -> (TypedPackage, [UnsupportedMessage])
-objectsToPackage pkgPath objs =
-  (TypedPackage (PackageDeclaration missing [pkgPath]) [] allDefs, allMessages)
+convertPackage :: GoPackage -> (TypedPackage, [UnsupportedMessage])
+convertPackage (GoPackage pkgName objs) =
+  (TypedPackage (PackageDeclaration missing (ForeignPackageName pkgName)) [] allDefs, allMessages)
   where
   (allDefs, allMessages) = foldl addObject ([], []) objs
   addObject (defs, msgs) (NamedType name goType) =
@@ -181,7 +189,7 @@ objectsToPackage pkgPath objs =
     case runExcept (runStateT (convertType goType) 0) of
          Left u -> (defs, (identifier, u) : msgs)
          Right (type', _) ->
-           (TypeDefinition missing (FQN [pkgPath] identifier) [] type' : defs, msgs)
+           (TypeDefinition missing (FQN (ForeignPackageName name) identifier) [] type' : defs, msgs)
   addObject (defs, msgs) obj =
     let n = Identifier (nameOf obj)
     in case runExcept (runStateT (convertType $ typeOf obj) 0) of
@@ -193,5 +201,5 @@ objectsToPackage pkgPath objs =
 importer :: ForeignImporter
 importer pkgPath = do
   cs <- newCString pkgPath
-  objs <- decodeResponse pkgPath <$> (c_GetPackageObjects cs >>= peekCString)
-  return (objectsToPackage pkgPath <$> objs)
+  pkg' <- decodeResponse pkgPath <$> (c_GetPackage cs >>= peekCString)
+  return (convertPackage <$> pkg')

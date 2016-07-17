@@ -18,7 +18,7 @@ missing :: Metadata SourceInfo
 missing = Metadata Missing
 
 myPkg :: PackageDeclaration
-myPkg = PackageDeclaration missing ["my", "pkg"]
+myPkg = PackageDeclaration missing (NativePackageName ["my", "pkg"])
 
 tvA :: Poly.TVar
 tvA = Poly.TV "a"

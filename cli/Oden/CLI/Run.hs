@@ -2,6 +2,7 @@ module Oden.CLI.Run where
 
 import           Oden.Backend
 import           Oden.Backend.Go
+import           Oden.QualifiedName
 import           Oden.Scanner
 
 import           Control.Monad.Reader
@@ -16,7 +17,7 @@ import           Oden.CLI.Build
 
 run :: FilePath -> CLI ()
 run path = do
-  pkg <- compileFile (OdenSourceFile path ["main"])
+  pkg <- compileFile (OdenSourceFile path (NativePackageName ["main"]))
   tmpDir <- liftIO getTemporaryDirectory
   tmp <- liftIO (createTempDirectory tmpDir "oden-run.go")
   files <- liftEither (codegen (GoBackend tmp) pkg)

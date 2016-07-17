@@ -36,5 +36,9 @@ fromPackages :: [ImportedPackage TypedPackage] -> CompileEnvironment
 fromPackages =
   foldl iter empty
   where
-  iter env (ImportedPackage sourceInfo pkgIdentifier pkg) =
-    env `extend` (pkgIdentifier, PackageBinding sourceInfo pkgIdentifier $ fromPackage pkg)
+  iter env (ImportedPackage importRef pkgIdentifier pkg) =
+    env `extend` ( pkgIdentifier
+                 , PackageBinding
+                   (Metadata $ getSourceInfo importRef)
+                   pkgIdentifier
+                   (fromPackage pkg))

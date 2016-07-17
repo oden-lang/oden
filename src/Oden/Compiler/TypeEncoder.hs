@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Oden.Compiler.TypeEncoder (
     encodeTypeInstance,
     encodeMethodInstance
@@ -8,7 +9,7 @@ import           Control.Monad.Writer
 import           Data.List             (intercalate, intersperse, sortOn)
 
 import           Oden.Identifier
-import           Oden.QualifiedName    (QualifiedName (..))
+import           Oden.QualifiedName    (PackageName (..), QualifiedName (..))
 import           Oden.Type.Polymorphic
 
 type Level = Int
@@ -19,22 +20,32 @@ pad = do
   n <- get
   tell (replicate n '_')
 
+
 withIncreasedLevel :: TypeEncoder () -> TypeEncoder ()
 withIncreasedLevel e = do
   modify succ
   e
   modify pred
 
+
 padded :: String -> TypeEncoder ()
 padded s = pad >> tell s >> pad
+
 
 paddedTo :: TypeEncoder ()
 paddedTo = padded "to"
 
+
 writeQualified :: QualifiedName -> TypeEncoder ()
-writeQualified (FQN pkgs name) = do
-  let parts = (pkgs ++ [asString name]) :: [String]
-  tell (intercalate "_" parts)
+writeQualified (FQN pkgName name) =
+  case pkgName of
+    NativePackageName [] ->
+      tell (asString name)
+    NativePackageName segments ->
+      tell (intercalate "_" segments ++ "_" ++ asString name)
+    ForeignPackageName foreignPkgName ->
+      tell ("foreign_" ++ foreignPkgName ++ "_" ++ asString name)
+
 
 writeType :: Type -> TypeEncoder ()
 writeType (TVar _ (TV name)) = tell name

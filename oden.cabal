@@ -75,6 +75,7 @@ library
     Oden.Output.Compiler.Validation.Typed,
     Oden.Output.Desugar,
     Oden.Output.Imports,
+    Oden.Output.Identifier,
     Oden.Output.Infer,
     Oden.Output.Instantiate,
     Oden.Output.Parser,

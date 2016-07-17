@@ -1,6 +1,6 @@
 module Oden.Identifier (
   Identifier(..),
-  IdentifierValidationError,
+  IdentifierValidationError(..),
   errorMessage,
   createLegalIdentifier,
   asString
@@ -10,9 +10,11 @@ import Data.Char
 
 newtype Identifier = Identifier String deriving (Show, Eq, Ord)
 
-data IdentifierValidationError = Empty
-                               | IllegalStart Char
-                               | IllegalCharacters String
+data IdentifierValidationError
+  = Empty
+  | IllegalStart Char
+  | IllegalCharacters String
+  deriving (Show)
 
 errorMessage :: IdentifierValidationError -> String
 errorMessage Empty =
@@ -31,7 +33,7 @@ createLegalIdentifier s = case filter (not . legal) s of
   where
   legal c = isLetter c
             || isNumber c
-            || c `elem` "_-'!?"
+            || c `elem` "_'!?"
 
 asString :: Identifier -> String
 asString (Identifier s) = s

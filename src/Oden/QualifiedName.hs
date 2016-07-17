@@ -2,10 +2,14 @@ module Oden.QualifiedName where
 
 import Oden.Identifier
 
-type PackageName = String
+data PackageName
+  = NativePackageName [String]
+  | ForeignPackageName String
+  deriving (Show, Eq, Ord)
 
-data QualifiedName = FQN [PackageName] Identifier
-                   deriving (Show, Eq, Ord)
+data QualifiedName
+  = FQN PackageName Identifier
+  deriving (Show, Eq, Ord)
 
 nameInUniverse :: String -> QualifiedName
-nameInUniverse = FQN [] . Identifier
+nameInUniverse = FQN (NativePackageName []) . Identifier

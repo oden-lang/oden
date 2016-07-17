@@ -3,7 +3,6 @@ package importer
 import (
 	"go/importer"
 	"go/types"
-	"strings"
 )
 
 func tupleToSlice(tu *types.Tuple) []Type {
@@ -86,12 +85,12 @@ func encodeType(t types.Type) Type {
 
 		// When n.Obj().Pkg() is nil the Named type is defined in the universe. We
 		// represent that with an empty package name slice.
-		var pkgSegments []string = []string{}
+		var pkgName string = ""
 		if n.Obj().Pkg() != nil {
-			pkgSegments = strings.Split(n.Obj().Pkg().Path(), "/")
+			pkgName = n.Obj().Pkg().Name()
 		}
 		return NewNamed(
-			pkgSegments,
+			pkgName,
 			n.Obj().Name(),
 			encodeType(n.Underlying()))
 	}
@@ -152,11 +151,13 @@ func encodeType(t types.Type) Type {
 	}
 }
 
-func GetPackageObjects(pkgName string) (objs []Object, err error) {
-	pkg, err := importer.Default().Import(pkgName)
+func GetPackage(pkgPath string) (*Package, error) {
+	var err error
+	pkg, err := importer.Default().Import(pkgPath)
 	if err != nil {
-		return objs, err
+		return nil, err
 	}
+	objs := []Object{}
 
 	for _, n := range pkg.Scope().Names() {
 		obj := pkg.Scope().Lookup(n)
@@ -190,5 +191,6 @@ func GetPackageObjects(pkgName string) (objs []Object, err error) {
 			}
 		}
 	}
-	return objs, nil
+	p := Package{pkg.Name(), objs}
+	return &p, nil
 }

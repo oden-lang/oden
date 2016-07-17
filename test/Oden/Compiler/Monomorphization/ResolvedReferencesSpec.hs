@@ -19,7 +19,7 @@ import qualified Oden.Type.Polymorphic                   as Poly
 import           Oden.Assertions
 import           Oden.Compiler.Monomorphization.Fixtures
 
-fooProtocolName = FQN [] (Identifier "Foo")
+fooProtocolName = nameInUniverse "Foo"
 fooMethodName = Identifier "foo"
 
 fooProtocol =

@@ -11,7 +11,7 @@ import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Monomorphed as Monomorphed
 
 import           Oden.Identifier
-import           Oden.QualifiedName    (QualifiedName(..))
+import           Oden.QualifiedName    (PackageName(..), QualifiedName(..))
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 import           Oden.Type.Signature
@@ -162,7 +162,12 @@ instance (Pretty r, Pretty t, Pretty m) => Pretty (Definition (Expr r t m)) wher
   pretty (Implementation _ implementation) = pretty implementation
 
 instance Pretty PackageName where
-  pretty parts = hcat (punctuate (text "/") (map text parts))
+  pretty =
+    \case
+      NativePackageName segments ->
+        hcat (punctuate (text "/") (map text segments))
+      ForeignPackageName name ->
+        text name
 
 instance Pretty PackageDeclaration where
   pretty (PackageDeclaration _ name) = text "package" <+> pretty name
@@ -182,7 +187,7 @@ instance Pretty Poly.TVarBinding where
   pretty (Poly.TVarBinding _ v) = pretty v
 
 instance Pretty QualifiedName where
-  pretty (FQN pkg identifier) = hcat (punctuate (text "/") (map text pkg ++ [pretty identifier]))
+  pretty (FQN pkg identifier) = pretty pkg <> dot <> pretty identifier
 
 isFunctionType :: Poly.Type -> Bool
 isFunctionType = \case
@@ -199,7 +204,7 @@ parensIfFunction t
 instance Pretty Poly.Type where
   pretty (Poly.TTuple _ f s r) = commaSepParens (f:s:r)
   pretty (Poly.TVar _ v) = pretty v
-  pretty (Poly.TCon _ (FQN [] (Identifier "unit"))) = text "()"
+  pretty (Poly.TCon _ (FQN (NativePackageName []) (Identifier "unit"))) = text "()"
   pretty (Poly.TCon _ n) = pretty n
   pretty (Poly.TApp _ cons param) = pretty cons <> parens (pretty param)
   pretty (Poly.TNoArgFn _ t) = rArr <+> parensIfFunction t
@@ -257,7 +262,7 @@ ppReturns rs = commaSepParens rs
 instance Pretty Mono.Type where
   pretty (Mono.TTuple _ f s r) =
     brackets (hcat (punctuate (text ", ") (map pretty (f:s:r))))
-  pretty (Mono.TCon _ (FQN [] (Identifier "unit"))) = text "()"
+  pretty (Mono.TCon _ (FQN (NativePackageName []) (Identifier "unit"))) = text "()"
   pretty (Mono.TCon _ n) = pretty n
   pretty (Mono.TApp _ cons param) = pretty cons <> parens (pretty param)
   pretty (Mono.TNoArgFn _ t) = rArr <+> pretty t

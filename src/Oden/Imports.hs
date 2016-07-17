@@ -12,17 +12,24 @@ import           Oden.Core.Package
 import           Oden.Core.Untyped
 import           Oden.Core.Typed
 import           Oden.Identifier
+import           Oden.Metadata
+import           Oden.QualifiedName
+import           Oden.SourceInfo
 
 import Control.Monad.Except
 
+import Control.Arrow (left)
+
 type UnsupportedMessage = (Identifier, String)
-data UnsupportedTypesWarning = UnsupportedTypesWarning { pkg      :: PackageName
+data UnsupportedTypesWarning = UnsupportedTypesWarning { pkg      :: String
                                                        , messages :: [UnsupportedMessage]
                                                        } deriving (Show, Eq)
 
 data PackageImportError
-  = NativePackageNotFound PackageName
-  | ForeignPackageImportError String String deriving (Show, Eq)
+  = PackageNotFound PackageName
+  | ForeignPackageImportError String String
+  | IllegalImportPackageName SourceInfo IdentifierValidationError
+  deriving (Show)
 
 
 type Imports = ExceptT PackageImportError IO
@@ -33,11 +40,24 @@ type ForeignImporter =
 
 
 type NativeImporter =
-  PackageName -> IO (Either PackageImportError TypedPackage)
+  [String] -> IO (Either PackageImportError TypedPackage)
 
 
 liftEither :: Either PackageImportError b -> Imports b
 liftEither = either throwError return
+
+
+importedPackageIdentifier :: SourceInfo -> PackageName -> Imports Identifier
+importedPackageIdentifier si pkgName =
+  liftEither (left (IllegalImportPackageName si) legalIdentifier)
+  where
+  legalIdentifier =
+    case pkgName of
+      NativePackageName segments ->
+        createLegalIdentifier (last segments)
+      ForeignPackageName name ->
+        createLegalIdentifier name
+
 
 resolveImports' :: ForeignImporter
                 -> NativeImporter
@@ -50,20 +70,24 @@ resolveImports' foreignImporter nativeImporter (UntypedPackage pkgDecl imports d
   resolveImport :: ([ImportedPackage TypedPackage], [UnsupportedTypesWarning])
                 -> ImportReference
                 -> Imports ([ImportedPackage TypedPackage], [UnsupportedTypesWarning])
-  resolveImport (pkgs, warnings) =
-    \case
+  resolveImport (pkgs, warnings) ref =
+    case ref of
       ImportForeignReference sourceInfo pkgString -> do
         res <- liftIO $ foreignImporter pkgString
-        (pkg'@(TypedPackage (PackageDeclaration _ pkgName) _ _), unsupported) <- liftEither res
+        (pkg'@(TypedPackage decl _ _), unsupported) <- liftEither res
+        let pkgName = packageDeclarationName decl
+        pkgIdentifier <- importedPackageIdentifier (unwrap sourceInfo) pkgName
         let warnings' =
               if null unsupported
               then warnings
-              else UnsupportedTypesWarning pkgName unsupported : warnings
-        return (ImportedPackage sourceInfo (Identifier (last pkgName)) pkg' : pkgs, warnings')
+              else UnsupportedTypesWarning (asString pkgIdentifier) unsupported : warnings
+        return (ImportedPackage ref pkgIdentifier pkg' : pkgs, warnings')
       ImportReference sourceInfo importedPkgName -> do
         res <- liftIO $ nativeImporter importedPkgName
-        pkg'@(TypedPackage (PackageDeclaration _ pkgName) _ _) <- liftEither res
-        return (ImportedPackage sourceInfo (Identifier (last pkgName)) pkg' : pkgs, warnings)
+        pkg'@(TypedPackage decl _ _) <- liftEither res
+        let pkgName = packageDeclarationName decl
+        pkgIdentifier <- importedPackageIdentifier (unwrap sourceInfo) pkgName
+        return (ImportedPackage ref pkgIdentifier pkg' : pkgs, warnings)
 
 
 resolveImports :: ForeignImporter

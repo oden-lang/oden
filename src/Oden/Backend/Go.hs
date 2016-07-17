@@ -9,7 +9,7 @@ module Oden.Backend.Go (
 import           Control.Monad.Except
 import           Control.Monad.Reader
 
-import           Data.List             (sortOn, find, intercalate)
+import           Data.List             (sortOn, find)
 import           Data.Maybe            (maybeToList)
 import qualified Data.Set              as Set
 
@@ -31,7 +31,7 @@ import           Oden.Core.Typed
 
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName (QualifiedName(..))
+import           Oden.QualifiedName    (PackageName(..), QualifiedName(..))
 import           Oden.SourceInfo       hiding (fileName)
 import qualified Oden.SourceInfo       as SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
@@ -41,7 +41,7 @@ type Codegen = ReaderT MonomorphedPackage (Except CodegenError)
 newtype GoBackend = GoBackend FilePath
 
 isUniverseTypeConstructor :: String -> Mono.Type -> Bool
-isUniverseTypeConstructor expected (Mono.TCon _ (FQN [] (Identifier actual))) =
+isUniverseTypeConstructor expected (Mono.TCon _ (FQN (NativePackageName []) (Identifier actual))) =
   actual == expected
 isUniverseTypeConstructor _ _ = False
 
@@ -362,9 +362,10 @@ genExpr expr = case expr of
       return [ AST.LiteralComment (genSourceInfo (getSourceInfo e))
              , value ]
 
-  (Block _ [] _) -> return emptyStructLiteral
+  Block _ [] _ ->
+    return emptyStructLiteral
 
-  (Block _ exprs t) -> do
+  Block _ exprs t -> do
     blockType <- genType t
     initStmts <- concat <$> mapM genWithSourceInfo (init exprs)
     let lastExpr = last exprs
@@ -419,11 +420,13 @@ genExpr expr = case expr of
   Foreign _ (ForeignBinaryOperator _) _ ->
     error "cannot codegen foreign binary operator without a full binary application"
 
+
 genBlock :: MonoTypedExpr -> Codegen AST.Block
 genBlock expr = do
   returnStmt <- AST.ReturnStmt . (:[]) <$> genExpr expr
   let comment = AST.StmtComment (genSourceInfo (getSourceInfo expr))
   return (AST.Block [comment, returnStmt])
+
 
 genTopLevel :: Identifier
             -> Mono.Type
@@ -462,6 +465,7 @@ genTopLevel name type' expr = do
          , AST.Decl (AST.VarDecl var)
          ]
 
+
 genInstance :: InstantiatedDefinition -> Codegen [AST.TopLevelDeclaration]
 genInstance = \case
   InstantiatedDefinition (Identifier _defName) _si name expr ->
@@ -469,14 +473,21 @@ genInstance = \case
   InstantiatedMethod  _si name expr ->
     genTopLevel name (typeOf expr) expr
 
+
 genMonomorphed :: MonomorphedDefinition -> Codegen [AST.TopLevelDeclaration]
 genMonomorphed (MonomorphedDefinition _ name mt expr) =
   genTopLevel name mt expr
 
+
 genImport :: ImportedPackage TypedPackage -> Codegen AST.ImportDecl
-genImport (ImportedPackage _ identifier (TypedPackage (PackageDeclaration _ pkgName) _ _)) =
-  AST.ImportDecl <$> genIdentifier identifier
-                 <*> return (AST.InterpretedStringLiteral (intercalate "/" pkgName))
+genImport (ImportedPackage ref identifier _) =
+  case ref of
+    ImportReference{} ->
+      error "TODO: Don't do codegen for native import. Better yet, exclude from IR."
+    ImportForeignReference _ pkgPath ->
+      AST.ImportDecl <$> genIdentifier identifier
+      <*> return (AST.InterpretedStringLiteral pkgPath)
+
 
 -- | Return the import alias name for the fmt package and possibly the code for
 -- importing fmt (if not imported by the user).
@@ -488,8 +499,9 @@ getFmtImport pkgs =
       let fmt = GI.Identifier "fmt"
       in (fmt, Just (AST.ImportDecl fmt (AST.InterpretedStringLiteral "fmt")))
   where
-  isFmtPackage (ImportedPackage _ _ (TypedPackage (PackageDeclaration _ ["fmt"]) _ _)) = True
-  isFmtPackage _ = False
+    isFmtPackage (ImportedPackage _ _ (TypedPackage (PackageDeclaration _ (ForeignPackageName "fmt")) _ _)) = True
+    isFmtPackage _ = False
+
 
 prelude :: GI.Identifier -> [AST.TopLevelDeclaration]
 prelude fmtAlias =
@@ -508,8 +520,17 @@ prelude fmtAlias =
        (AST.Block [AST.SimpleStmt (AST.ExpressionStmt (fmtApplication (GI.Identifier "Println")))])
   ]
 
+
+genPackageName :: PackageDeclaration -> Codegen GI.Identifier
+genPackageName (PackageDeclaration _ pkgName) =
+  case pkgName of
+    NativePackageName segments -> return (safeName (last segments))
+    ForeignPackageName n -> return (safeName n)
+
+
 genPackage :: MonomorphedPackage -> Codegen AST.SourceFile
-genPackage (MonomorphedPackage (PackageDeclaration _ name) imports is ms) = do
+genPackage (MonomorphedPackage pkgDecl imports is ms) = do
+  pkgName <- genPackageName pkgDecl
   imports' <- mapM genImport imports
 
   let (fmtAlias, fmtImport) = getFmtImport imports
@@ -520,16 +541,27 @@ genPackage (MonomorphedPackage (PackageDeclaration _ name) imports is ms) = do
 
   let allTopLevel = prelude fmtAlias ++ is' ++ ms'
 
-  return (AST.SourceFile (AST.PackageClause (safeName (last name))) allImports allTopLevel)
+  return (AST.SourceFile (AST.PackageClause pkgName) allImports allTopLevel)
+
 
 toFilePath :: GoBackend -> PackageName -> Codegen FilePath
-toFilePath _ [] = throwError (UnexpectedError "Package name cannot be empty")
-toFilePath (GoBackend goPath) parts =
-  let isMain = last parts == "main"
-      dirParts = "src" : if isMain then init parts else parts
-      dir = foldl (</>) goPath dirParts
-      fileName = if isMain then "main.go" else last parts ++ ".go"
-  in return (dir </> fileName)
+toFilePath (GoBackend goPath) =
+  \case
+    NativePackageName [] ->
+      throwError (UnexpectedError "Package name cannot be empty")
+
+    ForeignPackageName pkgName ->
+      throwError
+      (UnexpectedError $
+        "Cannot codegen a package with a native package name: " ++ pkgName)
+
+    NativePackageName segments ->
+      let isMain = last segments == "main"
+          dirParts = "src" : if isMain then init segments else segments
+          dir = foldl (</>) goPath dirParts
+          fileName = if isMain then "main.go" else last segments ++ ".go"
+      in return (dir </> fileName)
+
 
 instance Backend GoBackend where
   codegen backend pkg@(MonomorphedPackage (PackageDeclaration _ name) _ _ _) =

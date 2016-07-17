@@ -9,6 +9,10 @@ import (
 	"oden/importer"
 )
 
+type PackageResponse struct {
+	Package *importer.Package `json:"package"`
+}
+
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
@@ -21,14 +25,15 @@ func respondWithError(err error) string {
 	return string(b)
 }
 
-func getPackageObjectsJSON(pkgName string) string {
-	objs, err := importer.GetPackageObjects(pkgName)
+func getPackageJSON(pkgName string) string {
+	pkg, err := importer.GetPackage(pkgName)
 
 	if err != nil {
 		return respondWithError(err)
 	}
 
-	b, err := json.Marshal(importer.Scope{objs})
+	resp := PackageResponse{pkg}
+	b, err := json.Marshal(resp)
 	if err != nil {
 		return respondWithError(err)
 	}
@@ -36,9 +41,9 @@ func getPackageObjectsJSON(pkgName string) string {
 	return string(b)
 }
 
-//export GetPackageObjects
-func GetPackageObjects(name *C.char) *C.char {
-	return C.CString(getPackageObjectsJSON(C.GoString(name)))
+//export GetPackage
+func GetPackage(name *C.char) *C.char {
+	return C.CString(getPackageJSON(C.GoString(name)))
 }
 
 func usage() {
@@ -74,19 +79,14 @@ func main() {
 		return
 	}
 
-	objs, err := importer.GetPackageObjects(os.Args[2])
-	if err != nil {
-		die("%s\n", err)
-	}
-
 	switch cmd {
 	case "print":
-		fmt.Println(objs)
-	case "print-json":
-		bs, err := json.Marshal(objs)
+		pkg, err := importer.GetPackage(os.Args[2])
 		if err != nil {
 			die("%s\n", err)
 		}
-		fmt.Println(string(bs))
+		fmt.Println(pkg)
+	case "print-json":
+		fmt.Println(getPackageJSON(os.Args[2]))
 	}
 }

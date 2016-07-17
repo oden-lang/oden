@@ -359,7 +359,7 @@ types = [
 universe :: TypedPackage
 universe =
   TypedPackage
-  (PackageDeclaration (Metadata Predefined) [])
+  (PackageDeclaration (Metadata Predefined) (NativePackageName []))
   []
   (concat [ map toProtocolDef protocols
           , map toForeignDef foreignFns

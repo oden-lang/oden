@@ -16,46 +16,53 @@ evaluateBinaryMethodApplication :: TypedMethodReference
                                 -> Type
                                 -> Maybe Literal
 evaluateBinaryMethodApplication  f e1 e2 t =
-  case f of 
-    Unresolved (FQN [] (Identifier "Num")) (Identifier method) _ | t == typeInt -> do
-      (Int n1) <- evaluate e1
-      (Int n2) <- evaluate e2
-      case method of
-        "Add"      -> return $ Int (n1 + n2)
-        "Subtract" -> return $ Int (n1 - n2)
-        "Multiply" -> return $ Int (n1 * n2)
-        "Divide"   -> return $ Int (n1 `div` n2)
-        _          -> Nothing
-    Unresolved (FQN [] (Identifier "Ordered")) (Identifier method) _ | typeOf e1 == typeInt -> do
-      (Int n1) <- evaluate e1
-      (Int n2) <- evaluate e2
-      case method of
-        "LessThan"         -> return $ Bool (n1 < n2)
-        "LessThanEqual"    -> return $ Bool (n1 <= n2)
-        "GreaterThan"      -> return $ Bool (n1 > n2)
-        "GreaterThanEqual" -> return $ Bool (n1 >= n2)
-        _                  -> Nothing
-    Unresolved (FQN [] (Identifier "Logical")) (Identifier method) _ | t == typeBool -> do
-      (Bool b1) <- evaluate e1
-      (Bool b2) <- evaluate e2
-      case method of
-        "Conjunction" -> return $ Bool (b1 && b2)
-        "Disjunction" -> return $ Bool (b1 || b2)
-        _             -> Nothing
-    Unresolved (FQN [] (Identifier "Equality")) (Identifier method) _ | typeOf e1 == typeInt -> do
-      (Int n1) <- evaluate e1
-      (Int n2) <- evaluate e2
-      case method of
-        "EqualTo"    -> return $ Bool (n1 == n2)
-        "NotEqualTo" -> return $ Bool (n1 /= n2)
-        _            -> Nothing
-    Unresolved (FQN [] (Identifier "Equality")) (Identifier method) _ | typeOf e1 == typeBool -> do
-      (Bool b1) <- evaluate e1
-      (Bool b2) <- evaluate e2
-      case method of
-        "EqualTo"    -> return $ Bool (b1 == b2)
-        "NotEqualTo" -> return $ Bool (b1 /= b2)
-        _            -> Nothing
+  case f of
+    Unresolved (FQN (NativePackageName []) (Identifier protocolName')) (Identifier method) _ ->
+      case protocolName' of
+
+        "Num" | t == typeInt -> do
+                  (Int n1) <- evaluate e1
+                  (Int n2) <- evaluate e2
+                  case method of
+                    "Add"      -> return $ Int (n1 + n2)
+                    "Subtract" -> return $ Int (n1 - n2)
+                    "Multiply" -> return $ Int (n1 * n2)
+                    "Divide"   -> return $ Int (n1 `div` n2)
+                    _          -> Nothing
+
+        "Ordered" | typeOf e1 == typeInt -> do
+                      (Int n1) <- evaluate e1
+                      (Int n2) <- evaluate e2
+                      case method of
+                        "LessThan"         -> return $ Bool (n1 < n2)
+                        "LessThanEqual"    -> return $ Bool (n1 <= n2)
+                        "GreaterThan"      -> return $ Bool (n1 > n2)
+                        "GreaterThanEqual" -> return $ Bool (n1 >= n2)
+                        _                  -> Nothing
+
+        "Logical" | t == typeBool -> do
+                      (Bool b1) <- evaluate e1
+                      (Bool b2) <- evaluate e2
+                      case method of
+                        "Conjunction" -> return $ Bool (b1 && b2)
+                        "Disjunction" -> return $ Bool (b1 || b2)
+                        _             -> Nothing
+
+        "Equality" | typeOf e1 == typeInt -> do
+                       (Int n1) <- evaluate e1
+                       (Int n2) <- evaluate e2
+                       case method of
+                         "EqualTo"    -> return $ Bool (n1 == n2)
+                         "NotEqualTo" -> return $ Bool (n1 /= n2)
+                         _            -> Nothing
+        "Equality" | typeOf e1 == typeBool -> do
+                       (Bool b1) <- evaluate e1
+                       (Bool b2) <- evaluate e2
+                       case method of
+                         "EqualTo"    -> return $ Bool (b1 == b2)
+                         "NotEqualTo" -> return $ Bool (b1 /= b2)
+                         _            -> Nothing
+        _ -> Nothing
     _ -> Nothing
 
 evaluate :: TypedExpr -> Maybe Literal

@@ -13,7 +13,7 @@ import           Oden.Core.Untyped
 
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName    (QualifiedName(..))
+import           Oden.QualifiedName    (PackageName(..), QualifiedName(..))
 import qualified Oden.Syntax as Syntax
 import           Oden.Syntax (BinaryOperator(..))
 import           Oden.SourceInfo
@@ -170,7 +170,7 @@ desugarFnShortHand = \case
     expr' <- desugarExpr expr
     return (si, name, expr')
 
-desugarTopLevel' :: PackageName
+desugarTopLevel' :: Syntax.PackageName
                  -> [Syntax.TopLevel]
                  -> Writer [DesugarError] ([ImportReference], [Definition])
 desugarTopLevel' pkg top = do
@@ -201,19 +201,19 @@ desugarTopLevel' pkg top = do
             Nothing -> return ()
           return (is, newTypeSig name tsi (Just signature) ts, defs)
 
-        Syntax.ImportDeclaration si name ->
-          return (is ++ [ImportReference (Metadata si) name], ts, defs)
+        Syntax.ImportDeclaration si segments ->
+          return (is ++ [ImportReference (Metadata si) segments], ts, defs)
 
         Syntax.ImportForeignDeclaration si pkgName ->
           return (is ++ [ImportForeignReference (Metadata si) pkgName], ts, defs)
 
         Syntax.TypeDefinition si name typeSig ->
           -- TODO: Add support for type parameters
-          let def = TypeDefinition (Metadata si) (FQN pkg name) [] typeSig
+          let def = TypeDefinition (Metadata si) (FQN (NativePackageName pkg) name) [] typeSig
           in return (is, ts, defs ++ [def])
 
         Syntax.ProtocolDefinition si name varBinding methods ->
-          let def = ProtocolDefinition (Metadata si) (FQN pkg name) varBinding methods
+          let def = ProtocolDefinition (Metadata si) (FQN (NativePackageName pkg) name) varBinding methods
           in return (is, ts, defs ++ [def])
 
         Syntax.Implementation si typeSignature methods ->
@@ -257,13 +257,15 @@ toEither w =
     (a, []) -> Right a
     (_, es) -> Left es
 
-desugarTopLevel :: PackageName -> [Syntax.TopLevel] -> Either [DesugarError] ([ImportReference], [Definition])
+desugarTopLevel :: Syntax.PackageName
+                -> [Syntax.TopLevel]
+                -> Either [DesugarError] ([ImportReference], [Definition])
 desugarTopLevel = (.) toEither . desugarTopLevel'
 
 desugarPackage' :: Syntax.Package -> Writer [DesugarError] (UntypedPackage ImportReference)
 desugarPackage' (Syntax.Package (Syntax.PackageDeclaration si name) definitions) = do
   (is, ds) <- desugarTopLevel' name definitions
-  return (UntypedPackage (PackageDeclaration (Metadata si) name) is ds)
+  return (UntypedPackage (PackageDeclaration (Metadata si) (NativePackageName name)) is ds)
 
 desugarPackage :: Syntax.Package -> Either [DesugarError] (UntypedPackage ImportReference)
 desugarPackage p = case runWriter (desugarPackage' p) of

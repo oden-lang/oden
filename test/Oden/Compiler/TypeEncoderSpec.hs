@@ -12,7 +12,7 @@ import           Oden.Type.Polymorphic
 missing :: Metadata SourceInfo
 missing = Metadata Missing
 
-con = TCon missing . FQN [] . Identifier
+con = TCon missing . nameInUniverse
 
 spec :: Spec
 spec = do
@@ -34,7 +34,7 @@ spec = do
   describe "encodeMethodInstance" $
     it "encodes arrow" $
       encodeMethodInstance
-      (FQN ["ignored"] (Identifier "Foo"))
+      (FQN (NativePackageName ["ignored"]) (Identifier "Foo"))
       (Identifier "bar")
       (TFn missing (con "int") (con "string"))
       `shouldBe`
