@@ -70,17 +70,22 @@ resolvePkg :: CompileEnvironment -> TypedPackage -> CLI TypedPackage
 resolvePkg compileEnv pkg' =
   liftEither (resolveInPackage compileEnv pkg')
 
-resolveImplsInFile :: SourceFile -> CLI (CompileEnvironment, TypedPackage)
-resolveImplsInFile sourceFile = do
+inferAndValidateFile :: SourceFile -> CLI TypedPackage
+inferAndValidateFile sourceFile = do
   inferredPkg <- snd <$> inferFile sourceFile
   validateTypedPkg inferredPkg
+  return inferredPkg
+
+resolveImplsInPackage :: TypedPackage -> CLI (CompileEnvironment, TypedPackage)
+resolveImplsInPackage inferredPkg = do
   let compileEnv = environmentFromPackage inferredPkg
   resolvedPkg <- resolvePkg compileEnv inferredPkg
   return (compileEnv, resolvedPkg)
 
 compileFile :: SourceFile -> CLI MonomorphedPackage
 compileFile sourceFile = do
-  (compileEnv, resolvedPkg) <- resolveImplsInFile sourceFile
+  inferredPkg <- inferAndValidateFile sourceFile
+  (compileEnv, resolvedPkg) <- resolveImplsInPackage inferredPkg
   liftEither (compile compileEnv resolvedPkg)
 
 codegenPkg :: MonomorphedPackage -> CLI [CompiledFile]
