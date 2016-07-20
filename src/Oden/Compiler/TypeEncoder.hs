@@ -1,6 +1,8 @@
 {-# LANGUAGE LambdaCase #-}
 module Oden.Compiler.TypeEncoder (
     encodeTypeInstance,
+    encodeQualifiedName,
+    encodeUnqualifiedTypeInstance,
     encodeMethodInstance
 ) where
 
@@ -20,6 +22,9 @@ pad = do
   n <- get
   tell (replicate n '_')
 
+
+doublePad :: TypeEncoder ()
+doublePad = pad >> pad
 
 withIncreasedLevel :: TypeEncoder () -> TypeEncoder ()
 withIncreasedLevel e = do
@@ -41,10 +46,16 @@ writeQualified (FQN pkgName name) =
   case pkgName of
     NativePackageName [] ->
       tell (asString name)
-    NativePackageName segments ->
-      tell (intercalate "_" segments ++ "_" ++ asString name)
-    ForeignPackageName foreignPkgName ->
-      tell ("foreign_" ++ foreignPkgName ++ "_" ++ asString name)
+    NativePackageName segments -> do
+      tell (intercalate "_" segments)
+      doublePad
+      tell (asString name)
+    ForeignPackageName foreignPkgName -> do
+      tell "foreign"
+      doublePad
+      tell foreignPkgName
+      doublePad
+      tell (asString name)
 
 
 writeType :: Type -> TypeEncoder ()
@@ -104,16 +115,26 @@ writeType row@RExtension{} = do
     pad
 writeType (TConstrained _ t) = writeType t
 
-encodeType :: Type -> String
-encodeType t = snd (runWriter (runStateT (writeType t) 1))
+runEncoder :: TypeEncoder () -> String
+runEncoder encoder = snd (runWriter (runStateT encoder 1))
 
-encodeTypeInstance :: Identifier -> Type -> String
-encodeTypeInstance identifier type' =
-  asString identifier ++ "_inst_" ++ encodeType type'
+encodeType :: Type -> String
+encodeType t = runEncoder (writeType t)
+
+encodeQualifiedName :: QualifiedName -> String
+encodeQualifiedName = runEncoder . writeQualified
+
+encodeTypeInstance :: QualifiedName -> Type -> String
+encodeTypeInstance fqn type' =
+  encodeQualifiedName fqn ++ "_inst_" ++ encodeType type'
+
+encodeUnqualifiedTypeInstance :: Identifier -> Type -> String
+encodeUnqualifiedTypeInstance name type' =
+  asString name ++ "_inst_" ++ encodeType type'
 
 encodeMethodInstance :: QualifiedName
                      -> Identifier
                      -> Type
                      -> String
-encodeMethodInstance (FQN _ protocolName') methodName type' =
-  asString protocolName' ++ "_method_" ++ asString methodName ++ "_inst_" ++ encodeType type'
+encodeMethodInstance protocolName' methodName type' =
+  encodeQualifiedName protocolName' ++ "_method_" ++ asString methodName ++ "_inst_" ++ encodeType type'

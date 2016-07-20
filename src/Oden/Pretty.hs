@@ -148,7 +148,7 @@ instance (Pretty r, Pretty t, Pretty m) => Pretty (ProtocolImplementation (Expr 
     <+> indentedInBraces (vcat (map pretty methods))
 
 instance (Pretty r, Pretty t, Pretty m) => Pretty (Definition (Expr r t m)) where
-  pretty (Definition _ name (scheme, expr)) = vcat [
+  pretty (Definition _ (FQN _ name) (scheme, expr)) = vcat [
       pretty name <+> text ":" <+> pretty scheme,
       prettyDefinition name expr
     ]
@@ -173,8 +173,12 @@ instance Pretty PackageDeclaration where
   pretty (PackageDeclaration _ name) = text "package" <+> pretty name
 
 instance Pretty (ImportedPackage TypedPackage) where
-  pretty (ImportedPackage _ _ (TypedPackage (PackageDeclaration _ pkgName) _ _)) =
-    text "import" <+> pretty pkgName
+  pretty (ImportedPackage ref _ _) =
+    case ref of
+      ImportReference _ pkgName ->
+        text "import" <+> pretty pkgName
+      ImportForeignReference _ pkgPath ->
+        text "import foreign" <+> text (show pkgPath) 
 
 instance Pretty Typed.TypedPackage  where
   pretty (Typed.TypedPackage decl imports defs) =
@@ -187,7 +191,10 @@ instance Pretty Poly.TVarBinding where
   pretty (Poly.TVarBinding _ v) = pretty v
 
 instance Pretty QualifiedName where
-  pretty (FQN pkg identifier) = pretty pkg <> dot <> pretty identifier
+  pretty =
+    \case
+      FQN (NativePackageName []) identifier -> pretty identifier
+      FQN pkg identifier -> pretty pkg <> dot <> pretty identifier
 
 isFunctionType :: Poly.Type -> Bool
 isFunctionType = \case
@@ -327,6 +334,10 @@ instance Pretty MonomorphedDefinition where
       pretty name <+> text ":" <+> pretty (typeOf expr),
       prettyDefinition name expr
     ]
+
+instance Pretty ForeignPackageImport where
+  pretty (ForeignPackageImport _ _name pkgPath) =
+    text "import" <+> text "foreign" <+> text pkgPath
 
 instance Pretty MonomorphedPackage where
   pretty (MonomorphedPackage decl imports is ms) =

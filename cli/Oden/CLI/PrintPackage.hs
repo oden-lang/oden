@@ -1,8 +1,9 @@
 module Oden.CLI.PrintPackage where
 
-import           Oden.Pretty             ()
-import           Oden.Scanner
+import           Oden.Backend
 import           Oden.QualifiedName
+import           Oden.Pretty             ()
+import           Oden.SourceFile
 
 import           Oden.CLI
 import           Oden.CLI.Build
@@ -40,10 +41,19 @@ printEnv path = do
 
 printResolved :: FilePath -> CLI ()
 printResolved path = do
-  pkg <- snd <$> resolveImplsInFile (OdenSourceFile path mainPkg)
+  typedPkg <- inferAndValidateFile (OdenSourceFile path mainPkg)
+  pkg <- snd <$> resolveImplsInPackage typedPkg
   liftIO $ putStrLn $ render $ pretty pkg
 
 printCompiled :: FilePath -> CLI ()
 printCompiled path = do
   pkg <- compileFile (OdenSourceFile path mainPkg)
   liftIO $ putStrLn $ render $ pretty pkg
+
+printCodeGen :: FilePath -> CLI ()
+printCodeGen path = do
+  pkg <- compileFile (OdenSourceFile path mainPkg)
+  files <- codegenPkg pkg
+  mapM_ printFile files
+  where
+    printFile (CompiledFile _ s) = liftIO $ putStrLn s

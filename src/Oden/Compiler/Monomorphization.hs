@@ -9,6 +9,7 @@ module Oden.Compiler.Monomorphization where
 
 import           Control.Monad.Except
 import           Control.Monad.RWS
+
 import           Data.Map                         as Map hiding (map)
 import           Data.Set                         as Set hiding (map)
 
@@ -19,16 +20,19 @@ import           Oden.Compiler.TypeEncoder
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Monomorphed            as Monomorphed
+import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Typed                  as Typed
 
 import           Oden.Environment                 as Environment
 import           Oden.Identifier
+import           Oden.QualifiedName
 import           Oden.Metadata
 
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic            as Mono
 import qualified Oden.Type.Polymorphic            as Poly
+
 
 data MonomorphError
   = NotInScope Identifier
@@ -46,10 +50,19 @@ data LetReference = LetReference Identifier Poly.Type Identifier
 -- was used.
 data LetInstance = LetInstance (Metadata SourceInfo) NameBinding MonoTypedExpr
 
-data MonomorphState = MonomorphState { instanceNames :: Map (Identifier, Poly.Type) Identifier
-                                     , instances     :: [InstantiatedDefinition]
-                                     , monomorphed   :: Map Identifier MonomorphedDefinition
+-- | The source of an instance, for differentiating between regular polymorphic definitions
+-- and instantiated methods.
+data InstanceSource
+  = DefinitionInstanceSource QualifiedName Poly.Type
+  | MethodInstanceSource QualifiedName Identifier Poly.Type
+  deriving (Show, Eq, Ord)
+
+data MonomorphState = MonomorphState { instanceNames    :: Map InstanceSource Identifier
+                                     , instances        :: [InstantiatedDefinition]
+                                     , monomorphedNames :: Map QualifiedName Identifier
+                                     , monomorphed      :: Map QualifiedName MonomorphedDefinition
                                      }
+
 
 -- | The monomorphization monad stack that keeps track of bindings, references
 -- and what is has monomorphed already.
@@ -59,26 +72,37 @@ type Monomorph a = RWST CompileEnvironment
                         (Except MonomorphError)
                         a
 
+
 lookupIn :: CompileEnvironment -> Identifier -> Monomorph Binding
 lookupIn env identifier =
   case Environment.lookup identifier env of
       Nothing             -> throwError $ NotInScope identifier
       Just binding        -> return binding
 
+
 withIdentifier :: Identifier -> Binding -> Monomorph a -> Monomorph a
 withIdentifier identifier binding = local (`extend` (identifier, binding))
 
-addInstanceName :: (Identifier, Poly.Type) -> Identifier -> Monomorph ()
-addInstanceName key name =
-  modify (\s -> s { instanceNames = Map.insert key name (instanceNames s) })
+
+addInstanceName :: InstanceSource -> Identifier -> Monomorph ()
+addInstanceName source name =
+  modify (\s -> s { instanceNames = Map.insert source name (instanceNames s) })
+
 
 addInstance :: InstantiatedDefinition -> Monomorph ()
 addInstance inst =
   modify (\s -> s { instances = instances s ++ [inst] })
 
-addMonomorphed :: Identifier -> MonomorphedDefinition -> Monomorph ()
-addMonomorphed identifier def =
-  modify (\s -> s { monomorphed = Map.insert identifier def (monomorphed s) })
+  
+addMonomorphedName :: QualifiedName -> Identifier -> Monomorph ()
+addMonomorphedName original name =
+  modify (\s -> s { monomorphedNames = Map.insert original name (monomorphedNames s) })
+
+
+addMonomorphed :: QualifiedName -> MonomorphedDefinition -> Monomorph ()
+addMonomorphed fqn def =
+  modify (\s -> s { monomorphed = Map.insert fqn def (monomorphed s) })
+
 
 instantiateMethod :: Poly.ProtocolName
                   -> Poly.MethodName
@@ -89,43 +113,70 @@ instantiateMethod protocolName methodName expr instanceType =
   case instantiate expr instanceType of
     Left err -> throwError (MonomorphInstantiateError err)
     Right instanceExpr -> do
-      let identifier = Identifier (encodeMethodInstance protocolName methodName (typeOf instanceExpr))
-      addInstanceName (identifier, typeOf instanceExpr) identifier
+      let source = MethodInstanceSource protocolName methodName (typeOf instanceExpr)
+          identifier = Identifier ("__" ++ encodeMethodInstance protocolName methodName (typeOf instanceExpr))
+      addInstanceName source identifier
       me <- monomorph instanceExpr
       addInstance (InstantiatedMethod (Metadata $ getSourceInfo instanceType) identifier me)
       return (typeOf me, identifier)
 
-instantiateDefinition :: (Identifier, Poly.Type)
+
+instantiateDefinition :: QualifiedName
+                      -> Poly.Type
                       -> TypedExpr
                       -> Monomorph Identifier
-instantiateDefinition key@(pn, t) expr =
+instantiateDefinition fqn t expr =
   case instantiate expr t of
     Left err -> throwError (MonomorphInstantiateError err)
     Right instanceExpr -> do
-      let identifier = Identifier (encodeTypeInstance pn (typeOf instanceExpr))
+      let instantiatedType = typeOf instanceExpr
+          source = DefinitionInstanceSource fqn instantiatedType
+          identifier = Identifier ("__" ++ encodeTypeInstance fqn instantiatedType)
       -- First add the name to the state to avoid endless loops for polymorphic
-      -- recursive functions that would monomorph themselves.
-      addInstanceName key identifier
+      -- recursive functions that would instantiate themselves.
+      addInstanceName source identifier
       me <- monomorph instanceExpr
       -- ... then add the actual instance.
-      addInstance (InstantiatedDefinition pn (Metadata $ getSourceInfo t) identifier me)
+      addInstance (InstantiatedDefinition fqn (Metadata $ getSourceInfo t) identifier me)
       return identifier
 
-getMonomorphicIn :: CompileEnvironment -> Identifier -> Poly.Type -> Monomorph Identifier
+  
+-- | An identifier after the 'flattening' process, i.e. when imported native definitions gets
+-- insert into the package and every definition gets a name based on it's fully qualified name.
+data MonomorphicIdentifier
+  = FlattenedIdentifier Identifier
+  | LocalIdentifier Identifier
+  | ForeignIdentifier QualifiedName
+
+
+findInstanceName :: InstanceSource -> Monomorph (Maybe Identifier)
+findInstanceName source = Map.lookup source <$> gets instanceNames
+
+
+getMonomorphicIn :: CompileEnvironment
+                 -> Identifier
+                 -> Poly.Type
+                 -> Monomorph MonomorphicIdentifier
 getMonomorphicIn env ident t = do
   binding <- lookupIn env ident
   case binding of
     PackageBinding{} -> throwError $ NotInScope ident
     DefinitionBinding definition ->
       case definition of
-        ForeignDefinition{} -> return ident
-        Definition _ _ (sc, pe) | Poly.isPolymorphic sc -> do
-          let key = (ident, t)
-          is <- gets instanceNames
-          case Map.lookup key is of
-            Just name -> return name
-            Nothing -> instantiateDefinition key pe
-        Definition _ pn _ -> return pn
+        ForeignDefinition _ definitionName _ ->
+          return (ForeignIdentifier definitionName)
+        Definition _ definitionName (sc, pe) | Poly.isPolymorphic sc -> do
+          res <- findInstanceName (DefinitionInstanceSource definitionName t)
+          case res of
+            Just name ->
+              return (FlattenedIdentifier name)
+            Nothing ->
+              FlattenedIdentifier <$> instantiateDefinition definitionName t pe
+        Definition{} -> do
+          res <- monomorphDefinition definition
+          case res of
+            Just name -> return (FlattenedIdentifier name)
+            Nothing -> throwError $ NotInScope ident
         -- Types cannot be referred to at this stage.
         TypeDefinition{} -> throwError $ NotInScope ident
         -- Protocols cannot be referred to at this stage.
@@ -134,9 +185,26 @@ getMonomorphicIn env ident t = do
         Implementation{} -> throwError $ NotInScope ident
 
     LetBinding (NameBinding _ boundIdentifier) expr ->
-      getMonomorphicLetBinding boundIdentifier t (typeOf expr)
+      LocalIdentifier <$> getMonomorphicLetBinding boundIdentifier t (typeOf expr)
     FunctionArgument (NameBinding _ boundIdentifier) ->
-      return boundIdentifier
+      return (LocalIdentifier boundIdentifier)
+
+
+getMonomorphicMethod :: QualifiedName
+                     -> Identifier
+                     -> TypedExpr
+                     -> Poly.Type
+                     -> Monomorph (Identifier, Mono.Type)
+getMonomorphicMethod protocolName' methodName expr polyType = do
+  res <- findInstanceName (MethodInstanceSource protocolName' methodName polyType)
+  case res of
+    Just name -> do
+      monoType <- getMonoType expr
+      return (name, monoType)
+    Nothing -> do
+      (monoType, name) <- instantiateMethod protocolName' methodName expr polyType
+      return (name, monoType)
+
 
 getMonomorphicLetBinding :: Identifier
                          -> Poly.Type
@@ -146,9 +214,10 @@ getMonomorphicLetBinding identifier mt pt | not (Poly.isPolymorphicType pt) = do
   tell (Map.singleton identifier (LetReference identifier mt identifier))
   return identifier
 getMonomorphicLetBinding identifier mt _ = do
-  let encoded = Identifier (encodeTypeInstance identifier mt)
+  let encoded = Identifier ("__" ++ encodeUnqualifiedTypeInstance identifier mt)
   tell (Map.singleton identifier (LetReference identifier mt encoded))
   return encoded
+
 
 toMonomorphic :: Metadata SourceInfo -> Poly.Type -> Monomorph Mono.Type
 toMonomorphic (Metadata si) pt =
@@ -157,8 +226,10 @@ toMonomorphic (Metadata si) pt =
   return
   (Poly.toMonomorphic pt)
 
+
 getMonoType :: TypedExpr -> Monomorph Mono.Type
 getMonoType e = toMonomorphic (Metadata $ getSourceInfo e) (typeOf e)
+
 
 -- | Return a monomorphic version of a polymorphic expression.
 monomorph :: TypedExpr -> Monomorph MonoTypedExpr
@@ -167,7 +238,10 @@ monomorph e = case e of
     env <- ask
     mt <- getMonoType e
     m <- getMonomorphicIn env ident (typeOf e)
-    return (Symbol si m mt)
+    case m of
+      FlattenedIdentifier n -> return (Symbol si n mt)
+      LocalIdentifier n -> return (Symbol si n mt)
+      ForeignIdentifier _ -> return (Symbol si ident mt)
 
   Subscript sourceInfo sliceExpr indexExpr polyType ->
     Subscript sourceInfo <$> monomorph sliceExpr
@@ -277,7 +351,13 @@ monomorph e = case e of
           PackageBinding _ _ pkgEnv -> do
             m <- getMonomorphicIn pkgEnv name polyType
             monoType <- getMonoType e
-            return (MemberAccess si (Monomorphed.PackageMemberAccess pkgAlias m) monoType)
+            case m of
+              FlattenedIdentifier n ->
+                return (Symbol si n monoType)
+              LocalIdentifier n ->
+                return (Symbol si n monoType)
+              ForeignIdentifier _ ->
+                return (MemberAccess si (Monomorphed.PackageMemberAccess pkgAlias name) monoType)
           _ -> error "cannot access member in non-existing package"
 
   MethodReference si reference methodType ->
@@ -287,7 +367,7 @@ monomorph e = case e of
       Resolved protocolName' methodName (MethodImplementation _ _ expr)
         | shouldInline expr -> monomorph expr
         | otherwise -> do
-            (monoType, name) <- instantiateMethod protocolName' methodName expr methodType
+            (name, monoType) <- getMonomorphicMethod protocolName' methodName expr methodType
             return (Symbol si name monoType)
     where
     shouldInline =
@@ -300,27 +380,30 @@ monomorph e = case e of
     mt <- toMonomorphic si t
     return (Foreign si f mt)
 
--- Given a let-bound expression and a reference to that binding, create a
+
+-- | Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
 monomorphReference :: TypedExpr
                    -> Metadata SourceInfo -- Let expression source info.
                    -> Metadata SourceInfo -- Let binding source info.
                    -> LetReference
                    -> Monomorph LetInstance
+monomorphReference e letSourceInfo bindingSourceInfo =
+  \case
+    -- The let-bound value is monomorphic and does not need to be instantiated.
+    LetReference identifier _ _
+      | not (Poly.isPolymorphicType (typeOf e)) -> do
+          me <- monomorph e
+          return (LetInstance letSourceInfo (NameBinding bindingSourceInfo identifier) me)
 
--- The let-bound value is monomorphic and does not need to be instantiated.
-monomorphReference e letSourceInfo bindingSourceInfo (LetReference identifier _ _)
-  | not (Poly.isPolymorphicType (typeOf e)) = do
-    me <- monomorph e
-    return (LetInstance letSourceInfo (NameBinding bindingSourceInfo identifier) me)
+    -- The let-bound value is polymorphic and must be instantiated.
+    LetReference _ mt mn ->
+      case instantiate e mt of
+        Left err -> throwError (MonomorphInstantiateError err)
+        Right expr -> do
+          me <- monomorph expr
+          return (LetInstance letSourceInfo (NameBinding bindingSourceInfo mn) me)
 
--- The let-bound value is polymorphic and must be instantiated.
-monomorphReference e letSourceInfo bindingSourceInfo (LetReference _ mt mn) =
-  case instantiate e mt of
-    Left err -> throwError (MonomorphInstantiateError err)
-    Right expr -> do
-      me <- monomorph expr
-      return (LetInstance letSourceInfo (NameBinding bindingSourceInfo mn) me)
 
 -- | Creates nested let expressions for each let instance around the body
 -- expression.
@@ -331,37 +414,73 @@ unwrapLetInstances [] body = body
 unwrapLetInstances (LetInstance si mn me:is) body =
   Let si mn me (unwrapLetInstances is body) (typeOf body)
 
--- | Monomorphs definitions and keeps results in the state.
-monomorphDefinitions :: [TypedDefinition]
-                     -> Monomorph ()
-monomorphDefinitions [] = return ()
-monomorphDefinitions (def : defs) =
+
+encodeDefinitionName :: QualifiedName -> Identifier
+encodeDefinitionName =
+  \case
+    FQN _ (Identifier "main") ->
+      Identifier "main"
+    fqn ->
+      Identifier ("__" ++ encodeQualifiedName fqn)
+
+      
+-- | Recursively monomorph the definition if it has a monomorphic type. For definitions
+-- with polymorphic types the result will be 'Nothing'.
+monomorphDefinition :: TypedDefinition
+                    -> Monomorph (Maybe Identifier)
+monomorphDefinition def =
   case def of
-    Definition si identifier (Poly.Forall _ _ _ st, expr) -> do
+    Definition si fqn (Poly.Forall _ _ _ st, expr) ->
       case Poly.toMonomorphic st of
-        Left _ -> return ()
+        Left _ -> return Nothing
         Right mt -> do
-          mExpr <- monomorph expr
-          addMonomorphed identifier (MonomorphedDefinition si identifier mt mExpr)
-      -- Monomorph rest of the definitions with this definitions identifier in
-      -- the environment.
-      local (`extend` (identifier, DefinitionBinding def)) (monomorphDefinitions defs)
+          -- Check if this definition has already been monomorphed and given a name. If
+          -- so then just use that name.
+          names <- gets monomorphedNames
+          case Map.lookup fqn names of
+            Just name ->
+              -- Use the already monomorphed name.
+              return (Just name)
+            Nothing -> do
+              let encoded = encodeDefinitionName fqn
+              -- This is the first time we see this definition and try to monomorph
+              -- it. First record its qualified name and the flattened name...
+              addMonomorphedName fqn encoded
+              -- ... then start monomorphing it. If it is recursive the subsequent calls
+              -- to 'monomorphDefinition' will use the name we just recorded.
+              mExpr <- monomorph expr
+              -- Now we can add it to the map of monomorphed definitions, later to be
+              -- included in the 'MonomorphedPackage'.
+              addMonomorphed fqn (MonomorphedDefinition si encoded mt mExpr)
+              return $ Just encoded
 
     -- Type definitions are not monomorphed or generated to output code, so ignore.
-    TypeDefinition{} ->
-      monomorphDefinitions defs
+    TypeDefinition{} -> return Nothing
+
     -- Foreign definitions are are already monomorphic and not generated to out
     -- code, so ignore.
-    ForeignDefinition{} ->
-      monomorphDefinitions defs
+    ForeignDefinition{} -> return Nothing
+    
     -- Protocol definitions are not monomorphed or generated to output code, so
     -- ignore.
-    ProtocolDefinition{} ->
-      monomorphDefinitions defs
+    ProtocolDefinition{} -> return Nothing
+      
     -- Implementations are not monomorphed or generated to output code, so
     -- ignore.
-    Implementation{} ->
-      monomorphDefinitions defs
+    Implementation{} -> return Nothing
+
+
+selectForeignImports :: [ImportedPackage TypedPackage]
+                     -> [Monomorphed.ForeignPackageImport]
+selectForeignImports =
+  concatMap toMonomorphedImport
+  where
+    toMonomorphedImport (ImportedPackage ref name _) =
+      case ref of
+        ImportReference{} -> []
+        ImportForeignReference sourceInfo pkgPath ->
+          [Monomorphed.ForeignPackageImport sourceInfo name pkgPath]
+
 
 -- | Monomorphs a package and returns the complete package with instantiated
 -- and monomorphed definitions.
@@ -371,9 +490,13 @@ monomorphPackage :: CompileEnvironment
 monomorphPackage environment (TypedPackage pkgDecl imports definitions) = do
   let st = MonomorphState { instanceNames = Map.empty
                           , instances = []
+                          , monomorphedNames = Map.empty
                           , monomorphed = Map.empty
                           }
-  (_, s, _) <- runExcept $ runRWST (monomorphDefinitions definitions) environment st
+      action = mapM_ monomorphDefinition definitions
+  (_, s, _) <- runExcept $ runRWST action environment st
   let is = Set.fromList (instances s)
       ms = Set.fromList (Map.elems (monomorphed s))
-  return (MonomorphedPackage pkgDecl imports is ms)
+      imports' = selectForeignImports imports
+  return (MonomorphedPackage pkgDecl imports' is ms)
+

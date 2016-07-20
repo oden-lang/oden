@@ -192,7 +192,11 @@ desugarTopLevel' pkg top = do
               tell [err]
               return (is, ts, defs)
             Right (si, name, expr) ->
-              let def = Definition (Metadata si) name (Map.lookup name ts >>= snd . tempType) expr
+              let def = Definition
+                        (Metadata si)
+                        (FQN (NativePackageName pkg) name)
+                        (Map.lookup name ts >>= snd . tempType)
+                        expr
               in return (is, assignValue name si ts, defs ++ [def])
 
         Syntax.TypeSignatureDeclaration tsi name signature -> do

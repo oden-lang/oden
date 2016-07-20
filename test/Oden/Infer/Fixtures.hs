@@ -219,7 +219,7 @@ countToZeroTyped =
                               typeInt
   in
   tDefinition
-   (Identifier "f")
+   (nameInUniverse "f")
    (constrainedScheme (Set.fromList []) (typeFn typeInt typeInt),
     tFn
     (tNameBinding (Identifier "x"))
@@ -268,7 +268,7 @@ twiceUntyped =
 twiceTyped :: Typed.TypedDefinition
 twiceTyped =
   tDefinition
-  (Identifier "twice")
+  (nameInUniverse "twice")
   (scheme (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
     tFn
     (tNameBinding (Identifier "f"))

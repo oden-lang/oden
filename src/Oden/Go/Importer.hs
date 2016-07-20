@@ -196,7 +196,7 @@ convertPackage (GoPackage pkgName objs) =
          Left u -> (defs, (n, u) : msgs)
          Right (ct, _) ->
            let sc = Poly.Forall missing [] Set.empty ct
-           in (ForeignDefinition missing n sc : defs, msgs)
+           in (ForeignDefinition missing (FQN (ForeignPackageName pkgName) n) sc : defs, msgs)
 
 importer :: ForeignImporter
 importer pkgPath = do

@@ -39,38 +39,40 @@ block exprs = Block missing exprs (typeOf (last exprs))
 
 emptyPkg = UntypedPackage (PackageDeclaration missing (NativePackageName ["empty", "pkg"])) [] []
 
+myPkgName = NativePackageName ["mypkg"]
+
 spec :: Spec
 spec =
   describe "validateExpr" $ do
 
     it "accepts uniquely named definitions" $
-      validate (UntypedPackage (PackageDeclaration missing (NativePackageName ["mypkg"])) [] [
-            Definition missing (Identifier "foo") Nothing strExpr,
-            Definition missing (Identifier "bar") Nothing strExpr,
-            Definition missing (Identifier "baz") Nothing strExpr
+      validate (UntypedPackage (PackageDeclaration missing myPkgName) [] [
+            Definition missing (FQN myPkgName (Identifier "foo")) Nothing strExpr,
+            Definition missing (FQN myPkgName (Identifier "bar")) Nothing strExpr,
+            Definition missing (FQN myPkgName (Identifier "baz")) Nothing strExpr
         ])
       `shouldSucceedWith`
       []
 
     it "throws an error on duplicate top-level names" $
-      validate (UntypedPackage (PackageDeclaration missing (NativePackageName ["mypkg"])) [] [
-            Definition missing (Identifier "foo") Nothing strExpr,
-            Definition missing (Identifier "bar") Nothing strExpr,
-            Definition missing (Identifier "foo") Nothing strExpr
+      validate (UntypedPackage (PackageDeclaration missing myPkgName) [] [
+            Definition missing (FQN myPkgName (Identifier "foo")) Nothing strExpr,
+            Definition missing (FQN myPkgName (Identifier "bar")) Nothing strExpr,
+            Definition missing (FQN myPkgName (Identifier "foo")) Nothing strExpr
         ])
       `shouldFailWith`
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on let-bound name shadowing top-level definition" $
-      validate (UntypedPackage (PackageDeclaration missing (NativePackageName ["mypkg"])) [] [
+      validate (UntypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (FQN myPkgName (Identifier "foo"))
             Nothing
             strExpr,
             Definition
             missing
-            (Identifier "bar")
+            (FQN myPkgName (Identifier "bar"))
             Nothing
             (letExpr (Identifier "foo") strExpr strExpr)
         ])
@@ -78,10 +80,10 @@ spec =
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on let-bound name shadowing other let-bound name" $
-      validate (UntypedPackage (PackageDeclaration missing (NativePackageName ["mypkg"])) [] [
+      validate (UntypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "bar")
+            (FQN myPkgName (Identifier "bar"))
             Nothing
             (letExpr (Identifier "foo") strExpr (letExpr (Identifier "foo") strExpr strExpr))
         ])
@@ -89,15 +91,15 @@ spec =
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on arg shadowing top-level definition" $
-      validate (UntypedPackage (PackageDeclaration missing (NativePackageName ["mypkg"])) [] [
+      validate (UntypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (FQN myPkgName (Identifier "foo"))
             Nothing
             strExpr,
             Definition
             missing
-            (Identifier "bar")
+            (FQN myPkgName (Identifier "bar"))
             Nothing
             (fnExpr (Identifier "foo") strExpr)
         ])
@@ -105,10 +107,10 @@ spec =
       Redefinition Missing (Identifier "foo")
 
     it "throws an error on fn arg shadowing other fn arg" $
-      validate (UntypedPackage (PackageDeclaration missing (NativePackageName ["mypkg"])) [] [
+      validate (UntypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "bar")
+            (FQN myPkgName (Identifier "bar"))
             Nothing
             (fnExpr (Identifier "foo") (fnExpr (Identifier "foo") strExpr))
         ])

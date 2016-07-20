@@ -32,7 +32,7 @@ data MethodImplementation
   deriving (Show, Eq, Ord)
 
 data Definition
-  = Definition (Metadata SourceInfo) Identifier (Maybe TypeSignature) UntypedExpr
+  = Definition (Metadata SourceInfo) QualifiedName (Maybe TypeSignature) UntypedExpr
   | TypeDefinition (Metadata SourceInfo) QualifiedName [NameBinding] SignatureExpr
   | ProtocolDefinition (Metadata SourceInfo) QualifiedName SignatureVarBinding [ProtocolMethodSignature]
   | Implementation (Metadata SourceInfo) TypeSignature [MethodImplementation]

@@ -14,7 +14,7 @@ data IdentifierValidationError
   = Empty
   | IllegalStart Char
   | IllegalCharacters String
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 errorMessage :: IdentifierValidationError -> String
 errorMessage Empty =

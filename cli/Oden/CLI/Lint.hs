@@ -1,7 +1,7 @@
 module Oden.CLI.Lint where
 
 import           Oden.QualifiedName
-import           Oden.Scanner
+import           Oden.SourceFile
 
 import           Oden.CLI
 import           Oden.CLI.Build

@@ -13,10 +13,12 @@ import           Oden.Core.Foreign
 import           Oden.Core.Package
 import           Oden.Core.Typed
 import           Oden.Core.ProtocolImplementation
+
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName
 import           Oden.SourceInfo
+
 import           Oden.Type.Polymorphic
 
 import           Data.Set              hiding (map)
@@ -340,11 +342,11 @@ impls =
     (Foreign predefined (ForeignUnaryOperator Not) (TFn predefined typeBool typeBool))]
   ]
 
-foreignFns :: [(Identifier, Scheme)]
+foreignFns :: [(String, Scheme)]
 foreignFns = [
-  (Identifier "len", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
-  (Identifier "print", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit])),
-  (Identifier "println", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit]))
+  ("len", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
+  ("print", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit])),
+  ("println", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit]))
   ]
 
 types :: [(String, Type)]
@@ -369,4 +371,4 @@ universe =
     where
     toProtocolDef (s, p) = ProtocolDefinition predefined (nameInUniverse s) p
     toTypeDef (s, t) = TypeDefinition predefined (nameInUniverse s) [] t
-    toForeignDef (i, s) = ForeignDefinition predefined i s
+    toForeignDef (i, s) = ForeignDefinition predefined (nameInUniverse i) s

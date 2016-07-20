@@ -27,7 +27,6 @@ import           Oden.Core.Expr
 import           Oden.Core.Monomorphed as Monomorphed
 import           Oden.Core.Package
 import           Oden.Core.Foreign
-import           Oden.Core.Typed
 
 import           Oden.Identifier
 import           Oden.Metadata
@@ -468,9 +467,9 @@ genTopLevel name type' expr = do
 
 genInstance :: InstantiatedDefinition -> Codegen [AST.TopLevelDeclaration]
 genInstance = \case
-  InstantiatedDefinition (Identifier _defName) _si name expr ->
+  InstantiatedDefinition _fqn _si name expr ->
     genTopLevel name (typeOf expr) expr
-  InstantiatedMethod  _si name expr ->
+  InstantiatedMethod _si name expr ->
     genTopLevel name (typeOf expr) expr
 
 
@@ -479,27 +478,23 @@ genMonomorphed (MonomorphedDefinition _ name mt expr) =
   genTopLevel name mt expr
 
 
-genImport :: ImportedPackage TypedPackage -> Codegen AST.ImportDecl
-genImport (ImportedPackage ref identifier _) =
-  case ref of
-    ImportReference{} ->
-      error "TODO: Don't do codegen for native import. Better yet, exclude from IR."
-    ImportForeignReference _ pkgPath ->
-      AST.ImportDecl <$> genIdentifier identifier
-      <*> return (AST.InterpretedStringLiteral pkgPath)
-
+genImport :: ForeignPackageImport -> Codegen AST.ImportDecl
+genImport (ForeignPackageImport _ name pkgPath) = do
+  id' <- genIdentifier name
+  return (AST.ImportDecl id' (AST.InterpretedStringLiteral pkgPath))
 
 -- | Return the import alias name for the fmt package and possibly the code for
 -- importing fmt (if not imported by the user).
-getFmtImport :: [ImportedPackage TypedPackage] -> (GI.Identifier, Maybe AST.ImportDecl)
+getFmtImport :: [ForeignPackageImport] -> (GI.Identifier, Maybe AST.ImportDecl)
 getFmtImport pkgs =
   case find isFmtPackage pkgs of
-    Just (ImportedPackage _ (Identifier alias) _) -> (GI.Identifier alias, Nothing)
+    Just (ForeignPackageImport _ (Identifier alias) _) ->
+      (GI.Identifier alias, Nothing)
     Nothing ->
       let fmt = GI.Identifier "fmt"
       in (fmt, Just (AST.ImportDecl fmt (AST.InterpretedStringLiteral "fmt")))
   where
-    isFmtPackage (ImportedPackage _ _ (TypedPackage (PackageDeclaration _ (ForeignPackageName "fmt")) _ _)) = True
+    isFmtPackage (ForeignPackageImport _ _ "fmt") = True
     isFmtPackage _ = False
 
 

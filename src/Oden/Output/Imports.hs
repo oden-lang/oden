@@ -4,6 +4,7 @@ module Oden.Output.Imports () where
 import           Text.PrettyPrint.Leijen
 
 import           Oden.Imports
+import           Oden.Core.Package
 import           Oden.QualifiedName      (PackageName(..))
 import           Oden.Output
 import           Oden.Pretty             ()
@@ -20,17 +21,23 @@ instance OdenOutput PackageImportError where
         "Imports.PackageImportError"
       IllegalImportPackageName{} ->
         "Imports.IllegalImportPackageName"
+      PackageNotInEnvironment{} ->
+        "Imports.PackageNotInEnvironment"
 
   header err s =
     case err of
-      PackageNotFound pkgName@NativePackageName{} ->
+      PackageNotFound _ pkgName@NativePackageName{} ->
         text "Package not found:" <+> pretty pkgName
-      PackageNotFound (ForeignPackageName pkgName) ->
+      PackageNotFound _ (ForeignPackageName pkgName) ->
         text "Foreign package not found:" <+> strCode s pkgName
       ForeignPackageImportError n _ ->
         text "Failed to import Go package:" <+> strCode s n
       IllegalImportPackageName _ nameErr ->
         header nameErr s
+      PackageNotInEnvironment (ImportReference _ pkgName) ->
+        text "Package not in environment:" <+> pretty pkgName
+      PackageNotInEnvironment (ImportForeignReference _ pkgPath) ->
+        text "Package not in environment:" <+> pretty pkgPath
 
   details err s =
     case err of
@@ -40,9 +47,12 @@ instance OdenOutput PackageImportError where
         text msg
       IllegalImportPackageName _ nameErr ->
         details nameErr s
+      PackageNotInEnvironment{} ->
+        empty
 
   sourceInfo =
     \case
+      PackageNotFound si _ -> Just si
       _ -> Nothing
 
 instance OdenOutput UnsupportedTypesWarning where

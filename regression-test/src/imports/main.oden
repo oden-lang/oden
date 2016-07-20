@@ -1,0 +1,7 @@
+package imports/main
+
+import imports/foo
+
+baz = foo.id(foo.msg)
+
+main() = println(baz)

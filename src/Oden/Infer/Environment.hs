@@ -35,9 +35,9 @@ fromPackage (TypedPackage _ _ defs) =
   where
   convert =
     \case
-      Definition si n (sc, _)                     ->
+      Definition si (FQN _ n) (sc, _)                     ->
         singleton n (Local si n sc)
-      ForeignDefinition si n sc                   ->
+      ForeignDefinition si (FQN _ n) sc                   ->
         singleton n (Local si n sc)
       TypeDefinition si qualified@(FQN _ n) bs t  ->
         singleton n (Type si qualified bs t)

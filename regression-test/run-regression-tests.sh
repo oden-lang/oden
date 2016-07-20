@@ -29,6 +29,10 @@ print_err() {
 }
 
 for test in $tests; do
+  if ! grep --quiet -e '^package .*main$' $test ; then
+    continue
+  fi
+
   tmp_oden_path=$(mktemp -d -t oden.XXXXXXXXXX)
   tmp_go_path=$(mktemp -d -t oden_out.XXXXXXXXXX)
   tmp_src_file=$tmp_oden_path/$test
@@ -36,7 +40,7 @@ for test in $tests; do
   mkdir -p $(dirname $tmp_src_file)
 
   cp $test $tmp_src_file
-  oden_out=$($ODEN -p$tmp_oden_path -o$tmp_go_path build 2>&1)
+  oden_out=$($ODEN -p$tmp_oden_path:$DIR -o$tmp_go_path build 2>&1)
   oden_return=$?
 
   go_out_file=$()$(mktemp -t go_out.XXXXXXXXXX)

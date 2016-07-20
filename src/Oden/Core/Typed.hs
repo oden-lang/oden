@@ -26,7 +26,6 @@ type CanonicalExpr = (Scheme, TypedExpr)
 type TypedDefinition = Definition TypedExpr
 
 
--- Some handy aliases.
 type TypedExpr = Expr TypedMethodReference Type TypedMemberAccess
 type TypedRange = Range TypedExpr
 

@@ -77,23 +77,23 @@ spec = do
 
     it "warns on discarded value in block" $
       validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
-            Definition missing (Identifier "foo") $ canonical (block [strExpr, unitExpr])
+            Definition missing (nameInUniverse "foo") $ canonical (block [strExpr, unitExpr])
         ])
       `shouldFailWith`
       ValueDiscarded strExpr
 
     it "does not warn on discarded unit value in block" $
       validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
-            Definition missing (Identifier "foo") $ canonical (block [unitExpr, strExpr])
+            Definition missing (nameInUniverse "foo") $ canonical (block [unitExpr, strExpr])
         ])
       `shouldSucceedWith`
       []
 
     it "accepts uniquely named definitions" $
       validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
-            Definition missing (Identifier "foo") (canonical strExpr),
-            Definition missing (Identifier "bar") (canonical strExpr),
-            Definition missing (Identifier "baz") (canonical strExpr)
+            Definition missing (nameInUniverse "foo") (canonical strExpr),
+            Definition missing (nameInUniverse "bar") (canonical strExpr),
+            Definition missing (nameInUniverse "baz") (canonical strExpr)
         ])
       `shouldSucceedWith`
       []
@@ -102,7 +102,7 @@ spec = do
       validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical divisionByZeroExpr)
         ])
       `shouldFailWith`
@@ -112,7 +112,7 @@ spec = do
       validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical $
               Subscript missing
                 (Symbol missing (Identifier "s") typeIntSlice)
@@ -126,7 +126,7 @@ spec = do
       validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical $
               Subslice missing
                 (Symbol missing (Identifier "s") typeIntSlice)
@@ -140,7 +140,7 @@ spec = do
       validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical $
               Subslice missing
                 (Symbol missing (Identifier "s") typeIntSlice)
@@ -154,7 +154,7 @@ spec = do
       validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical $
               Subslice missing
                 (Symbol missing (Identifier "s") typeIntSlice)
@@ -179,7 +179,7 @@ spec = do
         ] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical
              (MemberAccess
               missing

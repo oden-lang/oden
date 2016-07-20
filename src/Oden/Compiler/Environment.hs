@@ -9,7 +9,9 @@ import           Oden.Core.Typed
 import           Oden.Environment                 hiding (map)
 import           Oden.Identifier
 import           Oden.Metadata
+import           Oden.QualifiedName
 import           Oden.SourceInfo
+
 
 data Binding = PackageBinding (Metadata SourceInfo) Identifier CompileEnvironment
              | DefinitionBinding TypedDefinition
@@ -17,7 +19,9 @@ data Binding = PackageBinding (Metadata SourceInfo) Identifier CompileEnvironmen
              | FunctionArgument NameBinding
              deriving (Show, Eq)
 
+
 type CompileEnvironment = Environment Binding (ProtocolImplementation TypedExpr)
+
 
 fromPackage :: TypedPackage -> CompileEnvironment
 fromPackage (TypedPackage _ _ defs) =
@@ -25,13 +29,20 @@ fromPackage (TypedPackage _ _ defs) =
   where
   convert def =
     case def of
-      Definition _ n _        -> singleton n (DefinitionBinding def)
-      ForeignDefinition _ n _ -> singleton n (DefinitionBinding def)
+      Definition _ (FQN _ n) _ ->
+        singleton n (DefinitionBinding def)
+      ForeignDefinition _ (FQN _ n) _ ->
+        singleton n (DefinitionBinding def)
       -- All type and protocol usage should already be resolved before the
       -- compilation phase so we can safely ignore these.
-      TypeDefinition{}        -> empty
-      ProtocolDefinition{}    -> empty
-      Implementation _ impl   -> singletonImplementation impl
+      TypeDefinition{} ->
+        empty
+      ProtocolDefinition{} ->
+        empty
+      Implementation _ impl ->
+        singletonImplementation impl
+
+
 fromPackages :: [ImportedPackage TypedPackage] -> CompileEnvironment
 fromPackages =
   foldl iter empty

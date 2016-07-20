@@ -1,5 +1,4 @@
 module Oden.Scanner (
-  SourceFile(..),
   scan
 ) where
 
@@ -10,10 +9,8 @@ import           System.FilePath
 import           System.Posix.Files
 
 import           Oden.QualifiedName
-
-
-data SourceFile = OdenSourceFile FilePath PackageName
-                deriving (Show, Eq, Ord)
+import           Oden.Path
+import           Oden.SourceFile
 
 
 isOdenSourceFile :: FilePath -> Bool
@@ -40,5 +37,6 @@ scanAt pkgSegments path = do
     (path </> d)
 
 
-scan :: FilePath -> IO [SourceFile]
-scan = scanAt []
+scan :: OdenPath -> IO [SourceFile]
+scan (OdenPath []) = error "empty Oden Path"
+scan (OdenPath (root : _)) = scanAt [] (root </> "src")

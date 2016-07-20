@@ -107,7 +107,7 @@ exprAsDefinition :: String
 exprAsDefinition name expr =
   Definition
    missing
-   (Identifier name)
+   (nameInUniverse name)
    (Forall missing quantifiers constraints (typeOf expr), expr)
   where
   quantifiers = map (TVarBinding missing) (Set.toList $ ftv expr)
@@ -275,7 +275,7 @@ spec =
       testPkg
       []
       [ exprAsDefinition
-        "alias_inst_int_to_bool"
+        "__alias_inst_int_to_bool"
         (resolved
          testableProtocolName
          testableMethodName
@@ -285,7 +285,7 @@ spec =
         "referencing"
         (Application
          missing
-         (Symbol missing (Identifier "alias_inst_int_to_bool") (TFn missing typeInt typeBool))
+         (Symbol missing (Identifier "__alias_inst_int_to_bool") (TFn missing typeInt typeBool))
          (Literal missing (Int 0) typeInt)
          typeBool)
       ]

@@ -23,6 +23,8 @@ src l c = SourceInfo (Position "<test>" l c)
 ignored :: Metadata SourceInfo
 ignored = Metadata Missing
 
+pkgName = NativePackageName ["pkg"]
+
 desugarTopLevel top = snd <$> E.desugarTopLevel ["pkg"] top
 
 spec :: Spec
@@ -94,7 +96,7 @@ spec = do
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
-       (Identifier "f")
+       (FQN pkgName (Identifier "f"))
        Nothing
        (Expr.NoArgFn
         ignored
@@ -112,7 +114,7 @@ spec = do
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
-       (Identifier "f")
+       (FQN pkgName (Identifier "f"))
        Nothing
        (Expr.Fn
         ignored
@@ -131,7 +133,7 @@ spec = do
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
-       (Identifier "f")
+       (FQN pkgName (Identifier "f"))
        Nothing
        (Expr.Fn
         ignored
@@ -158,7 +160,7 @@ spec = do
       `shouldSucceedWith`
       [Untyped.TypeDefinition
        ignored
-       (FQN (NativePackageName ["pkg"]) (Identifier "S"))
+       (FQN pkgName (Identifier "S"))
        []
        (TSRecord
         (src 1 2)

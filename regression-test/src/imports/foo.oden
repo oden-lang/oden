@@ -1,0 +1,5 @@
+package imports/foo
+
+id(x) = x
+
+msg = "yey"

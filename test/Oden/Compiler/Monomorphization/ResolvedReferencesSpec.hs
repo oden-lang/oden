@@ -54,14 +54,14 @@ intFooMethodInstance :: InstantiatedDefinition
 intFooMethodInstance =
   InstantiatedMethod
   missing
-  (Identifier "Foo_method_foo_inst_int_to_int")
+  (Identifier "__Foo_method_foo_inst_int_to_int")
   (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") monoInt) (Mono.TFn missing monoInt monoInt))
 
 resolvedReferenceFooExpr :: TypedDefinition
 resolvedReferenceFooExpr =
   Definition
     missing
-    (Identifier "resolvedReferenceFooExpr")
+    (nameInUniverse "resolved_reference_foo_expr")
     (Poly.Forall missing [] Set.empty (Poly.TFn missing typeInt typeInt),
      MethodReference
      missing
@@ -75,15 +75,15 @@ resolvedReferenceFooMonomorphed :: MonomorphedDefinition
 resolvedReferenceFooMonomorphed =
   MonomorphedDefinition
     missing
-    (Identifier "resolvedReferenceFooExpr")
+    (Identifier "__resolved_reference_foo_expr")
     (Mono.TFn missing monoInt monoInt)
-    (Symbol missing (Identifier "Foo_method_foo_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+    (Symbol missing (Identifier "__Foo_method_foo_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
 
 resolvedReferenceAddExpr :: TypedDefinition
 resolvedReferenceAddExpr =
   Definition
     missing
-    (Identifier "resolvedReferenceAddExpr")
+    (nameInUniverse "resolved_reference_add_expr")
     (Poly.Forall missing [] Set.empty (Poly.TFn missing typeInt typeInt),
      MethodReference
      missing
@@ -100,7 +100,7 @@ resolvedReferenceAddMonomorphed :: MonomorphedDefinition
 resolvedReferenceAddMonomorphed =
   MonomorphedDefinition
   missing
-  (Identifier "resolvedReferenceAddExpr")
+  (Identifier "__resolved_reference_add_expr")
   (Mono.TFn missing monoInt monoInt)
   (Foreign missing (ForeignBinaryOperator Add) (Mono.TFn missing monoInt (Mono.TFn missing monoInt monoInt)))
 
