@@ -16,6 +16,7 @@ reservedNames :: [String]
 reservedNames = [
     "package",
     "import",
+    "foreign",
     "type",
     "protocol",
     "let",
@@ -44,10 +45,7 @@ nameFirst :: Parser Char
 nameFirst = alphaNum
 
 nameLetter :: Parser Char
-nameLetter = alphaNum <|> oneOf "_-'!?'"
-
-importLetter :: Parser Char
-importLetter = nameLetter <|> oneOf "."
+nameLetter = alphaNum <|> oneOf "_'!?'"
 
 lexer :: Tok.GenTokenParser L.Text () Identity
 lexer = Tok.makeTokenParser Tok.LanguageDef
@@ -126,12 +124,12 @@ packageName = part `sepBy` char '/'
   where
   part = many1 alphaNum
 
-importName :: Parser [String]
-importName = part `sepBy` char '/'
+requireName :: Parser [String]
+requireName = part `sepBy` char '/'
   where
   part = do
     c <- alphaNum
-    cs <- many1 importLetter
+    cs <- many1 nameLetter
     return (c:cs)
 
 topSeparator :: Parser ()

@@ -12,7 +12,7 @@ missing :: Metadata SourceInfo
 missing = Metadata Missing
 
 named :: String -> Type -> Type
-named = TNamed missing . FQN [] . Identifier
+named = TNamed missing . nameInUniverse
 
 typeInt :: Type
 typeInt = TCon missing (nameInUniverse "int")

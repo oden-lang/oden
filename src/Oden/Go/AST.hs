@@ -5,9 +5,9 @@ module Oden.Go.AST where
 import Oden.Go.Identifier
 import Oden.Go.Type
 
-data Comment 
+data Comment
   = CompilerDirective String
-  | Comment String 
+  | Comment String
   deriving (Show, Eq)
 
 data StringLiteral = RawStringLiteral String

@@ -1,0 +1,5 @@
+package importforeign/main
+
+import foreign "math"
+
+main() = println(math.Floor(math.Pi))

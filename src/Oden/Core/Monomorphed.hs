@@ -5,6 +5,7 @@ import           Oden.Core.Package
 import           Oden.Core.Typed
 import           Oden.Identifier
 import           Oden.Metadata
+import           Oden.QualifiedName
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic as Mono
 
@@ -22,13 +23,16 @@ data MonomorphedDefinition = MonomorphedDefinition (Metadata SourceInfo) Identif
                            deriving (Show, Eq, Ord)
 
 data InstantiatedDefinition
-  = InstantiatedDefinition Identifier (Metadata SourceInfo) Identifier MonoTypedExpr
+  = InstantiatedDefinition QualifiedName (Metadata SourceInfo) Identifier MonoTypedExpr
   | InstantiatedMethod (Metadata SourceInfo) Identifier MonoTypedExpr
   deriving (Show, Eq, Ord)
 
+data ForeignPackageImport
+  = ForeignPackageImport (Metadata SourceInfo) Identifier String
+  deriving (Show, Eq, Ord)
+
 data MonomorphedPackage = MonomorphedPackage PackageDeclaration
-                                             [ImportedPackage TypedPackage]
+                                             [ForeignPackageImport]
                                              (Set InstantiatedDefinition)
                                              (Set MonomorphedDefinition)
                      deriving (Show, Eq, Ord)
-

@@ -23,9 +23,9 @@ missing :: Metadata SourceInfo
 missing = Metadata Missing
 
 typeUnit, typeString, typeInt, typeIntSlice :: Type
-typeUnit = TCon (Metadata Predefined) (FQN [] (Identifier "unit"))
-typeString = TCon (Metadata Predefined) (FQN [] (Identifier "string"))
-typeInt = TCon (Metadata Predefined) (FQN [] (Identifier "int"))
+typeUnit = TCon (Metadata Predefined) (nameInUniverse "unit")
+typeString = TCon (Metadata Predefined) (nameInUniverse "string")
+typeInt = TCon (Metadata Predefined) (nameInUniverse "int")
 typeIntSlice = TSlice missing typeInt
 
 canonical :: TypedExpr -> CanonicalExpr
@@ -57,57 +57,62 @@ divisionByZeroExpr =
    missing
    (MethodReference
     missing
-    (Unresolved (nameInUniverse "Num") (Identifier "Divide") (ProtocolConstraint missing (nameInUniverse "Num") typeInt))
+    (Unresolved
+     (nameInUniverse "Num")
+     (Identifier "Divide")
+     (ProtocolConstraint missing (nameInUniverse "Num") typeInt))
     (TFn missing typeInt (TFn missing typeInt typeInt)))
    (intExpr 1)
    (TFn missing typeInt typeInt))
   (intExpr 0)
   typeInt
 
-emptyPkg = TypedPackage (PackageDeclaration missing ["empty", "pkg"]) [] []
+myPkgName = NativePackageName ["mypkg"]
+
+emptyPkg = TypedPackage (PackageDeclaration missing (NativePackageName ["empty", "pkg"])) [] []
 
 spec :: Spec
 spec = do
   describe "validateExpr" $ do
 
     it "warns on discarded value in block" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
-            Definition missing (Identifier "foo") $ canonical (block [strExpr, unitExpr])
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
+            Definition missing (nameInUniverse "foo") $ canonical (block [strExpr, unitExpr])
         ])
       `shouldFailWith`
       ValueDiscarded strExpr
 
     it "does not warn on discarded unit value in block" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
-            Definition missing (Identifier "foo") $ canonical (block [unitExpr, strExpr])
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
+            Definition missing (nameInUniverse "foo") $ canonical (block [unitExpr, strExpr])
         ])
       `shouldSucceedWith`
       []
 
     it "accepts uniquely named definitions" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
-            Definition missing (Identifier "foo") (canonical strExpr),
-            Definition missing (Identifier "bar") (canonical strExpr),
-            Definition missing (Identifier "baz") (canonical strExpr)
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
+            Definition missing (nameInUniverse "foo") (canonical strExpr),
+            Definition missing (nameInUniverse "bar") (canonical strExpr),
+            Definition missing (nameInUniverse "baz") (canonical strExpr)
         ])
       `shouldSucceedWith`
       []
 
     it "throws an error on literal division by zero" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical divisionByZeroExpr)
         ])
       `shouldFailWith`
       DivisionByZero divisionByZeroExpr
 
     it "throws an error on negative subscript" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical $
               Subscript missing
                 (Symbol missing (Identifier "s") typeIntSlice)
@@ -118,10 +123,10 @@ spec = do
       NegativeSliceIndex (intExpr (-1))
 
     it "throws an error on subslice from negative index" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical $
               Subslice missing
                 (Symbol missing (Identifier "s") typeIntSlice)
@@ -132,10 +137,10 @@ spec = do
       NegativeSliceIndex (intExpr (-1))
 
     it "throws an error on subslice to negative index" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical $
               Subslice missing
                 (Symbol missing (Identifier "s") typeIntSlice)
@@ -146,10 +151,10 @@ spec = do
       NegativeSliceIndex (intExpr (-1))
 
     it "throws an error on subslice from higher to lower index" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [] [
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical $
               Subslice missing
                 (Symbol missing (Identifier "s") typeIntSlice)
@@ -162,19 +167,19 @@ spec = do
   describe "validatePackage" $ do
 
     it "throws an error on unused imports" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [
-          ImportedPackage missing (Identifier "foo") emptyPkg
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [
+          ImportedPackage (ImportReference missing ["empty", "pkg"]) (Identifier "foo") emptyPkg
         ] [])
       `shouldFailWith`
-      UnusedImport Missing ["empty", "pkg"] (Identifier "foo")
+      UnusedImport Missing (NativePackageName ["empty", "pkg"]) (Identifier "foo")
 
     it "does not throw errors for used imports" $
-      validate (TypedPackage (PackageDeclaration missing ["mypkg"]) [
-          ImportedPackage missing (Identifier "other") emptyPkg
+      validate (TypedPackage (PackageDeclaration missing myPkgName) [
+          ImportedPackage (ImportReference missing ["my", "pkg"]) (Identifier "other") emptyPkg
         ] [
             Definition
             missing
-            (Identifier "foo")
+            (nameInUniverse "foo")
             (canonical
              (MemberAccess
               missing

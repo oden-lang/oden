@@ -73,14 +73,14 @@ func NewBasic(name string, untyped bool) Basic {
 }
 
 type Named struct {
-	Kind       string   `json:"kind"`
-	Pkg        []string `json:"pkg"`
-	Name       string   `json:"name"`
-	Underlying Type     `json:"underlying"`
+	Kind       string `json:"kind"`
+	Pkg        string `json:"pkg"`
+	Name       string `json:"name"`
+	Underlying Type   `json:"underlying"`
 	// Methods []Func `json:"methods"`
 }
 
-func NewNamed(pkg []string, name string, underlying Type) Named {
+func NewNamed(pkg string, name string, underlying Type) Named {
 	return Named{"named", pkg, name, underlying}
 }
 
@@ -107,6 +107,7 @@ type Object struct {
 	Type       Type   `json:"type"`
 }
 
-type Scope struct {
+type Package struct {
+	Name    string   `json:"name"`
 	Objects []Object `json:"objects"`
 }

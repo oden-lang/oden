@@ -18,13 +18,14 @@ import           Oden.Core.Typed
 
 import           Oden.Compiler.Environment
 import           Oden.Compiler.Instantiate
-import           Oden.Compiler.TypeEncoder
+import           Oden.Compiler.NameEncoder
 
 import           Oden.Infer.Unification
 
 import           Oden.Environment                 as Environment
 import           Oden.Identifier
 import           Oden.Metadata
+import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
@@ -46,8 +47,8 @@ data ResolutionError
 
 type ResolveLog = Set ProtocolConstraint
 
-data ResolveState = ResolveState { instanceNames :: Map (Identifier, Type) Identifier
-                                 , instances     :: Map (Identifier, Type) TypedDefinition }
+data ResolveState = ResolveState { instanceNames :: Map (QualifiedName, Type) Identifier
+                                 , instances     :: Map (QualifiedName, Type) TypedDefinition }
 
 
 initialState :: ResolveState
@@ -108,11 +109,11 @@ lookupIn env identifier =
       Just binding -> return binding
 
 
-addInstanceName :: (Identifier, Type) -> Identifier -> Resolve ()
+addInstanceName :: (QualifiedName, Type) -> Identifier -> Resolve ()
 addInstanceName key name =
   modify (\s -> s { instanceNames = Map.insert key name (instanceNames s) })
 
-addInstance :: (Identifier, Type)
+addInstance :: (QualifiedName, Type)
             -> TypedDefinition
             -> Resolve ()
 addInstance key def =
@@ -130,13 +131,13 @@ getResolvedIn env ident constraints t = do
     DefinitionBinding definition ->
       case definition of
         ForeignDefinition{} -> return ident
-        Definition _ _ (sc, pe) | isPolymorphic sc -> do
-          let key = (ident, t)
+        Definition _ fqn (sc, pe) | isPolymorphic sc -> do
+          let key = (fqn, t)
           is <- gets instanceNames
           case Map.lookup key is of
             Just name -> return name
             Nothing -> instantiateDefinition key constraints pe
-        Definition _ pn _ -> return pn
+        Definition _ (FQN _ n) _ -> return n
         -- Types cannot be referred to at this stage.
         TypeDefinition{} -> throwError $ NotInScope ident
         -- Protocols cannot be referred to at this stage.
@@ -151,25 +152,25 @@ getResolvedIn env ident constraints t = do
       return boundIdentifier
 
 
-instantiateDefinition :: (Identifier, Type)
+instantiateDefinition :: (QualifiedName, Type)
                       -> Set ProtocolConstraint
                       -> TypedExpr
                       -> Resolve Identifier
-instantiateDefinition key@(name, type') constraints expr = do
-  let identifier = Identifier (encodeTypeInstance name type')
+instantiateDefinition key@(FQN pkgName name, type') constraints expr = do
+  let identifier = Identifier ("__" ++ encodeTypeInstance (FQN pkgName name) type')
       exprWithoutConstraints = mapType (`dropConstraints` constraints) expr
   case instantiate exprWithoutConstraints type' of
     Left err -> throwError (ResolutionInstantiateError err)
     Right expr' -> do
-      -- First add the name to the state to avoid endless loops for polymorphic
-      -- recursive functions that would monomorph themselves.
+      -- First add the name to the state to avoid endless loops for
+      -- recursive functions that would resolve themselves.
       addInstanceName key identifier
       resolvedExpr <- resolveInExpr' expr'
       -- ... then add the actual instance.
       let originalType = typeOf expr'
           def = Definition
                 (Metadata $ getSourceInfo expr')
-                identifier
+                (FQN pkgName identifier)
                 (Forall
                  (Metadata $ getSourceInfo originalType)
                  []

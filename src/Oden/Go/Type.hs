@@ -23,8 +23,7 @@ data Type = Basic Identifier Bool
           | Slice Type
           | Signature (Maybe Type) Parameters Returns
           | Struct [StructField]
-          | Named [String] Identifier Type
+          | Named String Identifier Type
           | Interface [InterfaceMethodSpec]
           | Unsupported String                        -- Temporary solution for the Importer.
           deriving (Show, Eq)
-

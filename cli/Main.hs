@@ -35,7 +35,8 @@ main = do
     Right (opts, ["lint", path]) -> exec opts (lint path)
     Right (opts, ["print-inferred", path]) -> exec opts (printInferred path)
     Right (opts, ["print-resolved", path]) -> exec opts (printResolved path)
-    Right (opts, ["print-compiled", path]) -> exec opts (printCompiled path)
     Right (opts, ["print-env", path]) -> exec opts (printEnv path)
     Right (opts, ["print-types", path]) -> exec opts (printTypes path)
+    Right (opts, ["print-compiled", path]) -> exec opts (printCompiled path)
+    Right (opts, ["print-codegen", path]) -> exec opts (printCodeGen path)
     Right _ -> putStrLn help

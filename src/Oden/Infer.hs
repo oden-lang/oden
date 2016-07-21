@@ -502,7 +502,7 @@ type ShouldCloseOver = Bool
 inferDef :: Untyped.Definition -> Infer (Typed.TypedDefinition, ShouldCloseOver)
 inferDef =
   \case
-    Untyped.Definition si name signature expr -> do
+    Untyped.Definition si fqn@(FQN _ name) signature expr -> do
       env <- ask
       case signature of
         Nothing -> do
@@ -510,7 +510,7 @@ inferDef =
           let recScheme = Forall si [] Set.empty tv
           let recursiveEnv = env `extend` (name, Local si name recScheme)
           te <- local (const recursiveEnv) (infer expr)
-          return (Definition si name (recScheme, te), True)
+          return (Definition si fqn (recScheme, te), True)
         Just ts -> do
           (recScheme@(Forall _ _ _ recType), envWithBindings) <- resolveTypeSignature ts
           let recursiveEnv = envWithBindings  `extend` (name, Local si name recScheme)
@@ -518,7 +518,7 @@ inferDef =
           uni (getSourceInfo te) (typeOf te) recType
           case recScheme `subsumedBy` te of
             Left e -> throwError $ TypeSignatureSubsumptionError name e
-            Right canonical -> return (Definition si name canonical, False)
+            Right canonical -> return (Definition si fqn canonical, False)
 
     Untyped.TypeDefinition si name params typeExpr -> do
       type' <- resolveType typeExpr
@@ -568,16 +568,18 @@ inferDefinition env def = do
   ((def', shouldCloseOver), cs) <- runInfer env (inferDef def)
 
   case def' of
-    Definition si name (_, te) | shouldCloseOver -> do
+
+    Definition si fqn@(FQN _ name) (_, te) | shouldCloseOver -> do
       subst <- left UnificationError $ runSolve cs
       let canonical'@(sc, _) = closeOver (apply subst te)
           env' = env `extend` (name, Local si name sc)
-      return (env', Definition si name canonical')
-    Definition si name canonical -> do
+      return (env', Definition si fqn canonical')
+
+    Definition si fqn@(FQN _ name) canonical -> do
       subst <- left UnificationError $ runSolve cs
       let canonical'@(sc, _) = normalize (apply subst canonical)
           env' = env `extend` (name, Local si name sc)
-      return (env', Definition si name canonical')
+      return (env', Definition si fqn canonical')
 
     TypeDefinition si name@(FQN _ localName) params type' ->
       return (env `extend` (localName, Type si name params type'), def')
@@ -590,7 +592,7 @@ inferDefinition env def = do
       let substImpl = apply subst impl
       return (substImpl `addImplementation` env, Implementation si substImpl)
 
-    ForeignDefinition _ name _ ->
+    ForeignDefinition _ (FQN _ name) _ ->
       error ("unexpected foreign definition: " ++ asString name)
 
 -- | Infer the package, returning a package with typed definitions along with

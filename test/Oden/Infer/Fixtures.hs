@@ -46,7 +46,7 @@ typeFn :: Type -> Type -> Type
 typeFn = TFn missing
 
 named :: String -> Type -> Type
-named = TNamed missing . FQN [] . Identifier
+named = TNamed missing . nameInUniverse
 
 typeSlice :: Type -> Type
 typeSlice = TSlice missing
@@ -125,7 +125,7 @@ predefAndMaxVariadic :: TypingEnvironment
 predefAndMaxVariadic = predef `extend` (Identifier "max",
                                         Local predefined (Identifier "max") $ scheme (typeForeign True [TSlice missing typeInt] [typeInt]))
 
-testableProtocolName = FQN [] (Identifier "Testable")
+testableProtocolName = nameInUniverse "Testable"
 testableMethodName = Identifier "test"
 
 testableProtocol =
@@ -219,7 +219,7 @@ countToZeroTyped =
                               typeInt
   in
   tDefinition
-   (Identifier "f")
+   (nameInUniverse "f")
    (constrainedScheme (Set.fromList []) (typeFn typeInt typeInt),
     tFn
     (tNameBinding (Identifier "x"))
@@ -268,7 +268,7 @@ twiceUntyped =
 twiceTyped :: Typed.TypedDefinition
 twiceTyped =
   tDefinition
-  (Identifier "twice")
+  (nameInUniverse "twice")
   (scheme (typeFn (typeFn tvarA tvarA) (typeFn tvarA tvarA)),
     tFn
     (tNameBinding (Identifier "f"))

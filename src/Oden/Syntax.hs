@@ -117,7 +117,8 @@ data Definition
   deriving (Show, Eq, Ord)
 
 data TopLevel
-  = ImportDeclaration SourceInfo PackageName
+  = ImportDeclaration SourceInfo [String]
+  | ImportForeignDeclaration SourceInfo String
   | TypeSignatureDeclaration SourceInfo Identifier TypeSignature
   | TopLevelDefinition Definition
   -- TODO: Add support for type parameters

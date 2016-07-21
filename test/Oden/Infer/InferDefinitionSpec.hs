@@ -26,7 +26,7 @@ spec = describe "inferDefinition" $ do
   it "infers 'n = 1 + 1'" $
     inferDefinition predef (Untyped.Definition
                             missing
-                            (Identifier "n")
+                            (nameInUniverse "n")
                             Nothing
                             (Application
                              missing
@@ -40,7 +40,7 @@ spec = describe "inferDefinition" $ do
     `shouldSucceedWith`
     let constraint = ProtocolConstraint missing (nameInUniverse "Num") typeInt in
     tDefinition
-    (Identifier "n")
+    (nameInUniverse "n")
     (scheme typeInt,
      tApplication
      (tApplication
@@ -54,9 +54,9 @@ spec = describe "inferDefinition" $ do
      typeInt)
 
   it "infers definition without type signature" $
-    inferDefinition empty (Untyped.Definition missing (Identifier "x") Nothing (Literal missing (Int 1) Untyped))
+    inferDefinition empty (Untyped.Definition missing (nameInUniverse "x") Nothing (Literal missing (Int 1) Untyped))
     `shouldSucceedWith`
-    tDefinition (Identifier "x") (scheme typeInt, tLiteral (tInt 1) typeInt)
+    tDefinition (nameInUniverse "x") (scheme typeInt, tLiteral (tInt 1) typeInt)
 
   it "infers polymorphic definition without type signature" $
     shouldSucceed $
@@ -64,34 +64,37 @@ spec = describe "inferDefinition" $ do
         empty
         (Untyped.Definition
          missing
-         (Identifier "id")
+         (nameInUniverse "id")
          Nothing
          (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") Untyped) Untyped))
 
   it "infers definition with type signature" $
     inferDefinition predef (Untyped.Definition
                             missing
-                            (Identifier "x")
+                            (nameInUniverse "x")
                             (Just $ implicit (tsSymbol (Identifier "int")))
                             (Literal missing (Int 1) Untyped))
     `shouldSucceedWith`
-    tDefinition (Identifier "x") (scheme typeInt, tLiteral (tInt 1) typeInt)
+    tDefinition (nameInUniverse "x") (scheme typeInt, tLiteral (tInt 1) typeInt)
 
   it "infers polymorphic definition with type signature" $
     inferDefinition empty (Untyped.Definition
                            missing
-                           (Identifier "id")
+                           (nameInUniverse "id")
                            (Just $ explicit [varBinding "a"] (tsFn (tsVar "a") (tsVar "a")))
                            (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") Untyped) Untyped))
     `shouldSucceedWith`
-    tDefinition (Identifier "id") (scheme (typeFn tvarA tvarA),
-                          tFn (tNameBinding (Identifier "x")) (tSymbol (Identifier "x") tvarA) (typeFn tvarA tvarA))
+    tDefinition (nameInUniverse "id") ( scheme (typeFn tvarA tvarA)
+                                      , tFn
+                                        (tNameBinding (Identifier "x"))
+                                        (tSymbol (Identifier "x") tvarA)
+                                        (typeFn tvarA tvarA))
 
   it "fails when specified type signature does not unify" $
     shouldFail $
       inferDefinition empty (Untyped.Definition
                              missing
-                             (Identifier "some-number")
+                             (nameInUniverse "some-number")
                              (Just $ implicit (tsSymbol (Identifier "bool")))
                              (Literal missing (Int 1) Untyped))
 
@@ -100,7 +103,7 @@ spec = describe "inferDefinition" $ do
     empty
     (Untyped.Definition
      missing
-     (Identifier "twice")
+     (nameInUniverse "twice")
      (Just $ explicit [varBinding "a"] (tsFn (tsFn (tsVar "a") (tsVar "a")) (tsFn (tsVar "a") (tsVar "a"))))
      twiceUntyped)
     `shouldSucceedWith`
@@ -110,7 +113,7 @@ spec = describe "inferDefinition" $ do
     shouldFail $
       inferDefinition empty (Untyped.Definition
                              missing
-                             (Identifier "twice")
+                             (nameInUniverse "twice")
                              (Just $ explicit [varBinding "a"] (tsFn (tsVar "a") (tsVar "a")))
                              twiceUntyped)
 
@@ -119,14 +122,14 @@ spec = describe "inferDefinition" $ do
     predef
     (Untyped.Definition
      missing
-     (Identifier "f")
+     (nameInUniverse "f")
      (Just $ implicit (tsFn (tsSymbol (Identifier "int")) (tsSymbol (Identifier "int"))))
      countToZero)
     `shouldSucceedWith`
     countToZeroTyped
 
   it "infers recursive definition without type signature" $
-    inferDefinition predef (Untyped.Definition missing (Identifier "f") Nothing countToZero)
+    inferDefinition predef (Untyped.Definition missing (nameInUniverse "f") Nothing countToZero)
     `shouldSucceedWith`
     countToZeroTyped
 
@@ -136,7 +139,7 @@ spec = describe "inferDefinition" $ do
         predef
         (Untyped.Definition
          missing
-         (Identifier "f")
+         (nameInUniverse "f")
          (Just $ implicit (tsFn (tsSymbol (Identifier "int")) (tsSymbol (Identifier "any"))))
          countToZero)
 
@@ -147,7 +150,7 @@ spec = describe "inferDefinition" $ do
     predef
     (Untyped.Definition
      missing
-     (Identifier "f")
+     (nameInUniverse "f")
      (Just $ explicit [varBinding "a", varBinding "b"] (tsFn (tsRecord (tsRowExt (Identifier "foo") (tsVar "a") (tsVar "b"))) (tsVar "a")))
      (Fn
       missing
@@ -159,7 +162,7 @@ spec = describe "inferDefinition" $ do
       Untyped))
     `shouldSucceedWith`
     tDefinition
-    (Identifier "f")
+    (nameInUniverse "f")
     (scheme functionType,
      tFn
      (tNameBinding (Identifier "x"))

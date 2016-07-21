@@ -69,7 +69,7 @@ validatePackage (UntypedPackage _ _ definitions) =
   where
   validateDefs =
     \case
-      Definition si name _ expr : defs -> do
+      Definition si (FQN _ name) _ expr : defs -> do
         errorIfDefined name si
         withIdentifier name $ do
           validateExpr expr
@@ -89,4 +89,3 @@ validate :: UntypedPackage ImportReference
          -> Either ValidationError [ValidationWarning]
 validate pkg =
   runExcept (snd <$> evalRWST (validatePackage pkg) Set.empty initState)
-

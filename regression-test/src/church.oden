@@ -10,8 +10,8 @@ T = const
 F : forall a b. a -> b -> b
 F(x, y) = y
 
-to-bool : (bool -> bool -> bool) -> bool
-to-bool(b) = b(true, false)
+to_bool : (bool -> bool -> bool) -> bool
+to_bool(b) = b(true, false)
 
 // Numerals
 zero : forall a. (a -> a) -> (a -> a)
@@ -29,24 +29,24 @@ plus(m, n, f, x) = n(f, m(f, x))
 
 mult(m, n, f) = m(n(f))
 
-to-int(n) = n((i) -> i + 1, 0)
+to_int(n) = n((i) -> i + 1, 0)
 
 main() = {
   print("zero?(zero) = ")
-  println(to-bool(zero?(zero)))
+  println(to_bool(zero?(zero)))
 
   print("zero?(one) = ")
-  println(to-bool(zero?(one)))
+  println(to_bool(zero?(one)))
 
   print("plus(zero, zero) = ")
-  println(to-int(plus(zero, zero)))
+  println(to_int(plus(zero, zero)))
 
   print("plus(zero, one) = ")
-  println(to-int(plus(zero, one)))
+  println(to_int(plus(zero, one)))
 
   print("plus(one, one) = ")
-  println(to-int(plus(one, one)))
+  println(to_int(plus(one, one)))
 
   print("mult(two, two) = ")
-  println(to-int(mult(two, two)))
+  println(to_int(mult(two, two)))
 }

@@ -3,6 +3,7 @@ module Oden.DesugarSpec where
 import qualified Oden.Core.Expr        as Expr
 import qualified Oden.Core.Untyped     as Untyped
 import           Oden.Core.Untyped     (Untyped(..))
+
 import qualified Oden.Desugar          as E
 import           Oden.Desugar          hiding (desugarTopLevel)
 import           Oden.Identifier
@@ -11,6 +12,7 @@ import           Oden.QualifiedName
 import           Oden.SourceInfo
 import           Oden.Syntax
 import           Oden.Type.Signature
+
 import           Test.Hspec
 
 import           Oden.Assertions
@@ -20,6 +22,8 @@ src l c = SourceInfo (Position "<test>" l c)
 
 ignored :: Metadata SourceInfo
 ignored = Metadata Missing
+
+pkgName = NativePackageName ["pkg"]
 
 desugarTopLevel top = snd <$> E.desugarTopLevel ["pkg"] top
 
@@ -92,7 +96,7 @@ spec = do
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
-       (Identifier "f")
+       (FQN pkgName (Identifier "f"))
        Nothing
        (Expr.NoArgFn
         ignored
@@ -110,7 +114,7 @@ spec = do
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
-       (Identifier "f")
+       (FQN pkgName (Identifier "f"))
        Nothing
        (Expr.Fn
         ignored
@@ -129,7 +133,7 @@ spec = do
       `shouldSucceedWith`
       [Untyped.Definition
        ignored
-       (Identifier "f")
+       (FQN pkgName (Identifier "f"))
        Nothing
        (Expr.Fn
         ignored
@@ -146,10 +150,22 @@ spec = do
       [TypeDefinition
        (src 1 1)
        (Identifier "S")
-       (TSRecord (src 1 2) (TSRowExtension (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t")) (TSRowEmpty (src 1 2))))]
+       (TSRecord
+        (src 1 2)
+        (TSRowExtension
+         (src 1 3)
+         (Identifier "x")
+         (TSSymbol (src 1 4) (Identifier "t"))
+         (TSRowEmpty (src 1 2))))]
       `shouldSucceedWith`
       [Untyped.TypeDefinition
        ignored
-       (FQN ["pkg"] (Identifier "S"))
+       (FQN pkgName (Identifier "S"))
        []
-       (TSRecord (src 1 2) (TSRowExtension (src 1 3) (Identifier "x") (TSSymbol (src 1 4) (Identifier "t")) (TSRowEmpty (src 1 2))))]
+       (TSRecord
+        (src 1 2)
+        (TSRowExtension
+         (src 1 3)
+         (Identifier "x")
+         (TSSymbol (src 1 4) (Identifier "t"))
+         (TSRowEmpty (src 1 2))))]

@@ -7,10 +7,11 @@ import           Oden.Output.Compiler.Resolution         ()
 import           Oden.Output.Compiler.Validation.Typed   ()
 import           Oden.Output.Compiler.Validation.Untyped ()
 import           Oden.Output.Desugar                     ()
-import           Oden.Output.Go                          ()
+import           Oden.Output.Imports                     ()
 import           Oden.Output.Infer                       ()
 import           Oden.Output.Instantiate                 ()
 import           Oden.Output.Parser                      ()
+import           Oden.Path
 
 
 import           Control.Monad.Except
@@ -26,7 +27,7 @@ type CLI = ReaderT Options (ExceptT String IO)
 
 data Options = Options { showHelp        :: Bool
                        , showVersion     :: Bool
-                       , odenPath        :: FilePath
+                       , odenPath        :: OdenPath
                        , outPath         :: FilePath
                        , printMonochrome :: Bool
                        , warnings        :: Bool
@@ -36,10 +37,12 @@ orMaybe :: Maybe a -> Maybe a -> Maybe a
 (Just v) `orMaybe` _ = Just v
 Nothing `orMaybe` m = m
 
-setOdenPath :: Maybe FilePath -> Options -> IO Options
+setOdenPath :: Maybe String -> Options -> IO Options
 setOdenPath path opts = do
   envOdenPath <- lookupEnv "ODEN_PATH"
-  return (opts { odenPath = fromMaybe (odenPath opts) (path `orMaybe` envOdenPath) })
+  let specifiedPath = parseOdenPath <$> (path `orMaybe` envOdenPath)
+      odenPath' = fromMaybe (odenPath opts) specifiedPath
+  return (opts { odenPath = odenPath' })
 
 setOutPath :: Maybe FilePath -> Options -> IO Options
 setOutPath path opts = return (opts { outPath = fromMaybe (outPath opts) path })
@@ -52,7 +55,7 @@ defaultOptions :: Options
 defaultOptions = Options { showHelp = False
                          , showVersion = False
                          , warnings = False
-                         , odenPath = "."
+                         , odenPath = OdenPath ["."]
                          , outPath = "target/go"
                          , printMonochrome = False }
 
@@ -94,6 +97,8 @@ commandsInfo = unlines [
     "  lint             check an Oden file for errors and warnings",
     "  print-inferred   infer types and print the package in the given file",
     "  print-compiled   compile and print the package in the given file",
+    "  print-codegen    compile and print generated code for the package in",
+    "                   the given file",
     ""
   ]
 

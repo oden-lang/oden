@@ -32,7 +32,7 @@ gen pkg = runExcept (runReaderT (genPackage pkg) pkg)
 
 identifierExpr s = AST.Expression (AST.Operand (AST.OperandName (GI.Identifier s)))
 
-mainPkg = PackageDeclaration missing ["main"]
+mainPkg = PackageDeclaration missing (NativePackageName ["main"])
 fmtImport = AST.ImportDecl (GI.Identifier "fmt") (AST.InterpretedStringLiteral "fmt")
 
 typeUnit = TCon missing (nameInUniverse "unit")
@@ -79,8 +79,8 @@ spec =
       (prelude (GI.Identifier "fmt")
        ++ [ AST.TopLevelComment (AST.CompilerDirective "line <missing>:0")
           , AST.FunctionDecl
-            (GI.Identifier "main") 
-            (AST.FunctionSignature [] []) 
+            (GI.Identifier "main")
+            (AST.FunctionSignature [] [])
             (AST.Block [])
        ])
 

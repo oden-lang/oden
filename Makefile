@@ -24,6 +24,7 @@ endif
 
 dist: $(DIST_ARCHIVE)
 
+.PHONY: $(STACK_ODEN_EXE)
 $(STACK_ODEN_EXE):
 	stack build
 

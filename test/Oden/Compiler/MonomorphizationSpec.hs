@@ -6,10 +6,12 @@ import           Test.Hspec
 
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Monomorphed
-import           Oden.Core.Typed
+import           Oden.Core.Monomorphed as Monomorphed
+import           Oden.Core.Package
+import           Oden.Core.Typed as Typed
 
 import           Oden.Identifier
+import           Oden.QualifiedName
 import qualified Oden.Type.Monomorphic as Mono
 import qualified Oden.Type.Polymorphic as Poly
 
@@ -21,7 +23,7 @@ identityDef :: TypedDefinition
 identityDef =
   Definition
     missing
-    (Identifier "identity")
+    (nameInUniverse "identity")
     (Poly.Forall missing [Poly.TVarBinding missing tvA] Set.empty (Poly.TFn missing a a),
      Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") a)
                  (Poly.TFn missing a a))
@@ -30,7 +32,7 @@ identity2Def :: TypedDefinition
 identity2Def =
   Definition
     missing
-    (Identifier "identity2")
+    (nameInUniverse "identity2")
     (Poly.Forall missing [Poly.TVarBinding missing tvA] Set.empty (Poly.TFn missing a a),
      Fn missing (NameBinding missing (Identifier "x")) (Application missing (Symbol missing (Identifier "identity") (Poly.TFn missing a a))
                                    (Symbol missing (Identifier "x") a)
@@ -41,7 +43,7 @@ usingIdentityDef :: TypedDefinition
 usingIdentityDef =
   Definition
     missing
-    (Identifier "using-identity")
+    (nameInUniverse "using_identity")
     (Poly.Forall missing [] Set.empty typeInt,
      Application missing
                       (Symbol missing (Identifier "identity") (Poly.TFn missing typeInt typeInt))
@@ -52,7 +54,7 @@ usingIdentity2Def :: TypedDefinition
 usingIdentity2Def =
   Definition
     missing
-    (Identifier "using-identity2")
+    (nameInUniverse "using_identity2")
     (Poly.Forall missing [] Set.empty typeInt,
      Application missing
                       (Symbol missing (Identifier "identity2") (Poly.TFn missing typeInt typeInt))
@@ -63,10 +65,10 @@ usingIdentityMonomorphed :: MonomorphedDefinition
 usingIdentityMonomorphed =
   MonomorphedDefinition
     missing
-    (Identifier "using-identity")
+    (Identifier "__using_identity")
     monoInt
     (Application missing
-                      (Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+                      (Symbol missing (Identifier "__identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
                       (Literal missing (Int 1) monoInt)
                       monoInt)
 
@@ -74,25 +76,31 @@ letBoundIdentity :: TypedDefinition
 letBoundIdentity =
   Definition
     missing
-    (Identifier "let-bound-identity")
-    (Poly.Forall missing [] Set.empty typeInt,
-     Let missing (NameBinding missing (Identifier "identity")) (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") a) (Poly.TFn missing a a))
-                         (Application
-                          missing
-                          (Symbol missing (Identifier "identity") (Poly.TFn missing typeInt typeInt))
-                          (Literal missing (Int 1) typeInt)
-                          typeInt)
-                      typeInt)
+    (nameInUniverse "let_bound_identity")
+    ( Poly.Forall missing [] Set.empty typeInt
+    , Let
+      missing
+      (NameBinding missing (Identifier "identity"))
+      (Fn missing
+       (NameBinding missing (Identifier "x"))
+       (Symbol missing (Identifier "x") a) (Poly.TFn missing a a))
+      (Application
+        missing
+        (Symbol missing (Identifier "identity") (Poly.TFn missing typeInt typeInt))
+        (Literal missing (Int 1) typeInt)
+        typeInt)
+      typeInt
+    )
 
 usingIdentity2Monomorphed :: MonomorphedDefinition
 usingIdentity2Monomorphed =
   MonomorphedDefinition
     missing
-    (Identifier "using-identity2")
+    (Identifier "__using_identity2")
     monoInt
     (Application
      missing
-     (Symbol missing (Identifier "identity2_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+     (Symbol missing (Identifier "__identity2_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
      (Literal missing (Int 1) monoInt)
      monoInt)
 
@@ -100,13 +108,13 @@ letBoundIdentityMonomorphed :: MonomorphedDefinition
 letBoundIdentityMonomorphed =
   MonomorphedDefinition
     missing
-    (Identifier "let-bound-identity")
+    (Identifier "__let_bound_identity")
     monoInt
     (Let
      missing
-     (NameBinding missing (Identifier "identity_inst_int_to_int"))
+     (NameBinding missing (Identifier "__identity_inst_int_to_int"))
      (Fn missing (NameBinding missing (Identifier "x")) (Symbol missing (Identifier "x") monoInt) (Mono.TFn missing monoInt monoInt))
-     (Application missing (Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+     (Application missing (Symbol missing (Identifier "__identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
       (Literal missing (Int 1) monoInt)
       monoInt)
      monoInt)
@@ -114,9 +122,9 @@ letBoundIdentityMonomorphed =
 identityInstIntToInt :: InstantiatedDefinition
 identityInstIntToInt =
   InstantiatedDefinition
-    (Identifier "identity")
+    (nameInUniverse "identity")
     missing
-    (Identifier "identity_inst_int_to_int")
+    (Identifier "__identity_inst_int_to_int")
     (Fn
      missing
      (NameBinding missing (Identifier "x"))
@@ -126,15 +134,15 @@ identityInstIntToInt =
 identity2InstIntToInt :: InstantiatedDefinition
 identity2InstIntToInt =
   InstantiatedDefinition
-    (Identifier "identity2")
+    (nameInUniverse "identity2")
     missing
-    (Identifier "identity2_inst_int_to_int")
+    (Identifier "__identity2_inst_int_to_int")
     (Fn
      missing
      (NameBinding missing (Identifier "x"))
      (Application
       missing
-      (Symbol missing (Identifier "identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
+      (Symbol missing (Identifier "__identity_inst_int_to_int") (Mono.TFn missing monoInt monoInt))
       (Symbol missing (Identifier "x") monoInt)
       monoInt)
      (Mono.TFn missing monoInt monoInt))
@@ -143,7 +151,7 @@ sliceLenDef :: TypedDefinition
 sliceLenDef =
   Definition
     missing
-    (Identifier "slice-len")
+    (nameInUniverse "slice_len")
     (Poly.Forall missing [] Set.empty typeInt,
      Application
       missing
@@ -155,7 +163,7 @@ sliceLenMonomorphed :: MonomorphedDefinition
 sliceLenMonomorphed =
   MonomorphedDefinition
     missing
-    (Identifier "slice-len")
+    (Identifier "__slice_len")
     monoInt
     (Application
      missing
@@ -167,7 +175,7 @@ letWithShadowing :: TypedDefinition
 letWithShadowing =
   Definition
     missing
-    (Identifier "let-with-shadowing")
+    (nameInUniverse "let_with_shadowing")
     (Poly.Forall missing [] Set.empty typeInt,
      Let
      missing
@@ -185,7 +193,7 @@ letWithShadowingMonomorphed :: MonomorphedDefinition
 letWithShadowingMonomorphed =
   MonomorphedDefinition
     missing
-    (Identifier "let-with-shadowing")
+    (Identifier "__let_with_shadowing")
     monoInt
     (Let
      missing
@@ -198,6 +206,47 @@ letWithShadowingMonomorphed =
       (Symbol missing (Identifier "x") monoInt)
       monoInt)
      monoInt)
+
+
+monomorphicValue :: TypedDefinition
+monomorphicValue =
+  Definition
+  missing
+  (FQN (NativePackageName ["dependency", "pkg"]) (Identifier "number"))
+  ( Poly.Forall missing [] Set.empty typeInt
+  , Literal missing (Int 1) typeInt)
+
+
+usingMonomorphicValueFromImportedPackage :: TypedDefinition
+usingMonomorphicValueFromImportedPackage =
+  Definition
+  missing
+  (FQN (NativePackageName ["my", "pkg"]) (Identifier "usingMonomorphic"))
+  ( Poly.Forall missing [] Set.empty typeInt
+  , MemberAccess
+    missing
+    (Typed.PackageMemberAccess
+      (Identifier "pkg")
+      (Identifier "number"))
+    typeInt)
+
+monomorphicValuePrefixed :: MonomorphedDefinition
+monomorphicValuePrefixed =
+  MonomorphedDefinition
+  missing
+  (Identifier "__dependency_pkg__number")
+  monoInt
+  (Literal missing (Int 1) monoInt)
+
+
+usingMonomorphicValueFromImportedPackageMonomorphed :: MonomorphedDefinition
+usingMonomorphicValueFromImportedPackageMonomorphed =
+  MonomorphedDefinition
+  missing
+  (Identifier "__my_pkg__usingMonomorphic")
+  monoInt
+  (Symbol missing (Identifier "__dependency_pkg__number") monoInt)
+
 
 spec :: Spec
 spec =
@@ -258,3 +307,25 @@ spec =
         []
         Set.empty
         (Set.singleton letWithShadowingMonomorphed)
+
+    it "includes used imported monomorphic definitions with prefixed names" $
+      monomorphPackage (TypedPackage
+                        myPkg
+                        [ImportedPackage
+                         (ImportReference missing ["my", "pkg"])
+                         (Identifier "pkg")
+                         (TypedPackage
+                          dependencyPkg
+                          []
+                          [monomorphicValue])
+                        ]
+                        [usingMonomorphicValueFromImportedPackage])
+      `shouldSucceedWith`
+      MonomorphedPackage
+        myPkg
+        []
+        Set.empty
+        (Set.fromList
+         [ monomorphicValuePrefixed
+         , usingMonomorphicValueFromImportedPackageMonomorphed
+         ])

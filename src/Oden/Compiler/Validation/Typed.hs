@@ -10,8 +10,7 @@ import           Oden.Core.ProtocolImplementation
 import           Oden.Core.Traversal
 
 import           Oden.Identifier
-import           Oden.Metadata
-import           Oden.QualifiedName        (QualifiedName (..), nameInUniverse)
+import           Oden.QualifiedName        (PackageName(..), QualifiedName (..), nameInUniverse)
 import           Oden.SourceInfo
 import           Oden.Type.Polymorphic
 
@@ -93,7 +92,7 @@ validateExpr = void . traverseExpr identityTraversal { onExpr = onExpr'
       where
       warnOnDiscarded :: TypedExpr -> Validate ()
       warnOnDiscarded e = case typeOf e of
-        TCon _ (FQN [] (Identifier "unit")) -> return ()
+        TCon _ (FQN (NativePackageName []) (Identifier "unit")) -> return ()
         _                                   -> throwError (ValueDiscarded e)
     _ -> return Nothing
 
@@ -124,10 +123,10 @@ validatePackage (TypedPackage _ imports definitions) = do
   -- When package usage is collected we can validate the imports.
   mapM_ validateImport imports
   where
-  validateImport (ImportedPackage (Metadata sourceInfo) alias (TypedPackage (PackageDeclaration _ pkg) _ _)) = do
+  validateImport (ImportedPackage ref alias (TypedPackage (PackageDeclaration _ pkg) _ _)) = do
     refs <- gets packageReferences
     unless (alias `Set.member` refs) $
-      throwError (UnusedImport sourceInfo pkg alias)
+      throwError (UnusedImport (getSourceInfo ref) pkg alias)
   validateDefs =
     \case
       Definition _ _ (_, expr) : defs -> do

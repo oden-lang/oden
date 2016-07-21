@@ -357,7 +357,12 @@ topLevel =
   import' = do
     si <- currentSourceInfo
     reserved "import"
-    ImportDeclaration si <$> importName
+    name <- requireName
+    case name of
+      ["foreign"] -> do
+        spaces
+        ImportForeignDeclaration si <$> Lexer.string
+      _ -> return (ImportDeclaration si name)
   typeDef = do
     si <- currentSourceInfo
     reserved "type"
