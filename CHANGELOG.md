@@ -1,5 +1,8 @@
 # Changelog
 
+* 0.3.6
+  * Add support for importing Oden packages
+  * Change syntax for importing Go packages, i.e. `import foreign "..."`
 * 0.3.5
   * A lot of improvements to User Guide
   * Stack build now works without setting LD/DYLD paths
