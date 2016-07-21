@@ -3,7 +3,6 @@ module Oden.CLI.Run where
 import           Oden.Backend
 import           Oden.Backend.Go
 import           Oden.QualifiedName
-import           Oden.Scanner
 import           Oden.SourceFile
 
 import           Control.Monad.Reader

@@ -38,7 +38,7 @@ library
     Oden.Compiler.Instantiate,
     Oden.Compiler.Monomorphization,
     Oden.Compiler.Resolution,
-    Oden.Compiler.TypeEncoder,
+    Oden.Compiler.NameEncoder,
     Oden.Compiler.Validation.Untyped,
     Oden.Compiler.Validation.Typed,
     Oden.Compiler.LiteralEval,

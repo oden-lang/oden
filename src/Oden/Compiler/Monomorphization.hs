@@ -15,7 +15,7 @@ import           Data.Set                         as Set hiding (map)
 
 import           Oden.Compiler.Environment
 import           Oden.Compiler.Instantiate
-import           Oden.Compiler.TypeEncoder
+import           Oden.Compiler.NameEncoder
 
 import           Oden.Core.Definition
 import           Oden.Core.Expr

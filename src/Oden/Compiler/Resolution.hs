@@ -18,7 +18,7 @@ import           Oden.Core.Typed
 
 import           Oden.Compiler.Environment
 import           Oden.Compiler.Instantiate
-import           Oden.Compiler.TypeEncoder
+import           Oden.Compiler.NameEncoder
 
 import           Oden.Infer.Unification
 

@@ -1,8 +1,8 @@
-module Oden.Compiler.TypeEncoderSpec where
+module Oden.Compiler.NameEncoderSpec where
 
 import           Test.Hspec
 
-import           Oden.Compiler.TypeEncoder
+import           Oden.Compiler.NameEncoder
 import           Oden.Identifier
 import           Oden.Metadata
 import           Oden.QualifiedName

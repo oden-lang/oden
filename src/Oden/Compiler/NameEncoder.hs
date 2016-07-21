@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-module Oden.Compiler.TypeEncoder (
+module Oden.Compiler.NameEncoder (
     encodeTypeInstance,
     encodeQualifiedName,
     encodeUnqualifiedTypeInstance,
