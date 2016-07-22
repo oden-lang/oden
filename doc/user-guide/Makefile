@@ -1,5 +1,8 @@
 BASE=$(shell pwd)
 
+STACK_DIST_DIR=$(shell stack path --dist-dir)
+INCLUDE_CODE=$(STACK_DIST_DIR)/build/include-code/include-code
+
 MD_SOURCES=\
 				src/index.md \
 				src/getting-started.md \
@@ -13,13 +16,13 @@ SHARED_PANDOC_OPTIONS=--standalone \
 											"--metadata=subtitle:$(VERSION)" \
 											-V base=$(BASE) \
 											--filter pandoc-citeproc \
+											--filter $(INCLUDE_CODE) \
 											--bibliography src/bibliography.bib
 
 PDF_PANDOC_OPTIONS=$(SHARED_PANDOC_OPTIONS) \
 									 --latex-engine=pdflatex \
 									 --listings \
 									 -V links-as-notes \
-									 --filter target/bin/include-code \
 									 --template=src/template.tex
 
 
@@ -32,13 +35,12 @@ endif
 
 all: html pdf pdf-ebook
 
-html: target/bin/include-code
+html: $(INCLUDE_CODE)
 	@mkdir -p target
 	@rm -rf target/site
 	cp -r src/site target/site
 	pandoc $(SHARED_PANDOC_OPTIONS) \
 		-t html5 \
-		--filter target/bin/include-code \
 		-c styles/user-guide.css \
 		-H src/site/head.html \
 		$(BEFORE_BODY_FLAGS) \
@@ -48,11 +50,11 @@ html: target/bin/include-code
 		--template=src/template.html \
 		src/preface.md $(MD_SOURCES)
 
-pdf: target/bin/include-code
+pdf: $(INCLUDE_CODE)
 	@mkdir -p target/site
 	pandoc $(PDF_PANDOC_OPTIONS) -o target/site/user-guide.pdf $(MD_SOURCES)
 
-pdf-ebook: target/bin/include-code
+pdf-ebook: $(INCLUDE_CODE)
 	@mkdir -p target/site
 	pandoc $(PDF_PANDOC_OPTIONS) \
 		-V "geometry:papersize={4.5in,6in}" \
@@ -60,9 +62,8 @@ pdf-ebook: target/bin/include-code
 		-o target/site/user-guide.ebook.pdf \
 		$(MD_SOURCES)
 
-target/bin/include-code: src/filters/IncludeCode.hs
-	mkdir -p target/bin
-	stack ghc -- $< -o $@
+$(INCLUDE_CODE): filters/include-code/Main.hs
+	stack build
 
 clean:
 	rm -r target

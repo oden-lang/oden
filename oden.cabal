@@ -4,6 +4,7 @@ license:             MIT
 license-file:        LICENSE.md
 author:              Oskar Wickström
 maintainer:          oskar.wickstrom@gmail.com
+copyright:           2015 Oskar Wickström
 build-type:          Custom
 extra-source-files:
   README.md,
