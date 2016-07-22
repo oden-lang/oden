@@ -17,14 +17,38 @@ slashes.
 ```{include=src/listings/syntax-fully-qualified-name.html formatted=true}
 ```
 
-After the package declaration follows zero or more *import declarations*.
+### Import Declarations
 
-```{include=src/listings/syntax-import-declaration.html formatted=true}
+After the package declaration follows zero or more *import declarations*.
+Imports can be either *native* or *foreign*. A native import is an import of an
+Oden package.
+
+```{include=src/listings/syntax-import-native-declaration.html formatted=true}
 ```
 
-After the package and import declarations comes *value definitions*. These can
-be basic values like numbers or strings, but also functions. A value definition
-is denoted by a name, an equals sign, and the expression to bind the name to.
+A foreign import is written with the `foreign` keyword and a string literal for
+the foreign package *import path*. The reason for this being a string is that
+the Go specification [does not mandate the format of Go import
+paths](https://golang.org/ref/spec#ImportPath).
+
+```{include=src/listings/syntax-import-foreign-declaration.html formatted=true}
+```
+
+Imported packages are made visible in the scope of the importing package by an
+*import alias*. For native packages, the last segment of the fully qualified
+package name is used as the package alias. For native Go packages, the [package
+name](https://golang.org/ref/spec#PackageName) specified in the Go *package
+clause* is used, regardless of the import path. To access members of an
+imported package you write the alias, a dot, and the member identifier.
+
+```{include=src/listings/syntax-package-member-access.html formatted=true}
+```
+
+### Value Definitions
+
+After package and import declarations comes *value definitions*. These can be
+basic values like numbers or strings, but also functions. A value definition is
+denoted by a name, an equals sign, and the expression to bind the name to.
 
 ```{include=src/listings/syntax-value-definition.html formatted=true}
 ```
