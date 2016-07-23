@@ -104,8 +104,9 @@ imports.
 
 ## Resolution
 
-`Oden.Compiler.Resolution` resolves protocol methods. The Typed IR has a data
-structure with the two constructors `Unresolved` and `Resolved`:
+`Oden.Compiler.Resolution` resolves protocol method references. The Typed
+IR has a data structure with the two constructors `Unresolved` and
+`Resolved`:
 
     data TypedMethodReference
       = Unresolved ProtocolName MethodName ProtocolConstraint
