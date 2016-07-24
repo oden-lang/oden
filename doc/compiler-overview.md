@@ -16,7 +16,7 @@ how they are implemented.
 ## Key Components
 
 * [Core](#core)
-* [Lexer/Parser and Syntax](#lexer-parser-and-syntax)
+* [Lexer/Parser and Syntax](#lexerparser-and-syntax)
 * [Desugar](#desugar)
 * [Untyped Validation](#untyped-validation)
 * [Infer](#infer)
@@ -25,9 +25,9 @@ how they are implemented.
 * [Resolution](#resolution)
 * [Monomorphization](#monomorphization)
 * [Instantiate](#instantiate)
-* [Go Importer](go-importer)
-* [Go Backend](go-backend)
-* [CLI](cli)
+* [Go Importer](#go-importer)
+* [Go Backend](#go-backend)
+* [CLI](#cli)
 
 ## Core
 
