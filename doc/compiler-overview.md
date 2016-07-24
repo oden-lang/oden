@@ -1,8 +1,17 @@
 # Compiler Overview
 
-This document is intended as an overview of the compiler -- the key components,
-those components' responsibilities, and brief explanations on how they are
-implemented.
+This document is intended as an overview of the compiler &mdash; the key
+components, those components' responsibilities, and brief explanations on
+how they are implemented.
+
+## Abbreviations
+
+<dl>
+  <dt>AST</dt>
+  <dd>Abstract Syntax Tree</dd>
+  <dt>IR</dt>
+  <dd>Intermediate Representation</dd>
+</dl>
 
 ## Key Components
 
@@ -126,20 +135,87 @@ _Note: Protocol methods in let bindings are not supported yet._
 
 ## Monomorphization
 
-TODO.
+`Oden.Compiler.Monomorphization` takes the Typed IR and and specializes
+all uses of polymorphic functions into monomorphic functions. For example,
+if we have a function `identity` with type `x -> x` and we apply it in our
+main function with an integer literal, the Monomorphed IR will only contain
+a function of type `int -> int`.
+
+Imported packagse and all names are *flattened* in the monomorphization phase,
+resulting in a single package with names like `__some_pkg__a_definition_name`.
+Specialized polymorphic functions, called *instances* in the compiler, get
+their specific types suffixed to their names.
+
+The monomorphization also works with let bindings, so a let bound polymorphic
+definition might expand to multiple let bound monomorphic functions based on
+its usage.
+
+All protocol method references must be resolved in this phase, or an error will
+be thrown. The monomorphization instantiates the resolved method
+implementations as regular polymorphic functions.
+
+To inspect the result of monomorphization you can use the subcommand
+`print-compiled`:
+
+    $ oden print-compiled regression-test/src/protocols/error.oden
+    package protocols/error/main
+
+    import foreign strconv
+
+    __error_method_Error_inst_int_to_string : int -> string
+    __error_method_Error_inst_int_to_string(code) = (+)("E")(((_g0) -> strconv.Itoa(_g0))(code))
+
+    __error_method_Error_inst_record__row__error___string___to_string : {error: string} -> string
+    __error_method_Error_inst_record__row__error___string___to_string(e) = (+)(e.error)(" (no message)")
+    ...
 
 ## Instantiate
 
-TODO.
+This module has one capabililty &mdash; instantiating a given
+polymorphically typed expression to a specific type, e.g. instantiating an
+expression with type `a -> a` with the type `int -> int` will result in an
+expression of type `int -> int`.
+
+This module is used by [Resolution](#resolution) and
+[Monomorphization](#monomorphization).
 
 ## Go Importer
 
-TODO.
+`Oden.Go.Importer`, together with the library `libimporter`, is responsible
+for resolving imports of foreign packages from Go. Given an *import path* it
+tries to find the corresponding package, and if found, makes the members
+usable from Oden.
+
+Only the simplest Go constructs are available for import into Oden, as of
+writing. Interfaces and other Go features cannot be handled automatically yet.
+
+The library `libimporter` is implemented in Go and exports a C compatible
+function that can be used to query Go packages. It returns a JSON string of
+the complete package representation, or the error message if failed.
+
+`Oden.Go.Importer` interfaces with `libimporter` using Haskell FFI and the
+Aeson JSON library to build an Oden-compatible package structure from the JSON
+string. The Oden type system has special types for foreign functions as
+they are treated differently.
+
+The build of `libimporter` is done using a custom Cabal setup. Have a look at
+[Setup.hs](../Setup.hs) to see the details.
 
 ## Go Backend
 
-TODO.
+The only implemented backend as of writing, `Oden.Backend.Go` generates a
+`Oden.Go.AST` structure out of the Monomorphed IR. It has some special cases
+for foreign constructs, like operators and how to encode identifiers.
+
+The AST is then pretty printed and written as Go sources files. In other words,
+the Oden compiler is technically a transpiler to Go source code. There is no
+knowledge in the Oden compiler of calling conventions and the runtime system
+of Go. The interface is Go source code and the functionality provided by
+`libimporter`.
 
 ## CLI
 
-TODO.
+The `cli` subdirectory contains modules for the Oden command-line application.
+It parses flags and parameters and provides a number of subcommands that can
+be used to lint, build and run Oden code, as well as to introspect the
+various IRs between the compiler phases.
