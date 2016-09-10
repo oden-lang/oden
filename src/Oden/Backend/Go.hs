@@ -419,9 +419,65 @@ genExpr expr = case expr of
   Foreign _ (ForeignBinaryOperator _) _ ->
     error "cannot codegen foreign binary operator without a full binary application"
 
-  Go _ e _ ->
-    -- TODO: Wrap in function with channel, and recv return value.
-    genExpr e
+  Go _ e t -> do
+    ge <- genExpr e
+    gt <- genType t
+    return (AST.Expression
+            (AST.Application
+             (AST.Operand
+              (AST.Literal
+               (AST.FunctionLiteral
+                (AST.FunctionSignature
+                 []
+                 [gt])
+                 (AST.Block
+                  [ AST.DeclarationStmt
+                    (AST.VarDecl
+                     (AST.VarDeclInitializer
+                      (GI.Identifier "_go_ret")
+                      (GT.Channel
+                       GT.Bidirectional
+                       gt)
+                      (AST.Expression
+                       (AST.Application
+                        (AST.Operand
+                         (AST.OperandName (GI.Identifier "make")))
+                         [ AST.TypeArgument
+                           (GT.Channel
+                            GT.Bidirectional
+                            gt)
+                         , AST.Argument
+                           (AST.Expression
+                            (AST.Operand
+                             (AST.Literal
+                              (AST.BasicLiteral
+                               (AST.IntLiteral 1)))))
+                         ]))
+                    ))
+                  , AST.GoStmt
+                    (AST.Expression
+                     (AST.Application
+                      (AST.Operand
+                       (AST.Literal
+                        (AST.FunctionLiteral
+                         (AST.FunctionSignature [] [])
+                         (AST.Block
+                          [AST.SimpleStmt
+                           (AST.SendStmt
+                            (AST.Expression
+                             (AST.Operand
+                              (AST.OperandName (GI.Identifier "_go_ret"))))
+                            ge)
+                          ]))))
+                      []))
+                  , AST.ReturnStmt
+                    [ AST.UnaryOp
+                      AST.Receive
+                      (AST.Operand
+                       (AST.OperandName (GI.Identifier "_go_ret")))
+                    ]
+                  ]))))
+              []))
 
 
 genBlock :: MonoTypedExpr -> Codegen AST.Block

@@ -119,75 +119,84 @@ spec =
            (Set.singleton (MonomorphedDefinition
                            missing
                            (Identifier "foo")
-                           (TNoArgFn missing typeString)
-                           (NoArgFn
+                           typeString
+
+                           (Go
                             missing
-                            (Go
-                             missing
-                             (Literal missing (String "ok") typeString)
-                             typeString)
-                            (TNoArgFn missing typeString)))))
+                            (Literal missing (String "ok") typeString)
+                            typeString))))
        `shouldSucceedWith'`
        AST.SourceFile
       (AST.PackageClause (GI.Identifier "main"))
       [fmtImport]
       (prelude (GI.Identifier "fmt")
        ++ [ AST.TopLevelComment (AST.CompilerDirective "line <missing>:0")
-          , AST.FunctionDecl
-            (GI.Identifier "foo")
-            (AST.FunctionSignature [] [GT.Basic (GI.Identifier "string") False])
-            (AST.Block [ AST.DeclarationStmt
-                         (AST.VarDecl
-                          (AST.VarDeclInitializer
-                           (GI.Identifier "_go_ret")
-                           (GT.Channel
-                            GT.Bidirectional
-                            (GT.Basic
-                             (GI.Identifier "string")
-                             False))
-                            (AST.Expression
-                             (AST.Application
-                              (AST.Operand
-                               (AST.OperandName (GI.Identifier "make")))
-                              [ (AST.TypeArgument
-                                 (GT.Channel
-                                  GT.Bidirectional
-                                  (GT.Basic (GI.Identifier "string") False)))
-                              , (AST.Argument
-                                 (AST.Expression
+          , AST.Decl
+            (AST.VarDecl
+             (AST.VarDeclInitializer
+              (GI.Identifier "foo")
+              (GT.Basic (GI.Identifier "string") False)
+              (AST.Expression
+               (AST.Application
+                (AST.Operand
+                 (AST.Literal
+                  (AST.FunctionLiteral
+                   (AST.FunctionSignature
+                    []
+                    [GT.Basic (GI.Identifier "string") False])
+                   (AST.Block [ AST.DeclarationStmt
+                                (AST.VarDecl
+                                 (AST.VarDeclInitializer
+                                  (GI.Identifier "_go_ret")
+                                  (GT.Channel
+                                   GT.Bidirectional
+                                   (GT.Basic
+                                    (GI.Identifier "string")
+                                    False))
+                                  (AST.Expression
+                                   (AST.Application
+                                    (AST.Operand
+                                     (AST.OperandName (GI.Identifier "make")))
+                                    [ AST.TypeArgument
+                                      (GT.Channel
+                                       GT.Bidirectional
+                                       (GT.Basic (GI.Identifier "string") False))
+                                    , AST.Argument
+                                      (AST.Expression
+                                       (AST.Operand
+                                        (AST.Literal
+                                         (AST.BasicLiteral
+                                          (AST.IntLiteral 1)))))
+                                    ]))))
+                              , AST.GoStmt
+                                (AST.Expression
+                                 (AST.Application
                                   (AST.Operand
                                    (AST.Literal
-                                    (AST.BasicLiteral
-                                     (AST.IntLiteral 1))))))
+                                    (AST.FunctionLiteral
+                                     (AST.FunctionSignature [] [])
+                                     (AST.Block
+                                      [AST.SimpleStmt
+                                       (AST.SendStmt
+                                        (AST.Expression
+                                         (AST.Operand
+                                          (AST.OperandName (GI.Identifier "_go_ret"))))
+                                        (AST.Expression
+                                         (AST.Operand
+                                          (AST.Literal
+                                           (AST.BasicLiteral
+                                            (AST.StringLiteral
+                                             (AST.InterpretedStringLiteral "ok")))))))
+                                      ]))))
+                                  []))
+                              , AST.ReturnStmt
+                                [ AST.UnaryOp
+                                  AST.Receive
+                                  (AST.Operand
+                                   (AST.OperandName (GI.Identifier "_go_ret")))
+                                ]
                               ]))))
-                       , AST.GoStmt
-                         (AST.Expression
-                          (AST.Application
-                           (AST.Operand
-                            (AST.Literal
-                             (AST.FunctionLiteral
-                              (AST.FunctionSignature [] [])
-                              (AST.Block
-                               [AST.SimpleStmt
-                                (AST.SendStmt
-                                 (AST.Expression
-                                  (AST.Operand
-                                   (AST.OperandName (GI.Identifier "_go_ret"))))
-                                 (AST.Expression
-                                  (AST.Operand
-                                   (AST.Literal
-                                    (AST.BasicLiteral
-                                     (AST.StringLiteral
-                                      (AST.InterpretedStringLiteral "ok")))))))
-                               ]))))
-                           []))
-                       , AST.ReturnStmt
-                         [ AST.UnaryOp
-                           AST.Receive
-                           (AST.Operand
-                            (AST.OperandName (GI.Identifier "_go_ret")))
-                         ]
-                       ])
+                []))))
           ])
 
     it "writes line compiler directives" $
