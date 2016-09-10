@@ -1,0 +1,15 @@
+package channels/receive/main
+
+countDown(n) = {
+  if n <= 0 then "I'm slow." else countDown(n - 1)
+}
+
+main : -> ()
+main() =
+  let r = go countDown(1000000)
+  in {
+    println("Running...")
+    r <- "I'm fast!"
+    println(<-r)
+    println(<-r)
+  }

@@ -422,6 +422,15 @@ infer = \case
     et <- infer e
     return (Go si et (TApp si typeChannel (typeOf et)))
 
+  Send si receiver value Untyped -> do
+    rt <- infer receiver
+    vt <- infer value
+    v <- fresh si
+
+    uni (unwrap si) (TApp si typeChannel v) (typeOf rt)
+    uni (unwrap si) v (typeOf vt)
+    return (Send si rt vt typeUnit)
+
   Receive si e Untyped -> do
     tv <- fresh si
     te <- infer e

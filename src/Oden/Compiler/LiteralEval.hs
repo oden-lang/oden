@@ -99,4 +99,5 @@ evaluate =
     Block{} -> Nothing
     Foreign{} -> Nothing
     Go{} -> Nothing
+    Send{} -> Nothing
     Receive{} -> Nothing

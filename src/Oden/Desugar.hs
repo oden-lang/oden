@@ -7,7 +7,7 @@ module Oden.Desugar
  desugarPackage
 ) where
 
-import           Oden.Core.Expr
+import           Oden.Core.Expr       as E
 import           Oden.Core.Package
 import           Oden.Core.Untyped
 
@@ -37,22 +37,23 @@ desugarFieldInitializer :: Syntax.FieldInitializer
 desugarFieldInitializer (Syntax.FieldInitializer si label expr) =
   FieldInitializer (Metadata si) label <$> desugarExpr expr
 
-methodForBinaryOperator :: BinaryOperator -> NamedMethodReference
+methodForBinaryOperator :: BinaryOperator -> Maybe NamedMethodReference
 methodForBinaryOperator =
   \case
-    Add              -> NamedMethodReference (Identifier "Num") (Identifier "Add")
-    Subtract         -> NamedMethodReference (Identifier "Num") (Identifier "Subtract")
-    Multiply         -> NamedMethodReference (Identifier "Num") (Identifier "Multiply")
-    Divide           -> NamedMethodReference (Identifier "Num") (Identifier "Divide")
-    EqualTo          -> NamedMethodReference (Identifier "Equality") (Identifier "EqualTo")
-    NotEqualTo       -> NamedMethodReference (Identifier "Equality") (Identifier "NotEqualTo")
-    MonoidApply      -> NamedMethodReference (Identifier "Monoid") (Identifier "Apply")
-    LessThan         -> NamedMethodReference (Identifier "Ordered") (Identifier "LessThan")
-    LessThanEqual    -> NamedMethodReference (Identifier "Ordered") (Identifier "LessThanEqual")
-    GreaterThan      -> NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThan")
-    GreaterThanEqual -> NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThanEqual")
-    And              -> NamedMethodReference (Identifier "Logical") (Identifier "Conjunction")
-    Or               -> NamedMethodReference (Identifier "Logical") (Identifier "Disjunction")
+    Add              -> Just (NamedMethodReference (Identifier "Num") (Identifier "Add"))
+    Subtract         -> Just (NamedMethodReference (Identifier "Num") (Identifier "Subtract"))
+    Multiply         -> Just (NamedMethodReference (Identifier "Num") (Identifier "Multiply"))
+    Divide           -> Just (NamedMethodReference (Identifier "Num") (Identifier "Divide"))
+    EqualTo          -> Just (NamedMethodReference (Identifier "Equality") (Identifier "EqualTo"))
+    NotEqualTo       -> Just (NamedMethodReference (Identifier "Equality") (Identifier "NotEqualTo"))
+    MonoidApply      -> Just (NamedMethodReference (Identifier "Monoid") (Identifier "Apply"))
+    LessThan         -> Just (NamedMethodReference (Identifier "Ordered") (Identifier "LessThan"))
+    LessThanEqual    -> Just (NamedMethodReference (Identifier "Ordered") (Identifier "LessThanEqual"))
+    GreaterThan      -> Just (NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThan"))
+    GreaterThanEqual -> Just (NamedMethodReference (Identifier "Ordered") (Identifier "GreaterThanEqual"))
+    And              -> Just (NamedMethodReference (Identifier "Logical") (Identifier "Conjunction"))
+    Or               -> Just (NamedMethodReference (Identifier "Logical") (Identifier "Disjunction"))
+    _                -> Nothing
 
 
 untyped :: Either DesugarError Untyped
@@ -112,15 +113,25 @@ desugarExpr = \case
         <$> desugarExpr expr
         <*> untyped
   Syntax.BinaryOp si op e1 e2 ->
-    Application
-    (Metadata si)
-    <$> (Application
-         (Metadata si)
-         (MethodReference (Metadata si) (methodForBinaryOperator op) Untyped)
-         <$> desugarExpr e1
-         <*> untyped)
-    <*> desugarExpr e2
-    <*> untyped
+    case methodForBinaryOperator op of
+      Just method ->
+        Application
+        (Metadata si)
+        <$> (Application
+             (Metadata si)
+             (MethodReference (Metadata si) method Untyped)
+              <$> desugarExpr e1
+              <*> untyped)
+        <*> desugarExpr e2
+        <*> untyped
+      Nothing | op == Syntax.Send ->
+        E.Send
+        (Metadata si)
+        <$> desugarExpr e1
+        <*> desugarExpr e2
+        <*> untyped
+      Nothing ->
+        error ("Unknown binary operator: " ++ show op)
   Syntax.Symbol si i ->
     return $ Symbol (Metadata si) i Untyped
   Syntax.Literal si literal ->

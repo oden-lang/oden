@@ -222,9 +222,10 @@ emptyStructLiteral =
     (GT.Struct [])
     (AST.LiteralValueElements []))
 
--- | Wraps the provided code in a function that returns unit
-voidToUnitWrapper :: SourceInfo -> AST.Expression -> AST.Expression
-voidToUnitWrapper si expr =
+
+-- | Wraps the provided statement in a function that returns unit.
+stmtToUnitWrapper :: SourceInfo -> AST.Stmt -> AST.Expression
+stmtToUnitWrapper si stmt =
   AST.Expression
   (AST.Application
    (AST.Operand
@@ -232,10 +233,17 @@ voidToUnitWrapper si expr =
      (AST.FunctionLiteral
       (AST.FunctionSignature [] [GT.Struct []])
       (AST.Block [ AST.StmtComment (genSourceInfo si)
-                 , AST.SimpleStmt (AST.ExpressionStmt expr)
+                 , stmt
                  , AST.StmtComment (genSourceInfo si)
                  , AST.ReturnStmt [emptyStructLiteral]]))))
    [])
+
+
+-- | Wraps the provided expression in a function that returns unit.
+voidToUnitWrapper :: SourceInfo -> AST.Expression -> AST.Expression
+voidToUnitWrapper si expr =
+  stmtToUnitWrapper si (AST.SimpleStmt (AST.ExpressionStmt expr))
+
 
 asPrimaryExpression :: AST.Expression -> AST.PrimaryExpression
 asPrimaryExpression (AST.Expression primaryExpr) = primaryExpr
@@ -483,6 +491,10 @@ genExpr expr = case expr of
                     ]
                   ]))))
               []))
+  Send si receiver value _ -> do
+    gr <- genExpr receiver
+    gv <- genExpr value
+    return (stmtToUnitWrapper (unwrap si) (AST.SimpleStmt (AST.SendStmt gr gv)))
   Receive _ e _ ->
     AST.UnaryOp AST.Receive . asPrimaryExpression
     <$> genExpr e

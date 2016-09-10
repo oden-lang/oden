@@ -348,3 +348,12 @@ spec = describe "parseExpr" $ do
      (src 1 6)
      (Symbol (src 1 3) (Identifier "foo"))
      [])
+
+  it "parses infex <- send operator" $
+    parseExpr "jackieChan <- 1"
+    `shouldSucceedWith`
+    BinaryOp
+    (src 1 12)
+    Send
+    (Symbol (src 1 1) (Identifier "jackieChan"))
+    (Literal (src 1 15) (Int 1))

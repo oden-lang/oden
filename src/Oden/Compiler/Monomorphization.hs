@@ -385,6 +385,12 @@ monomorph e = case e of
     me <- monomorph expr
     return (Go si me mt)
 
+  Send si receiver value t -> do
+    mt <- toMonomorphic si t
+    mr <- monomorph receiver
+    mv <- monomorph value
+    return (Send si mr mv mt)
+
   Receive si expr t -> do
     mt <- toMonomorphic si t
     me <- monomorph expr

@@ -13,7 +13,7 @@ import           Oden.Core.Expr
 import           Oden.Core.Typed
 import           Oden.Metadata
 import           Oden.SourceInfo
-import           Oden.Substitution as Substitution
+import           Oden.Substitution     as Substitution
 import           Oden.Type.Polymorphic
 
 data InstantiateError = TypeMismatch SourceInfo Type Type
@@ -25,6 +25,10 @@ getSubstitutions (TConstrained _ x) y = getSubstitutions x y
 getSubstitutions x (TConstrained _ y) = getSubstitutions x y
 getSubstitutions (TCon _ pn) (TCon _ mn)
   | pn == mn = Right emptySubst
+getSubstitutions (TApp _ c1 p1) (TApp _ c2 p2) = do
+  cs <- getSubstitutions c1 c2
+  ps <- getSubstitutions p1 p2
+  return (cs `mappend` ps)
 getSubstitutions (TNoArgFn _ pf) (TNoArgFn _ mf) =
   getSubstitutions pf mf
 getSubstitutions (TFn _ pf pp) (TFn _ mf mp) = do

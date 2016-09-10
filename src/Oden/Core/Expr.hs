@@ -47,6 +47,7 @@ data Expr r t m
   | MethodReference (Metadata SourceInfo) r t
   | Foreign (Metadata SourceInfo) ForeignExpr t
   | Go (Metadata SourceInfo) (Expr r t m) t
+  | Send (Metadata SourceInfo) (Expr r t m) (Expr r t m) t
   | Receive (Metadata SourceInfo) (Expr r t m) t
   deriving (Show, Eq, Ord)
 
@@ -71,6 +72,7 @@ typeOf expr = case expr of
   MethodReference _ _ t           -> t
   Foreign _ _ t                   -> t
   Go _ _ t                        -> t
+  Send _ _ _ t                    -> t
   Receive _ _ t                   -> t
 
 -- | Applies a mapping function to the type of an expression.
@@ -95,6 +97,7 @@ mapType f = \case
   MethodReference meta ref t         -> MethodReference meta ref (f t)
   Foreign meta foreign' t            -> Foreign meta foreign' (f t)
   Go meta e t                        -> Go meta e (f t)
+  Send meta r v t                    -> Send meta r v (f t)
   Receive meta e t                   -> Receive meta e (f t)
 
 instance HasSourceInfo (Expr r t m) where
@@ -118,6 +121,7 @@ instance HasSourceInfo (Expr r t m) where
     MethodReference (Metadata si) _ _        -> si
     Foreign (Metadata si) _ _                -> si
     Go (Metadata si) _ _                     -> si
+    Send (Metadata si) _ _ _                 -> si
     Receive (Metadata si) _ _                -> si
 
   setSourceInfo si expr = case expr of
@@ -140,4 +144,5 @@ instance HasSourceInfo (Expr r t m) where
     MethodReference _ ref t      -> MethodReference (Metadata si) ref t
     Foreign _ f t                -> Foreign (Metadata si) f t
     Go _ e t                     -> Go (Metadata si) e t
+    Send _ r v t                 -> Send (Metadata si) r v t
     Receive _ e t                -> Receive (Metadata si) e t

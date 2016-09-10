@@ -29,6 +29,7 @@ data BinaryOperator
   | GreaterThanEqual
   | And
   | Or
+  | Send
   deriving (Show, Eq, Ord)
 
 data UnaryOperator

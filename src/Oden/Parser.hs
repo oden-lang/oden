@@ -280,7 +280,8 @@ table = [
     ],
     [
       infixOp "*" Multiply Ex.AssocLeft,
-      infixOp "/" Divide Ex.AssocLeft
+      infixOp "/" Divide Ex.AssocLeft,
+      infixOp "<-" Send Ex.AssocLeft
     ],
     [
       infixOp "+" Add Ex.AssocLeft,
