@@ -5,11 +5,11 @@ module Oden.Infer.Subsumption (
   collectSubstitutions
 ) where
 
-import           Oden.Core.Expr          (typeOf)
-import           Oden.Core.Typed         as Typed
-import           Oden.Substitution
+import           Oden.Core.Expr        (typeOf)
+import           Oden.Core.Typed       as Typed
 import           Oden.Metadata
 import           Oden.SourceInfo
+import           Oden.Substitution
 import           Oden.Type.Kind
 import           Oden.Type.Polymorphic
 
@@ -17,7 +17,7 @@ import           Control.Monad
 import           Control.Monad.Except
 import           Control.Monad.State
 
-import qualified Data.Map                as Map
+import qualified Data.Map              as Map
 
 data SubsumptionError = SubsumptionError SourceInfo Type Type
                       deriving (Show, Eq)
@@ -37,6 +37,9 @@ collectSubstitutions t (TVar (Metadata si) tv) = do
     Just t' | t == t'   -> return ()
             | otherwise -> throwError (SubsumptionError si t t')
     Nothing -> modify (insert tv t)
+collectSubstitutions (TApp _ cons1 param1) (TApp _ cons2 param2) = do
+  collectSubstitutions cons1 cons2
+  collectSubstitutions param1 param2
 collectSubstitutions (TFn _ a1 r1) (TFn _ a2 r2) = do
   collectSubstitutions a1 a2
   collectSubstitutions r1 r2
