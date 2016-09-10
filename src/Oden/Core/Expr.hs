@@ -46,6 +46,7 @@ data Expr r t m
   | MemberAccess (Metadata SourceInfo) m t
   | MethodReference (Metadata SourceInfo) r t
   | Foreign (Metadata SourceInfo) ForeignExpr t
+  | Go (Metadata SourceInfo) (Expr r t m) t
   deriving (Show, Eq, Ord)
 
 typeOf :: Expr r t m -> t
@@ -68,6 +69,7 @@ typeOf expr = case expr of
   MemberAccess _ _ t              -> t
   MethodReference _ _ t           -> t
   Foreign _ _ t                   -> t
+  Go _ _ t                        -> t
 
 -- | Applies a mapping function to the type of an expression.
 mapType :: (t -> t) -> Expr r t m -> Expr r t m
@@ -90,6 +92,7 @@ mapType f = \case
   MemberAccess meta member t         -> MemberAccess meta member (f t)
   MethodReference meta ref t         -> MethodReference meta ref (f t)
   Foreign meta foreign' t            -> Foreign meta foreign' (f t)
+  Go meta e t                        -> Go meta e (f t)
 
 instance HasSourceInfo (Expr r t m) where
   getSourceInfo expr = case expr of
@@ -111,6 +114,7 @@ instance HasSourceInfo (Expr r t m) where
     MemberAccess (Metadata si) _ _           -> si
     MethodReference (Metadata si) _ _        -> si
     Foreign (Metadata si) _ _                -> si
+    Go (Metadata si) _ _                     -> si
 
   setSourceInfo si expr = case expr of
     Symbol _ i t                 -> Symbol (Metadata si) i t
@@ -131,4 +135,4 @@ instance HasSourceInfo (Expr r t m) where
     MemberAccess _ m t           -> MemberAccess (Metadata si) m t
     MethodReference _ ref t      -> MethodReference (Metadata si) ref t
     Foreign _ f t                -> Foreign (Metadata si) f t
-
+    Go _ e t                     -> Go (Metadata si) e t

@@ -3,17 +3,17 @@ module Oden.Backend.GoBackendSpec where
 import           Control.Monad.Except
 import           Control.Monad.Reader
 
-import           Data.Set                  as Set hiding (map)
+import           Data.Set              as Set hiding (map)
 
 import           Oden.Backend
 import           Oden.Backend.Go
 import           Oden.Core.Expr
-import           Oden.Core.Package
 import           Oden.Core.Monomorphed
+import           Oden.Core.Package
 
-import qualified Oden.Go.Identifier as GI
-import qualified Oden.Go.AST as AST
-import qualified Oden.Go.Type as GT
+import qualified Oden.Go.AST           as AST
+import qualified Oden.Go.Identifier    as GI
+import qualified Oden.Go.Type          as GT
 
 import           Oden.Identifier
 import           Oden.Metadata
@@ -36,6 +36,7 @@ mainPkg = PackageDeclaration missing (NativePackageName ["main"])
 fmtImport = AST.ImportDecl (GI.Identifier "fmt") (AST.InterpretedStringLiteral "fmt")
 
 typeUnit = TCon missing (nameInUniverse "unit")
+typeString = TCon missing (nameInUniverse "string")
 
 mainFn :: MonoTypedExpr -> MonomorphedDefinition
 mainFn expr =
@@ -109,6 +110,85 @@ spec =
             (AST.Block [ AST.StmtComment (AST.CompilerDirective "line <missing>:0")
                        , AST.ReturnStmt [emptyStructLiteral]])
        ])
+
+    it "translates the go unary op as an expression over a channel" $
+      gen (MonomorphedPackage
+           mainPkg
+           []
+           Set.empty
+           (Set.singleton (MonomorphedDefinition
+                           missing
+                           (Identifier "foo")
+                           (TNoArgFn missing typeString)
+                           (NoArgFn
+                            missing
+                            (Go
+                             missing
+                             (Literal missing (String "ok") typeString)
+                             typeString)
+                            (TNoArgFn missing typeString)))))
+       `shouldSucceedWith'`
+       AST.SourceFile
+      (AST.PackageClause (GI.Identifier "main"))
+      [fmtImport]
+      (prelude (GI.Identifier "fmt")
+       ++ [ AST.TopLevelComment (AST.CompilerDirective "line <missing>:0")
+          , AST.FunctionDecl
+            (GI.Identifier "foo")
+            (AST.FunctionSignature [] [GT.Basic (GI.Identifier "string") False])
+            (AST.Block [ AST.DeclarationStmt
+                         (AST.VarDecl
+                          (AST.VarDeclInitializer
+                           (GI.Identifier "_go_ret")
+                           (GT.Channel
+                            GT.Bidirectional
+                            (GT.Basic
+                             (GI.Identifier "string")
+                             False))
+                            (AST.Expression
+                             (AST.Application
+                              (AST.Operand
+                               (AST.OperandName (GI.Identifier "make")))
+                              [ (AST.TypeArgument
+                                 (GT.Channel
+                                  GT.Bidirectional
+                                  (GT.Basic (GI.Identifier "string") False)))
+                              , (AST.Argument
+                                 (AST.Expression
+                                  (AST.Operand
+                                   (AST.Literal
+                                    (AST.BasicLiteral
+                                     (AST.IntLiteral 1))))))
+                              ]))))
+                       , AST.GoStmt
+                         (AST.Expression
+                          (AST.Application
+                           (AST.Operand
+                            (AST.Literal
+                             (AST.FunctionLiteral
+                              (AST.FunctionSignature [] [])
+                              (AST.Block
+                               [AST.SimpleStmt
+                                (AST.SendStmt
+                                 (AST.Expression
+                                  (AST.Operand
+                                   (AST.OperandName (GI.Identifier "_go_ret"))))
+                                 (AST.Expression
+                                  (AST.Operand
+                                   (AST.Literal
+                                    (AST.BasicLiteral
+                                     (AST.StringLiteral
+                                      (AST.InterpretedStringLiteral "ok")))))))
+                               ]))))
+                           []))
+                       , AST.ReturnStmt
+                         [ AST.UnaryOp
+                           AST.Receive
+                           (AST.Operand
+                            (AST.OperandName (GI.Identifier "_go_ret")))
+                         ]
+                       ])
+          ])
 
     it "writes line compiler directives" $
       gen (MonomorphedPackage

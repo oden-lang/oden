@@ -4,7 +4,7 @@ import           Oden.Core.Expr
 import           Oden.Core.Package
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName (QualifiedName(..))
+import           Oden.QualifiedName  (QualifiedName (..))
 import           Oden.SourceInfo
 import           Oden.Type.Signature
 

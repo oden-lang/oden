@@ -33,11 +33,12 @@ import qualified Oden.Core.Untyped                as Untyped
 
 import           Oden.Environment                 as Environment hiding (map)
 import           Oden.Identifier
-import           Oden.Substitution          as Substitution
 import           Oden.Metadata
 import           Oden.Predefined
-import           Oden.QualifiedName               (QualifiedName (..), nameInUniverse)
+import           Oden.QualifiedName               (QualifiedName (..),
+                                                   nameInUniverse)
 import           Oden.SourceInfo
+import           Oden.Substitution                as Substitution
 
 import           Oden.Infer.ConstraintCollection
 import           Oden.Infer.Environment
@@ -416,6 +417,10 @@ infer = \case
     -- Untyped code is not allowed to use foreign expressions directly, that is
     -- only used by the compiler after type inference.
     throwError (InvalidForeignExpression si)
+
+  Go si e Untyped -> do
+    et <- infer e
+    return (Go si et (typeOf et))
 
   where
   inferRecordFieldAccess si expr' label = do

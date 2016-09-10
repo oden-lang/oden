@@ -34,6 +34,7 @@ data BinaryOperator
 data UnaryOperator
   = Negate
   | Not
+  | Go
   deriving (Show, Eq, Ord)
 
 data Expr

@@ -4,16 +4,16 @@ module Oden.Parser where
 
 import qualified Data.Text.Lazy        as L
 import           Text.Parsec
+import qualified Text.Parsec.Expr      as Ex
 import           Text.Parsec.Text.Lazy (Parser)
 import qualified Text.Parsec.Token     as Tok
-import qualified Text.Parsec.Expr      as Ex
 
 import           Oden.Identifier
 import           Oden.Lexer            hiding (identifier)
 import qualified Oden.Lexer            as Lexer
+import           Oden.SourceInfo
 import           Oden.Syntax           as Syntax
 import           Oden.Type.Signature
-import           Oden.SourceInfo
 
 sign :: Num a => Parser (a -> a)
 sign = (char '-' >> return negate)
@@ -274,7 +274,8 @@ table = [
     ],
     [
       prefixOp "-" Negate,
-      prefixOp "!" Not
+      prefixOp "!" Not,
+      prefixOp "go" Go
     ],
     [
       infixOp "*" Multiply Ex.AssocLeft,

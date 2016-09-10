@@ -21,9 +21,6 @@ commaSep ps = hcat (punctuate (comma <> space) (map pretty ps))
 semiSep :: Pretty p => [p] -> Doc
 semiSep ps = hcat (punctuate semi (map pretty ps))
 
-prependComment :: Maybe Comment -> Doc -> Doc
-prependComment (Just comment) d = vcat [pretty comment, d]
-prependComment Nothing d = d
 
 instance Pretty Comment where
   pretty (CompilerDirective s) = text "//" <> text s
@@ -66,6 +63,13 @@ instance Pretty Type where
   pretty (Named _ name _) = pretty name
   pretty (Interface []) = text "interface{}"
   pretty (Interface methods) = text "interface" <+> indentedInBraces (vcat (map pretty methods))
+  pretty (Channel direction type') =
+    case direction of
+      Send -> text "chan<-"
+      T.Receive -> text "chan->"
+      Bidirectional -> text "chan"
+    <+>
+    pretty type'
   pretty (Unsupported s) = error ("Cannot pretty print unsupported: " ++ s)
 
 showGoString :: Show a => a -> String
@@ -136,6 +140,7 @@ instance Pretty SliceExpression where
 instance Pretty Argument where
   pretty (Argument expr) = pretty expr
   pretty (VariadicSliceArgument expr) = pretty expr <> text "..."
+  pretty (TypeArgument type') = pretty type'
 
 instance Pretty PrimaryExpression where
   pretty (Operand operand) = pretty operand
@@ -152,6 +157,7 @@ instance Pretty UnaryOperator where
     Not               -> text "!"
     BitwiseComplement -> text "^"
     AddressOf         -> text "&"
+    AST.Receive       -> text "<-"
 
 instance Pretty BinaryOperator where
   pretty op = case op of
@@ -202,7 +208,7 @@ instance Pretty IfStmt where
     text "if" <+> pretty cond <+> pretty block <+> text "else" <+> pretty elseBranch
 
 instance Pretty Stmt where
-  pretty (DeclarationStmt comment decl) = prependComment comment (pretty decl)
+  pretty (DeclarationStmt decl) = pretty decl
   pretty (IfStmt ifStmt) = pretty ifStmt
   pretty (ReturnStmt []) = text "return"
   pretty (ReturnStmt exprs) = text "return" <+> commaSep exprs
@@ -260,4 +266,3 @@ instance Pretty SourceFile where
       \case
         TopLevelComment comment -> pretty comment
         topLevel -> pretty topLevel
-

@@ -13,15 +13,15 @@ import           Oden.Core.Untyped
 
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName    (PackageName(..), QualifiedName(..))
-import qualified Oden.Syntax as Syntax
-import           Oden.Syntax (BinaryOperator(..))
+import           Oden.QualifiedName   (PackageName (..), QualifiedName (..))
 import           Oden.SourceInfo
+import           Oden.Syntax          (BinaryOperator (..))
+import qualified Oden.Syntax          as Syntax
 import           Oden.Type.Signature
 
 import           Control.Monad
 import           Control.Monad.Writer
-import qualified Data.Map              as Map
+import qualified Data.Map             as Map
 
 data DesugarError = TypeSignatureWithoutDefinition SourceInfo Identifier TypeSignature
                   | TypeSignatureRedefinition SourceInfo Identifier (Maybe TypeSignature)
@@ -36,12 +36,6 @@ desugarFieldInitializer :: Syntax.FieldInitializer
                         -> Either DesugarError (FieldInitializer UntypedExpr)
 desugarFieldInitializer (Syntax.FieldInitializer si label expr) =
   FieldInitializer (Metadata si) label <$> desugarExpr expr
-
-methodForUnaryOperator :: Syntax.UnaryOperator -> NamedMethodReference
-methodForUnaryOperator =
-  \case
-    Syntax.Negate -> NamedMethodReference (Identifier "Num") (Identifier "Negate")
-    Syntax.Not    -> NamedMethodReference (Identifier "Logical") (Identifier "Not")
 
 methodForBinaryOperator :: BinaryOperator -> NamedMethodReference
 methodForBinaryOperator =
@@ -88,11 +82,30 @@ desugarExpr = \case
     desugarExpr (Syntax.Subscript si (Syntax.Subscript si es [i]) ir)
 
   Syntax.UnaryOp si op expr ->
-    Application
-    (Metadata si)
-    (MethodReference (Metadata si) (methodForUnaryOperator op) Untyped)
-    <$> desugarExpr expr
-    <*> untyped
+    case op of
+      Syntax.Negate ->
+        Application
+        (Metadata si)
+        (MethodReference
+         (Metadata undefined)
+         (NamedMethodReference (Identifier "Num") (Identifier "Negate"))
+         Untyped)
+        <$> desugarExpr expr
+        <*> untyped
+      Syntax.Not    ->
+        Application
+        (Metadata si)
+        (MethodReference
+         (Metadata undefined)
+         (NamedMethodReference (Identifier "Logical") (Identifier "Not"))
+         Untyped)
+        <$> desugarExpr expr
+        <*> untyped
+      Syntax.Go     ->
+        Go
+        (Metadata si)
+        <$> desugarExpr expr
+        <*> untyped
   Syntax.BinaryOp si op e1 e2 ->
     Application
     (Metadata si)

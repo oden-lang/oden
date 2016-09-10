@@ -26,8 +26,8 @@ import           Oden.Core.Typed                  as Typed
 
 import           Oden.Environment                 as Environment
 import           Oden.Identifier
-import           Oden.QualifiedName
 import           Oden.Metadata
+import           Oden.QualifiedName
 
 import           Oden.SourceInfo
 import qualified Oden.Type.Monomorphic            as Mono
@@ -93,7 +93,7 @@ addInstance :: InstantiatedDefinition -> Monomorph ()
 addInstance inst =
   modify (\s -> s { instances = instances s ++ [inst] })
 
-  
+
 addMonomorphedName :: QualifiedName -> Identifier -> Monomorph ()
 addMonomorphedName original name =
   modify (\s -> s { monomorphedNames = Map.insert original name (monomorphedNames s) })
@@ -140,7 +140,7 @@ instantiateDefinition fqn t expr =
       addInstance (InstantiatedDefinition fqn (Metadata $ getSourceInfo t) identifier me)
       return identifier
 
-  
+
 -- | An identifier after the 'flattening' process, i.e. when imported native definitions gets
 -- insert into the package and every definition gets a name based on it's fully qualified name.
 data MonomorphicIdentifier
@@ -380,6 +380,11 @@ monomorph e = case e of
     mt <- toMonomorphic si t
     return (Foreign si f mt)
 
+  Go si expr _ -> do
+    mt <- getMonoType e
+    me <- monomorph expr
+    return (Go si me mt)
+
 
 -- | Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
@@ -423,7 +428,7 @@ encodeDefinitionName =
     fqn ->
       Identifier ("__" ++ encodeQualifiedName fqn)
 
-      
+
 -- | Recursively monomorph the definition if it has a monomorphic type. For definitions
 -- with polymorphic types the result will be 'Nothing'.
 monomorphDefinition :: TypedDefinition
@@ -460,11 +465,11 @@ monomorphDefinition def =
     -- Foreign definitions are are already monomorphic and not generated to out
     -- code, so ignore.
     ForeignDefinition{} -> return Nothing
-    
+
     -- Protocol definitions are not monomorphed or generated to output code, so
     -- ignore.
     ProtocolDefinition{} -> return Nothing
-      
+
     -- Implementations are not monomorphed or generated to output code, so
     -- ignore.
     Implementation{} -> return Nothing
@@ -499,4 +504,3 @@ monomorphPackage environment (TypedPackage pkgDecl imports definitions) = do
       ms = Set.fromList (Map.elems (monomorphed s))
       imports' = selectForeignImports imports
   return (MonomorphedPackage pkgDecl imports' is ms)
-

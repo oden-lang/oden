@@ -1,9 +1,9 @@
 module Oden.Go.PrettySpec where
 
-import           Oden.Go.Identifier
 import           Oden.Go.AST
+import           Oden.Go.Identifier
+import           Oden.Go.Pretty          ()
 import           Oden.Go.Type
-import           Oden.Go.Pretty ()
 
 import           Text.PrettyPrint.Leijen
 

@@ -7,8 +7,8 @@ import           Oden.Core.Typed
 import           Oden.Type.Polymorphic
 
 import           Oden.Identifier
-import           Oden.QualifiedName
 import           Oden.Predefined
+import           Oden.QualifiedName
 
 evaluateBinaryMethodApplication :: TypedMethodReference
                                 -> TypedExpr
@@ -98,3 +98,4 @@ evaluate =
     Tuple{} -> Nothing
     Block{} -> Nothing
     Foreign{} -> Nothing
+    Go{} -> Nothing

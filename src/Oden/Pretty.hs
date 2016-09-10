@@ -1,26 +1,29 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, LambdaCase #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase           #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module Oden.Pretty where
 
-import           Oden.Core.Typed as Typed
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import qualified Oden.Core.Untyped as Untyped
-import           Oden.Core.Package
 import           Oden.Core.Foreign
+import           Oden.Core.Monomorphed            as Monomorphed
+import           Oden.Core.Package
 import           Oden.Core.ProtocolImplementation
-import           Oden.Core.Monomorphed as Monomorphed
+import           Oden.Core.Typed                  as Typed
+import qualified Oden.Core.Untyped                as Untyped
 
 import           Oden.Identifier
-import           Oden.QualifiedName    (PackageName(..), QualifiedName(..))
-import qualified Oden.Type.Monomorphic as Mono
-import qualified Oden.Type.Polymorphic as Poly
+import           Oden.QualifiedName               (PackageName (..),
+                                                   QualifiedName (..))
+import qualified Oden.Type.Monomorphic            as Mono
+import qualified Oden.Type.Polymorphic            as Poly
 import           Oden.Type.Signature
 
+import qualified Oden.Environment                 as Env
 import           Oden.Infer.Environment
-import qualified Oden.Environment      as Env
 
-import           Data.List             (intersperse)
-import           Data.Set              (toList)
+import           Data.List                        (intersperse)
+import           Data.Set                         (toList)
 
 import           Text.PrettyPrint.Leijen
 
@@ -101,6 +104,7 @@ instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
   pretty (Foreign _ (ForeignBinaryOperator op) _) = parens (pretty op)
   pretty (Foreign _ (ForeignUnaryOperator op) _) = parens (pretty op)
   pretty (Foreign _ (ForeignSymbol s) _) = pretty s
+  pretty (Go _ expr _) = text "go" <+> pretty expr
 
 collectCurried :: Expr r t m -> ([NameBinding], Expr r t m)
 collectCurried (Fn _ param body _) =
@@ -178,7 +182,7 @@ instance Pretty (ImportedPackage TypedPackage) where
       ImportReference _ pkgName ->
         text "import" <+> pretty pkgName
       ImportForeignReference _ pkgPath ->
-        text "import foreign" <+> text (show pkgPath) 
+        text "import foreign" <+> text (show pkgPath)
 
 instance Pretty Typed.TypedPackage  where
   pretty (Typed.TypedPackage decl imports defs) =

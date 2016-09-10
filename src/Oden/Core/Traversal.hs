@@ -95,3 +95,5 @@ traverseExpr traversal@Traversal{ onExpr = onExpr'
       return (MethodReference si' ref' t')
     Foreign si foreign' t ->
       Foreign si foreign' <$> onType' t
+    Go si expr t ->
+      Go si <$> traverseExpr' expr <*> onType' t

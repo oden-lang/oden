@@ -2,8 +2,8 @@
 -- https://golang.org/ref/spec. Constructs not needed in Oden are excluded.
 module Oden.Go.AST where
 
-import Oden.Go.Identifier
-import Oden.Go.Type
+import           Oden.Go.Identifier
+import           Oden.Go.Type
 
 data Comment
   = CompilerDirective String
@@ -58,6 +58,7 @@ data SliceExpression = ClosedSlice Expression Expression
 
 data Argument = Argument Expression
               | VariadicSliceArgument Expression
+              | TypeArgument Type
               deriving (Show, Eq)
 
 data PrimaryExpression = Operand Operand
@@ -73,6 +74,7 @@ data UnaryOperator = UnaryPlus
                    | Not
                    | BitwiseComplement
                    | AddressOf
+                   | Receive
                    deriving (Show, Eq)
 
 data BinaryOperator = Or
@@ -116,7 +118,7 @@ data IfStmt = If Expression Block
             | IfElse Expression Block ElseBranch
             deriving (Show, Eq)
 
-data Stmt = DeclarationStmt (Maybe Comment) Declaration
+data Stmt = DeclarationStmt Declaration
           | IfStmt IfStmt
           | ReturnStmt [Expression]
           | BlockStmt Block

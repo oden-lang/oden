@@ -14,16 +14,17 @@ module Oden.Go.Importer (
 ) where
 
 import           Oden.Core.Definition
-import           Oden.Core.Typed
 import           Oden.Core.Package
+import           Oden.Core.Typed
 
-import           Oden.Go.Type               as G
 import qualified Oden.Go.Identifier         as GI
+import           Oden.Go.Type               as G
 import           Oden.Identifier
 import           Oden.Imports
 import           Oden.Metadata
 import           Oden.Predefined
-import           Oden.QualifiedName         (PackageName(..), QualifiedName(..))
+import           Oden.QualifiedName         (PackageName (..),
+                                             QualifiedName (..))
 import           Oden.SourceInfo
 import qualified Oden.Type.Polymorphic      as Poly
 
@@ -177,6 +178,8 @@ convertType (Struct fields) = do
   where
   convertField row (StructField (GI.Identifier name) goType) =
     Poly.RExtension missing (Identifier name) <$> convertType goType <*> return row
+convertType (Channel _ _) =
+  throwError "Channels"
 convertType (Unsupported n) = throwError n
 
 convertPackage :: GoPackage -> (TypedPackage, [UnsupportedMessage])

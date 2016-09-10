@@ -326,3 +326,14 @@ spec = describe "parseExpr" $ do
     RecordInitializer (src 1 1)
       [FieldInitializer (src 1 3) (Identifier "size") (Literal (src 1 10) (Int 1))
       ,FieldInitializer (src 1 13) (Identifier "foo") (Literal (src 1 19) (String "foo"))]
+
+  it "parses go keyword before function application" $
+    parseExpr "go foo()"
+    `shouldSucceedWith`
+    UnaryOp
+    (src 1 1)
+    Go
+    (Application
+     (src 1 7)
+     (Symbol (src 1 4) (Identifier "foo"))
+     [])

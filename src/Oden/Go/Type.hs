@@ -2,7 +2,7 @@
 -- based on https://golang.org/ref/spec. Types not needed in Oden are excluded.
 module Oden.Go.Type where
 
-import Oden.Go.Identifier
+import           Oden.Go.Identifier
 
 data StructField = StructField Identifier Type
                  deriving (Show, Eq)
@@ -17,6 +17,12 @@ data InterfaceMethodSpec = Method Identifier Parameters Returns
                          | Embed Identifier
                          deriving (Show, Eq)
 
+data ChannelDirection
+  = Send
+  | Receive
+  | Bidirectional
+  deriving (Show, Eq)
+
 data Type = Basic Identifier Bool
           | Pointer Type
           | Array Int Type
@@ -25,5 +31,6 @@ data Type = Basic Identifier Bool
           | Struct [StructField]
           | Named String Identifier Type
           | Interface [InterfaceMethodSpec]
+          | Channel ChannelDirection Type
           | Unsupported String                        -- Temporary solution for the Importer.
           deriving (Show, Eq)

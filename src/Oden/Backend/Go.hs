@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase       #-}
 module Oden.Backend.Go (
   GoBackend(..),
   prelude,
@@ -9,31 +9,31 @@ module Oden.Backend.Go (
 import           Control.Monad.Except
 import           Control.Monad.Reader
 
-import           Data.List             (sortOn, find)
-import           Data.Maybe            (maybeToList)
-import qualified Data.Set              as Set
+import           Data.List               (find, sortOn)
+import           Data.Maybe              (maybeToList)
+import qualified Data.Set                as Set
 
-import           Text.PrettyPrint.Leijen (renderPretty, displayS, pretty)
 import           System.FilePath
+import           Text.PrettyPrint.Leijen (displayS, pretty, renderPretty)
 
-import qualified Oden.Go.AST           as AST
-import qualified Oden.Go.Identifier    as GI
-import qualified Oden.Go.Type          as GT
-import           Oden.Go.Pretty ()
+import qualified Oden.Go.AST             as AST
+import qualified Oden.Go.Identifier      as GI
+import           Oden.Go.Pretty          ()
+import qualified Oden.Go.Type            as GT
 
 import           Oden.Backend
 
 import           Oden.Core.Expr
-import           Oden.Core.Monomorphed as Monomorphed
-import           Oden.Core.Package
 import           Oden.Core.Foreign
+import           Oden.Core.Monomorphed   as Monomorphed
+import           Oden.Core.Package
 
 import           Oden.Identifier
 import           Oden.Metadata
-import           Oden.QualifiedName    (PackageName(..), QualifiedName(..))
-import           Oden.SourceInfo       hiding (fileName)
-import qualified Oden.SourceInfo       as SourceInfo
-import qualified Oden.Type.Monomorphic as Mono
+import           Oden.QualifiedName      (PackageName (..), QualifiedName (..))
+import           Oden.SourceInfo         hiding (fileName)
+import qualified Oden.SourceInfo         as SourceInfo
+import qualified Oden.Type.Monomorphic   as Mono
 
 type Codegen = ReaderT MonomorphedPackage (Except CodegenError)
 
@@ -297,7 +297,7 @@ genExpr expr = case expr of
     throwError $ UnexpectedError $ "Invalid no-arg fn type: " ++ show t
 
   Let _ (NameBinding (Metadata si) name) bindingExpr body letType -> do
-    varDecl <- (AST.DeclarationStmt Nothing . AST.VarDecl)
+    varDecl <- (AST.DeclarationStmt . AST.VarDecl)
                <$> (AST.VarDeclInitializer
                    <$> genIdentifier name
                    <*> genType (typeOf bindingExpr)
@@ -418,6 +418,10 @@ genExpr expr = case expr of
 
   Foreign _ (ForeignBinaryOperator _) _ ->
     error "cannot codegen foreign binary operator without a full binary application"
+
+  Go _ e _ ->
+    -- TODO: Wrap in function with channel, and recv return value.
+    genExpr e
 
 
 genBlock :: MonoTypedExpr -> Codegen AST.Block
