@@ -35,6 +35,7 @@ data UnaryOperator
   = Negate
   | Not
   | Go
+  | Receive
   deriving (Show, Eq, Ord)
 
 data Expr

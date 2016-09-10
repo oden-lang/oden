@@ -1,6 +1,6 @@
 module Oden.QualifiedName where
 
-import Oden.Identifier
+import           Oden.Identifier
 
 data PackageName
   = NativePackageName [String]

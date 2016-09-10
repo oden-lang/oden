@@ -327,7 +327,7 @@ spec = describe "parseExpr" $ do
       [FieldInitializer (src 1 3) (Identifier "size") (Literal (src 1 10) (Int 1))
       ,FieldInitializer (src 1 13) (Identifier "foo") (Literal (src 1 19) (String "foo"))]
 
-  it "parses go keyword before function application" $
+  it "parses go operator before function application" $
     parseExpr "go foo()"
     `shouldSucceedWith`
     UnaryOp
@@ -336,4 +336,15 @@ spec = describe "parseExpr" $ do
     (Application
      (src 1 7)
      (Symbol (src 1 4) (Identifier "foo"))
+     [])
+
+  it "parses <- operator before function application" $
+    parseExpr "<-foo()"
+    `shouldSucceedWith`
+    UnaryOp
+    (src 1 1)
+    Receive
+    (Application
+     (src 1 6)
+     (Symbol (src 1 3) (Identifier "foo"))
      [])

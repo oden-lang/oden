@@ -130,10 +130,10 @@ instance HasSourceInfo TVarBinding where
   setSourceInfo si (TVarBinding _ v) = TVarBinding (Metadata si) v
 
 -- | A polymorphic type and its quantified type variable bindings.
-data Scheme = Forall { schemeMeta :: Metadata SourceInfo
+data Scheme = Forall { schemeMeta        :: Metadata SourceInfo
                      , schemeQuantifiers :: [TVarBinding]
                      , schemeConstraints :: Set.Set ProtocolConstraint
-                     , schemeType :: Type
+                     , schemeType        :: Type
                      }
             deriving (Show, Eq, Ord)
 

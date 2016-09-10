@@ -105,6 +105,7 @@ instance (Pretty r, Pretty m) => Pretty (Expr r t m) where
   pretty (Foreign _ (ForeignUnaryOperator op) _) = parens (pretty op)
   pretty (Foreign _ (ForeignSymbol s) _) = pretty s
   pretty (Go _ expr _) = text "go" <+> pretty expr
+  pretty (Receive _ expr _) = text "<-" <> pretty expr
 
 collectCurried :: Expr r t m -> ([NameBinding], Expr r t m)
 collectCurried (Fn _ param body _) =

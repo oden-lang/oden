@@ -155,6 +155,20 @@ spec = describe "inferExpr" $ do
       (Identifier "Bar"))
      typeInt)
 
+  it "infers receive of untyped symbol" $
+    inferExpr empty (untypedFn "x" (Receive missing (untypedSymbol "x") Untyped))
+    `shouldSucceedWith`
+    (scheme (typeFn (channelOf tvarA) tvarA),
+     tFn
+     (tNameBinding (Identifier "x"))
+     (Receive
+      missing
+      (Symbol missing (Identifier "x") (channelOf tvarA))
+      tvarA)
+      (typeFn
+       (channelOf tvarA)
+       tvarA))
+
   it "infers identity fn" $
     inferExpr empty (untypedFn "x" (untypedSymbol "x"))
     `shouldSucceedWith`

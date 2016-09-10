@@ -97,3 +97,5 @@ traverseExpr traversal@Traversal{ onExpr = onExpr'
       Foreign si foreign' <$> onType' t
     Go si expr t ->
       Go si <$> traverseExpr' expr <*> onType' t
+    Receive si expr t ->
+      Receive si <$> traverseExpr' expr <*> onType' t

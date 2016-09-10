@@ -37,6 +37,7 @@ fmtImport = AST.ImportDecl (GI.Identifier "fmt") (AST.InterpretedStringLiteral "
 
 typeUnit = TCon missing (nameInUniverse "unit")
 typeString = TCon missing (nameInUniverse "string")
+typeChannel = TCon missing (nameInUniverse "channel")
 
 mainFn :: MonoTypedExpr -> MonomorphedDefinition
 mainFn expr =
@@ -119,12 +120,12 @@ spec =
            (Set.singleton (MonomorphedDefinition
                            missing
                            (Identifier "foo")
-                           typeString
+                           (TApp missing typeChannel typeString)
 
                            (Go
                             missing
                             (Literal missing (String "ok") typeString)
-                            typeString))))
+                            (TApp missing typeChannel typeString)))))
        `shouldSucceedWith'`
        AST.SourceFile
       (AST.PackageClause (GI.Identifier "main"))
@@ -135,7 +136,9 @@ spec =
             (AST.VarDecl
              (AST.VarDeclInitializer
               (GI.Identifier "foo")
-              (GT.Basic (GI.Identifier "string") False)
+              (GT.Channel
+               GT.Bidirectional
+               (GT.Basic (GI.Identifier "string") False))
               (AST.Expression
                (AST.Application
                 (AST.Operand
@@ -143,7 +146,10 @@ spec =
                   (AST.FunctionLiteral
                    (AST.FunctionSignature
                     []
-                    [GT.Basic (GI.Identifier "string") False])
+                    [ GT.Channel
+                      GT.Bidirectional
+                      (GT.Basic (GI.Identifier "string") False)
+                    ])
                    (AST.Block [ AST.DeclarationStmt
                                 (AST.VarDecl
                                  (AST.VarDeclInitializer
@@ -190,11 +196,9 @@ spec =
                                       ]))))
                                   []))
                               , AST.ReturnStmt
-                                [ AST.UnaryOp
-                                  AST.Receive
-                                  (AST.Operand
-                                   (AST.OperandName (GI.Identifier "_go_ret")))
-                                ]
+                                [AST.Expression
+                                 (AST.Operand
+                                  (AST.OperandName (GI.Identifier "_go_ret")))]
                               ]))))
                 []))))
           ])

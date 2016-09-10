@@ -1,9 +1,3 @@
 package gostring/main
 
-/*
-go "ok!"
-// ->
-go (() -> let _ret = channel(1)
-          in _ret <- "ok!")()
-*/
-main() = println(go "ok!")
+main() = println(<-(go "ok!"))

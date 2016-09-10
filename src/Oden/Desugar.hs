@@ -92,7 +92,7 @@ desugarExpr = \case
          Untyped)
         <$> desugarExpr expr
         <*> untyped
-      Syntax.Not    ->
+      Syntax.Not ->
         Application
         (Metadata si)
         (MethodReference
@@ -101,8 +101,13 @@ desugarExpr = \case
          Untyped)
         <$> desugarExpr expr
         <*> untyped
-      Syntax.Go     ->
+      Syntax.Go ->
         Go
+        (Metadata si)
+        <$> desugarExpr expr
+        <*> untyped
+      Syntax.Receive ->
+        Receive
         (Metadata si)
         <$> desugarExpr expr
         <*> untyped

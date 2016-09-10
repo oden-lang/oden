@@ -47,4 +47,3 @@ data ForeignExpr
   | ForeignUnaryOperator UnaryOperator
   | ForeignSymbol Identifier
   deriving (Show, Eq, Ord)
-

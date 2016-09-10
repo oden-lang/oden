@@ -36,6 +36,9 @@ tvarB = TVar predefined tvB
 tvarC = TVar predefined tvC
 tvarD = TVar predefined tvD
 
+channelOf :: Type -> Type
+channelOf = TApp missing (TCon missing (nameInUniverse "channel"))
+
 constrainedScheme :: Set.Set ProtocolConstraint -> Type -> Scheme
 constrainedScheme constraints t = Forall predefined (map (TVarBinding missing) $ Set.toList (ftv t)) constraints t
 

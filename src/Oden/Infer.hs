@@ -420,7 +420,13 @@ infer = \case
 
   Go si e Untyped -> do
     et <- infer e
-    return (Go si et (typeOf et))
+    return (Go si et (TApp si typeChannel (typeOf et)))
+
+  Receive si e Untyped -> do
+    tv <- fresh si
+    te <- infer e
+    uni (unwrap si) (TApp si (universeType si "channel") tv) (typeOf te)
+    return (Receive si te tv)
 
   where
   inferRecordFieldAccess si expr' label = do

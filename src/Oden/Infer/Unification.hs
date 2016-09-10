@@ -13,13 +13,13 @@ module Oden.Infer.Unification (
 import           Control.Monad.Except
 import           Control.Monad.Identity
 
-import qualified Data.Map                as Map
-import qualified Data.Set                as Set
+import qualified Data.Map               as Map
+import qualified Data.Set               as Set
 
 import           Oden.Identifier
-import           Oden.Substitution
 import           Oden.Metadata
 import           Oden.SourceInfo
+import           Oden.Substitution
 import           Oden.Type.Polymorphic
 
 data UnificationError = UnificationFail SourceInfo Type Type
@@ -57,6 +57,8 @@ unifies _ (TVar _ v) t = v `bind` t
 unifies _ t (TVar _ v) = v `bind` t
 unifies _ (TCon _ n1) (TCon _ n2)
   | n1 == n2 = return emptySubst
+unifies si (TApp _ cons1 param1) (TApp _ cons2 param2) =
+  unifyMany si [cons1, param1] [cons2, param2]
 unifies si (TFn _ t1 t2) (TFn _ t3 t4) = unifyMany si [t1, t2] [t3, t4]
 unifies si (TNoArgFn _ t1) (TNoArgFn _ t2) = unifies si t1 t2
 unifies si (TForeignFn _ v1 ps1 rs1) (TForeignFn _ v2 ps2 rs2) | v1 == v2 = do

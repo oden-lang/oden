@@ -4,15 +4,16 @@ module Oden.Predefined (
   typeFloat64,
   typeString,
   typeBool,
-  typeUnit
+  typeUnit,
+  typeChannel
 ) where
 
 import           Oden.Core.Definition
 import           Oden.Core.Expr
 import           Oden.Core.Foreign
 import           Oden.Core.Package
-import           Oden.Core.Typed
 import           Oden.Core.ProtocolImplementation
+import           Oden.Core.Typed
 
 import           Oden.Identifier
 import           Oden.Metadata
@@ -21,7 +22,7 @@ import           Oden.SourceInfo
 
 import           Oden.Type.Polymorphic
 
-import           Data.Set              hiding (map)
+import           Data.Set                         hiding (map)
 
 predefined :: Metadata SourceInfo
 predefined = Metadata Predefined
@@ -29,12 +30,13 @@ predefined = Metadata Predefined
 tvarA :: Type
 tvarA = TVar predefined (TV "a")
 
-typeInt, typeFloat64, typeString, typeBool, typeUnit :: Type
+typeInt, typeFloat64, typeString, typeBool, typeUnit, typeChannel :: Type
 typeInt = TCon predefined (nameInUniverse "int")
 typeFloat64 = TCon predefined (nameInUniverse "float64")
 typeString = TCon predefined (nameInUniverse "string")
 typeBool = TCon predefined (nameInUniverse "bool")
 typeUnit = TCon predefined (nameInUniverse "unit")
+typeChannel = TCon predefined (nameInUniverse "channel")
 
 errorProtocol :: Protocol
 errorProtocol =
@@ -355,7 +357,8 @@ types = [
   ("float64", typeFloat64),
   ("string", typeString),
   ("bool", typeBool),
-  ("unit", typeUnit)
+  ("unit", typeUnit),
+  ("channel", typeChannel)
   ]
 
 universe :: TypedPackage

@@ -275,7 +275,8 @@ table = [
     [
       prefixOp "-" Negate,
       prefixOp "!" Not,
-      prefixOp "go" Go
+      prefixOp "go" Go,
+      prefixOp "<-" Receive
     ],
     [
       infixOp "*" Multiply Ex.AssocLeft,

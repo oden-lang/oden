@@ -92,8 +92,14 @@ genType t@Mono.TCon{}
   | isUniverseTypeConstructor "bool" t = return $ GT.Basic (GI.Identifier "bool") False
   | isUniverseTypeConstructor "string" t = return $ GT.Basic (GI.Identifier "string") False
   | otherwise = throwError (UnexpectedError $ "Unsupported type constructor: " ++ show t)
-genType t@Mono.TApp{} =
-  throwError $ UnexpectedError $ "Type application not supported yet: " ++ show t
+genType (Mono.TApp _ cons param) =
+  case cons of
+    (Mono.TCon _ (FQN (NativePackageName []) (Identifier "channel"))) ->
+      GT.Channel GT.Bidirectional <$> genType param
+    _ ->
+      throwError $
+      UnexpectedError $
+      "Type application not supported for type constructor: " ++ show cons
 genType (Mono.TTuple _ f s r) =
   GT.Struct <$> zipWithM genTupleField [0..] (f:s:r)
   where
@@ -419,9 +425,9 @@ genExpr expr = case expr of
   Foreign _ (ForeignBinaryOperator _) _ ->
     error "cannot codegen foreign binary operator without a full binary application"
 
-  Go _ e t -> do
+  Go _ e _ -> do
     ge <- genExpr e
-    gt <- genType t
+    gt <- genType (typeOf e)
     return (AST.Expression
             (AST.Application
              (AST.Operand
@@ -429,7 +435,7 @@ genExpr expr = case expr of
                (AST.FunctionLiteral
                 (AST.FunctionSignature
                  []
-                 [gt])
+                 [GT.Channel GT.Bidirectional gt])
                  (AST.Block
                   [ AST.DeclarationStmt
                     (AST.VarDecl
@@ -471,14 +477,15 @@ genExpr expr = case expr of
                           ]))))
                       []))
                   , AST.ReturnStmt
-                    [ AST.UnaryOp
-                      AST.Receive
+                    [ AST.Expression
                       (AST.Operand
                        (AST.OperandName (GI.Identifier "_go_ret")))
                     ]
                   ]))))
               []))
-
+  Receive _ e _ ->
+    AST.UnaryOp AST.Receive . asPrimaryExpression
+    <$> genExpr e
 
 genBlock :: MonoTypedExpr -> Codegen AST.Block
 genBlock expr = do

@@ -134,6 +134,7 @@ instance (Substitutable r, Substitutable m) => Substitutable (Expr r Type m) whe
     MethodReference si ref t       -> MethodReference si (apply s ref) (apply s t)
     Foreign si f t                 -> Foreign si f (apply s t)
     Go si e t                      -> Go si (apply s e) (apply s t)
+    Receive si e t                 -> Receive si (apply s e) (apply s t)
 
 
 instance Substitutable ProtocolMethod where

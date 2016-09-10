@@ -385,6 +385,11 @@ monomorph e = case e of
     me <- monomorph expr
     return (Go si me mt)
 
+  Receive si expr t -> do
+    mt <- toMonomorphic si t
+    me <- monomorph expr
+    return (Receive si me mt)
+
 
 -- | Given a let-bound expression and a reference to that binding, create a
 -- monomorphic instance of the let-bound expression.
