@@ -37,7 +37,7 @@ fmtImport = AST.ImportDecl (GI.Identifier "fmt") (AST.InterpretedStringLiteral "
 
 typeUnit = TCon missing (nameInUniverse "unit")
 typeString = TCon missing (nameInUniverse "string")
-typeChannel = TCon missing (nameInUniverse "channel")
+typeChannel = TCon missing (nameInUniverse "Channel")
 
 mainFn :: MonoTypedExpr -> MonomorphedDefinition
 mainFn expr =
@@ -147,7 +147,7 @@ spec =
                    (AST.FunctionSignature
                     []
                     [ GT.Channel
-                      GT.Bidirectional
+                      GT.Receive
                       (GT.Basic (GI.Identifier "string") False)
                     ])
                    (AST.Block [ AST.DeclarationStmt

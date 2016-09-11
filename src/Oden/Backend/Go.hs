@@ -94,8 +94,10 @@ genType t@Mono.TCon{}
   | otherwise = throwError (UnexpectedError $ "Unsupported type constructor: " ++ show t)
 genType (Mono.TApp _ cons param) =
   case cons of
-    (Mono.TCon _ (FQN (NativePackageName []) (Identifier "channel"))) ->
-      GT.Channel GT.Bidirectional <$> genType param
+    (Mono.TCon _ (FQN (NativePackageName []) (Identifier c)))
+      | c == "Channel"  -> GT.Channel GT.Bidirectional <$> genType param
+      | c == "Receiver" -> GT.Channel GT.Receive <$> genType param
+      | c == "Sender"   -> GT.Channel GT.Send <$> genType param
     _ ->
       throwError $
       UnexpectedError $
@@ -443,7 +445,7 @@ genExpr expr = case expr of
                (AST.FunctionLiteral
                 (AST.FunctionSignature
                  []
-                 [GT.Channel GT.Bidirectional gt])
+                 [GT.Channel GT.Receive gt])
                  (AST.Block
                   [ AST.DeclarationStmt
                     (AST.VarDecl

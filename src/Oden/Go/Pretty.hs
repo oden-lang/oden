@@ -66,7 +66,7 @@ instance Pretty Type where
   pretty (Channel direction type') =
     case direction of
       Send -> text "chan<-"
-      T.Receive -> text "chan->"
+      T.Receive -> text "<-chan"
       Bidirectional -> text "chan"
     <+>
     pretty type'

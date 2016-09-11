@@ -5,7 +5,9 @@ module Oden.Predefined (
   typeString,
   typeBool,
   typeUnit,
-  typeChannel
+  typeChannel,
+  typeReceiver,
+  typeSender
 ) where
 
 import           Oden.Core.Definition
@@ -30,13 +32,15 @@ predefined = Metadata Predefined
 tvarA :: Type
 tvarA = TVar predefined (TV "a")
 
-typeInt, typeFloat64, typeString, typeBool, typeUnit, typeChannel :: Type
+typeInt, typeFloat64, typeString, typeBool, typeUnit, typeChannel, typeReceiver, typeSender :: Type
 typeInt = TCon predefined (nameInUniverse "int")
 typeFloat64 = TCon predefined (nameInUniverse "float64")
 typeString = TCon predefined (nameInUniverse "string")
 typeBool = TCon predefined (nameInUniverse "bool")
 typeUnit = TCon predefined (nameInUniverse "unit")
-typeChannel = TCon predefined (nameInUniverse "channel")
+typeChannel = TCon predefined (nameInUniverse "Channel")
+typeReceiver = TCon predefined (nameInUniverse "Receiver")
+typeSender = TCon predefined (nameInUniverse "Sender")
 
 errorProtocol :: Protocol
 errorProtocol =
@@ -358,7 +362,9 @@ types = [
   ("string", typeString),
   ("bool", typeBool),
   ("unit", typeUnit),
-  ("channel", typeChannel)
+  ("channel", typeChannel),
+  ("receiver", typeReceiver),
+  ("sender", typeSender)
   ]
 
 universe :: TypedPackage
