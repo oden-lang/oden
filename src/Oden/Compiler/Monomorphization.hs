@@ -142,16 +142,25 @@ instantiateDefinition fqn t expr =
 
 
 -- | An identifier after the 'flattening' process, i.e. when imported native definitions gets
--- insert into the package and every definition gets a name based on it's fully qualified name.
+-- inserted into the package and every definition gets a name based on it's fully qualified name.
+-- In case the symbol referred to a definition to be inlined, i.e. a literal or a built-in function,
+-- 'InlineExpr' is returned.
 data MonomorphicIdentifier
   = FlattenedIdentifier Identifier
   | LocalIdentifier Identifier
   | ForeignIdentifier QualifiedName
+  | InlineExpr MonoTypedExpr
 
 
 findInstanceName :: InstanceSource -> Monomorph (Maybe Identifier)
 findInstanceName source = Map.lookup source <$> gets instanceNames
 
+shouldInline :: TypedExpr -> Bool
+shouldInline =
+  \case
+    Foreign{} -> True
+    Literal{} -> True
+    _         -> False
 
 getMonomorphicIn :: CompileEnvironment
                  -> Identifier
@@ -165,6 +174,12 @@ getMonomorphicIn env ident t = do
       case definition of
         ForeignDefinition _ definitionName _ ->
           return (ForeignIdentifier definitionName)
+        Definition _ _ (_, pe) | shouldInline pe ->
+          case instantiate pe t of
+            Left err -> throwError (MonomorphInstantiateError err)
+            Right expr -> do
+              me <- monomorph expr
+              return (InlineExpr me)
         Definition _ definitionName (sc, pe) | Poly.isPolymorphic sc -> do
           res <- findInstanceName (DefinitionInstanceSource definitionName t)
           case res of
@@ -242,6 +257,7 @@ monomorph e = case e of
       FlattenedIdentifier n -> return (Symbol si n mt)
       LocalIdentifier n -> return (Symbol si n mt)
       ForeignIdentifier _ -> return (Symbol si ident mt)
+      InlineExpr me       -> return me
 
   Subscript sourceInfo sliceExpr indexExpr polyType ->
     Subscript sourceInfo <$> monomorph sliceExpr
@@ -358,6 +374,8 @@ monomorph e = case e of
                 return (Symbol si n monoType)
               ForeignIdentifier _ ->
                 return (MemberAccess si (Monomorphed.PackageMemberAccess pkgAlias name) monoType)
+              InlineExpr me ->
+                return me
           _ -> error "cannot access member in non-existing package"
 
   MethodReference si reference methodType ->
@@ -369,12 +387,6 @@ monomorph e = case e of
         | otherwise -> do
             (name, monoType) <- getMonomorphicMethod protocolName' methodName expr methodType
             return (Symbol si name monoType)
-    where
-    shouldInline =
-      \case
-        Foreign{} -> True
-        Literal{} -> True
-        _         -> False
 
   Foreign si f t -> do
     mt <- toMonomorphic si t

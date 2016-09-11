@@ -6,10 +6,14 @@ countDown(n) = {
 
 main : -> ()
 main() =
-  let r = go countDown(1000000)
+  let c = bidirectional_channel(2)
+      r = receiver(c)
+      s = sender(c)
+      msg = go countDown(1000000)
   in {
     println("Running...")
-    r <- "I'm fast!"
+    s <- "I'm fast!"
+    s <- (<-msg)
     println(<-r)
     println(<-r)
   }

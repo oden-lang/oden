@@ -265,11 +265,38 @@ genExpr expr = case expr of
   Subslice _ s r _ ->
     AST.Expression <$> (AST.Slice <$> genPrimaryExpression s <*> genRange r)
 
-  -- Foreign operators are code generated in a special manner.
+  -- Foreign constructs are code generated in a special manner.
   Application _ (Foreign _ (ForeignUnaryOperator o) _) operand _ ->
     grouped <$> (AST.UnaryOp (genUnaryOperator o) <$> genPrimaryExpression operand)
   Application _ (Application _ (Foreign _ (ForeignBinaryOperator o) _) lhs _) rhs _ ->
     grouped <$> (AST.BinaryOp (genBinaryOperator o) <$> genExpr lhs <*> genExpr rhs)
+
+  Application _ (Foreign _ BidirectionalChannel _) bufferSize channelType ->
+    case channelType of
+      Mono.TApp _ (Mono.TCon
+                    _
+                    (FQN
+                     (NativePackageName [])
+                     (Identifier "Channel"))) elementType -> do
+        gt <- genType elementType
+        goBufferSize <- genExpr bufferSize
+        return (AST.Expression
+                (AST.Application
+                 (AST.Operand
+                  (AST.OperandName (GI.Identifier "make")))
+                 [ AST.TypeArgument
+                   (GT.Channel
+                    GT.Bidirectional
+                    gt)
+                 , AST.Argument goBufferSize
+                 ]))
+      _ -> throwError $
+          UnexpectedError $
+          "Invalid channel type for BidirectionalChannel: " ++ show channelType
+
+  -- TODO: Type cast to directed Go channels?
+  Application _ (Foreign _ Receiver _) channel _ -> genExpr channel
+  Application _ (Foreign _ Sender _) channel _ -> genExpr channel
 
   Application _ f arg _ ->
     AST.Expression <$> (AST.Application <$> genPrimaryExpression f
@@ -430,10 +457,19 @@ genExpr expr = case expr of
     (AST.Expression . AST.Operand . AST.OperandName) <$> genIdentifier s
 
   Foreign _ (ForeignUnaryOperator _) _ ->
-    error "cannot codegen foreign unary operator without an application"
+    throwError $
+    UnexpectedError
+    "cannot codegen foreign unary operator without an application"
 
   Foreign _ (ForeignBinaryOperator _) _ ->
-    error "cannot codegen foreign binary operator without a full binary application"
+    throwError $
+    UnexpectedError
+    "cannot codegen foreign binary operator without a full binary application"
+
+  Foreign _ f _ ->
+    throwError $
+    UnexpectedError
+    ("cannot codegen " ++ show f ++ " without an application")
 
   Go _ e _ -> do
     ge <- genExpr e

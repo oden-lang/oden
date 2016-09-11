@@ -46,4 +46,7 @@ data ForeignExpr
   = ForeignBinaryOperator BinaryOperator
   | ForeignUnaryOperator UnaryOperator
   | ForeignSymbol Identifier
+  | BidirectionalChannel
+  | Receiver
+  | Sender
   deriving (Show, Eq, Ord)

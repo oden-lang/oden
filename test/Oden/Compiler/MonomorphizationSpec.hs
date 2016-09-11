@@ -1,22 +1,22 @@
 module Oden.Compiler.MonomorphizationSpec where
 
-import           Data.Set              as Set
+import           Data.Set                                as Set
 
 import           Test.Hspec
 
 import           Oden.Core.Definition
 import           Oden.Core.Expr
-import           Oden.Core.Monomorphed as Monomorphed
+import           Oden.Core.Monomorphed                   as Monomorphed
 import           Oden.Core.Package
-import           Oden.Core.Typed as Typed
+import           Oden.Core.Typed                         as Typed
 
 import           Oden.Identifier
 import           Oden.QualifiedName
-import qualified Oden.Type.Monomorphic as Mono
-import qualified Oden.Type.Polymorphic as Poly
+import qualified Oden.Type.Monomorphic                   as Mono
+import qualified Oden.Type.Polymorphic                   as Poly
 
-import           Oden.Compiler.Monomorphization.Fixtures
 import           Oden.Assertions
+import           Oden.Compiler.Monomorphization.Fixtures
 
 
 identityDef :: TypedDefinition
@@ -216,9 +216,22 @@ monomorphicValue =
   ( Poly.Forall missing [] Set.empty typeInt
   , Literal missing (Int 1) typeInt)
 
+monomorphicLet :: TypedDefinition
+monomorphicLet =
+  Definition
+  missing
+  (FQN (NativePackageName ["dependency", "pkg"]) (Identifier "number"))
+  ( Poly.Forall missing [] Set.empty typeInt
+  , Let
+    missing
+    (NameBinding missing (Identifier "n"))
+    (Literal missing (Int 1) typeInt)
+    (Symbol missing (Identifier "n") typeInt)
+    typeInt)
 
-usingMonomorphicValueFromImportedPackage :: TypedDefinition
-usingMonomorphicValueFromImportedPackage =
+
+usingMonomorphicLetFromImportedPackage :: TypedDefinition
+usingMonomorphicLetFromImportedPackage =
   Definition
   missing
   (FQN (NativePackageName ["my", "pkg"]) (Identifier "usingMonomorphic"))
@@ -230,22 +243,44 @@ usingMonomorphicValueFromImportedPackage =
       (Identifier "number"))
     typeInt)
 
-monomorphicValuePrefixed :: MonomorphedDefinition
-monomorphicValuePrefixed =
+inliningMonomorphicValueFromImportedPackage :: TypedDefinition
+inliningMonomorphicValueFromImportedPackage =
+  Definition
+  missing
+  (FQN (NativePackageName ["my", "pkg"]) (Identifier "usingMonomorphic"))
+  ( Poly.Forall missing [] Set.empty typeInt
+  , Literal missing (Int 1) typeInt)
+
+
+monomorphicLetPrefixed :: MonomorphedDefinition
+monomorphicLetPrefixed =
   MonomorphedDefinition
   missing
   (Identifier "__dependency_pkg__number")
   monoInt
-  (Literal missing (Int 1) monoInt)
+  (Let
+   missing
+   (NameBinding missing (Identifier "n"))
+   (Literal missing (Int 1) monoInt)
+   (Symbol missing (Identifier "n") monoInt)
+   monoInt)
 
 
-usingMonomorphicValueFromImportedPackageMonomorphed :: MonomorphedDefinition
-usingMonomorphicValueFromImportedPackageMonomorphed =
+usingMonomorphicLetFromImportedPackageMonomorphed :: MonomorphedDefinition
+usingMonomorphicLetFromImportedPackageMonomorphed =
   MonomorphedDefinition
   missing
   (Identifier "__my_pkg__usingMonomorphic")
   monoInt
   (Symbol missing (Identifier "__dependency_pkg__number") monoInt)
+
+inliningMonomorphicValueFromImportedPackageMonomorphed :: MonomorphedDefinition
+inliningMonomorphicValueFromImportedPackageMonomorphed =
+  MonomorphedDefinition
+  missing
+  (Identifier "__my_pkg__usingMonomorphic")
+  monoInt
+  (Literal missing (Int 1) monoInt)
 
 
 spec :: Spec
@@ -317,15 +352,36 @@ spec =
                          (TypedPackage
                           dependencyPkg
                           []
-                          [monomorphicValue])
+                          [monomorphicLet])
                         ]
-                        [usingMonomorphicValueFromImportedPackage])
+                        [usingMonomorphicLetFromImportedPackage])
       `shouldSucceedWith`
       MonomorphedPackage
         myPkg
         []
         Set.empty
         (Set.fromList
-         [ monomorphicValuePrefixed
-         , usingMonomorphicValueFromImportedPackageMonomorphed
+         [ monomorphicLetPrefixed
+         , usingMonomorphicLetFromImportedPackageMonomorphed
+         ])
+
+    it "inlines used imported monomorphic literal" $
+      monomorphPackage (TypedPackage
+                        myPkg
+                        [ImportedPackage
+                         (ImportReference missing ["my", "pkg"])
+                         (Identifier "pkg")
+                         (TypedPackage
+                          dependencyPkg
+                          []
+                          [monomorphicValue])
+                        ]
+                        [inliningMonomorphicValueFromImportedPackage])
+      `shouldSucceedWith`
+      MonomorphedPackage
+        myPkg
+        []
+        Set.empty
+        (Set.fromList
+         [ inliningMonomorphicValueFromImportedPackageMonomorphed
          ])

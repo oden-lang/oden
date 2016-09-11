@@ -9,8 +9,8 @@ import           Oden.SourceInfo
 import           Oden.Compiler
 import           Oden.Compiler.Monomorphization as Monomorphization
 
-import qualified Oden.Type.Monomorphic as Mono
-import qualified Oden.Type.Polymorphic as Poly
+import qualified Oden.Type.Monomorphic          as Mono
+import qualified Oden.Type.Polymorphic          as Poly
 
 monomorphPackage pkg =
   Monomorphization.monomorphPackage

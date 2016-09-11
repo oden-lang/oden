@@ -349,10 +349,72 @@ impls =
   ]
 
 foreignFns :: [(String, Scheme)]
-foreignFns = [
-  ("len", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt])),
-  ("print", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit])),
-  ("println", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit]))
+foreignFns =
+  [ ("len", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TSlice predefined (TVar predefined (TV "a"))] [typeInt]))
+  , ("print", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit]))
+  , ("println", Forall predefined [TVarBinding predefined (TV "a")] empty (TForeignFn predefined False [TVar predefined (TV "a")] [typeUnit]))
+
+  ]
+
+builtInFns :: [TypedDefinition]
+builtInFns =
+  [ Definition
+    predefined
+    (nameInUniverse "bidirectional_channel")
+    ( Forall
+      predefined
+      [TVarBinding predefined (TV "a")]
+      empty
+      (TFn
+       predefined
+       typeInt
+       (TApp predefined typeChannel (TVar predefined (TV "a"))))
+    , Foreign
+      predefined
+      BidirectionalChannel
+      (TFn
+       predefined
+       typeInt
+       (TApp predefined typeChannel (TVar predefined (TV "a"))))
+    )
+  , Definition
+    predefined
+    (nameInUniverse "receiver")
+    ( Forall
+      predefined
+      [TVarBinding predefined (TV "a")]
+      empty
+      (TFn
+       predefined
+       (TApp predefined typeChannel (TVar predefined (TV "a")))
+       (TApp predefined typeReceiver (TVar predefined (TV "a"))))
+    , Foreign
+      predefined
+      Receiver
+      (TFn
+       predefined
+       (TApp predefined typeChannel (TVar predefined (TV "a")))
+       (TApp predefined typeReceiver (TVar predefined (TV "a"))))
+    )
+  , Definition
+    predefined
+    (nameInUniverse "sender")
+    ( Forall
+      predefined
+      [TVarBinding predefined (TV "a")]
+      empty
+      (TFn
+       predefined
+       (TApp predefined typeChannel (TVar predefined (TV "a")))
+       (TApp predefined typeSender (TVar predefined (TV "a"))))
+    , Foreign
+      predefined
+      Receiver
+      (TFn
+       predefined
+       (TApp predefined typeChannel (TVar predefined (TV "a")))
+       (TApp predefined typeSender (TVar predefined (TV "a"))))
+    )
   ]
 
 types :: [(String, Type)]
@@ -362,9 +424,9 @@ types = [
   ("string", typeString),
   ("bool", typeBool),
   ("unit", typeUnit),
-  ("channel", typeChannel),
-  ("receiver", typeReceiver),
-  ("sender", typeSender)
+  ("Channel", typeChannel),
+  ("Receiver", typeReceiver),
+  ("Sender", typeSender)
   ]
 
 universe :: TypedPackage
@@ -374,6 +436,7 @@ universe =
   []
   (concat [ map toProtocolDef protocols
           , map toForeignDef foreignFns
+          , builtInFns
           , map toTypeDef types
           , map (Implementation predefined) impls
           ])
