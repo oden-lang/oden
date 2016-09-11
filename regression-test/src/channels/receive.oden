@@ -1,7 +1,7 @@
 package channels/receive/main
 
-countDown(n) = {
-  if n <= 0 then "I'm slow." else countDown(n - 1)
+count_down(n) = {
+  if n <= 0 then "I'm slow." else count_down(n - 1)
 }
 
 main : -> ()
@@ -9,7 +9,7 @@ main() =
   let c = bidirectional_channel(2)
       r = receiver(c)
       s = sender(c)
-      msg = go countDown(1000000)
+      msg = go count_down(1000000)
   in {
     println("Running...")
     s <- "I'm fast!"
