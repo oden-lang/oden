@@ -58,7 +58,7 @@ methods. The following example shows both those transformations.
 
     plus(x, y, z) = x + y + z
     // becomes...
-    plus = (x) -> (y) -> (z) -> Num::Add(Num::Add(x, y), z)
+    plus = (x) -> (y) -> (z) -> Num::add(Num::add(x, y), z)
 
 ## Untyped Validation
 
@@ -162,11 +162,11 @@ To inspect the result of monomorphization you can use the subcommand
 
     import foreign strconv
 
-    __error_method_Error_inst_int_to_string : int -> string
-    __error_method_Error_inst_int_to_string(code) = (+)("E")(((_g0) -> strconv.Itoa(_g0))(code))
+    __error_method_error_inst_int_to_string : int -> string
+    __error_method_error_inst_int_to_string(code) = (+)("E")(((_g0) -> strconv.Itoa(_g0))(code))
 
-    __error_method_Error_inst_record__row__error___string___to_string : {error: string} -> string
-    __error_method_Error_inst_record__row__error___string___to_string(e) = (+)(e.error)(" (no message)")
+    __error_method_error_inst_record__row__error___string___to_string : {error: string} -> string
+    __error_method_error_inst_record__row__error___string___to_string(e) = (+)(e.error)(" (no message)")
     ...
 
 ## Instantiate

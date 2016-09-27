@@ -98,8 +98,8 @@ parenthesis. Here's how you define a function that returns unit and use
 that function to perform a side effect.
 
 ```{.oden language=oden}
-brewCoffee : Amount -> ()
-brewCoffee(amount) = {
+brew_coffee : Amount -> ()
+brew_coffee(amount) = {
   // do the actual coffee brewing here
 
   // then return unit
@@ -109,14 +109,14 @@ brewCoffee(amount) = {
 
 Often the side effect functions you use already return unit, which means
 you don't need to explicitly return unit like in the previous example.  In
-the following example we use our `brewCoffee` function and then print to
+the following example we use our `brew_coffee` function and then print to
 the console. We return unit by ending with the application of the `println`
 function, as it returns unit.
 
 ```{.oden language=oden}
-coffeeBreak : -> ()
-coffeeBreak() = {
-  brewCoffee(twoCups)
+coffee_break : -> ()
+coffee_break() = {
+  brew_coffee(two_cups)
   println("All right, ready to code again!")
 }
 ```
@@ -166,15 +166,15 @@ applications*](#protocols). The following table shows what they expand to.
 
 Operator  Protocol  Method
 --------  --------  ------
-`-`       Num       Negate
-`!`       Logical   Not
-`+`       Num       Add
-`-`       Num       Subtract
-`*`       Num       Multiply
-`/`       Num       Divide
-`&&`      Logical   Conjunction
-`||`      Logical   Disjunction
-`++`      Monoid    Apply
+`-`       Num       negate
+`!`       Logical   not
+`+`       Num       add
+`-`       Num       subtract
+`*`       Num       multiply
+`/`       Num       divide
+`&&`      Logical   conjunction
+`||`      Logical   disjunction
+`++`      Monoid    apply
 
 With operator expansion we can *overload* all operators with our own
 types, as they are aliases for protocol methods. For more information on
@@ -245,15 +245,15 @@ the literal `4`.
 
 ```{.oden language=oden}
 square(x) = x * x
-squareOfFour = square(4)
+square_of_four = square(4)
 ```
 
 We can also define functions that take no arguments. In the following
-expression the function `makeNum` is applied with no argument to give us
+expression the function `make_num` is applied with no argument to give us
 some number. This is useful for deferring a computation until it's needed.
 
 ```{.oden language=oden}
-makeNum() * makeNum()
+make_num() * make_num()
 ```
 
 ### Recursion
@@ -288,18 +288,18 @@ increment(x) = x + 1
 
 Types of functions that take no argument are written in a similar way -- you
 just omit the parameter type before the arrow. The following code specifies the
-type of our `makeNum` function.
+type of our `make_num` function.
 
 ```oden
-makeNum : -> int
-makeNum() = 3
+make_num : -> int
+make_num() = 3
 ```
 
 If we only write the type signature and omit the definition, we will get a
 compiler error.
 
 ```{.oden language=oden}
-anotherFunction : forall a b. a -> b -> a
+another_function : forall a b. a -> b -> a
 // definition is missing!
 ```
 
@@ -348,19 +348,19 @@ In other words, `a -> (b -> c)` and `a -> b -> c` are equivalent.
 With currying you can apply a function to its first argument, get another
 function back, and use that function later -- similar to [partial application](
 https://en.wikipedia.org/wiki/Partial_application).  In the following code we
-create function `personSays` that takes two strings.  We apply the function
+create function `person_says` that takes two strings.  We apply the function
 with only one string and get a function back. Later we apply it with the other
 string to actually print something.
 
 ```{.oden .playground-runnable language=oden}
 package main
 
-personSays(who, what) =
+person_says(who, what) =
   println(who ++ " says: " ++ what)
 
-simonSays = personSays("Simon")
+simon_says = person_says("Simon")
 
-main() = simonSays("write a program in Oden")
+main() = simon_says("write a program in Oden")
 ```
 
 #### Go Functions
@@ -411,9 +411,9 @@ expressions, even if you have only a single expression in each block.
 
 ```{.oden language=oden}
 if 10 + 20 == 30 then {
-  thisFunctionCallIsVeryLengthy()
+  this_function_call_is_very_lengthy()
 } else {
-  andPerhapsThisOneAlso()
+  and_perhaps_this_one_also()
 }
 ```
 
@@ -568,8 +568,8 @@ subscript operator multiple times. The following example creates a
 multi-dimensional slice and access an inner element.
 
 ```
-twoLevelSlice = []{[]{1, 2, 3}, []{4, 5, 6}}
-isSix = twoLevelSlice[1][2] == 6
+two_level_slice = []{[]{1, 2, 3}, []{4, 5, 6}}
+is_six = two_level_slice[1][2] == 6
 ```
 
 ## Records
@@ -633,11 +633,11 @@ value and accessing its field `attack`, and the nested `damage` and
 `cooldown` fields.
 
 ```{.oden language=oden}
-damagePerMinute(p) =
+damage_per_minute(p) =
   p.attack.damage * 60 / p.attack.cooldown
 ```
 
-The type of `damagePerMinute` is inferred to take an argument `p` of the
+The type of `damage_per_minute` is inferred to take an argument `p` of the
 following type.
 
 ```{.oden language=oden}
@@ -670,13 +670,13 @@ variable after the set of fields.
 ```{include=src/listings/syntax-record-type-extension.html formatted=true}
 ```
 
-The following type signature says that `getName` takes any record with at least
+The following type signature says that `get_name` takes any record with at least
 the field `name` with type `string`. When instantiated with a concrete record
 type the row variable `r` will be bound to a row all fields of the record
 except `name`.
 
 ```
-getName : forall r. { name : string | r } -> string
+get_name : forall r. { name : string | r } -> string
 ```
 
 For more information on these concepts, see @gaster1996polymorphic and
@@ -774,11 +774,11 @@ type Point2D = { x: int, y: int }
 // We implement the built-in Monoid protocol
 // for Point2D.
 impl Monoid(Point2D) {
-  Apply(p1, p2) = {
+  apply(p1, p2) = {
     x = p1.x + p2.x,
     y = p1.y + p2.y
   }
-  Identity = { x = 0, y = 0 }
+  identity = { x = 0, y = 0 }
 }
 
 // Let's create some points.
