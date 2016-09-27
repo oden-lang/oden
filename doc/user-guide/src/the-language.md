@@ -805,3 +805,88 @@ Protocols are not compatible with Go interfaces yet.
 The concept of protocols is not new, in fact it is very similar to [_type
 classes_](https://www.haskell.org/tutorial/classes.html) in Haskell and
 [_traits_](https://doc.rust-lang.org/book/traits.html) in Rust.
+
+## Channels
+
+Oden supports Go _channels_, with a couple of twists. First, there is a single
+type for channels, called `Channel`. You create a `Channel` using the built-in
+function `bidirectional_channel`, which takes a buffer size as its only
+argument.
+
+```{.oden language=oden}
+msgs = bidirectional_channel(2)
+```
+
+A `Channel` itself can not be used to send or receive values. Instead you must
+we separate `Receiver` and `Sender` typed values. These can be used to send
+values on the channel, and receive values from the channel, respectively. The
+two built-in functions `receiver` and `sender` both take a `Channel` value as
+their only argument.
+
+```{.oden language=oden}
+incoming = receiver(msgs)
+outgoing = sender(msgs)
+```
+
+Go has special types for directed channels, denoted by the `chan->` and `<-chan`
+keywords. Oden does not support directed channels. By having separate
+`Channel`, `Sender`, and `Receiver` types, there is no need for special syntax
+and special cases in the type system.
+
+### Sending and Receiving
+
+Sending and receiving is performed by the infix and prefix versions of `<-`.
+The infix version for sending takes a `Sender` and a value.
+
+```{include=src/listings/syntax-send.html formatted=true}
+```
+
+The prefix version for receiving takes a `Receiver`.
+
+```{include=src/listings/syntax-receive.html formatted=true}
+```
+
+In the following example we create a channel, and then a receiver and a sender.
+We send two strings, receive them back, and print them.
+
+```{.oden language=oden}
+  let c = bidirectional_channel(2)
+      r = receiver(c)
+      s = sender(c)
+  in {
+    s <- "hello"
+    s <- "and goodbye"
+    println(<-r)
+    println(<-r)
+  }
+```
+
+### Go Expressions
+
+The `go` keyword in Go denotes a _go statement_, a way of calling a function in
+a new goroutine. In Oden the `go` keyword is an expression, and the argument
+can be any expression, not only a function call.
+
+```{include=src/listings/syntax-go.html formatted=true}
+```
+
+A go expression evaluates to a value of type `Receiver`. The underlying channel
+has a single value, which is whatever the _go-expression_ evaluates to.
+
+```{.oden .playground-runnable language=oden}
+package main
+
+main() =
+  let r = go "hello"
+  in println(<-r)
+```
+
+Go expressions provides a handy way of doing parallelizing long-running calls
+and bringing the results together.
+
+```{.oden language=oden}
+let lisa = go find_user("lisa")
+    bob = go find_user("bob")
+    alice = go find_user("alice")
+in common_friends(<-lisa, <-bob, <-alice)
+```
