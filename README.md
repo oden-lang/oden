@@ -1,8 +1,6 @@
-# Oden Programming Language
+# Oden Programming Language (NO LONGER IN ACTIVE DEVELOPMENT)
 
 [![Build Status](https://travis-ci.org/oden-lang/oden.svg?branch=master)](https://travis-ci.org/oden-lang/oden)
-
-**EXPERIMENTAL!**
 
 Oden is an **experimental**, statically typed, functional programming language,
 built for the Go ecosystem. It aims to leverage the great features of Go —
